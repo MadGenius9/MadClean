@@ -34,6 +34,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeMadCleanUpdates();
         InitializeDiscovery();
         InitializeFirmwareDiscovery();
+        InitializeHardwareDiscovery();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }

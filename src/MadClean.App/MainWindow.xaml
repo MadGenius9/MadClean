@@ -54,6 +54,7 @@
                     <ListBoxItem Content="Leftover review"/>
                     <ListBoxItem Content="Capability queue"/>
                     <ListBoxItem Content="Activity"/>
+                    <ListBoxItem Content="Hardware Upgrades"/>
                 </ListBox>
             </DockPanel>
         </Border>
@@ -377,7 +378,7 @@
                                             </DataGrid.Columns>
                                         </DataGrid>
                                         <TextBox Text="{Binding FirmwareOfferDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="145" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,12"/>
-                                        <TextBlock Text="No firmware assets are bundled or fetched by MadClean. No flash, install, encryption-setting change, purchase or restart is performed. Hardware Upgrades is a later queued tab; detected facts do not establish upgrade limits." Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="No firmware assets are bundled or fetched by MadClean. No flash, install, encryption-setting change, purchase or restart is performed. Hardware Upgrades offers explicit read-only inventory; manufacturer verification and advice remain queued. Detected facts do not establish upgrade limits." Style="{StaticResource Caption}"/>
                                         <Button Content="View incremental capability queue" Command="{Binding CapabilityQueueCommand}" HorizontalAlignment="Left" Background="#343E52" Foreground="White"/>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -566,6 +567,39 @@
                         </StackPanel>
                         <ListBox Grid.Row="1" ItemsSource="{Binding Activity}" Background="#171C27" Foreground="#C5D1E6" BorderThickness="0" Padding="14"/>
                     </Grid>
+                </TabItem>
+                <TabItem Header="Hardware Upgrades">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Hardware Upgrades" Style="{StaticResource SectionTitle}"/>
+                            <TextBlock Text="Detected facts first. Compatibility needs separate evidence." FontSize="19" Margin="0,0,0,12"/>
+                            <TextBlock Text="Read-only PC, motherboard, CPU, RAM, GPU and storage observations. Windows/firmware may report incomplete or inaccurate values; detected hardware is not proof an upgrade is supported." Style="{StaticResource Caption}"/>
+                            <Button Content="Read hardware inventory" Command="{Binding ReadHardwareCommand}" HorizontalAlignment="Left" Margin="0,12,0,12"/>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding HardwareMessage}" Style="{StaticResource Caption}"/>
+                                    <TextBlock Text="{Binding HardwareAttemptTime, StringFormat='Last local query attempt: {0}'}" FontSize="12" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <DataGrid ItemsSource="{Binding HardwareFacts}" SelectedItem="{Binding SelectedHardwareFact, Mode=TwoWay}" Height="310" AutomationProperties.Name="Detected hardware facts">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110"/>
+                                    <DataGridTextColumn Header="Component" Binding="{Binding Component}" Width="115"/>
+                                    <DataGridTextColumn Header="Reported property" Binding="{Binding Property}" Width="*"/>
+                                    <DataGridTextColumn Header="Reported value" Binding="{Binding Value}" Width="2*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBox Text="{Binding HardwareFactDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="125" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,12,0,12" AutomationProperties.Name="Selected hardware fact and source"/>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="Manufacturer-verified limits: Not checked" FontSize="17"/>
+                                    <TextBlock Text="Exact-model/revision RAM limits/types, supported CPUs and required BIOS, expansion and storage specifications are queued. Reported board version is not a verified PCB revision; reported device entries do not establish free physical slots or upgradeability." Style="{StaticResource Caption}" Margin="0,8,0,8"/>
+                                    <TextBlock Text="Manual checks required" FontSize="17"/>
+                                    <TextBlock Text="PSU capacity/connectors, case/GPU clearance, free physical slots and soldered-memory upgradeability remain Unknown. Budget/use-case advice is queued until compatibility can be verified. No purchases, firmware updates or other hardware changes run here." Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
             <StackPanel Grid.Row="3" Margin="0,18,0,0">

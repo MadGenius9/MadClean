@@ -53,13 +53,13 @@ On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PA
 
 [Capability queue and action gates](docs/CAPABILITIES.md) · [Official workflow benchmark](docs/WORKFLOW-BENCHMARK.md). The existing phase-one features remain intact; cleanup execution, startup changes, supported uninstall execution and deeper leftover ownership analysis are queued explicitly.
 
-## BIOS / Firmware and later Hardware Upgrades
+## BIOS / Firmware and Hardware Upgrades
 
 Update Center's **Apps**, **Drivers**, and **BIOS / Firmware** categories keep distinct evidence and coverage. The BIOS page reports available CIM PC/model/SKU, motherboard and installed BIOS/date fields as **firmware-reported**; the reported board version is not necessarily a verified PCB revision. Windows Update firmware-class offers include source, package date/description and attempt time, but can concern device firmware rather than the system BIOS. Installed/available versions are never guessed from titles or dates: available BIOS version, exact-model applicability, release notes and prerequisites remain **Unknown** until verified.
 
 The first official guide catalog is generic **Microsoft Surface only**, via explicit browser actions; it is not exact-model/revision matching. Other manufacturers are Unsupported until their official references/adapters are verified. OEM PCs/laptops require OEM firmware, never a similarly named retail board's BIOS. No assets, flashes, silent installs, encryption changes or restarts occur. See [firmware source/precaution contracts and staged matching](docs/FIRMWARE-UPDATES.md).
 
-A later [Hardware Upgrades tab](docs/HARDWARE-UPGRADES.md) is explicitly queued: read-only CPU/RAM/GPU/storage inventory, then exact-model official RAM/CPU/required-BIOS/expansion/storage specifications, then budget/use-case-gated advice. Detected facts, manufacturer-verified limits and manual checks stay separate. PSU/connectors, clearance, free physical slots and soldered-memory upgradeability are never inferred. This request authorizes no purchase or BIOS update.
+The [Hardware Upgrades tab](docs/HARDWARE-UPGRADES.md) starts with a separate **Read hardware inventory** action for allowlisted local CIM PC/motherboard/CPU/RAM/GPU/storage facts, with exact provider sources and query-attempt time. It does not run with Scan local, contact manufacturers, or collect serial numbers/UUIDs/service tags. Missing, malformed, inaccessible or truncated provider data stays Unknown/Partial/Failed; these observations are not compatibility advice. Exact-model official RAM/CPU/required-BIOS/expansion/storage specifications and budget/use-case-gated advice remain queued. Detected facts, manufacturer-verified limits and manual checks stay separate. PSU/connectors, clearance, free physical slots and soldered-memory upgradeability are never inferred. This request authorizes no purchase or BIOS update.
 
 ## MadClean updates and the in-app reminder
 
