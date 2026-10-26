@@ -1,0 +1,71 @@
+# Later duplicate-file and shortcut review modules
+
+**Roadmap only. Neither module is implemented or enabled in the first milestone.** These stages add no scanner, content hashing, shortcut resolution or removal to ordinary MadClean inventory. The existing foundation and its user-controlled discovery remain intact. No duplicate-file scan, shortcut resolution or removal was run for this roadmap update.
+
+## F1 — read-only duplicate-file discovery
+
+1. Start only after the user selects folders and reviews the scope. The first slice supports available local folders, bounded work and explicit exclusions; no automatic whole-PC scan, network-share crawl or cloud-file hydration. Exclude known protected/system/application roots by default, including Windows, Program Files, installation/cache locations, registered app install paths, AppData and credential stores. Refuse an excluded root with a reason rather than silently widening scope. Unknown ownership is not evidence that a folder is safe to clean.
+2. Explain that this feature reads file contents, unlike the existing metadata-only disk map. Do not retain/upload contents, persist content-derived fingerprints without a separate explicit policy, trigger downloads or force access to locked files. Inaccessible, offline, placeholder, changing or unsupported objects are skipped/unknown with reasons. Exclusions are protection boundaries, not proof that every remaining file is disposable.
+3. Use size and a full-content cryptographic digest only to narrow potential groups. Similar names, extensions, timestamps, thumbnails, sizes or partial/sample hashes are not duplicate proof. Confirm matching contents by complete byte comparison against the group's verified reference under a consistent file/stream policy. Hash collisions or unread/changed bytes must not become confirmed duplicates.
+4. Define the content scope explicitly. If alternate data streams cannot be inspected and verified, exclude such files from confirmed whole-file duplicate groups or label the finding as an unnamed-stream-only match with no removal eligibility. Content equality does not mean equal metadata, permissions, application purpose or safe deletion.
+5. Use supported Windows file identity information from open handles (volume serial + 128-bit FILE_ID_INFO identity, with link counts where supported) to distinguish independent files from hard-link aliases. Multiple names for the same file object are not independent copies or repeated reclaimable bytes. Show hard-link relationships separately; do not propose hard-link removal as ordinary duplicate cleanup. Identity unavailable is unknown, never guessed from paths. ReFS 64-bit BY_HANDLE IDs are not guaranteed unique and file IDs can be reused over time, so a cached ID does not replace fresh open-handle verification.
+6. Do not traverse reparse points. Validate selected-root ancestry from root down, reject link/junction traversal, and use handle-based identity/reparse checks where required. Do not follow a renamed path into a different object. A path-only scan is a snapshot and does not authorize later removal.
+7. Detect changes during reads/comparison using handle identity, size/timestamps and supported consistency checks; inability to establish a stable comparison makes the affected group unknown. Cancellation, limits, access failures and partial coverage stay explicit. Keep UI responsive and show observed work without unsupported speed or time-to-completion claims.
+
+### Read-only group preview
+
+Show every exact selectable/copyable path, observed logical size, comparison status/method, snapshot time, hard-link/file-identity relationship, exclusions/errors and coverage. Distinguish **potential match**, **content verified**, **same-file aliases**, **changed/unreadable** and **unknown**. An empty group list after partial discovery does not prove there are no duplicates.
+
+Size is not a safety verdict. Never label a confirmed content match “junk,” or present summed pathname lengths as guaranteed recoverable disk space. Physical allocation, compression, sparse files and hard-link accounting can differ. Group order or name similarity must not silently choose removals.
+
+## F2 — later manual, reviewed duplicate actions
+
+- Ship separately after F1 Windows validation. No preselected removals, unattended deletion or automatic “keep newest” operation. The user chooses the retained copy and exact paths to act on; preview full paths, sizes, identities, protected/shared-data implications and actual proposed action.
+- Preserve at least one verified, accessible **independent retained copy** of the content. A hard-link alias is not a separate backup. Revalidate the entire selected group and keeper immediately before any change; missing/changed/unreadable keeper or uncertain identity blocks the action. Do not let cross-group selections remove every independent copy. Fresh pre-checks alone are insufficient: maintain supported handle-based identity/content consistency and keeper protection through each selected removal, including protection against deletion/rename/modification of the retained copy. If that protection cannot be established or is lost, block/stop the action and require a new review; do not close the handles and then act on stale path strings.
+- Recheck content/stream equality and target identity, not only the old hash or path. A stale preview invalidates the selection. Application dependencies, user data, saves and settings are not disposable merely because bytes match; protect them and require explicit informed selection for any eligible future action.
+- Prefer supported reversible removal where available, disclose when recovery cannot be guaranteed, and require confirmation of the exact selected changes. Restore points do not recover deleted files. Show real per-item outcomes, cancellation/partial results and recovery limits; never claim success from a button click or partial failure.
+- Protect hard-linked objects from ordinary removal by default. Any later specialized unlink workflow needs a separate exact-path/link-count preview and validation; removing one name commonly frees no content allocation. No automatic linking/deduplication, application replacement or forced elevation is included.
+
+## S1 — read-only shortcut-target discovery
+
+1. Scan only user-selected shortcut locations, with bounded enumeration and cancellation. Start with supported Windows `.lnk` inspection; `.url`, installer-advertised, packaged, shell namespace and other shortcut forms require their own validated source/semantics before support is claimed. Do not treat them as local filenames by guesswork.
+2. Use supported read-only shortcut interfaces to inspect stored target information: read-only IPersistFile.Load and IShellLinkW.GetPath with SLGP_RAWPATH. Empty/S_FALSE, unresolved variables, ambiguous/truncated or unsupported long paths remain unknown. Do not call IShellLinkW.Resolve during passive discovery; SLR_NO_UI suppresses dialogs but does not disable its other side effects. Do not launch the shortcut/target, activate an advertised installer, search drives, track/move a target, update/save the shortcut, fetch shortcut-specified icons/previews, prompt for credentials or silently resolve network resources as a discovery side effect. Shortcut arguments and working-directory metadata may contain secrets; minimize their collection and never write them to the activity log.
+3. For a supported filesystem target, inspect its availability only under an explicit local-scope policy. Validate drive/mount availability, access and reparse ancestry before classifying absence. A stored path, failed `Directory.Exists`/`File.Exists`, empty target string or exception alone does not prove a broken shortcut.
+4. Distinguish the observations below, retaining the exact reason and coverage. A missing local target is still evidence for user review, not proof that a shortcut is genuinely obsolete.
+
+| Observation | Required classification / explanation |
+| --- | --- |
+| Available supported local target exists | **Target exists**; no promise that launching it or its arguments will work. Never execute it to test. |
+| Exact supported local target is absent on an available, accessible local volume, with sufficient validated metadata | **Local target missing**; show evidence and time of check. User decides obsolescence; do not auto-delete. |
+| Offline/removable drive, unavailable mount, cloud placeholder or temporarily unavailable target | **Unknown / temporarily unavailable**; not confirmed broken. Do not force mount or hydration. |
+| Network/UNC target, disconnected share, authentication requirement or deferred network inspection | **Unknown / network target not verified**; no unsolicited connection, credential prompt or broken verdict. |
+| Permission denial, changed path/object, link/junction ambiguity, unsupported target type or unresolved environment/context | **Unknown / unsupported**, with the reason. Never collapse into missing. |
+| Invalid/malformed/empty shortcut metadata | **Unresolved metadata**, with parse/format reason. It is not proof of an obsolete target or authorization to remove the shortcut. |
+| Advertised installer, shell namespace/PIDL, packaged app or other non-file target | **Unknown / unsupported until correctly resolved by a supported read-only contract**; no activation, install/repair or guessed filesystem absence. |
+
+The preview shows shortcut path, stored/interpreted target where safe, target kind, availability classification, reason, check time and source/coverage. Paths and reasons are selectable and copyable. Do not display “broken” as a generic bucket for every unresolved target. Ordinary inventory never starts this scan implicitly.
+
+## S2 — later selected obsolete-shortcut removal
+
+The user selects genuinely obsolete shortcuts after inspecting the S1 evidence. Show each **shortcut file's** exact path and identity, target information, reason and intended removal; no default mass selection. Revalidate the shortcut and target-availability context immediately before action. Changed, offline, network, unsupported, inaccessible or temporary cases remain ineligible/unknown by default. A restored target clears a stale missing observation.
+
+Any action affects only the explicitly selected shortcut entry, never its target application, directory, data or another link. Reparse-point shortcut entries and uncertain identities are blocked. Use a reviewed supported reversible mechanism where possible, disclose recovery limits, and record actual per-item results/cancellation. No target cleanup, installer activation or automatic deletion is included.
+
+## Incremental acceptance gates
+
+- **F1:** real fixture files and collision/same-size/different-content cases; filenames-only matches rejected; full-byte/stream policy; hard-link aliases; reparse ancestors/loops; locked/changed files; offline/cloud/protected scopes; bounded work and cancellation. Validate on disposable Windows filesystems with actual supported identity APIs; no production hashes or sample matches injected into UI.
+- **F2:** exact selection/keeper invariants, cross-group hard links, last-copy prevention, fresh identity/content checks, partial failures, reversible-action/recovery limitations and actual logs. No personal-PC deletion tests.
+- **S1:** actual shortcut fixtures for existing/missing local targets, absent/offline drives, network/auth cases, access denial, environmental/context targets, malformed metadata, advertised/namespace links and changed targets. Demonstrate no activation, search/tracking/save, network credential prompt or automatic repair. Windows COM/provider behavior cannot be verified by Linux compilation.
+- **S2:** exact shortcut-only selection, fresh target/entry checks, unknown-state blocking, changed/restored targets, recovery and per-item cancellation/results. Prove no target/application file is touched.
+
+Each stage can ship independently after its review. Neither discovery result authorizes a later action. Original phase-one features remain available while these capabilities are queued.
+
+## Official Microsoft implementation references
+
+These sources were checked for this roadmap; revalidate supported OS/API behavior before implementing each stage.
+
+- [FILE_ID_INFO](https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_id_info), [BY_HANDLE_FILE_INFORMATION](https://learn.microsoft.com/windows/win32/api/fileapi/ns-fileapi-by_handle_file_information), and [hard links and junctions](https://learn.microsoft.com/windows/win32/fileio/hard-links-and-junctions): same-file identity, link accounting, ReFS/identifier limitations and why aliases are not independent copies or repeated recoverable storage.
+- [IPersistFile.Load](https://learn.microsoft.com/windows/win32/api/objidl/nf-objidl-ipersistfile-load) and [IShellLinkW.GetPath](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-getpath): read-only link metadata and raw path/empty-result/path-length limitations.
+- [IShellLinkW.Resolve](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-resolve): search/tracking/UI/MSI/update behavior that must be excluded from passive inspection; suppressing UI alone is insufficient.
+- [MsiGetShortcutTargetW](https://learn.microsoft.com/windows/win32/api/msi/nf-msi-msigetshortcuttargetw) and [Shell links](https://learn.microsoft.com/windows/win32/shell/links): advertised installer and namespace/PIDL cases need supported context, not a guessed missing filesystem target.
+- [GetFileAttributesW](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getfileattributesw): retain the reason for lookup failure; a failed lookup alone cannot distinguish genuine missing local targets from unavailable or inaccessible ones.
