@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "madclean.core": {
+        "type": "Project"
+      },
+      "madclean.windows": {
+        "type": "Project",
+        "dependencies": {
+          "MadClean.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

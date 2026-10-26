@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <UseWPF>true</UseWPF>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AssemblyName>MadClean</AssemblyName>
+        <Version>0.1.0</Version>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="../MadClean.Core/MadClean.Core.csproj"/>
+        <ProjectReference Include="../MadClean.Windows/MadClean.Windows.csproj"/>
+    </ItemGroup>
+</Project>

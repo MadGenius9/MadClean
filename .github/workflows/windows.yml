@@ -1,0 +1,44 @@
+name: Windows build and package
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-test-package:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore MadClean.sln --locked-mode
+      - name: Build
+        run: dotnet build MadClean.sln -c Release --no-restore
+      - name: Core boundary tests on Windows
+        run: dotnet test tests/MadClean.Tests -c Release --no-build --logger "trx;LogFileName=core-windows.trx" --results-directory artifacts/test-results
+      - name: Publish Windows x64 executable (not a UI runtime test)
+        run: dotnet publish src/MadClean.App/MadClean.App.csproj -c Release -r win-x64 --self-contained true -p:MadCleanPackage=true -p:PublishSingleFile=true -p:PublishTrimmed=false -p:IncludeNativeLibrariesForSelfExtract=true -p:RestoreLockedMode=true -o artifacts/win-x64
+      - name: Package and hash
+        shell: pwsh
+        run: |
+          Copy-Item README.md artifacts/win-x64/README.md
+          Copy-Item docs/VALIDATION.md artifacts/win-x64/VALIDATION.md
+          $hash = (Get-FileHash artifacts/win-x64/MadClean.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  MadClean.exe" | Set-Content artifacts/win-x64/SHA256SUMS.txt
+          Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/MadClean-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MadClean-win-x64-and-test-results
+          path: |
+            artifacts/MadClean-win-x64.zip
+            artifacts/test-results/*.trx
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,165 @@
+using System.ComponentModel;
+using System.Text;
+using System.Text.Json;
+using MadClean.Core;
+using Microsoft.Win32;
+
+namespace MadClean.Windows;
+
+public sealed class WindowsInventory : IComputerInventory
+{
+    private readonly ReadOnlyProcess runner = new();
+    private static readonly string Powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+    public IReadOnlyList<CleanupLocation> CleanupLocations =>
+    [
+        new("User temporary files", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp")),
+        new("Windows temporary files", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp"))
+    ];
+
+    public Task<CheckResult<DiskInfo>> DisksAsync(CancellationToken token) => Task.Run(() =>
+    {
+        List<DiskInfo> disks = []; int failures = 0;
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                if (drive.DriveType == DriveType.Fixed && drive.IsReady)
+                    disks.Add(new(drive.Name, drive.TotalSize, drive.AvailableFreeSpace));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { failures++; }
+        }
+        return new CheckResult<DiskInfo>(failures > 0 ? CheckState.Partial : CheckState.Available,
+            failures > 0 ? "Some local disks could not be read. Check drive access." : "Available space for the current user; fixed local disks only.", disks);
+    }, token);
+
+    public Task<CheckResult<StartupEntry>> StartupAsync(CancellationToken token) => Task.Run(() =>
+    {
+        List<StartupEntry> entries = []; int failures = 0;
+        foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+            foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+                foreach (var name in new[] { "Run", "RunOnce" })
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        using var key = RegistryKey.OpenBaseKey(hive, view);
+                        using var startup = key.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\" + name, false);
+                        if (startup == null) continue;
+                        foreach (var value in startup.GetValueNames())
+                        {
+                            token.ThrowIfCancellationRequested();
+                            // Deliberately do not collect command lines: they can contain tokens/passwords.
+                            entries.Add(new(value, $"{hive} / {view} / {name}", "Unknown", "Registered entry; enabled state and target not verified."));
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { failures++; }
+                }
+        foreach (var folder in new[] { Environment.SpecialFolder.Startup, Environment.SpecialFolder.CommonStartup })
+        {
+            token.ThrowIfCancellationRequested();
+            var path = Environment.GetFolderPath(folder);
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) continue;
+                if (HasReparseAncestor(path)) { failures++; continue; }
+                foreach (var file in Directory.EnumerateFiles(path))
+                {
+                    token.ThrowIfCancellationRequested();
+                    if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0) continue;
+                    entries.Add(new(Path.GetFileName(file), folder.ToString(), "Unknown", "Startup folder item; shortcut target and enabled state not verified."));
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { failures++; }
+        }
+        return new CheckResult<StartupEntry>(failures > 0 ? CheckState.Partial : CheckState.Available,
+            $"Run/RunOnce (both registry views) and Startup folders. Publishers unknown without verified targets. Scheduled tasks, services and packaged startup tasks are outside this inventory. {failures} sources inaccessible.", entries);
+    }, token);
+
+    public Task<CheckResult<DefenderInfo>> DefenderAsync(CancellationToken token) => QueryAsync(async () =>
+    {
+        var result = await PowerShellAsync(DefenderScript, TimeSpan.FromSeconds(45), token);
+        if (result.ExitCode == 3) return CheckResult<DefenderInfo>.Empty(CheckState.Unavailable, "Defender cmdlets are unavailable. Check Windows Security and installed protection.");
+        if (result.ExitCode != 0) return Failure<DefenderInfo>("Defender", result.ExitCode, "Open Windows Security to check provider access and service status.");
+        return WindowsResponseParser.Defender(result.Output);
+    }, "Defender", token);
+
+    public Task<CheckResult<AppUpdate>> AppsAsync(CancellationToken token) => QueryAsync(async () =>
+    {
+        // App execution alias: never resolve winget from a writable working-directory/PATH entry.
+        var winget = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
+        if (!File.Exists(winget)) return CheckResult<AppUpdate>.Empty(CheckState.Unavailable, "WinGet is unavailable for this user. Install or repair Microsoft's App Installer, then retry.");
+        var result = await runner.RunAsync(winget, ["list", "--source", "winget", "--disable-interactivity"], TimeSpan.FromSeconds(90), token);
+        if (result.ExitCode != 0) return Failure<AppUpdate>("WinGet", result.ExitCode,
+            "Open WinGet manually to review source agreements, network access or version compatibility; MadClean never accepts agreements silently.");
+        return WingetParser.Parse(result.Output);
+    }, "WinGet", token);
+
+    public Task<CheckResult<SystemUpdate>> SystemUpdatesAsync(CancellationToken token) => QueryAsync(async () =>
+    {
+        var result = await PowerShellAsync(UpdateScript, TimeSpan.FromMinutes(3), token);
+        if (result.ExitCode != 0) return Failure<SystemUpdate>("Windows Update", result.ExitCode,
+            "Check Windows Update service, network and organizational policy in Windows Settings, then retry.");
+        return WindowsResponseParser.SystemUpdates(result.Output);
+    }, "Windows Update", token);
+
+    private Task<ProcessResult> PowerShellAsync(string script, TimeSpan timeout, CancellationToken token) =>
+        runner.RunAsync(Powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))], timeout, token);
+
+    private static async Task<CheckResult<T>> QueryAsync<T>(Func<Task<CheckResult<T>>> query, string name, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        try { return await query(); }
+        catch (OperationCanceledException) { throw; }
+        catch (TimeoutException) { return CheckResult<T>.Empty(CheckState.Failed, $"{name} timed out. Check the provider service/network and retry."); }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        { return CheckResult<T>.Empty(CheckState.Unknown, $"{name} returned an unexpected response. Update the provider or report a compatibility issue; no successful check is claimed."); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or System.Security.SecurityException)
+        { return CheckResult<T>.Empty(CheckState.Failed, $"{name} could not be queried (code 0x{ex.HResult:X8}). Check provider availability and access; no elevation was requested."); }
+    }
+    private static CheckResult<T> Failure<T>(string name, int code, string action) =>
+        CheckResult<T>.Empty(CheckState.Failed, $"{name} query failed (code 0x{code:X8}). {action}");
+    private static bool HasReparseAncestor(string path)
+    {
+        for (DirectoryInfo? directory = new(path); directory != null; directory = directory.Parent)
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) return true;
+        return false;
+    }
+
+    private const string DefenderScript = """
+        $ErrorActionPreference = 'Stop'
+        [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        if (-not (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue)) { exit 3 }
+        try {
+          $s = Get-MpComputerStatus
+          $findingsState = 'Available'
+          $f = @()
+          try { $f = @(Get-MpThreatDetection | Select-Object ThreatID,ActionSuccess,@{n='LastThreatStatusChangeTime';e={ if ($_.LastThreatStatusChangeTime) {$_.LastThreatStatusChangeTime.ToUniversalTime().ToString('o')} else {$null} }}) }
+          catch { $findingsState = 'Failed' }
+          [pscustomobject]@{
+            AntivirusEnabled=$s.AntivirusEnabled; RealTimeProtectionEnabled=$s.RealTimeProtectionEnabled
+            AMServiceEnabled=$s.AMServiceEnabled; AMRunningMode=$s.AMRunningMode
+            AntivirusSignatureVersion=$s.AntivirusSignatureVersion
+            SignatureUpdated=$(if ($s.AntivirusSignatureLastUpdated) {$s.AntivirusSignatureLastUpdated.ToUniversalTime().ToString('o')} else {$null})
+            FindingsState=$findingsState; Findings=@($f)
+          } | ConvertTo-Json -Depth 5 -Compress
+        } catch { exit 1 }
+        """;
+
+    private const string UpdateScript = """
+        $ErrorActionPreference = 'Stop'
+        [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        try {
+          $session = New-Object -ComObject Microsoft.Update.Session
+          $session.ClientApplicationID = 'MadClean read-only inventory'
+          $searcher = $session.CreateUpdateSearcher()
+          $result = $searcher.Search("IsInstalled=0 and IsHidden=0")
+          $updates = @()
+          for ($i=0; $i -lt $result.Updates.Count; $i++) {
+            $u=$result.Updates.Item($i)
+            $updates += [pscustomobject]@{Title=$u.Title; Type=[int]$u.Type; Id=$u.Identity.UpdateID; RebootRequired=[bool]$u.RebootRequired}
+          }
+          [pscustomobject]@{ResultCode=[int]$result.ResultCode; Updates=@($updates)} | ConvertTo-Json -Depth 5 -Compress
+        } catch { exit 1 }
+        """;
+}
