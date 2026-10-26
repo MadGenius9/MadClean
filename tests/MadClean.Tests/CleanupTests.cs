@@ -33,6 +33,52 @@ public sealed class CleanupTests : IDisposable
         Assert.Single(report.Candidates); Assert.Equal(17, report.TotalBytes);
     }
     [Fact]
+    public async Task DuplicateScopeDoesNotExhaustUniqueEntryBudget()
+    {
+        FileAt("item.tmp");
+        var report = await new CleanupScanner(limit: 1).ScanAsync([new("First", root), new("Repeated", root)], default);
+        Assert.Single(report.Candidates);
+        Assert.False(report.Truncated);
+    }
+    [Fact]
+    public async Task RecordedIssueLimitStopsScanningAdditionalLocations()
+    {
+        int visitedLocations = 0;
+        IEnumerable<CleanupLocation> Locations()
+        {
+            for (int i = 0; i < 1100; i++)
+            {
+                visitedLocations++;
+                yield return new("Missing", Path.Combine(root, $"missing-{i}"));
+            }
+        }
+        var report = await new CleanupScanner().ScanAsync(Locations(), default);
+        Assert.True(report.Truncated);
+        Assert.Equal(1000, report.Issues.Count);
+        Assert.True(visitedLocations <= 1002, "The bounded inventory should stop requesting locations once it cannot record further issues.");
+    }
+    [Fact]
+    public async Task EmptyScopeIsReportedRatherThanResolvedToTheWorkingDirectory()
+    {
+        var report = await new CleanupScanner().ScanAsync([new("Unavailable folder", "")], default);
+        Assert.Empty(report.Candidates);
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal("", issue.Path);
+        Assert.Contains("not fully qualified", issue.Reason);
+    }
+    [Fact]
+    public async Task ExistingRelativeScopeIsRefusedEvenWhenItContainsOldFiles()
+    {
+        FileAt("old.tmp");
+        var relative = Path.GetRelativePath(Environment.CurrentDirectory, root);
+        Assert.False(Path.IsPathFullyQualified(relative));
+        var report = await new CleanupScanner().ScanAsync([new("Relative folder", relative)], default);
+        Assert.Empty(report.Candidates);
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(relative, issue.Path);
+        Assert.Contains("not fully qualified", issue.Reason);
+    }
+    [Fact]
     public async Task MissingLocationIsReportedAndDoesNotHideOtherResults()
     {
         FileAt("old.tmp");

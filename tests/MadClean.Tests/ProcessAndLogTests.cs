@@ -21,6 +21,38 @@ public sealed class ProcessAndLogTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new ReadOnlyProcess().RunAsync(command.File, command.Args, TimeSpan.FromSeconds(20), source.Token));
     }
     [Fact]
+    public async Task CancellationCompletesEvenWhenTheCallingDispatcherStopsPumping()
+    {
+        using var source = new CancellationTokenSource();
+        var command = SleepCommand();
+        var context = new ShutdownContext();
+        var previous = SynchronizationContext.Current;
+        Task<ProcessResult> query;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            query = new ReadOnlyProcess().RunAsync(command.File, command.Args, TimeSpan.FromSeconds(20), source.Token);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await Task.Delay(100);
+        source.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await query.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(0, context.PostCount);
+    }
+    private sealed class ShutdownContext : SynchronizationContext
+    {
+        private int postCount;
+        public int PostCount => Volatile.Read(ref postCount);
+        public override void Post(SendOrPostCallback callback, object? state) => Interlocked.Increment(ref postCount);
+    }
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative/activity.jsonl")]
+    public void MissingAbsoluteLogDestinationDoesNotFallBackToWorkingDirectory(string path)
+    {
+        Assert.False(new ActivityLog(path).TryWrite(ActivityArea.Session, ActivityOutcome.Started));
+    }
+    [Fact]
     public async Task OversizedProviderResponseFailsInsteadOfHangingOrReturningPartialData()
     {
         var command = OperatingSystem.IsWindows()

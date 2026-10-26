@@ -23,11 +23,13 @@ public static class WindowsResponseParser
     public static CheckResult<SystemUpdate> SystemUpdates(string json) => Parse(json, value =>
     {
         int code = value.GetProperty("ResultCode").GetInt32();
+        if (code == 5) return CheckResult<SystemUpdate>.Empty(CheckState.Cancelled, "Windows Update search was aborted; no completed check is claimed.");
+        if (code is 0 or 1) return CheckResult<SystemUpdate>.Empty(CheckState.Unknown, "Windows Update search has not completed; retry from Windows Settings.");
         if (code is not (2 or 3)) return CheckResult<SystemUpdate>.Empty(CheckState.Failed, $"Windows Update search did not succeed (result {code}). Retry from Windows Settings.");
         var updates = value.GetProperty("Updates").EnumerateArray().Select(u => new SystemUpdate(
-            Scalar(u, "Title"), u.GetProperty("Type").GetInt32() switch { 1 => "Software", 2 => "Driver", _ => "Unknown" },
-            Scalar(u, "Id"), u.GetProperty("RebootRequired").GetBoolean())).ToArray();
-        return new CheckResult<SystemUpdate>(code == 3 ? CheckState.Partial : CheckState.Available,
+            RequiredText(u, "Title"), u.GetProperty("Type").GetInt32() switch { 1 => "Software", 2 => "Driver", _ => "Unknown" },
+            RequiredText(u, "Id"), u.GetProperty("RebootRequired").GetBoolean())).ToArray();
+        return new CheckResult<SystemUpdate>(code == 3 || updates.Any(u => u.Kind == "Unknown") ? CheckState.Partial : CheckState.Available,
             "Offered, non-hidden updates from your configured Windows Update service. Driver coverage depends on that service and policy; no manufacturer-wide check or installation performed.", updates);
     }, "Windows Update");
 
@@ -48,6 +50,12 @@ public static class WindowsResponseParser
         JsonValueKind.Null => null,
         _ => throw new JsonException()
     };
+    private static string RequiredText(JsonElement value, string name)
+    {
+        var field = value.GetProperty(name);
+        if (field.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(field.GetString())) throw new JsonException();
+        return field.GetString()!;
+    }
     private static string Scalar(JsonElement value, string name)
     {
         var field = value.GetProperty(name);

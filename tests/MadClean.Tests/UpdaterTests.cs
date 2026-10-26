@@ -51,4 +51,60 @@ public sealed class UpdaterTests
         var result = WingetParser.Parse(Table(Row("App", "Vendor.Long…", "1.0", "2.0")));
         Assert.Equal(CheckState.Unknown, result.State); Assert.Empty(result.Items);
     }
+
+    [Fact]
+    public void CompactOfficialTableWithSingleSpaceHeaderSeparatorsIsSupported()
+    {
+        // WinGet renders one separator space when width equals the header's own width.
+        const string output = "Name Id          Version Available\n----------------------------------\nGit  Git.Git     2.40    2.50";
+        var result = WingetParser.Parse(output);
+        var app = Assert.Single(result.Items);
+        Assert.Equal("Git.Git", app.Id);
+        Assert.Equal("2.40", app.InstalledVersion);
+        Assert.Equal("2.50", app.AvailableVersion);
+        Assert.Equal(CheckState.Available, app.Status);
+    }
+
+    [Theory]
+    [InlineData("2.50…")]
+    [InlineData("2.50...")]
+    [InlineData("Unknown")]
+    public void UnusableOfferedVersionCannotBeReportedAsAnAvailableUpdate(string version)
+    {
+        var result = WingetParser.Parse(Table(Row("Example", "Example.App", "1.0", version)));
+        Assert.Equal(CheckState.Unknown, Assert.Single(result.Items).Status);
+    }
+
+    [Fact]
+    public void TruncatedInstalledVersionCannotEstablishAnUpdateDetermination()
+    {
+        var result = WingetParser.Parse(Table(Row("Example", "Example.App", "1.0…", "2.0")));
+        Assert.Equal(CheckState.Unknown, Assert.Single(result.Items).Status);
+    }
+
+    [Theory]
+    [InlineData("Name                 Id                       Version       Source        Available")]
+    [InlineData("Name                 Id                       Version       Available     Available")]
+    public void UnfamiliarOptionalColumnLayoutsFailClosed(string header)
+    {
+        var result = WingetParser.Parse(header + "\n--------------------------------------------------------------------------------------\n" + Row("Example", "Example.App", "1.0", "2.0"));
+        Assert.Equal(CheckState.Unknown, result.State);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public void EmptyTableDoesNotEstablishASuccessfulInventory()
+    {
+        var result = WingetParser.Parse(Table(""));
+        Assert.Equal(CheckState.Unknown, result.State);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public void WideUnicodeNamesCannotShiftColumnsIntoPlausibleUpdateResults()
+    {
+        var result = WingetParser.Parse(Table(Row("示例", "Example.App", "1.0", "2.0")));
+        Assert.Equal(CheckState.Unknown, result.State);
+        Assert.Empty(result.Items);
+    }
 }

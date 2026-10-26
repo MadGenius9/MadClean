@@ -14,13 +14,18 @@ public sealed record DiskRow(string Name, string Detail, double UsedPercent);
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly IComputerInventory inventory = new WindowsInventory();
-    private readonly ActivityLog log = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MadClean", "activity.jsonl"));
+    private readonly ActivityLog log = new(ActivityLogPath());
     private CancellationTokenSource? cancellation;
     private bool busy;
     private int selectedPage;
     private string status = "Ready · checks have not run. Choose Scan local or Check updates.";
     private string diskSummary = "Not checked", cleanupSummary = "Not checked", startupSummary = "Not checked", securitySummary = "Unknown", updateSummary = "Not checked";
     private string diskMessage = "Disk capacity has not been checked.", cleanupMessage = "Cleanup has not been scanned.", startupMessage = "Startup entries have not been queried.", securityMessage = "Defender has not been queried.", appsMessage = "WinGet has not been queried.", systemMessage = "Windows Update has not been queried.", logMessage = @"Log: %LocalAppData%\MadClean\activity.jsonl";
+    private static string ActivityLogPath()
+    {
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.IsPathFullyQualified(root) ? Path.Combine(root, "MadClean", "activity.jsonl") : string.Empty;
+    }
     public MainViewModel()
     {
         ScanCommand = new AsyncCommand(() => RunAsync(false), () => !IsBusy);
@@ -88,7 +93,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         var result = await inventory.DisksAsync(token); token.ThrowIfCancellationRequested();
         foreach (var d in result.Items) Disks.Add(new(d.Name, $"{Display.Bytes(d.FreeBytes)} free / {Display.Bytes(d.TotalBytes)}", d.TotalBytes == 0 ? 0 : 100d * (d.TotalBytes - d.FreeBytes) / d.TotalBytes));
-        DiskSummary = result.Items.Count == 0 ? "Unknown" : Display.Bytes(result.Items.Sum(d => d.FreeBytes));
+        DiskSummary = (result.Items.Count == 0 ? "Unknown" : Display.Bytes(result.Items.Sum(d => d.FreeBytes))) + (result.State == CheckState.Partial ? " (partial)" : "");
         DiskMessage = Stamp(result.State, result.Message); Event(ActivityArea.Disks, Outcome(result.State));
     }, text => { DiskMessage = text; DiskSummary = text; });
     private async Task LoadCleanup(CancellationToken token) => await Guard(ActivityArea.Cleanup, async () =>
@@ -152,7 +157,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception) { markFailure("Failed · provider query could not complete; retry and check Windows access."); Event(area, ActivityOutcome.Failed); }
     }
     private static ActivityOutcome Outcome(CheckState state) => state switch
-    { CheckState.Available => ActivityOutcome.Completed, CheckState.Partial => ActivityOutcome.Partial, _ => ActivityOutcome.Failed };
+    { CheckState.Available => ActivityOutcome.Completed, CheckState.Partial => ActivityOutcome.Partial, CheckState.Cancelled => ActivityOutcome.Cancelled, _ => ActivityOutcome.Failed };
     private static string Stamp(CheckState state, string message) => $"{state} · {DateTime.Now:t} · {message}";
     private void Event(ActivityArea area, ActivityOutcome outcome)
     {

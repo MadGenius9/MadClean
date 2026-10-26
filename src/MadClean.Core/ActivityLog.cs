@@ -11,6 +11,7 @@ public sealed class ActivityLog(string path)
     private readonly object gate = new();
     public bool TryWrite(ActivityArea area, ActivityOutcome outcome)
     {
+        if (!Path.IsPathFullyQualified(path)) return false;
         try
         {
             lock (gate)

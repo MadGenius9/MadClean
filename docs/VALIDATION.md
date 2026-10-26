@@ -4,7 +4,13 @@
 
 Linux can compile all projects using Windows reference packs and run portable core tests. It cannot run WPF, registry/Startup-folder inventory, Defender, WinGet's Windows execution alias or Windows Update Agent. Build success is not a rendered-UI or executable smoke test. See the current result record below for actual checks rather than assuming the CI workflow has run.
 
-The test suite exercises old/recent/protected files, sharing violations, unreadable and missing paths, reparse loops and ancestors, overlapping scopes, inventory limits, cancellation before/during scanning, process cancellation/timeouts, malformed/localized updater output, unknown update status and bounded metadata-only log rotation. Three filesystem-specific tests are explicitly skipped on Windows; junctions and ACLs still require Windows checks. There are no mocked production providers and no placeholder Windows success data.
+The test suite exercises old/recent/protected files, sharing violations, unreadable and missing paths, reparse loops and ancestors, overlapping scopes, inventory limits, cancellation before/during scanning, process cancellation/timeouts, malformed/localized/compact updater tables, unknown/truncated update status, strict Windows Update offer metadata and cancellation, unknown update types, fail-closed empty/relative scopes, dispatcher-independent process cancellation and bounded metadata-only log rotation. Three filesystem-specific tests are explicitly skipped on Windows; junctions and ACLs still require Windows checks. There are no mocked production providers and no placeholder Windows success data.
+
+## Independent parallel review
+
+Three native sub-agents reviewed cleanup inventory, Defender/security, and software/driver update discovery under fixed shared contracts. Cleanup and update agents edited their owned core parsers/scanner and component tests; the Defender agent supplied separate contract tests and adapter recommendations. The coordinator integrated shared adapter, UI, process-lifecycle, logging and status fixes. A fourth read-only reviewer rechecked the combined implementation for correctness, permissions, failure handling and honest results, with no remaining material issue identified after fixes. This is a static/code review, not Windows runtime verification.
+
+Regression additions cover duplicate cleanup-scope budgeting, root/issue limits, genuine detection-history contracts, one-space WinGet column layouts, ambiguous/truncated output, strict WUA metadata, cancelled/partial search states and dispatcher shutdown. Provider path/module choices and Windows ACL behavior still require the manual matrix below.
 
 ## Required Windows manual validation (not performed in cloud)
 
@@ -28,7 +34,7 @@ Windows CI compiles/packages and runs the portable test assembly on Windows; it 
 Verified in the Linux cloud environment using SDK **10.0.403**, runtime **10.0.14**:
 
 - Locked development restore and complete Release solution build: **passed**, zero warnings/errors.
-- Core tests: **35 passed, 0 failed, 0 skipped**. Current-run results: `artifacts/test-results/core-linux.trx`.
+- Core tests: **64 passed, 0 failed, 0 skipped**. Current-run results: `artifacts/test-results/core-linux.trx`.
 - Locked self-contained single-file `win-x64` publish: **passed**. Development lockfile hashes remained unchanged by packaging. Packaging graph includes only the explicit `win-x64` RID.
 - Produced `artifacts/win-x64/MadClean.exe`; inspected as **PE32+ Windows x64 GUI**. Unsigned; **not executed or runtime-tested on Windows**.
 - ZIP and SHA-256 manifest: `artifacts/MadClean-win-x64.zip` and `artifacts/win-x64/SHA256SUMS.txt`. Generated artifacts are ignored by Git; reproduce with README commands.

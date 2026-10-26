@@ -38,9 +38,15 @@ public sealed class CleanupScanner
         foreach (var location in locations)
         {
             token.ThrowIfCancellationRequested();
+            if (truncated) break;
             string root;
             try
             {
+                if (string.IsNullOrWhiteSpace(location.Path) || !Path.IsPathFullyQualified(location.Path))
+                {
+                    Issue(location, location.Path, "Cleanup root is unavailable or not fully qualified; check the Windows known-folder location. No inventory performed.");
+                    continue;
+                }
                 root = Path.GetFullPath(location.Path);
                 // Check every ancestor: a safe-looking root under a junction is unsafe too.
                 for (DirectoryInfo? ancestor = new(root); ancestor != null; ancestor = ancestor.Parent)
@@ -62,8 +68,9 @@ public sealed class CleanupScanner
                     foreach (var path in Directory.EnumerateFileSystemEntries(directory))
                     {
                         token.ThrowIfCancellationRequested();
-                        if (++visited > limit) { truncated = true; break; }
+                        if (truncated) break;
                         if (!seen.Add(path)) continue;
+                        if (++visited > limit) { truncated = true; break; }
                         try
                         {
                             var attributes = File.GetAttributes(path);

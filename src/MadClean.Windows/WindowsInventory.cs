@@ -9,11 +9,16 @@ namespace MadClean.Windows;
 public sealed class WindowsInventory : IComputerInventory
 {
     private readonly ReadOnlyProcess runner = new();
-    private static readonly string Powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+    private static readonly string Powershell = SystemPowerShellPath();
+    private static string SystemPowerShellPath()
+    {
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        return Path.IsPathFullyQualified(root) ? Path.Combine(root, @"WindowsPowerShell\v1.0\powershell.exe") : string.Empty;
+    }
     public IReadOnlyList<CleanupLocation> CleanupLocations =>
     [
-        new("User temporary files", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Temp")),
-        new("Windows temporary files", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp"))
+        TemporaryLocation("User temporary files", Environment.SpecialFolder.LocalApplicationData),
+        TemporaryLocation("Windows temporary files", Environment.SpecialFolder.Windows)
     ];
 
     public Task<CheckResult<DiskInfo>> DisksAsync(CancellationToken token) => Task.Run(() =>
@@ -24,8 +29,9 @@ public sealed class WindowsInventory : IComputerInventory
             token.ThrowIfCancellationRequested();
             try
             {
-                if (drive.DriveType == DriveType.Fixed && drive.IsReady)
-                    disks.Add(new(drive.Name, drive.TotalSize, drive.AvailableFreeSpace));
+                if (drive.DriveType != DriveType.Fixed) continue;
+                if (!drive.IsReady) { failures++; continue; }
+                disks.Add(new(drive.Name, drive.TotalSize, drive.AvailableFreeSpace));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { failures++; }
         }
@@ -37,7 +43,10 @@ public sealed class WindowsInventory : IComputerInventory
     {
         List<StartupEntry> entries = []; int failures = 0;
         foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
-            foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+            // HKCU\Software is shared; HKLM\Software has distinct 32/64-bit views.
+            foreach (var view in hive == RegistryHive.CurrentUser
+                ? new[] { RegistryView.Default }
+                : new[] { RegistryView.Registry64, RegistryView.Registry32 })
                 foreach (var name in new[] { "Run", "RunOnce" })
                 {
                     token.ThrowIfCancellationRequested();
@@ -61,7 +70,9 @@ public sealed class WindowsInventory : IComputerInventory
             var path = Environment.GetFolderPath(folder);
             try
             {
-                if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) continue;
+                if (!Path.IsPathFullyQualified(path)) { failures++; continue; }
+                // Directory.Exists hides ACL errors by returning false; inspect under the explicit catch instead.
+                if ((File.GetAttributes(path) & FileAttributes.Directory) == 0) { failures++; continue; }
                 if (HasReparseAncestor(path)) { failures++; continue; }
                 foreach (var file in Directory.EnumerateFiles(path))
                 {
@@ -70,10 +81,12 @@ public sealed class WindowsInventory : IComputerInventory
                     entries.Add(new(Path.GetFileName(file), folder.ToString(), "Unknown", "Startup folder item; shortcut target and enabled state not verified."));
                 }
             }
+            catch (DirectoryNotFoundException) { /* A genuine absent Startup folder has no entries. */ }
+            catch (FileNotFoundException) { /* Folder vanished before enumeration. */ }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { failures++; }
         }
         return new CheckResult<StartupEntry>(failures > 0 ? CheckState.Partial : CheckState.Available,
-            $"Run/RunOnce (both registry views) and Startup folders. Publishers unknown without verified targets. Scheduled tasks, services and packaged startup tasks are outside this inventory. {failures} sources inaccessible.", entries);
+            $"Run/RunOnce (shared HKCU and both HKLM views) and Startup folders. Publishers unknown without verified targets. Scheduled tasks, services and packaged startup tasks are outside this inventory. {failures} sources inaccessible.", entries);
     }, token);
 
     public Task<CheckResult<DefenderInfo>> DefenderAsync(CancellationToken token) => QueryAsync(async () =>
@@ -87,7 +100,10 @@ public sealed class WindowsInventory : IComputerInventory
     public Task<CheckResult<AppUpdate>> AppsAsync(CancellationToken token) => QueryAsync(async () =>
     {
         // App execution alias: never resolve winget from a writable working-directory/PATH entry.
-        var winget = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!Path.IsPathFullyQualified(profile))
+            return CheckResult<AppUpdate>.Empty(CheckState.Unavailable, "The Windows local application-data folder could not be resolved. Check the user profile; WinGet was not executed.");
+        var winget = Path.Combine(profile, @"Microsoft\WindowsApps\winget.exe");
         if (!File.Exists(winget)) return CheckResult<AppUpdate>.Empty(CheckState.Unavailable, "WinGet is unavailable for this user. Install or repair Microsoft's App Installer, then retry.");
         var result = await runner.RunAsync(winget, ["list", "--source", "winget", "--disable-interactivity"], TimeSpan.FromSeconds(90), token);
         if (result.ExitCode != 0) return Failure<AppUpdate>("WinGet", result.ExitCode,
@@ -103,8 +119,11 @@ public sealed class WindowsInventory : IComputerInventory
         return WindowsResponseParser.SystemUpdates(result.Output);
     }, "Windows Update", token);
 
-    private Task<ProcessResult> PowerShellAsync(string script, TimeSpan timeout, CancellationToken token) =>
-        runner.RunAsync(Powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))], timeout, token);
+    private Task<ProcessResult> PowerShellAsync(string script, TimeSpan timeout, CancellationToken token)
+    {
+        if (!Path.IsPathFullyQualified(Powershell)) throw new FileNotFoundException("System Windows PowerShell location is unavailable.");
+        return runner.RunAsync(Powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))], timeout, token);
+    }
 
     private static async Task<CheckResult<T>> QueryAsync<T>(Func<Task<CheckResult<T>>> query, string name, CancellationToken token)
     {
@@ -119,6 +138,12 @@ public sealed class WindowsInventory : IComputerInventory
     }
     private static CheckResult<T> Failure<T>(string name, int code, string action) =>
         CheckResult<T>.Empty(CheckState.Failed, $"{name} query failed (code 0x{code:X8}). {action}");
+    private static CleanupLocation TemporaryLocation(string category, Environment.SpecialFolder folder)
+    {
+        var root = Environment.GetFolderPath(folder);
+        // The scanner records the invalid scope as an issue; never fall back to CWD/Temp.
+        return new(category, Path.IsPathFullyQualified(root) ? Path.Combine(root, "Temp") : string.Empty);
+    }
     private static bool HasReparseAncestor(string path)
     {
         for (DirectoryInfo? directory = new(path); directory != null; directory = directory.Parent)
@@ -127,14 +152,17 @@ public sealed class WindowsInventory : IComputerInventory
     }
 
     private const string DefenderScript = """
+        $env:PSModulePath = [System.IO.Path]::Combine($PSHOME, 'Modules')
         $ErrorActionPreference = 'Stop'
         [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-        if (-not (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue)) { exit 3 }
+        $modulePath = [System.IO.Path]::Combine($PSHOME, 'Modules', 'Defender', 'Defender.psd1')
+        if (-not [System.IO.File]::Exists($modulePath)) { exit 3 }
         try {
-          $s = Get-MpComputerStatus
+          Microsoft.PowerShell.Core\Import-Module -Name $modulePath -ErrorAction Stop
+          $s = Defender\Get-MpComputerStatus
           $findingsState = 'Available'
           $f = @()
-          try { $f = @(Get-MpThreatDetection | Select-Object ThreatID,ActionSuccess,@{n='LastThreatStatusChangeTime';e={ if ($_.LastThreatStatusChangeTime) {$_.LastThreatStatusChangeTime.ToUniversalTime().ToString('o')} else {$null} }}) }
+          try { $f = @(Defender\Get-MpThreatDetection | Select-Object ThreatID,ActionSuccess,@{n='LastThreatStatusChangeTime';e={ if ($_.LastThreatStatusChangeTime) {$_.LastThreatStatusChangeTime.ToUniversalTime().ToString('o')} else {$null} }}) }
           catch { $findingsState = 'Failed' }
           [pscustomobject]@{
             AntivirusEnabled=$s.AntivirusEnabled; RealTimeProtectionEnabled=$s.RealTimeProtectionEnabled
@@ -147,6 +175,7 @@ public sealed class WindowsInventory : IComputerInventory
         """;
 
     private const string UpdateScript = """
+        $env:PSModulePath = [System.IO.Path]::Combine($PSHOME, 'Modules')
         $ErrorActionPreference = 'Stop'
         [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
         try {
