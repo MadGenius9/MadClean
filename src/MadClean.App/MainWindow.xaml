@@ -48,6 +48,7 @@
                     <ListBoxItem Content="Startup apps"/>
                     <ListBoxItem Content="Security"/>
                     <ListBoxItem Content="Update center"/>
+                    <ListBoxItem Content="MadClean updates"/>
                     <ListBoxItem Content="Activity"/>
                 </ListBox>
             </DockPanel>
@@ -74,9 +75,17 @@
                     <Button Content="Cancel" Command="{Binding CancelCommand}" Background="#343E52" Foreground="#FFFFFF"/>
                 </WrapPanel>
             </Grid>
-            <Border Grid.Row="1" Background="#1C2930" BorderBrush="#354D50" BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,22">
-                <TextBlock Text="INVENTORY ONLY   ·   Nothing will be deleted, disabled, quarantined or installed." Foreground="#A9E8D7" FontSize="12"/>
-            </Border>
+            <StackPanel Grid.Row="1">
+                <Border Background="#1C2930" BorderBrush="#354D50" BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,16">
+                    <TextBlock Text="INVENTORY ONLY   ·   Nothing will be deleted, disabled, quarantined or installed." Foreground="#A9E8D7" FontSize="12"/>
+                </Border>
+                <Border Background="#243044" BorderBrush="#627CA8" BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,16" Visibility="{Binding HasMadCleanReminder, Converter={StaticResource BooleanVisibility}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="View MadClean update" Command="{Binding MadCleanReminderCommand}" Background="#ABC1F5"/>
+                        <TextBlock Text="{Binding MadCleanReminderText}" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.LiveSetting="Polite"/>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
             <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0">
                 <TabControl.Template>
                     <ControlTemplate TargetType="TabControl">
@@ -122,6 +131,14 @@
                                         <TextBlock Text="UPDATE DISCOVERY" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding UpdateSummary}" FontSize="23" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="software + Windows / driver offers" Style="{StaticResource Caption}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Width="280">
+                                    <StackPanel>
+                                        <TextBlock Text="MADCLEAN UPDATES" Foreground="{StaticResource Muted}" FontSize="11"/>
+                                        <TextBlock Text="{Binding MadCleanUpdateStatus}" FontSize="20" FontWeight="SemiBold" Margin="0,14,0,6"/>
+                                        <TextBlock Text="User-controlled release checking" Style="{StaticResource Caption}"/>
+                                        <Button Content="View app updates" Command="{Binding MadCleanReminderCommand}" Background="#ABC1F5"/>
                                     </StackPanel>
                                 </Border>
                             </WrapPanel>
@@ -214,6 +231,32 @@
                         </StackPanel>
                         <ContentControl Grid.Row="3" Content="{Binding SystemRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
                     </Grid>
+                </TabItem>
+                <TabItem Header="MadClean updates">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="MadClean updates" Style="{StaticResource SectionTitle}"/>
+                            <TextBlock Text="Check the configured MadClean release source when you choose. Release notes and downloads open for your review; no automatic installation or restart." Style="{StaticResource Caption}"/>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="MadClean updates" FontSize="19" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding MadCleanInstalledVersion, StringFormat='Installed version: {0}'}" Style="{StaticResource Caption}" Margin="0,5,0,4"/>
+                                    <TextBlock Text="{Binding MadCleanUpdateStatus}" FontSize="16" Foreground="#A9E8D7"/>
+                                    <TextBlock Text="{Binding MadCleanUpdateMessage}" Style="{StaticResource Caption}" Margin="0,5,0,8"/>
+                                    <WrapPanel>
+                                        <Button Content="Check MadClean updates" Command="{Binding MadCleanCheckCommand}"/>
+                                        <Button Content="Release notes / download" Command="{Binding MadCleanReviewCommand}" Background="#ABC1F5"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding MadCleanActionMessage}" Style="{StaticResource Caption}" Margin="0,5,0,0"/>
+                                    <StackPanel Visibility="{Binding HasMadCleanReleaseNotes, Converter={StaticResource BooleanVisibility}}" Margin="0,8,0,0">
+                                        <TextBlock Text="Release notes (plain text)" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBox Text="{Binding MadCleanReleaseNotes, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="74" Background="#10141D" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" AutomationProperties.Name="MadClean release notes"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="Private repository? Anonymous checking may be unavailable even if a release exists. Use the release page in your signed-in browser to review it manually. MadClean does not request, store or embed a GitHub token." Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Activity">
                     <Grid>

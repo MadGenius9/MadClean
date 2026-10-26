@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Application xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="MadClean.App.App" StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanVisibility"/>
         <SolidColorBrush x:Key="Surface" Color="#171C27"/>
         <SolidColorBrush x:Key="Muted" Color="#A6B1C7"/>
         <Style TargetType="TextBlock">

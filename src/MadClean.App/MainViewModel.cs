@@ -11,7 +11,7 @@ namespace MadClean.App;
 public sealed record ResultRow(string Name, string Detail, string State);
 public sealed record DiskRow(string Name, string Detail, double UsedPercent);
 
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly IComputerInventory inventory = new WindowsInventory();
     private readonly ActivityLog log = new(ActivityLogPath());
@@ -31,6 +31,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ScanCommand = new AsyncCommand(() => RunAsync(false), () => !IsBusy);
         UpdatesCommand = new AsyncCommand(() => RunAsync(true), () => !IsBusy);
         CancelCommand = new ActionCommand(Cancel, () => IsBusy);
+        InitializeMadCleanUpdates();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }

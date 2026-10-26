@@ -43,6 +43,24 @@ Normal development uses `packages.lock.json`; single-file `win-x64` packaging us
 
 On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PACKAGES` if home is read-only, then run the same restore/build/test commands. Windows targeting packs allow compilation; **WPF cannot run on Linux**. Do not substitute mock values and call Windows checks verified. No web server, database, API key or personal-PC access is needed to build.
 
+## MadClean updates and the in-app reminder
+
+The **MadClean updates** page and Overview card show **“Update checking not configured”** in the default build. No release source is enabled or contacted automatically. The existing Check updates action continues to cover installed apps and Windows/driver offers; **Check MadClean updates** is a separate explicit action, with progress and cancellation.
+
+To opt in after a trustworthy release channel exists, create `madclean-updates.json` **beside MadClean.exe** with exactly:
+
+```json
+{"repository":"MadGenius9/MadClean"}
+```
+
+Restart MadClean after changing this deployment configuration. This build accepts only that pinned GitHub repository; arbitrary hosts, repositories and extra fields (including credentials) are rejected. The configuration is optional, read only, bounded to 4 KiB, and is not shipped/enabled in the package. Do not put a GitHub token or password in it.
+
+A user-initiated check anonymously queries GitHub's latest published full-release metadata. Supported stable tags use `vMAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH`. A successful comparison is scoped to that configured stable channel; malformed versions, failed requests and unchecked sources never become an up-to-date claim. Offline/timeouts, denied/rate-limited access, malformed responses and cancellation have explicit results. GitHub may return 404 for a private/inaccessible/missing repository **or** for no published stable release; MadClean reports that ambiguity honestly.
+
+A confirmed newer version shows an **in-app reminder** across pages, its confirmation time, and plain-text release notes. Failed/cancelled rechecks retain that previously confirmed reminder with the latest check status; a successful no-newer-release comparison clears it. This knowledge lasts for the current app session. There are no startup checks, polling timers, scheduled tasks or external reminder services.
+
+**Release notes / download** opens a validated HTTPS GitHub release page in your browser for manual review/download. If anonymous access fails for the private repository, the configured releases page can still be opened in your signed-in browser. MadClean does not collect/store/embed credentials, retrieve release assets, install itself, elevate, or restart Windows. Review the publisher/signature and release notes before choosing a download.
+
 ## Safety and scope
 
 See [integration contracts](docs/INTEGRATIONS.md), [validation limits](docs/VALIDATION.md), and [agent rules](AGENTS.md).
