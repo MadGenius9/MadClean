@@ -42,6 +42,7 @@ Verified in the Linux cloud environment using SDK **10.0.403**, runtime **10.0.1
 - Locked self-contained single-file `win-x64` publish: **passed**. Development lockfile hashes remained unchanged by packaging. Packaging graph includes only the explicit `win-x64` RID.
 - Produced `artifacts/win-x64/MadClean.exe`; inspected as **PE32+ Windows x64 GUI**. Unsigned; **not executed or runtime-tested on Windows**.
 - ZIP and SHA-256 manifest: `artifacts/MadClean-win-x64.zip` and `artifacts/win-x64/SHA256SUMS.txt`. Generated artifacts are ignored by Git; reproduce with README commands.
+- Windows Diagnostics roadmap addition: documentation and the static capability row compile with zero warnings/errors. No diagnostic or repair command was run; no diagnostic runner is implemented. The existing 227-test result is from the prior discovery implementation; tests were not rerun for this roadmap-only change.
 - MadClean self-release checker: **default not configured**, no live API call made. Fake-handler and configuration/reminder tests passed; independent static review found no material issues.
 - Discovery extension static review: component contributions and independent combined review completed; UI bounds/exact selected paths, settings error blocking, local ancestry and complete-snapshot gates checked. Windows rendering and ARP/runtime checks remain unverified.
 - Prior phase-one ZIP retained as `artifacts/MadClean-phase1-foundation-576b5ae-win-x64.zip`; current extensions do not implement queued system changes.

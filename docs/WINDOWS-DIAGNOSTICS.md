@@ -1,0 +1,85 @@
+# Windows Diagnostics — later, incremental module
+
+**Roadmap only. Not implemented or enabled in phase one.** This module has no inventory hook, command runner, scheduled task or repair action in the current app. The existing foundation ships independently; the capability queue is the only UI addition. No diagnostic or repair command was run while preparing this roadmap.
+
+The goal is an evidence-based system-health report explaining observed symptoms and their limits. There is no scalar health score, generic “PC needs repair” diagnosis, arbitrary DLL download, registry-cleaner recommendation or unsupported speed/repair promise.
+
+## D1 — passive, read-only evidence report
+
+Start with explicitly requested local Windows Event Log queries through supported Windows Event Log APIs. Cover selected System/Application providers, including available Windows Error Reporting/application-failure evidence and documented unexpected-shutdown events. Use provider + event ID + schema/version, not event number alone. WER report/dump folders are not a default filesystem sweep; dumps and unrestricted report contents can contain personal data. D1a can ship Event Log summaries first. D1b may add existing WER queue/archive metadata through supported WER Store APIs, with OS/API availability, permissions and privacy validation; never upload, purge, enable local dumps or open associated dump contents. Reliability interfaces remain optional pending a separately verified contract.
+
+- Default proposed window: the last seven days, with explicit user choices for 24 hours / seven days / 30 days. Capture fixed UTC start/end boundaries per query and display local time with timezone. Reading an existing log does not create missing history.
+- Bound event count, source count, memory and query duration; support cancellation and paging/partial results. Do not enable channels, clear logs, change retention, query remote computers, elevate silently or collect the Security log by default.
+- Show a coverage panel for requested and successfully read channels/providers, oldest/newest usable evidence, query filters, event limits, inaccessible/disabled/rolled logs and missing fields. Permission denial, unsupported provider and no matching records are distinct outcomes.
+- Keep Event Log query-handle ownership and source-specific cancellation rules explicit. Native query handles normally stay on their creating thread; a tolerant multi-channel query still requires per-channel failure inspection. Request cancellation, await pending operations, then release handles safely.
+- Summarize recurring observations by provider/event class and available application/module/exception identifiers, with counts and first/last occurrence **within the covered window**. Preserve event record references so the user can inspect evidence. Count events, not guessed unique crashes; explain deduplication when multiple records may describe the same incident.
+- Separate Windows' reported level from MadClean's interpretation. An application error can describe an observed failure; it does not prove the faulting module is defective. Kernel-Power event 41 reports an unexpected shutdown/restart condition and does not by itself identify a driver, PSU, memory defect or root cause. Recurrence is evidence for investigation, not proof that a repair will help.
+- Default report/export data is minimized and redacted. Usernames, paths, command lines, identifiers and dump contents need privacy handling; no raw event payload enters the existing metadata-only activity log. Any later detailed export requires explicit selection and a preview.
+
+“No matching events” means no matching records were available for that query and coverage, not “Windows is healthy.” Report stale, partial, unknown, cancelled and unavailable results honestly. Recurring-error summary means grouping repeated records; this milestone creates no automatic polling, scheduled collection or external reminder.
+
+### Per-finding evidence contract
+
+Every finding must include:
+
+| Field | Required meaning |
+| --- | --- |
+| Observation | What the source actually reported, separate from interpretation; no invented fault or repair benefit. |
+| Source | API/tool and version where relevant; channel, provider, event ID/schema and record reference, or a precise tool-result/log reference. |
+| Time | Query start/end UTC, observed first/last times, collection time/timezone and recurrence count scope. |
+| Coverage | What was requested/read, bounds/filters, retention gaps, permission failures and missing/stale evidence. |
+| Uncertainty | Known facts, plausible explanations and what cannot be concluded. “Unknown” is a result, not a hidden failure. |
+| Impact | Observed user/system impact if supported; otherwise clearly labeled possible or unknown impact and why it matters. Severity is not a health score. |
+| Next step | A relevant inspect/manual diagnostic suggestion with prerequisites; no automatic repair or blanket “fix all.” |
+
+## D2 — explicit, non-repair integrity checks
+
+This ships after D1, independently and only after Windows validation. The user selects the specific check, sees its source/target/scope, expected side effects, elevation requirement and time uncertainty, and can decline. These checks are never started by Scan local, startup inventory, cleanup preview, app discovery, crash-summary reading or release checking.
+
+The command forms below describe future **supported-tool semantics**, not commands executed by current MadClean:
+
+| Microsoft tool / option | Evidence and limits | Stage / permission |
+| --- | --- | --- |
+| `DISM /Online /Cleanup-Image /CheckHealth` | Checks whether corruption was previously flagged and whether the image is repairable. It is not a fresh comprehensive component scan; no prior flag does not establish a healthy system. | Explicit integrity-status check; follow supported elevated servicing requirements. |
+| `DISM /Online /Cleanup-Image /ScanHealth` | Scans the Windows component store for corruption without requesting repair. It can set corruption-state flags and write servicing logs; it is not strictly side-effect-free. It does not establish disk/hardware/app health. | Explicit non-repair check, with elevation consent and disclosed state/log writes. |
+| `sfc /verifyonly` | Verifies protected system-file integrity without repairing files. It does not validate all personal/app files or prove absence of every Windows issue. | Explicit elevated verification, with diagnostic-log writes disclosed. |
+| `DISM /Online /Cleanup-Image /RestoreHealth` | Scans/repairs the Windows image/component store; source policy and Windows Update/source access matter. This is a system change. | **D3 repair only. Never inventory.** |
+| `sfc /scannow` | Scans protected system files and attempts repair when possible. It is a repair action even though its name contains “scan.” | **D3 repair only. Never inventory.** |
+
+“Read-only” passive discovery is D1. D2 requests no repair, but supported Microsoft diagnostics may write Windows logs/servicing metadata and flags. Explain these distinctions before launch; do not quietly classify D2 as a zero-write inventory operation.
+
+Before implementation, recheck the current Microsoft documentation for the supported Windows release, tool version, exact arguments, elevation, result semantics and supported source options. Resolve only genuine installed Microsoft tools from verified absolute system locations; unavailable tools or unverifiable identity are explicit blockers, never a reason to fetch DLLs or use third-party repair commands.
+
+## D3 — guided, selected repairs
+
+Repairs are a separate later capability, not enabled by collecting a finding or seeing a recurrence count.
+
+1. User selects one supported operation tied to an evidence item. Show the exact tool/arguments, online/offline target, expected system changes, source/network policy, required administrator access, limitations and any documented reboot implications. Revalidate stale evidence before suggesting action. No bulk “repair everything.”
+2. Request elevation only for the selected operation. Denied consent remains a distinct result. Do not store administrator credentials, silently elevate or launch a shell with arbitrary input. Use an allowlisted, validated action descriptor and tool identity rather than executable text copied from logs.
+3. DISM repair sources must follow current Microsoft support requirements. Validate supported media/source compatibility and show whether Windows Update or a selected supported source may be used; explain `/Source` and `/LimitAccess` from current docs before exposing them. No arbitrary DLL sites, copied system files from unknown PCs or unsupported corruption “fixes.”
+4. Provide actual running/status information without invented percentage/ETA or speed promises. A started PID, progress bar, timeout or exit code alone is not proof of successful repair or system health. Interpret documented per-tool results and preserve unknown/localized/unparseable outcomes. DISM API operation success and its Healthy/Repairable/NonRepairable image assessment are separate; these are component-store findings, not overall PC health. The SFC command reference does not define a complete stable exit-code-to-integrity-verdict mapping. `/English` is not a guarantee that every resource/output will be English.
+5. Cancellation is a request, not proof that servicing stopped or rolled back. Define safe, tool-specific stop behavior. If an operation cannot safely stop at that stage, show “cancellation requested / finishing current operation” and explain the limit. For supported DISM APIs, cancellation is cooperative: a non-cancellable stage can still finish successfully; accepted cancellation leaves the image state unknown and requires revalidation. Never reuse the metadata-query process-tree kill runner to terminate servicing or kill TrustedInstaller/Windows Update/CBS services. Do not mark cancelled/successful until actual observed tool state supports it. Closing the UI, a timeout or lost monitoring must leave an honest running/unknown state with recovery instructions.
+6. Preserve an actual execution record: selected action/target, verified tool/version, start/end times, requested/granted elevation, cancellation request/state, actual process exit code and relevant bounded tool output plus protected log references. DISM servicing logs and SFC-related CBS evidence are distinct sources. Mark truncation/redaction and parser uncertainty; never replace real output with a canned success message. Detailed execution logs are private, separate from the existing enum-only activity log, with explicit retention/export and secret/PII handling.
+7. Offer a separately selected follow-up verification and compare its evidence with the pre-action report. A command reporting success does not promise all crashes are fixed. If a reboot is required/recommended, explain the actual result and let the user choose; no forced restart. Restore points, where applicable, are not rollback guarantees and do not recover deleted files.
+
+## Incremental acceptance gates
+
+- **D1:** fixture-based event grouping/time-range/retention/access/cancellation/PII tests, then disposable Windows VM validation against actual supported provider records. No finding without source/time/uncertainty/impact; no events is never a healthy verdict.
+- **D2:** test allowlisted non-repair descriptors, elevation denial, source/tool availability, real output/status/error/cancel behavior and locale/version handling. Confirm ordinary inventory never launches these tools. Validate on disposable Windows systems before shipping; compilation is insufficient.
+- **D3:** review Microsoft semantics again; validate exact-action preview and user selection, privilege boundary, source compatibility, monitoring/log retention, safe cancellation/close/recovery and follow-up checks on disposable VMs. Do not intentionally corrupt a user's PC or test repairs on personal machines.
+
+D1a Event Log reporting, D1b WER corroboration, and individual D2 checks can ship separately after their own gates; none requires enabling D3. Each stage gets its own review, evidence and release decision. The phase-one executable and its existing discovery/status semantics remain available while this work is queued.
+
+## Official Microsoft references
+
+The following current official Microsoft documentation was read for this roadmap. Recheck it again when implementing each stage and for the actual supported Windows/tool version. These references guide future work; no command in this document has been executed by MadClean.
+
+- [Querying for events](https://learn.microsoft.com/en-us/windows/win32/wes/querying-for-events), [EvtQuery](https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtquery), and [EvtCancel](https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcancel): supported local structured queries, query/handle ownership, per-channel statuses and pending-operation cancellation limits.
+- [WerStoreOpen](https://learn.microsoft.com/en-us/windows/win32/api/werapi/nf-werapi-werstoreopen), [WerStoreGetFirstReportKey](https://learn.microsoft.com/en-us/windows/win32/api/werapi/nf-werapi-werstoregetfirstreportkey), and [WerStoreQueryReportMetadataV2](https://learn.microsoft.com/en-us/windows/win32/api/werapi/nf-werapi-werstorequeryreportmetadatav2): existing queue/archive report enumeration and metadata on supported Windows versions. [Collecting user-mode dumps](https://learn.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps) documents that enabling dump collection needs administrator/registry changes; it is outside passive inventory.
+- [Troubleshoot application/service crashes](https://learn.microsoft.com/en-us/troubleshoot/windows-server/performance/troubleshoot-application-service-crashing-behavior) and [Kernel-Power event 41](https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/event-id-41-restart): event evidence is limited; a faulting Windows DLL may be a victim, and unexpected shutdown records alone do not identify the root cause.
+- [DISM package/operating-system servicing command-line options](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-operating-system-package-servicing-command-line-options?view=windows-11): CheckHealth/ScanHealth/RestoreHealth distinctions. Other servicing operations (component cleanup, reset-base, revert-pending-actions) are not diagnostic inventory.
+- [DismCheckImageHealth](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism/dismcheckimagehealth-function?view=windows-11) and [DismImageHealthState](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism/dismimagehealthstate-enumeration?view=windows-11): checking existing flags versus scanning/flagging, operation outcome versus image-health scope.
+- [DismInitialize](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism/disminitialize-function?view=windows-11): elevation, scratch space and logs (documented default `%windir%\Logs\DISM\dism.log`).
+- [DismRestoreImageHealth](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism/dismrestoreimagehealth-function?view=windows-11): supported repair-source/Windows Update behavior, LimitAccess and cooperative cancellation/revalidation requirements.
+- [DISM global command-line options](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-global-options-for-command-line-syntax?view=windows-11): supported restart/output/log options. `/NoRestart` suppresses reboot behavior, not the underlying system changes.
+- [SFC command reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/sfc): administrator requirements and verify-only versus repair modes, limited to protected Windows system files.
