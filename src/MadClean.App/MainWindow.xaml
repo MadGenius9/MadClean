@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="MadClean.App.MainWindow" Title="MadClean · Read-only workspace" Width="1320" Height="880" MinWidth="980" MinHeight="650" Background="#10141D" FontFamily="Segoe UI" FontSize="14" Foreground="#ECF1FB">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:MadClean.App" x:Class="MadClean.App.MainWindow" Title="MadClean · Read-only workspace" Width="1320" Height="880" MinWidth="980" MinHeight="650" Background="#10141D" FontFamily="Segoe UI" FontSize="14" Foreground="#ECF1FB">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="202"/>
@@ -16,7 +16,7 @@
                     <TextBlock Text="Read-only foundation" FontSize="12" Margin="0,6,0,0"/>
                     <TextBlock Text="No cleanup or installs" Style="{StaticResource Caption}"/>
                 </StackPanel>
-                <ListBox SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Foreground="#CBD4E5" VerticalAlignment="Top" AutomationProperties.Name="Navigation">
+                <ListBox SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Foreground="#CBD4E5" VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Navigation">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="13,14"/>
@@ -49,6 +49,10 @@
                     <ListBoxItem Content="Security"/>
                     <ListBoxItem Content="Update center"/>
                     <ListBoxItem Content="MadClean updates"/>
+                    <ListBoxItem Content="Installed apps"/>
+                    <ListBoxItem Content="Disk space map"/>
+                    <ListBoxItem Content="Leftover review"/>
+                    <ListBoxItem Content="Capability queue"/>
                     <ListBoxItem Content="Activity"/>
                 </ListBox>
             </DockPanel>
@@ -168,32 +172,82 @@
                     </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Cleanup">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="Cleanup inventory" Style="{StaticResource SectionTitle}"/>
-                            <TextBlock Text="{Binding CleanupMessage}" Style="{StaticResource Caption}"/>
-                            <TextBlock Text="Scope: LocalAppData\Temp and Windows\Temp only. At least 7 days old; recent, locked, protected and reparse-point entries excluded. Sizes are an inventory, not guaranteed recoverable space." Style="{StaticResource Caption}"/>
-                        </StackPanel>
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding CleanupCategories}" Margin="0,0,0,10"/>
-                        <ContentControl Grid.Row="2" Content="{Binding CleanupRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
-                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="320"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Cleanup preview" Style="{StaticResource SectionTitle}"/>
+                                <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding CleanupMessage}" Style="{StaticResource Caption}"/>
+                                </ScrollViewer>
+                                <TextBlock Text="Exact candidate paths and logical sizes from the two supported temporary roots only. Saved exclusions are honored before traversal. This preview does not authorize deletion." Style="{StaticResource Caption}"/>
+                                <WrapPanel Margin="0,0,0,12">
+                                    <Button Content="Exclude selected file" Command="{Binding ExcludeCleanupFileCommand}"/>
+                                    <Button Content="Exclude a folder…" Command="{Binding ExcludeCleanupFolderCommand}" Background="#ABC1F5"/>
+                                    <Button Content="Queued cleanup actions" Command="{Binding CapabilityQueueCommand}" Background="#343E52" Foreground="White"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding CleanupCategories}" Margin="0,0,0,10"/>
+                            <DataGrid Grid.Row="2" ItemsSource="{Binding CleanupRows}" SelectedItem="{Binding SelectedCleanupRow, Mode=TwoWay}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="EXACT PATH" Binding="{Binding Name}" Width="3*" MinWidth="220"/>
+                                    <DataGridTextColumn Header="SIZE / OBSERVATION" Binding="{Binding Detail}" Width="2*" MinWidth="190"/>
+                                    <DataGridTextColumn Header="CATEGORY / RESULT" Binding="{Binding State}" Width="2*" MinWidth="160"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <Expander Grid.Row="4" Header="Persistent exclusions" Foreground="#ECF1FB" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ExclusionsMessage}" Style="{StaticResource Caption}"/>
+                                    <ListBox ItemsSource="{Binding CleanupExclusions}" SelectedItem="{Binding SelectedCleanupExclusion, Mode=TwoWay}" Height="95" Background="#171C27" Foreground="#ECF1FB" BorderThickness="0">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="6">
+                                                    <TextBlock Text="{Binding Path}"/>
+                                                    <TextBlock FontSize="11" Foreground="#A6B1C7">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="Exact file"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IncludeDescendants}" Value="True">
+                                                                        <Setter Property="Text" Value="Folder and descendants"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Button Content="Remove selected exclusion" Command="{Binding RemoveCleanupExclusionCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Background="#343E52" Foreground="White"/>
+                                </StackPanel>
+                            </Expander>
+                            <TextBox Text="{Binding SelectedCleanupDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" Grid.Row="3" AutomationProperties.Name="Full selected cleanup preview path and observation"/>
+                        </Grid>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Startup">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel>
                             <TextBlock Text="Startup apps" Style="{StaticResource SectionTitle}"/>
                             <TextBlock Text="{Binding StartupMessage}" Style="{StaticResource Caption}"/>
                         </StackPanel>
                         <ContentControl Grid.Row="1" Content="{Binding StartupRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
+                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                            <TextBlock Text="Management actions are queued: exact entry selection, before/after preview and reversible enable/disable. Current inventory does not prove enabled state." Style="{StaticResource Caption}"/>
+                            <Button Content="View capability queue" Command="{Binding CapabilityQueueCommand}" HorizontalAlignment="Left" Background="#343E52" Foreground="White"/>
+                        </StackPanel>
                     </Grid>
                 </TabItem>
                 <TabItem Header="Security">
@@ -255,6 +309,148 @@
                                 </StackPanel>
                             </Border>
                             <TextBlock Text="Private repository? Anonymous checking may be unavailable even if a release exists. Use the release page in your signed-in browser to review it manually. MadClean does not request, store or embed a GitHub token." Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Installed apps">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="320"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Installed apps &amp; uninstall discovery" Style="{StaticResource SectionTitle}"/>
+                                <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding InstalledMessage}" Style="{StaticResource Caption}"/>
+                                </ScrollViewer>
+                                <WrapPanel Margin="0,0,0,12">
+                                    <Button Content="Refresh registrations" Command="{Binding RefreshInstalledApplicationsCommand}"/>
+                                    <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}" Background="#ABC1F5"/>
+                                    <Button Content="Leftover review" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
+                                </WrapPanel>
+                                <TextBlock Text="Uninstall execution is queued. Later actions will use supported uninstall mechanisms with exact app selection and review; application folders are never force-deleted." Style="{StaticResource Caption}"/>
+                            </StackPanel>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding InstalledApplications}" SelectedItem="{Binding SelectedInstalledApplication, Mode=TwoWay}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="APPLICATION" Binding="{Binding Name}" Width="2*" MinWidth="160"/>
+                                    <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*" MinWidth="100"/>
+                                    <DataGridTextColumn Header="PUBLISHER" Binding="{Binding Publisher}" Width="*" MinWidth="120"/>
+                                    <DataGridTextColumn Header="UNINSTALL HINT" Binding="{Binding UninstallSupport}" Width="2*" MinWidth="180"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <ScrollViewer Grid.Row="2" MaxHeight="140" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                                <TextBox Text="{Binding SelectedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Disk space map">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="320"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Where are the known bytes?" Style="{StaticResource SectionTitle}"/>
+                                <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding DiskMapMessage}" Style="{StaticResource Caption}"/>
+                                </ScrollViewer>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <Button Content="Choose local folder…" Command="{Binding ChooseDiskMapFolderCommand}"/>
+                                    <Button Content="Drill into selected folder" Command="{Binding DrillDiskMapCommand}" Background="#ABC1F5"/>
+                                    <Button Content="Up" Command="{Binding UpDiskMapCommand}" Background="#343E52" Foreground="White"/>
+                                    <Button Content="Reset view" Command="{Binding ResetDiskMapCommand}" Background="#343E52" Foreground="White"/>
+                                </WrapPanel>
+                                <ScrollViewer MaxHeight="42" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding DiskMapPath}" FontWeight="SemiBold"/>
+                                </ScrollViewer>
+                                <TextBlock Text="{Binding DiskMapKnownBytes}" Margin="0,5,0,5"/>
+                                <TextBlock Text="Area = known logical bytes in the current folder. Colors separate entries; they do not mean junk. Largest 119 entries plus an Other aggregate; all children remain in the linked list." Style="{StaticResource Caption}"/>
+                            </StackPanel>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <local:DiskSpaceMap Node="{Binding DiskMapCurrent}" SelectedNode="{Binding SelectedDiskNode, Mode=TwoWay}" NavigateCommand="{Binding DrillDiskMapCommand}" MinHeight="130" AutomationProperties.Name="Disk usage by known logical bytes"/>
+                                <ListBox Grid.Column="2" ItemsSource="{Binding DiskMapChildren}" SelectedItem="{Binding SelectedDiskNode, Mode=TwoWay}" Background="#171C27" Foreground="#ECF1FB" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" AutomationProperties.Name="All children and exact sizes">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="7">
+                                                <TextBlock Text="{Binding Name}"/>
+                                                <TextBlock Text="{Binding Bytes, Converter={StaticResource ByteSize}}" FontSize="12" Foreground="#A6B1C7"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                            <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                                <TextBox Text="{Binding DiskMapSelection, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                                <Expander Header="Skipped / unknown-size observations" Foreground="#ECF1FB">
+                                    <ContentControl Content="{Binding DiskMapIssues}" ContentTemplate="{StaticResource RowsTemplate}" Height="120"/>
+                                </Expander>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Leftover review">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="320"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Leftover candidates · review only" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="{Binding ApplicationBaselineMessage}" Style="{StaticResource Caption}"/>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}"/>
+                                    <Button Content="Review registration changes" Command="{Binding ReviewLeftoversCommand}" Background="#ABC1F5"/>
+                                    <Button Content="Queued actions" Command="{Binding CapabilityQueueCommand}" Background="#343E52" Foreground="White"/>
+                                </WrapPanel>
+                                <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding LeftoverMessage}" Style="{StaticResource Caption}"/>
+                                </ScrollViewer>
+                                <TextBlock Text="Only surviving previously recorded local install folders are considered after complete inventories. Missing registrations do not prove uninstall completion. Shared dependencies, data, saves and settings are never automatically removed." Style="{StaticResource Caption}"/>
+                            </StackPanel>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding LeftoverCandidates}" SelectedItem="{Binding SelectedLeftoverCandidate, Mode=TwoWay}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="CANDIDATE PATH" Binding="{Binding Path}" Width="2*" MinWidth="200"/>
+                                    <DataGridTextColumn Header="EVIDENCE" Binding="{Binding Evidence}" Width="2*" MinWidth="180"/>
+                                    <DataGridTextColumn Header="CAUTION" Binding="{Binding Caution}" Width="3*" MinWidth="200"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <ScrollViewer Grid.Row="2" MaxHeight="150" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                                <TextBox Text="{Binding SelectedLeftoverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Capability queue">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Available discovery &amp; queued actions" Style="{StaticResource SectionTitle}"/>
+                            <TextBlock Text="The phase-one foundation remains read-only. Later system changes require exact previews and explicit user selection. This queue records scope; it does not execute operations." Style="{StaticResource Caption}"/>
+                            <ItemsControl ItemsSource="{Binding Capabilities}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Capability}" FontSize="19" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Discovery}" Foreground="#A9E8D7" Margin="0,8,0,8"/>
+                                                <TextBlock Text="{Binding NextStep}" Foreground="#ABC1F5" Margin="0,0,0,8"/>
+                                                <TextBlock Text="{Binding RequiredReview}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

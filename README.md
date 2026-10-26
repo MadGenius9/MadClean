@@ -1,6 +1,6 @@
 # MadClean
 
-A personal Windows desktop utility for understanding storage, startup entries, Microsoft Defender status, and software/driver update offers. **Phase 1 is read-only inventory.** It never deletes files, changes startup settings, starts antivirus scans, installs updates, elevates, or restarts Windows.
+A personal Windows desktop utility for understanding storage, startup entries, Microsoft Defender status, and software/driver update offers. **Phase 1 is read-only inventory.** It does not delete inventory candidates, change startup settings, start antivirus scans, install updates, elevate, or restart Windows. Explicitly selected exclusion preferences are saved only in MadClean’s local settings.
 
 ## Stack and architecture
 
@@ -28,7 +28,7 @@ dotnet test tests/MadClean.Tests -c Release --no-build
 dotnet run --project src/MadClean.App -c Release --no-build
 ```
 
-Click **Scan local** for disks, cleanup inventory, startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
+Click **Scan local** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
 
 ### Produce a Windows executable
 
@@ -42,6 +42,16 @@ Normal development uses `packages.lock.json`; single-file `win-x64` packaging us
 `artifacts/win-x64/MadClean.exe` is an **unsigned**, self-contained Windows x64 executable. WPF native dependencies extract under the normal .NET bundle directory on first launch. Do not enable trimming for this reflection/binding-based WPF app. The [Windows workflow](.github/workflows/windows.yml) builds, runs the core tests and uploads a ZIP plus SHA-256 manifest. It must actually run before a CI artifact exists. Compilation/packaging alone does not validate executable behavior or Defender/WinGet/WUA integration. Signing and distribution are later release tasks; SmartScreen may flag unsigned builds.
 
 On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PACKAGES` if home is read-only, then run the same restore/build/test commands. Windows targeting packs allow compilation; **WPF cannot run on Linux**. Do not substitute mock values and call Windows checks verified. No web server, database, API key or personal-PC access is needed to build.
+
+## Read-only discovery extensions
+
+- **Cleanup preview:** select an eligible file to inspect/copy its complete path and observation, then optionally exclude that exact file. Choose a folder exclusion for that folder and descendants. Preferences persist in `%LocalAppData%\MadClean\cleanup-exclusions.json`; saving/removing preferences changes only MadClean settings and requires an explicit rescan. Invalid/unreadable/reparse settings are preserved and block cleanup discovery. No candidate is deleted.
+- **Startup apps:** source-aware inventory remains available. Reversible selected enable/disable is explicitly queued in the in-app Capability queue.
+- **Installed apps:** Refresh registrations reads covered Add/Remove Programs metadata. Mechanism hints are not proof an uninstaller works; NoRemove restrictions remain visible. No uninstall command or application is launched. Portable/unregistered apps and packaged apps lacking these registrations are outside coverage.
+- **Disk space map:** choose one fixed-local folder. The original treemap and linked list show known logical bytes, allow exact selection and drill/up/reset of the snapshot, and retain unknown/skipped/limited states. This is not physical allocation or safe-to-delete space. It reads metadata, not contents, and does not automatically scan all drives. Cleanup exclusions apply only to cleanup previews.
+- **Leftover review:** explicitly Capture baseline before manually using Windows or an application's supported uninstaller outside MadClean. Later choose Review registration changes. Only complete inventories are compared, and only previously recorded local install locations are probed. A surviving directory is a **candidate**, not proven junk or proof that uninstall completed. Shared files, data, saves and settings are never automatically removed. Snapshots/results remain in memory and are lost on exit.
+
+[Capability queue and action gates](docs/CAPABILITIES.md) · [Official workflow benchmark](docs/WORKFLOW-BENCHMARK.md). The existing phase-one features remain intact; cleanup execution, startup changes, supported uninstall execution and deeper leftover ownership analysis are queued explicitly.
 
 ## MadClean updates and the in-app reminder
 
@@ -69,8 +79,8 @@ See [integration contracts](docs/INTEGRATIONS.md), [validation limits](docs/VALI
 - Startup coverage is Run/RunOnce in shared HKCU and both 32/64-bit HKLM views, plus the user/common Startup folders. These are registered entries, not proven enabled executions. Publishers and shortcut targets remain unknown; command lines are deliberately not collected. Services, scheduled tasks and packaged startup tasks are not covered.
 - Defender results are actual provider flags and recorded detection IDs/actions. No new malware scan runs. An empty history does not mean a malware-free computer. MadClean is not an antivirus engine.
 - WinGet matches only its configured `winget` source; unmapped installed apps are outside coverage. Table localization/version changes and rows with ambiguous Unicode display widths produce Unknown; the current table parser supports ASCII plus WinGet ellipsis characters. Missing update information never becomes “up to date.” Windows Update returns offers from the configured service, including drivers; this is not an exhaustive OEM driver catalog or a recommendation to replace every driver.
-- Activity events go to `%LocalAppData%\MadClean\activity.jsonl`, rotated into one `.previous` file at approximately 1 MB. Only timestamp + enumerated operation/outcome are persisted. No provider output, filenames, command lines, usernames, detection resources or secret values are logged. Inventories exist only in memory.
+- Activity events go to `%LocalAppData%\MadClean\activity.jsonl`, rotated into one `.previous` file at approximately 1 MB. Only timestamp + enumerated operation/outcome are persisted. No provider output, filenames, command lines, usernames, detection resources or secret values are logged. Inventories/baselines exist only in memory. Explicitly chosen exclusion paths and scope flags persist separately in the local cleanup-exclusions settings file; no file contents, raw uninstall commands or scan inventories are saved there.
 
 ## Later milestones
 
-Exact candidate review before any cleanup; reversible startup actions; explicit user-initiated Defender scans; individually selected software/driver installs using Windows Update, official manufacturers or trusted package sources. No registry cleaner, bulk driver replacement, forced restart or silent elevated action. Restore points may support eligible system changes; **they do not recover deleted files**. File recovery needs a separate backup strategy.
+See the explicit [capability queue](docs/CAPABILITIES.md). Fresh exact candidate review before any selected cleanup; reversible startup actions; supported selected uninstall and ownership-evidence leftover review; explicit user-initiated Defender scans; individually selected software/driver installs using Windows Update, official manufacturers or trusted package sources. No registry cleaner, bulk driver replacement, forced restart or silent elevated action. Restore points may support eligible system changes; **they do not recover deleted files**. File recovery needs a separate backup strategy.

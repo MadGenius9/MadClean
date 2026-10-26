@@ -29,9 +29,10 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item README.md artifacts/win-x64/README.md
-          Copy-Item docs/VALIDATION.md artifacts/win-x64/VALIDATION.md
+          Copy-Item docs artifacts/win-x64/docs -Recurse
           $hash = (Get-FileHash artifacts/win-x64/MadClean.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  MadClean.exe" | Set-Content artifacts/win-x64/SHA256SUMS.txt
+          @("Source commit: $env:GITHUB_SHA", "Platform: Windows x64; self-contained; unsigned", "Phase one: read-only discovery; system-changing actions queued", "GUI and live provider checks require the manual validation matrix") | Set-Content artifacts/win-x64/BUILD-INFO.txt
           Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/MadClean-win-x64.zip
       - uses: actions/upload-artifact@v4
         if: always()

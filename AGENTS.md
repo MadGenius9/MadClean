@@ -18,7 +18,7 @@ Windows run/package commands are in README.md. On this cloud machine the SDK is 
 
 ## Safety invariants
 
-- Phase 1 is read only. No cleanup/deletion, registry modification, startup toggles, malware scans/remediation, installation, elevation or restart APIs. Writes are limited to MadClean's local activity log and development build outputs/provider-owned metadata refresh.
+- Phase 1 is read only. No cleanup/deletion, registry modification, startup toggles, malware scans/remediation, installation, elevation or restart APIs. Writes are limited to MadClean's local activity log, explicitly selected persistent cleanup exclusions under its local settings folder, and development build outputs/provider-owned metadata refresh.
 - Only explicitly documented temporary roots. No Downloads/documents/saves/credentials/browser-profile sweeps. Never traverse known reparse points; treat locked/inaccessible/recent files conservatively. This inventory does not authorize later deletion. Filesystem races require renewed validation at any future action boundary.
 - No executing discovered startup commands, resolving arbitrary scripts, loading plugins, accepting source agreements, PowerShell policy bypass, or executing package installation commands.
 - Fixed read-only PowerShell scripts use system PowerShell, encoded arguments, no profiles and no interactive prompts. WinGet uses the user's App Installer alias, not PATH/current-directory lookup. Preserve cancellation, timeouts, process-tree cleanup and output bounds.
@@ -26,6 +26,7 @@ Windows run/package commands are in README.md. On this cloud machine the SDK is 
 - MadClean self-release checking is opt-in and user-triggered. Missing configuration must say “Update checking not configured.” Keep the pinned repository/HTTPS browser-path validation, anonymous no-redirect/no-cookie client, timeout/response bounds, stable-version validation and private/offline failure states. No automatic polling, external reminders, credential embedding, asset downloads, self-installation or restarts. Preserve confirmed session reminders through failed rechecks, with honest timestamps.
 - Production uses real Windows data. Any future design/sample mode must be visibly marked everywhere it is active.
 - Never persist raw provider output, full startup commands, detection resource paths or secrets in activity logs. Do not add telemetry or remote inventory upload without explicit user authorization.
+- Disk maps are metadata-only selected-local-folder views of known logical bytes. Skipped/unknown sizes must remain incomplete; never imply physical allocation, safe deletion or speed/repair improvements. Installed-app inventory must not use Win32_Product, read/execute raw uninstall commands, or force-delete applications. Leftover comparisons require complete in-session snapshots, probe only prior validated local install paths, and label results as candidates rather than junk. No profile/AppData sweeps or automatic shared-dependency/data/save/settings removal.
 - Later mutations require exact previews and explicit user intent. Restore points cannot restore deleted files. No registry cleaner, bulk drivers, forced restarts or silent elevation.
 
 ## Validation and review

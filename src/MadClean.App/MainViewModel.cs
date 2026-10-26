@@ -32,6 +32,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         UpdatesCommand = new AsyncCommand(() => RunAsync(true), () => !IsBusy);
         CancelCommand = new ActionCommand(Cancel, () => IsBusy);
         InitializeMadCleanUpdates();
+        InitializeDiscovery();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }
@@ -99,7 +100,15 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }, text => { DiskMessage = text; DiskSummary = text; });
     private async Task LoadCleanup(CancellationToken token) => await Guard(ActivityArea.Cleanup, async () =>
     {
-        var report = await new CleanupScanner().ScanAsync(inventory.CleanupLocations, token); token.ThrowIfCancellationRequested();
+        var preferences = LoadCleanupPreferences();
+        if (preferences.Error != null)
+        {
+            cleanupPreview = Array.Empty<CleanupCandidate>();
+            CleanupSummary = "Unavailable"; CleanupMessage = preferences.Error;
+            Event(ActivityArea.Cleanup, ActivityOutcome.Failed); return;
+        }
+        var report = await new CleanupScanner().ScanAsync(inventory.CleanupLocations, token, preferences.Items); token.ThrowIfCancellationRequested();
+        cleanupPreview = report.Candidates.ToArray();
         foreach (var group in report.Candidates.GroupBy(c => c.Category)) CleanupCategories.Add($"{group.Key}: {group.Count()} files · {Display.Bytes(group.Sum(c => c.Bytes))}");
         int added = 0;
         foreach (var c in report.Candidates)

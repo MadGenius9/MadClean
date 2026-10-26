@@ -21,11 +21,19 @@ public sealed class CleanupScanner
         this.limit = limit;
     }
 
-    public Task<CleanupReport> ScanAsync(IEnumerable<CleanupLocation> locations, CancellationToken token) =>
-        Task.Run(() => Scan(locations, token), token);
-
-    private CleanupReport Scan(IEnumerable<CleanupLocation> locations, CancellationToken token)
+    public Task<CleanupReport> ScanAsync(IEnumerable<CleanupLocation> locations, CancellationToken token, IReadOnlyList<CleanupExclusion>? exclusions = null)
     {
+        // Snapshot small UI-owned settings before work moves to a background thread.
+        CleanupExclusion[]? captured = exclusions == null ? [] : exclusions.Count > CleanupExclusionRules.MaximumItems ? null : exclusions.ToArray();
+        return Task.Run(() => Scan(locations, token, captured), token);
+    }
+
+    private CleanupReport Scan(IEnumerable<CleanupLocation> locations, CancellationToken token, IReadOnlyList<CleanupExclusion>? exclusions)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!CleanupExclusionRules.TryNormalize(exclusions, out var normalized))
+            return new([], [new("User exclusions", "", "Cleanup exclusions are invalid or exceed their safety limit. Review settings before scanning; no inventory performed.")], 0, false);
+        var rules = new CleanupExclusionRules(normalized);
         List<CleanupCandidate> candidates = []; List<ScanIssue> issues = [];
         long excluded = 0; int visited = 0; bool truncated = false;
         var cutoff = DateTime.UtcNow - minimumAge;
@@ -47,11 +55,21 @@ public sealed class CleanupScanner
                     Issue(location, location.Path, "Cleanup root is unavailable or not fully qualified; check the Windows known-folder location. No inventory performed.");
                     continue;
                 }
-                root = Path.GetFullPath(location.Path);
-                // Check every ancestor: a safe-looking root under a junction is unsafe too.
-                for (DirectoryInfo? ancestor = new(root); ancestor != null; ancestor = ancestor.Parent)
-                    if ((ancestor.Attributes & FileAttributes.ReparsePoint) != 0 || ProtectedNames.Contains(ancestor.Name))
+                root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(location.Path));
+                if (rules.ExcludesDirectory(root)) { excluded++; continue; }
+                // Build paths lexically first: probing the selected root before its parents could
+                // already follow a parent junction. Missing/inaccessible ancestors stop validation.
+                var ancestors = new Stack<string>();
+                for (string? ancestor = root; !string.IsNullOrEmpty(ancestor); ancestor = Path.GetDirectoryName(ancestor))
+                    ancestors.Push(ancestor);
+                while (ancestors.Count > 0)
+                {
+                    var ancestor = ancestors.Pop();
+                    var attributes = File.GetAttributes(ancestor);
+                    var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(ancestor));
+                    if ((attributes & FileAttributes.ReparsePoint) != 0 || (attributes & FileAttributes.Directory) == 0 || ProtectedNames.Contains(name))
                         throw new IOException("Excluded ancestor");
+                }
                 if (!Directory.Exists(root)) { Issue(location, root, "Location missing; no inventory performed."); continue; }
             }
             catch (Exception ex) when (IsFileError(ex))
@@ -73,10 +91,12 @@ public sealed class CleanupScanner
                         if (++visited > limit) { truncated = true; break; }
                         try
                         {
+                            if (rules.ExcludesDirectory(path)) { excluded++; continue; }
                             var attributes = File.GetAttributes(path);
                             if ((attributes & FileAttributes.ReparsePoint) != 0 || ProtectedNames.Contains(Path.GetFileName(path)) || SensitiveNameParts.Any(part => Path.GetFileName(path).Contains(part, StringComparison.OrdinalIgnoreCase)))
                             { excluded++; continue; }
                             if ((attributes & FileAttributes.Directory) != 0) { directories.Push(path); continue; }
+                            if (rules.ExcludesFile(path)) { excluded++; continue; }
                             var info = new FileInfo(path);
                             if (info.LastWriteTimeUtc > cutoff || ProtectedExtensions.Contains(info.Extension) ||
                                 (attributes & (FileAttributes.Encrypted | FileAttributes.Offline | FileAttributes.System)) != 0)
