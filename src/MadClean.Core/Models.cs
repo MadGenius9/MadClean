@@ -19,7 +19,8 @@ public sealed record DefenderInfo(bool? AntivirusEnabled, bool? RealTimeEnabled,
     string Mode, string SignatureVersion, string SignatureUpdated, string FindingsState, IReadOnlyList<DefenderFinding> Findings);
 public sealed record DefenderFinding(string ThreatId, string ActionSuccess, string LastStatusChange);
 public sealed record AppUpdate(string Name, string Id, string InstalledVersion, string AvailableVersion, string Source, CheckState Status);
-public sealed record SystemUpdate(string Title, string Kind, string Identity, bool RebootRequired);
+public sealed record SystemUpdate(string Title, string Kind, string Identity, bool RebootRequired,
+    string DriverClass = "Unknown", string PackageDate = "Unknown", string Description = "Unknown");
 
 public interface IComputerInventory
 {

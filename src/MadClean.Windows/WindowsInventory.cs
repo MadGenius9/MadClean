@@ -186,7 +186,15 @@ public sealed class WindowsInventory : IComputerInventory
           $updates = @()
           for ($i=0; $i -lt $result.Updates.Count; $i++) {
             $u=$result.Updates.Item($i)
-            $updates += [pscustomobject]@{Title=$u.Title; Type=[int]$u.Type; Id=$u.Identity.UpdateID; RebootRequired=[bool]$u.RebootRequired}
+            $class = $null
+            $date = $null
+            if ([int]$u.Type -eq 2) {
+              try { $class = [string]$u.DriverClass } catch { }
+              try { $date = $u.DriverVerDate.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture) } catch { }
+            }
+            $description = [string]$u.Description
+            if ($description.Length -gt 2048) { $description = $description.Substring(0, 2048) + ' [truncated]' }
+            $updates += [pscustomobject]@{Title=$u.Title; Type=[int]$u.Type; Id=$u.Identity.UpdateID; RebootRequired=[bool]$u.RebootRequired; DriverClass=$class; DriverVerDate=$date; Description=$description}
           }
           [pscustomobject]@{ResultCode=[int]$result.ResultCode; Updates=@($updates)} | ConvertTo-Json -Depth 5 -Compress
         } catch { exit 1 }

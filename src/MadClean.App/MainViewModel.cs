@@ -33,6 +33,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         CancelCommand = new ActionCommand(Cancel, () => IsBusy);
         InitializeMadCleanUpdates();
         InitializeDiscovery();
+        InitializeFirmwareDiscovery();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }
@@ -72,7 +73,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         {
             if (online)
             {
-                AppRows.Clear(); SystemRows.Clear(); UpdateSummary = "Checking…";
+                AppRows.Clear(); SystemRows.Clear(); ResetUpdateCategoryResults(); UpdateSummary = "Checking…";
                 AppsMessage = SystemMessage = "Checking…";
                 await Task.WhenAll(LoadApps(source.Token), LoadSystem(source.Token));
                 UpdateSummary = "See provider results";
@@ -157,8 +158,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         var result = await inventory.SystemUpdatesAsync(token); token.ThrowIfCancellationRequested();
         foreach (var u in result.Items) SystemRows.Add(new(u.Title, u.Identity, $"{u.Kind} · offered · reboot flag {u.RebootRequired}"));
-        SystemMessage = Stamp(result.State, result.Message + $" {result.Items.Count} offered updates returned."); Event(ActivityArea.SystemUpdates, Outcome(result.State));
-    }, text => SystemMessage = text);
+        SystemMessage = Stamp(result.State, result.Message + $" {result.Items.Count} offered updates returned."); PublishUpdateCategories(result); Event(ActivityArea.SystemUpdates, Outcome(result.State));
+    }, text => { SystemMessage = text; MarkUpdateCategoryFailure(text); });
 
     private async Task Guard(ActivityArea area, Func<Task> action, Action<string> markFailure)
     {

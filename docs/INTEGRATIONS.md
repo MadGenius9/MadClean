@@ -72,3 +72,7 @@ The reminder retains an already confirmed newer release and original confirmatio
 ## Failure / permissions / cancellation
 
 The app stays at the current user's privilege level. Windows policies, absent providers, disabled services, offline sources and missing agreements produce actionable messages plus safe error codes, not raw error text that may contain secrets. Defender and update processes are bounded (45/90/180 seconds) and their stdout/stderr each capped at 4 MiB. Cancellation registration terminates the query process tree independently of WPF dispatcher shutdown; internal process awaits avoid capturing the UI context. Cancellation kills the query process tree; an OS service may complete its already-dispatched read-only work. No process is assumed to survive cloud publication.
+
+## Firmware and upgrade evidence boundaries
+
+See [FIRMWARE-UPDATES.md](FIRMWARE-UPDATES.md) for the current CIM/WUA contracts, Surface-only generic official guide coverage, unavailable vendor verification, and model/revision/BIOS version uncertainty. Read identity is explicit and local; firmware offers use the existing user-triggered WUA search with DriverClass/DriverVerDate and bounded descriptions. There is no DriverVerVersion in the documented interface, and device firmware offers cannot be relabeled applicable system BIOS updates. [HARDWARE-UPGRADES.md](HARDWARE-UPGRADES.md) queues full inventory/specification/advice stages separately. No key collection, downloads, flashing, installation, restart or purchase operation was added.

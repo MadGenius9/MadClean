@@ -269,21 +269,120 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <StackPanel>
                             <TextBlock Text="Update center" Style="{StaticResource SectionTitle}"/>
-                            <TextBlock Text="{Binding AppsMessage}" Style="{StaticResource Caption}"/>
-                            <TextBlock Text="Matched WinGet packages only. Unknown does not mean up to date. Checking may refresh provider metadata; no install commands are used." Style="{StaticResource Caption}"/>
+                            <TextBlock Text="Discovery and official guidance only. Apps, driver offers and BIOS/firmware evidence have separate coverage; an unchecked or unmatched item is never up to date." Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ContentControl Grid.Row="1" Content="{Binding AppRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
-                        <StackPanel Grid.Row="2" Margin="0,18,0,0">
-                            <TextBlock Text="Windows &amp; driver offers" FontSize="20"/>
-                            <TextBlock Text="{Binding SystemMessage}" Style="{StaticResource Caption}"/>
-                            <TextBlock Text="Manufacturer catalogs: Unsupported in phase 1. This check covers offers from the configured Windows Update service only." Style="{StaticResource Caption}"/>
-                        </StackPanel>
-                        <ContentControl Grid.Row="3" Content="{Binding SystemRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
+                        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+                            <TabControl.Resources>
+                                <Style TargetType="TabItem">
+                                    <Setter Property="Foreground" Value="#CBD4E5"/>
+                                    <Setter Property="Padding" Value="16,10"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TabItem">
+                                                <Border x:Name="Category" Background="#202838" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}" Margin="0,0,6,8">
+                                                    <ContentPresenter ContentSource="Header"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Category" Property="Background" Value="#31544D"/>
+                                                        <Setter Property="Foreground" Value="#A9E8D7"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter TargetName="Category" Property="BorderBrush" Value="#ECF1FB"/>
+                                                        <Setter TargetName="Category" Property="BorderThickness" Value="1"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </TabControl.Resources>
+                            <TabItem Header="Apps">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Matched installed-app updates" FontSize="20"/>
+                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding AppsMessage}" Style="{StaticResource Caption}"/>
+                                        </ScrollViewer>
+                                        <TextBlock Text="WinGet matched packages only. Unknown installed/available versions, missing source coverage and failed checks remain unknown." Style="{StaticResource Caption}"/>
+                                        <ContentControl Content="{Binding AppRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="230"/>
+                                        <TextBlock Text="Windows software / unclassified offers" FontSize="18" Margin="0,18,0,0"/>
+                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding WindowsSoftwareMessage}" Style="{StaticResource Caption}"/>
+                                        </ScrollViewer>
+                                        <ContentControl Content="{Binding WindowsSoftwareRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="170"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Drivers">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Driver discovery" FontSize="20"/>
+                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding DriverOffersMessage}" Style="{StaticResource Caption}"/>
+                                        </ScrollViewer>
+                                        <TextBlock Text="Source: configured Windows Update service. Use Check updates to query. Manufacturer driver catalogs are Unsupported in this increment; no installation or bulk replacement is performed." Style="{StaticResource Caption}"/>
+                                        <ContentControl Content="{Binding DriverOfferRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="300"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="BIOS / Firmware">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="BIOS / Firmware · guided review only" FontSize="20"/>
+                                        <TextBlock Text="OEM PCs and laptops must use the OEM's exact model/SKU firmware, not a similarly named retail board. Reported identity is not proof of compatibility." Style="{StaticResource Caption}"/>
+                                        <WrapPanel Margin="0,0,0,10">
+                                            <Button Content="Read BIOS / PC identity" Command="{Binding ReadFirmwareIdentityCommand}"/>
+                                            <Button Content="Official support guide" Command="{Binding OpenFirmwareSupportCommand}" Background="#ABC1F5"/>
+                                            <Button Content="Power / recovery precautions" Command="{Binding OpenFirmwarePrecautionsCommand}" Background="#343E52" Foreground="White"/>
+                                        </WrapPanel>
+                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding FirmwareIdentityMessage}" Style="{StaticResource Caption}"/>
+                                        </ScrollViewer>
+                                        <TextBlock Text="{Binding FirmwareIdentityTime, StringFormat='Last identity attempt: {0}'}" FontSize="12" Margin="0,0,0,8"/>
+                                        <DataGrid ItemsSource="{Binding FirmwareIdentityRows}" SelectedItem="{Binding SelectedFirmwareFact, Mode=TwoWay}" Height="230">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="REPORTED FACT" Binding="{Binding Name}" Width="2*" MinWidth="170"/>
+                                                <DataGridTextColumn Header="VALUE" Binding="{Binding Detail}" Width="2*" MinWidth="150"/>
+                                                <DataGridTextColumn Header="CIM / FIRMWARE SOURCE" Binding="{Binding State}" Width="3*" MinWidth="220"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBox Text="{Binding FirmwareFactDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="85" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,8,0,12"/>
+                                        <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding FirmwareInstalledVersion, StringFormat='Installed reported BIOS version: {0}'}"/>
+                                                <TextBlock Text="{Binding FirmwareAvailableVersion}" Margin="0,7,0,7"/>
+                                                <TextBlock Text="{Binding FirmwareComparison}" Foreground="#A6B1C7"/>
+                                                <TextBlock Text="Official BIOS release notes: Unknown until the exact manufacturer model/revision source is verified." Margin="0,7,0,7"/>
+                                                <TextBlock Text="{Binding FirmwareGuideStatus}"/>
+                                                <TextBlock Text="{Binding FirmwareOfficialSource}" FontSize="12" Margin="0,7,0,7"/>
+                                                <TextBlock Text="{Binding FirmwarePrerequisites}" Foreground="#A6B1C7"/>
+                                                <TextBlock Text="{Binding FirmwareManufacturerCheckTime}" FontSize="12" Margin="0,7,0,7"/>
+                                                <TextBlock Text="{Binding FirmwareGuideAction}" Foreground="#A9E8D7"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock Text="Windows Update firmware-related offers" FontSize="18"/>
+                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding FirmwareOffersMessage}" Style="{StaticResource Caption}"/>
+                                        </ScrollViewer>
+                                        <TextBlock Text="{Binding FirmwareOfferTime, StringFormat='Last Windows Update offer attempt: {0}'}" FontSize="12" Margin="0,0,0,8"/>
+                                        <DataGrid ItemsSource="{Binding FirmwareOffers}" SelectedItem="{Binding SelectedFirmwareOffer, Mode=TwoWay}" Height="180">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="OFFER TITLE (NOT A VERSION VERDICT)" Binding="{Binding Title}" Width="3*" MinWidth="230"/>
+                                                <DataGridTextColumn Header="CLASS" Binding="{Binding DriverClass}" Width="*" MinWidth="90"/>
+                                                <DataGridTextColumn Header="PACKAGE DATE" Binding="{Binding PackageDate}" Width="*" MinWidth="110"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBox Text="{Binding FirmwareOfferDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="145" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,12"/>
+                                        <TextBlock Text="No firmware assets are bundled or fetched by MadClean. No flash, install, encryption-setting change, purchase or restart is performed. Hardware Upgrades is a later queued tab; detected facts do not establish upgrade limits." Style="{StaticResource Caption}"/>
+                                        <Button Content="View incremental capability queue" Command="{Binding CapabilityQueueCommand}" HorizontalAlignment="Left" Background="#343E52" Foreground="White"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
                     </Grid>
                 </TabItem>
                 <TabItem Header="MadClean updates">

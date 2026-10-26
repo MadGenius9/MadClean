@@ -28,7 +28,7 @@ dotnet test tests/MadClean.Tests -c Release --no-build
 dotnet run --project src/MadClean.App -c Release --no-build
 ```
 
-Click **Scan local** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
+Click **Scan local** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Update Center separates Apps, Drivers and BIOS / Firmware; **Read BIOS / PC identity** is a separate local read-only action. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
 
 ### Produce a Windows executable
 
@@ -52,6 +52,14 @@ On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PA
 - **Leftover review:** explicitly Capture baseline before manually using Windows or an application's supported uninstaller outside MadClean. Later choose Review registration changes. Only complete inventories are compared, and only previously recorded local install locations are probed. A surviving directory is a **candidate**, not proven junk or proof that uninstall completed. Shared files, data, saves and settings are never automatically removed. Snapshots/results remain in memory and are lost on exit.
 
 [Capability queue and action gates](docs/CAPABILITIES.md) · [Official workflow benchmark](docs/WORKFLOW-BENCHMARK.md). The existing phase-one features remain intact; cleanup execution, startup changes, supported uninstall execution and deeper leftover ownership analysis are queued explicitly.
+
+## BIOS / Firmware and later Hardware Upgrades
+
+Update Center's **Apps**, **Drivers**, and **BIOS / Firmware** categories keep distinct evidence and coverage. The BIOS page reports available CIM PC/model/SKU, motherboard and installed BIOS/date fields as **firmware-reported**; the reported board version is not necessarily a verified PCB revision. Windows Update firmware-class offers include source, package date/description and attempt time, but can concern device firmware rather than the system BIOS. Installed/available versions are never guessed from titles or dates: available BIOS version, exact-model applicability, release notes and prerequisites remain **Unknown** until verified.
+
+The first official guide catalog is generic **Microsoft Surface only**, via explicit browser actions; it is not exact-model/revision matching. Other manufacturers are Unsupported until their official references/adapters are verified. OEM PCs/laptops require OEM firmware, never a similarly named retail board's BIOS. No assets, flashes, silent installs, encryption changes or restarts occur. See [firmware source/precaution contracts and staged matching](docs/FIRMWARE-UPDATES.md).
+
+A later [Hardware Upgrades tab](docs/HARDWARE-UPGRADES.md) is explicitly queued: read-only CPU/RAM/GPU/storage inventory, then exact-model official RAM/CPU/required-BIOS/expansion/storage specifications, then budget/use-case-gated advice. Detected facts, manufacturer-verified limits and manual checks stay separate. PSU/connectors, clearance, free physical slots and soldered-memory upgradeability are never inferred. This request authorizes no purchase or BIOS update.
 
 ## MadClean updates and the in-app reminder
 
