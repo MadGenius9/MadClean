@@ -1,0 +1,293 @@
+"""Publish bounded CI evidence to the existing private verification branch.
+
+This is a development-only tool for trusted clean CI checkouts, not a hostile-filesystem broker.
+It never exports production inventory, credentials or arbitrary runner files.
+"""
+from __future__ import annotations
+import argparse
+import datetime as dt
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import struct
+import subprocess
+import sys
+import zlib
+import xml.etree.ElementTree as ET
+
+REPOSITORY = "MadGenius9/MadClean"
+BRANCH = "madclean-verification"
+SOURCE_REF = "refs/heads/feat/phase-one-foundation"
+IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png")
+OWNED = ("latest.json", "report.json", "core-tests.json", *IMAGES)
+REQUIRED_CHECKS = {
+    "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
+    "duplicate-content-fixtures", "duplicate-hardlink-fixture", "shortcut-existing-local-fixture",
+    "shortcut-missing-local-fixture", "shortcut-no-mutation", "diagnostics-metadata-contract", "fixture-teardown",
+}
+RESULTS = {"success", "failure", "cancelled", "skipped"}
+class EvidenceError(ValueError):
+    pass
+
+def reject_unless(condition, code):
+    if not condition:
+        raise EvidenceError(code)
+
+def safe_path(path: Path, missing=False) -> Path:
+    path = Path(os.path.abspath(path))
+    for part in (*reversed(path.parents), path):
+        try:
+            data = part.lstat()
+        except FileNotFoundError:
+            reject_unless(missing, "missing-path")
+            continue
+        reject_unless(not stat.S_ISLNK(data.st_mode) and not (getattr(data, "st_file_attributes", 0) & 0x400), "reparse-path")
+    return path
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        reject_unless(key not in result, "duplicate-json-property")
+        result[key] = value
+    return result
+
+def read_json(path, maximum):
+    path = safe_path(path)
+    reject_unless(path.is_file() and path.stat().st_size <= maximum, "invalid-json-file")
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_object)
+    except (UnicodeError, json.JSONDecodeError, RecursionError):
+        raise EvidenceError("invalid-json") from None
+
+def git(root, *arguments):
+    result = subprocess.run(["git", "-C", str(root), *arguments], text=True, capture_output=True)
+    reject_unless(result.returncode == 0, "git-operation-failed")
+    return result.stdout.strip()
+
+def validate_context(environment):
+    reject_unless(environment.get("GITHUB_REPOSITORY") == REPOSITORY, "repository-mismatch")
+    reject_unless(environment.get("GITHUB_REF") == SOURCE_REF and environment.get("GITHUB_EVENT_NAME") in {"push", "workflow_dispatch"}, "untrusted-trigger")
+    sha = environment.get("GITHUB_SHA", "")
+    run = environment.get("GITHUB_RUN_ID", "")
+    attempt = environment.get("GITHUB_RUN_ATTEMPT", "")
+    reject_unless(re.fullmatch(r"[a-f0-9]{40}", sha) is not None, "invalid-source")
+    reject_unless(re.fullmatch(r"[0-9]{1,32}", run) is not None and int(run) > 0, "invalid-run")
+    reject_unless(re.fullmatch(r"[0-9]{1,10}", attempt) is not None and int(attempt) > 0, "invalid-attempt")
+    return sha, run, int(attempt)
+
+def validate_checkout(root):
+    root = safe_path(root)
+    reject_unless(root.is_dir(), "invalid-checkout")
+    reject_unless(os.path.normcase(git(root, "rev-parse", "--show-toplevel")) == os.path.normcase(str(root)), "unexpected-worktree")
+    reject_unless(git(root, "symbolic-ref", "--short", "HEAD") == BRANCH, "unexpected-branch")
+    reject_unless(git(root, "remote", "get-url", "origin").rstrip("/") in {f"https://github.com/{REPOSITORY}", f"https://github.com/{REPOSITORY}.git"}, "unexpected-origin")
+    manifest = read_json(root / "verification-manifest.json", 8192)
+    reject_unless(isinstance(manifest, dict) and type(manifest.get("formatVersion")) is int and manifest["formatVersion"] == 1 and manifest.get("purpose") == "MadClean Windows validation" and manifest.get("sourceBranch") == "feat/phase-one-foundation", "unexpected-manifest")
+    for name in OWNED:
+        path = safe_path(root / name, missing=True)
+        reject_unless(not path.exists() or path.is_file(), "invalid-destination")
+    return root
+
+def png_size(data):
+    reject_unless(57 <= len(data) <= 8_388_608 and data[:8] == b"\x89PNG\r\n\x1a\n", "invalid-png")
+    position = 8
+    dimensions = None
+    idat = False
+    ended = False
+    while position < len(data):
+        reject_unless(position + 12 <= len(data), "truncated-png")
+        length = struct.unpack_from(">I", data, position)[0]
+        kind = data[position + 4:position + 8]
+        end = position + 12 + length
+        reject_unless(end <= len(data), "truncated-png")
+        payload = data[position + 8:position + 8 + length]
+        crc = struct.unpack_from(">I", data, position + 8 + length)[0]
+        reject_unless(zlib.crc32(kind + payload) & 0xffffffff == crc, "png-checksum")
+        if position == 8:
+            reject_unless(kind == b"IHDR" and length == 13, "invalid-png-header")
+            dimensions = struct.unpack_from(">II", payload)
+            reject_unless(all(100 <= size <= 3000 for size in dimensions), "png-dimensions")
+        elif kind == b"IHDR":
+            raise EvidenceError("duplicate-png-header")
+        if kind == b"IDAT":
+            idat = True
+        if kind == b"IEND":
+            reject_unless(length == 0 and end == len(data), "invalid-png-end")
+            ended = True
+            break
+        position = end
+    reject_unless(ended and idat and dimensions is not None, "incomplete-png")
+    return dimensions
+
+def validate_report(download, context):
+    sha, run, attempt = context
+    path = download / "report.json"
+    if not path.exists():
+        return None, {}
+    report = read_json(path, 262_144)
+    fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "passed", "state", "checks", "screenshots", "limits"}
+    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] == 1, "report-schema")
+    times = []
+    for field in ("startedUtc", "completedUtc"):
+        value = report[field]
+        reject_unless(isinstance(value, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,7})?(?:Z|\+00:00)", value) is not None, "report-time")
+        try:
+            times.append(dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
+        except ValueError:
+            raise EvidenceError("report-time") from None
+    reject_unless(times[0] <= times[1], "report-time-order")
+    reject_unless(isinstance(report["limits"], str) and len(report["limits"]) <= 512, "report-limits")
+    reject_unless(report.get("sourceCommit") == sha and report.get("runId") == run and type(report.get("runAttempt")) is int and report["runAttempt"] == attempt, "report-context")
+    checks = report.get("checks")
+    reject_unless(isinstance(checks, list) and 0 < len(checks) <= 200, "report-checks")
+    names = set()
+    for check in checks:
+        reject_unless(isinstance(check, dict) and set(check) == {"name", "state", "detail"}, "check-schema")
+        name, state, detail = check.get("name"), check.get("state"), check.get("detail")
+        reject_unless(isinstance(name, str) and re.fullmatch(r"[a-z0-9-]{1,80}", name) is not None and name not in names, "check-name")
+        names.add(name)
+        reject_unless(isinstance(state, str) and state in {"passed", "failed", "inconclusive"} and isinstance(detail, str) and len(detail) <= 1000, "check-state")
+    computed = "failed" if any(c["state"] == "failed" for c in checks) else "inconclusive" if any(c["state"] == "inconclusive" for c in checks) else "passed"
+    reject_unless(type(report.get("passed")) is bool and report["passed"] == (computed == "passed") and report.get("state") == computed, "contradictory-report")
+    if report["passed"]:
+        reject_unless(REQUIRED_CHECKS <= names, "missing-required-check")
+    images = report.get("screenshots")
+    reject_unless(isinstance(images, list) and len(images) <= 32, "report-images")
+    found = set()
+    admitted = {}
+    for image in images:
+        reject_unless(isinstance(image, dict) and set(image) == {"file", "width", "height", "sha256"}, "image-schema")
+        name, digest = image.get("file"), image.get("sha256")
+        reject_unless(isinstance(name, str) and re.fullmatch(r"(?:overview-(?:wide|compact)|tool-[0-9]{2})\.png", name) is not None and name not in found, "image-name")
+        reject_unless(isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest) is not None, "image-hash-schema")
+        found.add(name)
+        source = safe_path(download / name)
+        reject_unless(source.is_file() and source.stat().st_size <= 8_388_608, "image-file")
+        data = source.read_bytes()
+        reject_unless(hashlib.sha256(data).hexdigest() == digest, "image-hash")
+        reject_unless(png_size(data) == (image.get("width"), image.get("height")), "image-size-mismatch")
+        if name in IMAGES:
+            admitted[name] = data
+    if report["passed"]:
+        reject_unless(set(IMAGES) <= found, "missing-required-capture")
+    report["limits"] = "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
+    return report, admitted
+
+class RejectDtdTreeBuilder(ET.TreeBuilder):
+    def doctype(self, name, public_id, system_id):
+        raise EvidenceError("unsupported-trx-markup")
+
+def core_test_summary(directory):
+    if directory is None:
+        return None
+    path = safe_path(directory / "core-windows.trx", missing=True)
+    if not path.exists():
+        return None
+    reject_unless(path.is_file() and path.stat().st_size <= 5_242_880, "invalid-trx-file")
+    data = path.read_bytes()
+    reject_unless(b"<!DOCTYPE" not in data.upper() and b"<!ENTITY" not in data.upper(), "unsupported-trx-markup")
+    try:
+        document = ET.fromstring(data, parser=ET.XMLParser(target=RejectDtdTreeBuilder()))
+    except ET.ParseError:
+        raise EvidenceError("invalid-trx-xml") from None
+    namespace = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+    counters = document.find("t:ResultSummary/t:Counters", namespace)
+    reject_unless(counters is not None, "missing-trx-counters")
+    result = {"scope": "Development portable tests on Windows; not production inventory or GUI/provider proof.", "counts": {}, "failures": []}
+    for name in ("total", "executed", "passed", "failed", "notExecuted"):
+        raw = counters.get(name, "")
+        reject_unless(re.fullmatch(r"[0-9]{1,8}", raw) is not None, "invalid-trx-counter")
+        result["counts"][name] = int(raw)
+    for test in document.findall("t:Results/t:UnitTestResult", namespace):
+        if test.get("outcome") != "Failed":
+            continue
+        name = test.get("testName", "Unknown test")
+        message = test.findtext("t:Output/t:ErrorInfo/t:Message", default="No error message retained.", namespaces=namespace)
+        result["failures"].append({"name": name[:256], "message": message[:2000]})
+        if len(result["failures"]) == 32:
+            break
+    counts = result["counts"]
+    result["countsConsistent"] = counts["total"] == counts["executed"] + counts["notExecuted"] and counts["passed"] + counts["failed"] == counts["executed"]
+    result["passed"] = result["countsConsistent"] and counts["executed"] > 0 and counts["failed"] == 0 and counts["passed"] == counts["executed"]
+    return result
+
+
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success"):
+    context = validate_context(environment)
+    reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
+    root = validate_checkout(root)
+    reject_unless(report_download_result in RESULTS and core_download_result in RESULTS, "download-result")
+    latest = root / "latest.json"
+    if latest.exists():
+        previous = read_json(latest, 262_144)
+        reject_unless(isinstance(previous, dict) and previous.get("formatVersion") == 1 and re.fullmatch(r"[0-9]{1,32}", str(previous.get("runId", ""))) is not None, "invalid-previous-report")
+        previous_identity = (int(previous["runId"]), int(previous.get("runAttempt", 0)))
+        reject_unless(previous_identity <= (int(context[1]), context[2]), "newer-report-exists")
+    report, images = validate_report(safe_path(download, missing=True), context) if report_download_result == "success" else (None, {})
+    core = core_test_summary(core_directory) if core_download_result == "success" else None
+    summary = {
+        "formatVersion": 1, "sourceCommit": context[0], "runId": context[1], "runAttempt": context[2],
+        "buildResult": build_result, "verificationResult": verification_result,
+        "passed": build_result == "success" and verification_result == "success" and report is not None and report["passed"] and core is not None and core["passed"],
+        "updatedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
+        "reportPresent": report is not None,
+        "coreTestsPresent": core is not None,
+        "reportArtifactOutcome": report_download_result,
+        "coreArtifactOutcome": core_download_result,
+        "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
+    }
+    files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
+    if report is not None:
+        files["report.json"] = (json.dumps(report, indent=2) + "\n").encode()
+    if core is not None:
+        files["core-tests.json"] = (json.dumps(core, indent=2) + "\n").encode()
+    return root, summary, files
+
+def publish(root, files, source_commit):
+    # All source evidence is validated before changing the generated, fixed destination names.
+    for name in OWNED:
+        path = safe_path(root / name, missing=True)
+        if path.exists():
+            path.unlink()
+    for name, data in files.items():
+        reject_unless(name in OWNED, "unexpected-output")
+        safe_path(root / name, missing=True).write_bytes(data)
+    git(root, "config", "user.name", "MadClean verification")
+    git(root, "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
+    tracked = set(git(root, "ls-files", "--", *OWNED).splitlines())
+    git(root, "add", "-A", "--", *sorted(tracked | set(files)))
+    changed = subprocess.run(["git", "-C", str(root), "diff", "--cached", "--quiet"], capture_output=True)
+    reject_unless(changed.returncode in (0, 1), "git-inspect-failed")
+    if changed.returncode == 0:
+        return
+    git(root, "commit", "-m", "ci: Windows validation for " + source_commit)
+    # No force push: concurrent or unexpected branch updates remain a visible failure.
+    git(root, "push", "origin", "HEAD:refs/heads/" + BRANCH)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verification-checkout", type=Path, required=True)
+    parser.add_argument("--downloaded-reports", type=Path, required=True)
+    parser.add_argument("--core-test-results", type=Path)
+    parser.add_argument("--build-result", required=True)
+    parser.add_argument("--verification-result", required=True)
+    parser.add_argument("--report-download-result", choices=sorted(RESULTS), required=True)
+    parser.add_argument("--core-download-result", choices=sorted(RESULTS), required=True)
+    parser.add_argument("--validate-only", action="store_true")
+    args = parser.parse_args()
+    try:
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result)
+        if not args.validate_only:
+            publish(root, files, summary["sourceCommit"])
+        print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())
+        return 0
+    except (EvidenceError, OSError, ValueError) as error:
+        code = str(error) if isinstance(error, EvidenceError) and re.fullmatch(r"[a-z0-9-]{1,80}", str(error)) else "publication-failed"
+        print("Windows evidence could not be safely validated/published (" + code + "). No force push or broad file export was attempted.", file=sys.stderr)
+        return 1
+if __name__ == "__main__":
+    raise SystemExit(main())

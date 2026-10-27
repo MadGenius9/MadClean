@@ -1,0 +1,24 @@
+<UserControl x:Class="MadClean.App.Views.ShortcutReviewView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Shortcut-target review" Style="{StaticResource SectionTitle}"/>
+            <TextBlock Text="Missing is evidence for review. Unavailable is still unknown." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Inspect stored Windows .lnk metadata in one selected local folder. MadClean never launches targets, resolves/searches/tracks links, loads icons, prompts for network credentials or saves shortcuts. No shortcut removal is implemented." Style="{StaticResource Caption}"/>
+            <WrapPanel Margin="0,4,0,12"><Button Content="Choose local folder…" Command="{Binding ChooseShortcutFolderCommand}"/><Button Content="Inspect shortcuts" Command="{Binding ScanShortcutsCommand}" Background="#244B70" Foreground="White"/></WrapPanel>
+            <TextBox Text="{Binding ShortcutFolder, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="76" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected shortcut-review scope"/>
+            <TextBlock Text="{Binding ShortcutAttempt, StringFormat='Last attempt: {0}'}" Foreground="#A9BDD3" FontSize="12" Margin="0,12,0,0"/>
+            <TextBlock Text="{Binding ShortcutMessage}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding ShortcutCoverage}" Style="{StaticResource Caption}"/>
+            <DataGrid ItemsSource="{Binding ShortcutRows}" SelectedItem="{Binding SelectedShortcutObservation, Mode=TwoWay}" Height="310" AutomationProperties.Name="Shortcut target observations">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="SHORTCUT PATH" Binding="{Binding ShortcutPath}" Width="2*" MinWidth="230"/>
+                    <DataGridTextColumn Header="STORED TARGET" Binding="{Binding TargetPath}" Width="2*" MinWidth="210"/>
+                    <DataGridTextColumn Header="OBSERVATION" Binding="{Binding State, Converter={StaticResource ShortcutStateText}}" Width="190"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBox Text="{Binding ShortcutDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="185" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected shortcut target, source and reason"/>
+            <Expander Header="Skipped entries and incomplete coverage"><DataGrid ItemsSource="{Binding ShortcutIssues}" Height="180"><DataGrid.Columns><DataGridTextColumn Header="PATH / SCOPE" Binding="{Binding Path}" Width="2*"/><DataGridTextColumn Header="REASON" Binding="{Binding Reason}" Width="3*"/></DataGrid.Columns></DataGrid></Expander>
+            <TextBlock Text="Network, offline/removable, inaccessible, reparse/cloud and unsupported contexts are not confirmed broken. A local target missing at observation time does not prove the shortcut obsolete. Cancellation may leave one native metadata call finishing; no new worker is started while it remains pending." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

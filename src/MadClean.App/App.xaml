@@ -6,6 +6,7 @@
                 <ResourceDictionary Source="Themes/DarkControls.xaml"/>
                 <ResourceDictionary Source="Themes/ReferenceStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <local:ShortcutStateTextConverter x:Key="ShortcutStateText"/>
             <local:CompactOverviewConverter x:Key="CompactOverview"/>
             <local:OverviewSideWidthConverter x:Key="OverviewSideWidth"/>
             <BooleanToVisibilityConverter x:Key="BooleanVisibility"/>

@@ -57,6 +57,16 @@ The supplied concept is implemented as a native navy/blue WPF workspace: horizon
 
 [Capability queue and action gates](docs/CAPABILITIES.md) · [Official workflow benchmark](docs/WORKFLOW-BENCHMARK.md). The existing phase-one features remain intact; cleanup execution, startup changes, supported uninstall execution and deeper leftover ownership analysis are queued explicitly.
 
+## Additional explicit discovery
+
+Under **More tools**, **Duplicate review** reads bounded selected-folder contents, confirms matches by full byte comparison and distinguishes hard-link aliases using actual Windows file identity. Protected/application/credential/save locations, links, unknown streams and active/unverifiable files are skipped; no item is removed and no reclaimable-space promise is made.
+
+**Shortcut review** inspects stored `.lnk` metadata without Resolve, execution, tracking, saving, icon retrieval or installer activation. A missing supported local target is evidence for review; offline/network/access/reparse/unsupported cases remain unknown. No shortcut is removed.
+
+**Windows Diagnostics** reads existing minimized Application/System event metadata for an explicitly chosen 1/7/30-day window, grouping event records with source, time, coverage, uncertainty and impact. No records does not mean healthy; no event message/dump content, DISM/SFC or repair command is read/run. D1b/D2/D3 remain separate gated work.
+
+These modules never run with ordinary Inspect this PC. Linux tests validate portable policies, not Windows native behavior. The opt-in development [Windows validation harness](tools/README-WINDOWS-VALIDATION.md) and [execution ledger](docs/ROADMAP-STATUS.md) distinguish actual scoped evidence from pending roadmap gates.
+
 ## BIOS / Firmware and Hardware Upgrades
 
 Update Center's **Apps**, **Drivers**, and **BIOS / Firmware** categories keep distinct evidence and coverage. The BIOS page reports available CIM PC/model/SKU, motherboard and installed BIOS/date fields as **firmware-reported**; the reported board version is not necessarily a verified PCB revision. Windows Update firmware-class offers include source, package date/description and attempt time, but can concern device firmware rather than the system BIOS. Installed/available versions are never guessed from titles or dates: available BIOS version, exact-model applicability, release notes and prerequisites remain **Unknown** until verified.
@@ -67,7 +77,7 @@ The [Hardware Upgrades tab](docs/HARDWARE-UPGRADES.md) starts with a separate **
 
 ## MadClean updates and the in-app reminder
 
-The **MadClean updates** page and Overview card show **“Update checking not configured”** in the default build. No release source is enabled or contacted automatically. The existing Check updates action continues to cover installed apps and Windows/driver offers; **Check MadClean updates** is a separate explicit action, with progress and cancellation.
+The **MadClean updates** page and Overview status show **“Update checking not configured”** in the default build. No release source is enabled or contacted automatically. The existing Check updates action continues to cover installed apps and Windows/driver offers; **Check MadClean updates** is a separate explicit action, with progress and cancellation.
 
 To opt in after a trustworthy release channel exists, create `madclean-updates.json` **beside MadClean.exe** with exactly:
 
@@ -95,6 +105,6 @@ See [integration contracts](docs/INTEGRATIONS.md), [validation limits](docs/VALI
 
 ## Later milestones
 
-[Duplicate-file and shortcut review](docs/FILE-REVIEW-ROADMAP.md) are queued separately: user-selected-folder content verification (not names), hard-link/reparse/protected-area handling and later manual last-copy-safe actions; then read-only shortcut-target findings with reasons, unknown offline/network/temporary states, and later selected shortcut-only removal. Neither module is part of the first milestone or ordinary inventory.
+[Duplicate-file and shortcut discovery](docs/FILE-REVIEW-ROADMAP.md) now ship as separate explicit read-only modules. Later last-copy-protected duplicate actions and selected shortcut-only removal remain gated; neither runs during ordinary inspection.
 
-See the explicit [capability queue](docs/CAPABILITIES.md), including the later [Windows Diagnostics module](docs/WINDOWS-DIAGNOSTICS.md): evidence-based health/crash reporting, explicit non-repair corruption checks, then guided selected repairs. Diagnostics is queued, not part of phase-one inventory; ordinary scans run no SFC/DISM or repair commands. Fresh exact candidate review before any selected cleanup; reversible startup actions; supported selected uninstall and ownership-evidence leftover review; explicit user-initiated Defender scans; individually selected software/driver installs using Windows Update, official manufacturers or trusted package sources. No registry cleaner, bulk driver replacement, forced restart or silent elevated action. Restore points may support eligible system changes; **they do not recover deleted files**. File recovery needs a separate backup strategy.
+See the explicit [capability queue](docs/CAPABILITIES.md), including the later [Windows Diagnostics module](docs/WINDOWS-DIAGNOSTICS.md): evidence-based health/crash reporting, explicit non-repair corruption checks, then guided selected repairs. D1a event evidence is implemented separately; deeper WER metadata, integrity checks and repairs remain gated. Ordinary scans run no SFC/DISM or repair commands. Fresh exact candidate review before any selected cleanup; reversible startup actions; supported selected uninstall and ownership-evidence leftover review; explicit user-initiated Defender scans; individually selected software/driver installs using Windows Update, official manufacturers or trusted package sources. No registry cleaner, bulk driver replacement, forced restart or silent elevated action. Restore points may support eligible system changes; **they do not recover deleted files**. File recovery needs a separate backup strategy.

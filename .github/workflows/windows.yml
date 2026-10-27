@@ -4,6 +4,9 @@ on:
     branches: [main, feat/phase-one-foundation]
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: madclean-windows-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -21,8 +24,18 @@ jobs:
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build
         run: dotnet build MadClean.sln -c Release --no-restore
+      - name: CI evidence-integrity boundary tests
+        run: python -m unittest discover -s tools/tests -v
       - name: Core boundary tests on Windows
         run: dotnet test tests/MadClean.Tests -c Release --no-build --logger "trx;LogFileName=core-windows.trx" --results-directory artifacts/test-results
+      - name: Preserve development test results even on failure
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-core-test-results
+          path: artifacts/test-results/core-windows.trx
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Publish Windows x64 executable (not a UI runtime test)
         run: dotnet publish src/MadClean.App/MadClean.App.csproj -c Release -r win-x64 --self-contained true -p:MadCleanPackage=true -p:PublishSingleFile=true -p:PublishTrimmed=false -p:IncludeNativeLibrariesForSelfExtract=true -p:RestoreLockedMode=true -o artifacts/win-x64
       - name: Package and hash
@@ -43,3 +56,87 @@ jobs:
             artifacts/test-results/*.trx
           if-no-files-found: warn
           retention-days: 14
+
+  windows-verification:
+    needs: build-test-package
+    runs-on: windows-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked Windows validation dependencies
+        run: dotnet restore MadClean.sln --locked-mode
+      - name: Build the development-only Windows harness
+        run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Capture real WPF content and exercise isolated native fixtures
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+        run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build
+      - name: Preserve scoped Windows validation evidence
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-Windows-validation
+          path: artifacts/windows-validation/
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-verification:
+    needs: [build-test-package, windows-verification]
+    if: >-
+      ${{ always() && github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Read the publisher from this exact source commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: source
+          persist-credentials: false
+      - name: Check out only the dedicated private verification branch
+        uses: actions/checkout@v7
+        with:
+          ref: madclean-verification
+          path: verification
+      - name: Retrieve this run's scoped Windows evidence
+        id: windows_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-Windows-validation
+          path: downloaded
+          digest-mismatch: error
+      - name: Retrieve this run's portable test evidence
+        id: core_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-core-test-results
+          path: downloaded-core
+          digest-mismatch: error
+      - name: Validate and publish only fixed, source-bound development evidence
+        env:
+          MADCLEAN_BUILD_RESULT: ${{ needs.build-test-package.result }}
+          MADCLEAN_VERIFICATION_RESULT: ${{ needs.windows-verification.result }}
+          MADCLEAN_REPORT_DOWNLOAD_RESULT: ${{ steps.windows_evidence.outcome }}
+          MADCLEAN_CORE_DOWNLOAD_RESULT: ${{ steps.core_evidence.outcome }}
+        run: >-
+          python3 source/tools/publish_windows_verification.py
+          --verification-checkout verification
+          --downloaded-reports downloaded
+          --core-test-results downloaded-core
+          --build-result "$MADCLEAN_BUILD_RESULT"
+          --verification-result "$MADCLEAN_VERIFICATION_RESULT"
+          --report-download-result "$MADCLEAN_REPORT_DOWNLOAD_RESULT"
+          --core-download-result "$MADCLEAN_CORE_DOWNLOAD_RESULT"

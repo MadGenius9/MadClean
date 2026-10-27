@@ -16,7 +16,8 @@ public sealed partial class MainViewModel
     public IReadOnlyList<NavigationLink> ToolNavigationItems { get; } =
     [
         new("MadClean updates", 5), new("Installed apps", 6), new("Disk space map", 7),
-        new("Leftover review", 8), new("Capability queue", 9), new("Activity log", 10), new("Hardware Upgrades", 11)
+        new("Leftover review", 8), new("Capability queue", 9), new("Activity log", 10), new("Hardware Upgrades", 11),
+        new("Duplicate review", 12), new("Shortcut review", 13), new("Windows Diagnostics", 14)
     ];
     public int PrimaryNavigationIndex
     {

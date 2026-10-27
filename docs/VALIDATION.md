@@ -18,7 +18,7 @@ Use a disposable Windows 11 test account/VM, not the user's personal PC. Run une
 
 | Area | Required observation |
 | --- | --- |
-| Executable/UI | Extract package, start MadClean.exe, verify the dark twelve-page UI, keyboard focus/navigation, resize at minimum size and 100/150/200% DPI, screen-reader labels, grid scrolling and long text. No sample data or UAC prompt. |
+| Executable/UI | Extract package, start MadClean.exe, verify the navy/blue fifteen-page UI, keyboard focus/navigation, resize at minimum size and 100/150/200% DPI, screen-reader labels, grid scrolling and long text. No sample data or UAC prompt. |
 | Local inventory | Click Inspect this PC. Compare fixed-disk totals with Windows APIs; recent/inaccessible files show exclusions. Startup list matches covered Run/RunOnce and Startup folders; publishers/targets not verified remain Unknown. |
 | Cleanup safety | Use disposable old/recent/locked files, inaccessible ACL folders and junctions in supported temp roots. Inventory never changes bytes, deletes or traverses a junction. Review Partial errors; the UI stays responsive. |
 | Saved cleanup exclusions | Select a preview file or folder exclusion, restart, verify persistence and exact vs descendant matching, then remove a preference and explicitly rescan. Verify malformed/ACL/reparse/mapped-network settings block cleanup and preserve existing settings; complete selected path is copyable. |
@@ -40,7 +40,7 @@ Windows CI compiles/packages and runs the portable test assembly on Windows; it 
 Verified in the Linux cloud environment using SDK **10.0.403**, runtime **10.0.14**:
 
 - Locked development restore and complete Release solution build: **passed**, zero warnings/errors.
-- Core tests: **376 passed, 0 failed, 0 skipped**. Current-run results: `artifacts/test-results/core-linux.trx`.
+- Core tests: **501 passed, 0 failed, 0 skipped**. Current-run results: `artifacts/test-results/core-linux.trx`.
 - Locked self-contained single-file `win-x64` publish: **passed**. Development lockfile hashes remained unchanged by packaging. Packaging graph includes only the explicit `win-x64` RID.
 - Produced `artifacts/win-x64/MadClean.exe`; inspected as **PE32+ Windows x64 GUI**. Unsigned; **not executed or runtime-tested on Windows**.
 - ZIP and SHA-256 manifest: `artifacts/MadClean-win-x64.zip` and `artifacts/win-x64/SHA256SUMS.txt`. Generated artifacts are ignored by Git; reproduce with README commands.
@@ -64,3 +64,7 @@ The native UI adds shared dark control resources, explicit table/list focus and 
 ## Supplied concept implementation
 
 The user supplied the actual navy/blue concept image after the initial UI groundwork. The existing WPF app now follows its horizontal navigation, inspection hero/list, right-hand per-drive storage ring/guidance and Activity footer, with all secondary modules retained in More tools. The concept’s sample numbers are not used. StorageGaugeReading and 23 new portable tests reject unverified/failed/cancelled states, missing or contradictory capacity, while accepting valid Partial, zero-free, fully-free and large raw readings. Current suite: **376 passed, 0 failed/skipped on Linux**; Release compilation passed with zero warnings/errors. Native navigation, selector keyboard behavior, compact stacking, text/scrollbars/DPI and screenshot comparison require the Windows matrix in UI.md. A successful compile or core CI test does not establish visual fidelity or live-provider correctness.
+
+## Extended roadmap discovery and Windows proof channel
+
+Combined development validation: **501 portable .NET tests passed on Linux**, zero failed/skipped, with a zero-warning Release solution build including the Windows-only smoke harness (compile only). The new F1/S1/D1a code and hardware scope/reference guards have independent static review; no removal, servicing or installer API is enabled. CI publisher integrity tests: **31 passed** in Python on Linux. A separate opt-in Windows job and private source/run-bound verification branch are configured for actual WPF content/native fixture evidence. At this commit that Windows job has not yet been observed; compilation is not substituted for its outcome. Exact hardware upgrade specification sources remain Unknown/Unsupported as documented.

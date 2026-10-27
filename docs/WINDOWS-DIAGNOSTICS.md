@@ -1,10 +1,13 @@
 # Windows Diagnostics — later, incremental module
 
-**Roadmap only. Not implemented or enabled in phase one.** This module has no inventory hook, command runner, scheduled task or repair action in the current app. The existing foundation ships independently; the capability queue is the only UI addition. No diagnostic or repair command was run while preparing this roadmap.
+**D1a is implemented as a separately requested, passive Event Log report. D1b WER-store corroboration, D2 integrity checks and D3 repairs remain gated later stages.** Windows Diagnostics is available under More tools and never runs with ordinary Inspect this PC. It uses fixed, bounded local Application/System metadata queries, not a health score, servicing command, scheduled task or repair action. Windows native behavior is pending the dedicated disposable-runner checks; Linux compilation and parser tests do not establish Windows correctness. No user PC or servicing/repair command was accessed during development.
 
 The goal is an evidence-based system-health report explaining observed symptoms and their limits. There is no scalar health score, generic “PC needs repair” diagnosis, arbitrary DLL download, registry-cleaner recommendation or unsupported speed/repair promise.
 
 ## D1 — passive, read-only evidence report
+
+Current D1a: explicit 1/7/30-day UTC window; at most 1,000 returned records per channel and 256 groups; levels 1/2/3 plus supported WER informational records. Only channel, provider, event ID/version/level, record reference and UTC time are projected. Per-channel statuses, truncation, whole-log count/bounds and their non-atomic/retention uncertainty are visible. Messages, payload properties, user IDs, paths and dump contents are not requested. The fixed system PowerShell query is capped at 90 seconds overall and cancellable as a metadata-query process; that runner must never be reused for servicing.
+
 
 Start with explicitly requested local Windows Event Log queries through supported Windows Event Log APIs. Cover selected System/Application providers, including available Windows Error Reporting/application-failure evidence and documented unexpected-shutdown events. Use provider + event ID + schema/version, not event number alone. WER report/dump folders are not a default filesystem sweep; dumps and unrestricted report contents can contain personal data. D1a can ship Event Log summaries first. D1b may add existing WER queue/archive metadata through supported WER Store APIs, with OS/API availability, permissions and privacy validation; never upload, purge, enable local dumps or open associated dump contents. Reliability interfaces remain optional pending a separately verified contract.
 

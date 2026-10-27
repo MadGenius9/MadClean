@@ -1,0 +1,33 @@
+<UserControl x:Class="MadClean.App.Views.DuplicateReviewView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Duplicate-file review" Style="{StaticResource SectionTitle}"/>
+            <TextBlock Text="Content evidence, never an automatic cleanup verdict." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Choose one local data folder and review it before scanning. This reads file contents. Names, sizes and hashes alone are not duplicate proof: matching files require full byte comparison. Hard-link aliases are not independent copies. No removal is implemented." Style="{StaticResource Caption}"/>
+            <WrapPanel Margin="0,4,0,12">
+                <Button Content="Choose local folder…" Command="{Binding ChooseDuplicateFolderCommand}"/>
+                <Button Content="Scan selected folder (reads contents)" Command="{Binding ScanDuplicatesCommand}" Background="#244B70" Foreground="White"/>
+            </WrapPanel>
+            <TextBox Text="{Binding DuplicateFolder, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="76" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected duplicate-review scope"/>
+            <TextBlock Text="Default protections exclude supported system/application/cache/credential/save locations and extensions, links, offline/cloud placeholders, active files and unverifiable streams/identities. Unknown ownership never means safe to remove." Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding DuplicateAttempt, StringFormat='Last attempt: {0}'}" Foreground="#A9BDD3" FontSize="12"/>
+            <TextBlock Text="{Binding DuplicateMessage}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding DuplicateCoverage}" Style="{StaticResource Caption}"/>
+            <DataGrid ItemsSource="{Binding DuplicateRows}" SelectedItem="{Binding SelectedDuplicateEntry, Mode=TwoWay}" Height="310" AutomationProperties.Name="Duplicate content groups and same-file aliases">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="GROUP" Binding="{Binding GroupId}" Width="110"/>
+                    <DataGridTextColumn Header="EXACT PATH" Binding="{Binding Path}" Width="3*" MinWidth="230"/>
+                    <DataGridTextColumn Header="LOGICAL BYTES" Binding="{Binding Bytes}" Width="130"/>
+                    <DataGridTextColumn Header="RELATIONSHIP / EVIDENCE" Binding="{Binding Relationship}" Width="2*" MinWidth="180"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBox Text="{Binding DuplicateDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="170" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected duplicate path, identity and verification"/>
+            <Expander Header="Exclusions, errors and incomplete coverage">
+                <DataGrid ItemsSource="{Binding DuplicateIssues}" Height="180">
+                    <DataGrid.Columns><DataGridTextColumn Header="PATH / SCOPE" Binding="{Binding Path}" Width="2*"/><DataGridTextColumn Header="REASON" Binding="{Binding Reason}" Width="3*"/></DataGrid.Columns>
+                </DataGrid>
+            </Expander>
+            <TextBlock Text="A match is a snapshot, not deletion eligibility, a backup or guaranteed reclaimable space. Keepers, shared data, saves and settings require a separate later review; ordinary inspection never starts this content scan." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

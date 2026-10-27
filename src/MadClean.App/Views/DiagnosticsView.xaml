@@ -1,0 +1,31 @@
+<UserControl x:Class="MadClean.App.Views.DiagnosticsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Windows Diagnostics" Style="{StaticResource SectionTitle}"/>
+            <TextBlock Text="Existing event evidence. Source, time and uncertainty included." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Read bounded local Application/System metadata for reported warning/error/critical events and supported WER records. Counts refer to event records, not unique crashes or confirmed causes. No Security log, messages, payloads, dump contents, integrity check or repair is collected or started." Style="{StaticResource Caption}"/>
+            <WrapPanel Margin="0,4,0,12">
+                <ComboBox ItemsSource="{Binding DiagnosticRanges}" SelectedItem="{Binding SelectedDiagnosticRange, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose time range" Width="190" Margin="0,0,12,0" AutomationProperties.Name="Diagnostic evidence time range">
+                    <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ComboBox.Style>
+                </ComboBox>
+                <Button Content="Read event evidence" Command="{Binding ReadDiagnosticsCommand}"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding DiagnosticsAttempt, StringFormat='Last attempt: {0}'}" Foreground="#A9BDD3" FontSize="12"/>
+            <TextBlock Text="{Binding DiagnosticsMessage}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding DiagnosticsWindow}" Style="{StaticResource Caption}"/>
+            <DataGrid ItemsSource="{Binding DiagnosticRows}" SelectedItem="{Binding SelectedDiagnosticFinding, Mode=TwoWay}" Height="300" AutomationProperties.Name="Recurring event observations">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="CHANNEL" Binding="{Binding Channel}" Width="105"/>
+                    <DataGridTextColumn Header="PROVIDER" Binding="{Binding Provider}" Width="2*" MinWidth="200"/>
+                    <DataGridTextColumn Header="EVENT ID" Binding="{Binding EventId}" Width="90"/>
+                    <DataGridTextColumn Header="REPORTED LEVEL" Binding="{Binding Level}" Width="130"/>
+                    <DataGridTextColumn Header="RECORDS" Binding="{Binding Count}" Width="90"/>
+                    <DataGridTextColumn Header="LAST UTC" Binding="{Binding LastUtc, StringFormat=u}" Width="180"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBox Text="{Binding DiagnosticDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="235" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected event evidence, uncertainty and impact"/>
+            <Expander Header="Requested/read sources, retention, limits and gaps" IsExpanded="True"><ItemsControl ItemsSource="{Binding DiagnosticCoverage}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#A9BDD3" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Expander>
+            <TextBlock Text="No matching records does not mean healthy. Unexpected-shutdown events alone do not diagnose a PSU, RAM or driver fault. Corruption checks and guided repairs remain separately gated later operations; ordinary inventory never runs DISM or SFC." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
