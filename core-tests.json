@@ -1,0 +1,13 @@
+{
+  "scope": "Development portable tests on Windows; not production inventory or GUI/provider proof.",
+  "counts": {
+    "total": 546,
+    "executed": 536,
+    "passed": 536,
+    "failed": 0,
+    "notExecuted": 0
+  },
+  "failures": [],
+  "countsConsistent": false,
+  "passed": false
+}

@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "sourceCommit": "ed5254fdb07859ab522aecc9b150b62e034ef0ab",
+  "runId": "40448559633",
+  "runAttempt": 1,
+  "startedUtc": "2026-10-27T04:17:57.3208668+00:00",
+  "completedUtc": "2026-10-27T04:17:57.5147439+00:00",
+  "passed": false,
+  "state": "failed",
+  "checks": [
+    {
+      "name": "harness",
+      "state": "failed",
+      "detail": "The harness did not complete (0x80004003); no broad Windows verification is claimed."
+    }
+  ],
+  "screenshots": [],
+  "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
+}
