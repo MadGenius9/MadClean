@@ -86,7 +86,14 @@ def validate_context(environment):
 def validate_checkout(root):
     root = safe_path(root)
     reject_unless(root.is_dir(), "invalid-checkout")
-    reject_unless(os.path.normcase(git(root, "rev-parse", "--show-toplevel")) == os.path.normcase(str(root)), "unexpected-worktree")
+    # Git for Windows canonicalizes 8.3 aliases; normcase does not. Inspect both
+    # ancestor chains first, then compare actual directory identity rather than spelling.
+    reported_root = safe_path(Path(git(root, "rev-parse", "--show-toplevel")))
+    try:
+        same_root = os.path.samefile(reported_root, root)
+    except OSError:
+        raise EvidenceError("unexpected-worktree") from None
+    reject_unless(same_root, "unexpected-worktree")
     reject_unless(git(root, "symbolic-ref", "--short", "HEAD") == BRANCH, "unexpected-branch")
     reject_unless(git(root, "remote", "get-url", "origin").rstrip("/") in {f"https://github.com/{REPOSITORY}", f"https://github.com/{REPOSITORY}.git"}, "unexpected-origin")
     manifest = read_json(root / "verification-manifest.json", 8192)

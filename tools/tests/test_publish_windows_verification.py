@@ -56,6 +56,24 @@ class PublisherTests(unittest.TestCase):
         self.assertTrue(summary['passed'])
         self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
+    def test_another_existing_directory_cannot_impersonate_the_checkout_root(self):
+        actual_git = p.git
+        def altered_git(root,*arguments):
+            return str(self.download) if arguments == ('rev-parse','--show-toplevel') else actual_git(root,*arguments)
+        with patch.object(p,'git',side_effect=altered_git):
+            with self.assertRaisesRegex(p.EvidenceError,'^unexpected-worktree$'): self.prepare()
+    @unittest.skipUnless(os.name=='nt','Requires actual Windows 8.3 alias support')
+    def test_windows_short_alias_of_same_checkout_is_accepted(self):
+        import ctypes
+        buffer=ctypes.create_unicode_buffer(32768)
+        get_short=ctypes.windll.kernel32.GetShortPathNameW
+        get_short.argtypes=[ctypes.c_wchar_p,ctypes.c_wchar_p,ctypes.c_uint]
+        get_short.restype=ctypes.c_uint
+        length=get_short(str(self.root),buffer,len(buffer))
+        if not length or length>=len(buffer) or buffer.value.lower()==str(self.root).lower():
+            self.skipTest('Filesystem did not provide a distinct 8.3 alias')
+        _, summary, _=p.prepare(Path(buffer.value),self.download,'success','success',self.env,core_directory=self.download)
+        self.assertTrue(summary['passed'])
     def test_native_failed_download_cannot_admit_leftover_logs(self):
         with patch.object(p.ci_diagnostics, '_safe', side_effect=AssertionError('must not read')):
             _, summary, files=p.prepare(self.root,self.download,'success','failure',self.env,
