@@ -10,7 +10,7 @@ public sealed class DiskUsageTests : IDisposable
 
     private string FileAt(string relativePath, int bytes)
     {
-        string path = Path.Combine(root, relativePath);
+        string path = Path.GetFullPath(Path.Combine(root, relativePath));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, new byte[bytes]);
         return path;

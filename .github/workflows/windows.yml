@@ -11,8 +11,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
           cache: true
@@ -34,7 +34,7 @@ jobs:
           "$hash  MadClean.exe" | Set-Content artifacts/win-x64/SHA256SUMS.txt
           @("Source commit: $env:GITHUB_SHA", "Platform: Windows x64; self-contained; unsigned", "Phase one: read-only discovery; system-changing actions queued", "GUI and live provider checks require the manual validation matrix") | Set-Content artifacts/win-x64/BUILD-INFO.txt
           Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/MadClean-win-x64.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: MadClean-win-x64-and-test-results

@@ -11,7 +11,7 @@ public sealed class CleanupExclusionTests : IDisposable
     private string SettingsPath => Path.Combine(root, "settings", "cleanup-exclusions.json");
     private string OldFile(string relative)
     {
-        var path = Path.Combine(root, "inventory", relative);
+        var path = Path.GetFullPath(Path.Combine(root, "inventory", relative));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "temporary test fixture");
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-10));

@@ -8,7 +8,7 @@ public sealed class CleanupTests : IDisposable
     public CleanupTests() => Directory.CreateDirectory(root);
     private string FileAt(string name, int size = 17, bool old = true)
     {
-        var path = Path.Combine(root, name); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var path = Path.GetFullPath(Path.Combine(root, name)); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, new byte[size]); if (old) File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-10));
         return path;
     }
@@ -69,14 +69,26 @@ public sealed class CleanupTests : IDisposable
     [Fact]
     public async Task ExistingRelativeScopeIsRefusedEvenWhenItContainsOldFiles()
     {
-        FileAt("old.tmp");
-        var relative = Path.GetRelativePath(Environment.CurrentDirectory, root);
-        Assert.False(Path.IsPathFullyQualified(relative));
-        var report = await new CleanupScanner().ScanAsync([new("Relative folder", relative)], default);
-        Assert.Empty(report.Candidates);
-        var issue = Assert.Single(report.Issues);
-        Assert.Equal(relative, issue.Path);
-        Assert.Contains("not fully qualified", issue.Reason);
+        // The runner's temp directory and checkout may be on different Windows drives.
+        // Create this one fixture below the current directory without changing global CWD.
+        var relative = "MadCleanRelativeScope-" + Guid.NewGuid();
+        var absolute = Path.GetFullPath(relative);
+        Directory.CreateDirectory(absolute);
+        try
+        {
+            var file = Path.Combine(absolute, "old.tmp");
+            File.WriteAllText(file, "temporary test fixture");
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-10));
+            Assert.False(Path.IsPathFullyQualified(relative));
+            Assert.True(Directory.Exists(relative));
+            var report = await new CleanupScanner().ScanAsync([new("Relative folder", relative)], default);
+            Assert.Empty(report.Candidates);
+            var issue = Assert.Single(report.Issues);
+            Assert.Equal(relative, issue.Path);
+            Assert.Contains("not fully qualified", issue.Reason);
+            Assert.True(File.Exists(file));
+        }
+        finally { Directory.Delete(absolute, recursive: true); }
     }
     [Fact]
     public async Task MissingLocationIsReportedAndDoesNotHideOtherResults()
