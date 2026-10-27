@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "1a8c72755e16e601630bc14cbb50fd7d2a1c4fb0",
-  "runId": "40493148933",
+  "sourceCommit": "be55aa37b4dd0ce7c5e1129f1933556f68b92cd4",
+  "runId": "40494975478",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T11:06:07.0245552+00:00",
-  "completedUtc": "2026-10-27T11:06:12.568771+00:00",
+  "startedUtc": "2026-10-27T11:20:56.4302558+00:00",
+  "completedUtc": "2026-10-27T11:21:02.6298102+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -26,7 +26,7 @@
     {
       "name": "ui-primary-navigation",
       "state": "passed",
-      "detail": "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions."
+      "detail": "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions. The resolved Update center title wraps and exceeds4.5:1 against every actual root gradient stop; this is a scoped style check, not an accessibility audit."
     },
     {
       "name": "ui-tool-navigation",
@@ -49,6 +49,11 @@
       "detail": "An actual native hard link shares the original file identity and group and is explicitly labeled an alias, not an independent copy."
     },
     {
+      "name": "disk-identity-fixture",
+      "state": "passed",
+      "detail": "Native identity state=Available; observedPaths=4; observedUniqueFiles=3; hardLinkRelationshipVerified=true; fixtureBytesUnchanged=true. Independent equal-content and same-size different-content files remain separate identities; the actual alias counts once in observed unique logical bytes. No identities/paths/contents exported; outside-scope links, allocation, content deduplication and deletion safety are not established."
+    },
+    {
       "name": "shortcut-existing-local-fixture",
       "state": "passed",
       "detail": "The native fixture returned TargetExists with a reason/source; this is target availability, not proof a shortcut can launch or is obsolete."
@@ -66,7 +71,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
     },
     {
       "name": "wer-v1-managed-layout",
@@ -76,7 +81,7 @@
     {
       "name": "wer-store-read-contract",
       "state": "inconclusive",
-      "detail": "Native WER state=Unknown; readableStoreCount=0; populatedMetadataVerified=false. Store access, API support or completion remains unverified; no empty-store or health conclusion."
+      "detail": "Native WER state=Unknown; MachineQueue=Unknown/SuccessfulEnumerationReturnedNullKey/keys:0/metadata:0/projected:0/failures:0/limited:false/result:0x00000000; MachineArchive=Unknown/SuccessfulEnumerationReturnedNullKey/keys:0/metadata:0/projected:0/failures:0/limited:false/result:0x00000000; populatedMetadataVerified=false. Store access/API/completion unverified; S_OK/null is Unknown, never empty or an invented native error."
     },
     {
       "name": "hardware-metadata-contract",
@@ -136,49 +141,49 @@
       "file": "tool-18.png",
       "width": 1404,
       "height": 961,
-      "sha256": "2b146850d531a053171bbb1297c199cbc1200fa987e3b20040052fd92b9f5063"
+      "sha256": "22857d2e5fa5a6eacac477e16e4f4673e88d864de8bb99ca4e50c65b997808b6"
     },
     {
       "file": "tool-11.png",
       "width": 1404,
       "height": 961,
-      "sha256": "992e8cf3ede55ab263f9cbcb4556785878370b3f0f01e60f49a15e4e992c2d7a"
+      "sha256": "9632993e58a454263be268ac7a8ef6621ca7bed45e7f317ec34c0c10f5bf5c7b"
     },
     {
       "file": "tool-12.png",
       "width": 1404,
       "height": 961,
-      "sha256": "8316f4726e7e109712d1a4af0ad9be6f131fdc458f17020a765b6505925c43dc"
+      "sha256": "1d48b0ce67bc26e0fcb7921b7e32a0ce468a234a54abb29c9eba578cf686b7c4"
     },
     {
       "file": "tool-13.png",
       "width": 1404,
       "height": 961,
-      "sha256": "11e6670da9e9ec5ebb3d298be4a57d09dbf5ee30a2fb407b98361edddf86ca27"
+      "sha256": "55c74a7d3aaf3c1b5290a10a96ee8030011dd9c0f6ae1c74dc195bff188c7cc9"
     },
     {
       "file": "tool-14.png",
       "width": 1404,
       "height": 961,
-      "sha256": "470fe03af1e614b37321428d66a6d29a93c1c982065592895fa42f6aa539e854"
+      "sha256": "fd8408f1431b3bd9523796beda202e9e7e639824a2f7bd0c3f69136c50a34f09"
     },
     {
       "file": "tool-15.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7b67688aba220c6f10cadfc0ac8450b86c147ddde2f854f2a9eea00be237ed04"
+      "sha256": "b7dedd05d9a35c4174f65ccd78b040ae1676daea9c8d191d3b2a812614993178"
     },
     {
       "file": "tool-16.png",
       "width": 1404,
       "height": 961,
-      "sha256": "c1d622af6c420b0a50c4e481b5befadf9b943cb757424714f300818eb8dec7a0"
+      "sha256": "3c592f2d3380a4e3ef6a8bee4e1ac99c2160cc79e085fcb1367d2540f433f393"
     },
     {
       "file": "tool-17.png",
       "width": 1404,
       "height": 961,
-      "sha256": "91eb711d515a76c0a9d8b4359807d761d8051ad80938f63a6db556331cb9f0d8"
+      "sha256": "8452605c3fd21bf8343637e7c9214473756174bc1566d77d68c1e7c1351bfd6a"
     }
   ],
   "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."

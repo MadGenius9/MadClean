@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "1a8c72755e16e601630bc14cbb50fd7d2a1c4fb0",
-  "runId": "40493148933",
+  "sourceCommit": "be55aa37b4dd0ce7c5e1129f1933556f68b92cd4",
+  "runId": "40494975478",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-10-27T11:06:34.569809+00:00",
+  "updatedUtc": "2026-10-27T11:21:23.118439+00:00",
   "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -37,35 +37,35 @@
     },
     {
       "name": "tool-18.png",
-      "sha256": "2b146850d531a053171bbb1297c199cbc1200fa987e3b20040052fd92b9f5063"
+      "sha256": "22857d2e5fa5a6eacac477e16e4f4673e88d864de8bb99ca4e50c65b997808b6"
     },
     {
       "name": "tool-11.png",
-      "sha256": "992e8cf3ede55ab263f9cbcb4556785878370b3f0f01e60f49a15e4e992c2d7a"
+      "sha256": "9632993e58a454263be268ac7a8ef6621ca7bed45e7f317ec34c0c10f5bf5c7b"
     },
     {
       "name": "tool-12.png",
-      "sha256": "8316f4726e7e109712d1a4af0ad9be6f131fdc458f17020a765b6505925c43dc"
+      "sha256": "1d48b0ce67bc26e0fcb7921b7e32a0ce468a234a54abb29c9eba578cf686b7c4"
     },
     {
       "name": "tool-13.png",
-      "sha256": "11e6670da9e9ec5ebb3d298be4a57d09dbf5ee30a2fb407b98361edddf86ca27"
+      "sha256": "55c74a7d3aaf3c1b5290a10a96ee8030011dd9c0f6ae1c74dc195bff188c7cc9"
     },
     {
       "name": "tool-14.png",
-      "sha256": "470fe03af1e614b37321428d66a6d29a93c1c982065592895fa42f6aa539e854"
+      "sha256": "fd8408f1431b3bd9523796beda202e9e7e639824a2f7bd0c3f69136c50a34f09"
     },
     {
       "name": "tool-15.png",
-      "sha256": "7b67688aba220c6f10cadfc0ac8450b86c147ddde2f854f2a9eea00be237ed04"
+      "sha256": "b7dedd05d9a35c4174f65ccd78b040ae1676daea9c8d191d3b2a812614993178"
     },
     {
       "name": "tool-16.png",
-      "sha256": "c1d622af6c420b0a50c4e481b5befadf9b943cb757424714f300818eb8dec7a0"
+      "sha256": "3c592f2d3380a4e3ef6a8bee4e1ac99c2160cc79e085fcb1367d2540f433f393"
     },
     {
       "name": "tool-17.png",
-      "sha256": "91eb711d515a76c0a9d8b4359807d761d8051ad80938f63a6db556331cb9f0d8"
+      "sha256": "8452605c3fd21bf8343637e7c9214473756174bc1566d77d68c1e7c1351bfd6a"
     }
   ]
 }
