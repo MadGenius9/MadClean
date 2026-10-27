@@ -623,6 +623,7 @@
             <TabItem Header="Duplicate review"><views:DuplicateReviewView/></TabItem>
             <TabItem Header="Shortcut review"><views:ShortcutReviewView/></TabItem>
             <TabItem Header="Windows Diagnostics"><views:DiagnosticsView/></TabItem>
+            <TabItem Header="Guided Windows workflows"><views:GuidedWindowsView/></TabItem>
         </TabControl>
         <Border Grid.Row="4" BorderBrush="#294256" BorderThickness="0,1,0,0" Background="#162A3B" Padding="28,10">
             <StackPanel>

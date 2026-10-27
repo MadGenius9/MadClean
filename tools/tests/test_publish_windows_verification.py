@@ -54,8 +54,36 @@ class PublisherTests(unittest.TestCase):
     def test_complete_evidence_binds_real_files_and_changes_nothing_during_validation(self):
         _, summary, files = self.prepare()
         self.assertTrue(summary['passed'])
-        self.assertEqual(set(p.OWNED),set(files))
+        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
+    def test_failed_log_artifact_never_opens_the_download_directory(self):
+        with patch.object(p.ci_diagnostics, '_safe', side_effect=AssertionError('must not read')):
+            _, summary, files = p.prepare(self.root,self.download,'failure','skipped',self.env,
+                command_logs=self.download,log_download_result='failure')
+        self.assertFalse(summary['passed'])
+        self.assertNotIn('ci-diagnostics.json',files)
+    def test_absent_job_outputs_remain_unknown_without_losing_failure_evidence(self):
+        self.env['MADCLEAN_STAGE_SDK']=''
+        _, summary, _ = self.prepare(build='cancelled',verify='skipped')
+        self.assertEqual('unknown',summary['stageOutcomes']['sdk'])
+        self.assertEqual('unknown',summary['stageOutcomes']['restore'])
+        self.assertFalse(summary['passed'])
+    def test_rejected_logs_do_not_suppress_actual_stage_failure(self):
+        self.env['MADCLEAN_STAGE_BUILD']='failure'
+        with patch.object(p.ci_diagnostics,'collect',side_effect=ValueError('TEST rejection')):
+            _, summary, files=p.prepare(self.root,self.download,'failure','skipped',self.env,
+                command_logs=self.download,log_download_result='success')
+        self.assertFalse(summary['passed'])
+        self.assertEqual('failure',summary['stageOutcomes']['build'])
+        self.assertEqual('log-evidence-rejected',summary['diagnosticsError'])
+        self.assertNotIn('ci-diagnostics.json',files)
+    def test_logs_alone_cannot_establish_a_pass(self):
+        with patch.object(p.ci_diagnostics,'collect',return_value={'scope':'TEST ONLY','stages':[]}):
+            _, summary, files=p.prepare(self.root,self.download,'success','success',self.env,
+                report_download_result='skipped',core_download_result='skipped',
+                command_logs=self.download,log_download_result='success')
+        self.assertFalse(summary['passed'])
+        self.assertIn('ci-diagnostics.json',files)
     def test_missing_report_cannot_become_pass_from_successful_jobs(self):
         (self.download/'report.json').unlink()
         _, summary, files = self.prepare()

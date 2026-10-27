@@ -68,3 +68,7 @@ The user supplied the actual navy/blue concept image after the initial UI ground
 ## Extended roadmap discovery and Windows proof channel
 
 Combined development validation: **501 portable .NET tests passed on Linux**, zero failed/skipped, with a zero-warning Release solution build including the Windows-only smoke harness (compile only). The new F1/S1/D1a code and hardware scope/reference guards have independent static review; no removal, servicing or installer API is enabled. CI publisher integrity tests: **31 passed** in Python on Linux. A separate opt-in Windows job and private source/run-bound verification branch are configured for actual WPF content/native fixture evidence. At this commit that Windows job has not yet been observed; compilation is not substituted for its outcome. Exact hardware upgrade specification sources remain Unknown/Unsupported as documented.
+
+### Development command evidence
+
+The Windows build captures only bounded compiler/test command text in memory, scrubs complete text before console/artifact output, and publishes minimized excerpts after a second scrub and source/run/attempt validation. It does not capture production-provider logs. Artifact download failures never admit leftover files. Stage outcomes identify an early failure even without a TRX; absent outputs remain Unknown. Excerpts and exit codes alone cannot establish a passing test run or working Windows integration. Native harness restore/build failures without a harness report still require the job log.

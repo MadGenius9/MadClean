@@ -1,0 +1,29 @@
+<UserControl x:Class="MadClean.App.Views.GuidedWindowsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Guided Windows workflows" Style="{StaticResource SectionTitle}"/>
+            <TextBlock Text="Review a destination, then choose whether to open it." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Use documented Windows pages for manual startup/app/security/update tasks, or read Microsoft's system-file instructions. MadClean opens only the exact destination shown below. It does not pass an app/update target, execute an operation or monitor what you later choose inside Windows." Style="{StaticResource Caption}"/>
+            <ComboBox ItemsSource="{Binding GuidedActions}" SelectedItem="{Binding SelectedGuidedAction, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose a Windows workflow" MinWidth="320" HorizontalAlignment="Left" Margin="0,4,0,16" AutomationProperties.Name="Guided Windows workflow selection">
+                <ComboBox.Style>
+                    <Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding GuidedOpening}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                            <DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ComboBox.Style>
+            </ComboBox>
+            <TextBox Text="{Binding GuidedPreview, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Exact Windows navigation effect and permissions preview"/>
+            <Button Content="Open selected Windows workflow" Command="{Binding OpenGuidedActionCommand}" HorizontalAlignment="Left" Margin="0,16,0,12"/>
+            <TextBlock Text="{Binding GuidedMessage}" Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite"/>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12">
+                <StackPanel>
+                    <TextBlock Text="Handoff is not operation completion" FontSize="18"/>
+                    <TextBlock Text="After a page opens, Windows controls its permissions, policy and interface. Choose and review any operation yourself there. A returned shell request does not prove a target window appeared, a program was removed, a Defender scan ran, or an update/repair completed. Refresh the relevant MadClean inventory separately for new evidence." Style="{StaticResource Caption}"/>
+                    <TextBlock Text="Direct selected-action integrations remain separate roadmap work. No cleanup, arbitrary command, forced restart or silent elevated action is offered by this page." Style="{StaticResource Caption}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -38,6 +38,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeHardwareDiscovery();
         InitializeOverview();
         InitializeAdditionalDiscovery();
+        InitializeGuidedWindowsTools();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }

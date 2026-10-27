@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace MadClean.Core;
 
-public enum ActivityArea { Session, Disks, Cleanup, Startup, Defender, Apps, SystemUpdates, MadCleanUpdates, CleanupPreferences, InstalledApplications, LeftoverReview, DiskMap, FirmwareIdentity, HardwareInventory, DuplicateReview, ShortcutReview, DiagnosticsReport }
+public enum ActivityArea { Session, Disks, Cleanup, Startup, Defender, Apps, SystemUpdates, MadCleanUpdates, CleanupPreferences, InstalledApplications, LeftoverReview, DiskMap, FirmwareIdentity, HardwareInventory, DuplicateReview, ShortcutReview, DiagnosticsReport, GuidedWindowsHandoff }
 public enum ActivityOutcome { Started, Completed, Partial, Failed, Cancelled }
 
 // Only enums + timestamp enter this log: never raw output, paths, names, arguments, or exceptions.
