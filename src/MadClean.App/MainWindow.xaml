@@ -563,6 +563,7 @@
                                 <WrapPanel Margin="0,0,0,10">
                                     <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}"/>
                                     <Button Content="Review registration changes" Command="{Binding ReviewLeftoversCommand}" Background="#244B70"/>
+                                    <Button Content="Preview selected folder contents" Command="{Binding PreviewLeftoverContentsCommand}" Background="#244B70"/>
                                     <Button Content="Queued actions" Command="{Binding CapabilityQueueCommand}" Background="#343E52" Foreground="White"/>
                                 </WrapPanel>
                                 <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
@@ -577,9 +578,24 @@
                                     <DataGridTextColumn Header="CAUTION" Binding="{Binding Caution}" Width="3*" MinWidth="200"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <ScrollViewer Grid.Row="2" MaxHeight="150" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                            <StackPanel Grid.Row="2" Margin="0,12,0,0">
                                 <TextBox Text="{Binding SelectedLeftoverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
-                            </ScrollViewer>
+                                <TextBlock Text="Selected-folder metadata preview" FontSize="19" Margin="0,18,0,5"/>
+                                <TextBlock Text="{Binding LeftoverContentAttempt, StringFormat='Last attempt: {0}'}" FontSize="12"/>
+                                <TextBlock Text="{Binding LeftoverContentMessage}" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding LeftoverContentScope, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                                <DataGrid ItemsSource="{Binding LeftoverContentRows}" SelectedItem="{Binding SelectedLeftoverContent, Mode=TwoWay}" Height="235" Margin="0,10,0,10" AutomationProperties.Name="Selected former install-folder metadata observations">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="OBSERVED PATH" Binding="{Binding Path}" Width="3*" MinWidth="220"/>
+                                        <DataGridCheckBoxColumn Header="DIRECTORY" Binding="{Binding IsDirectory}" Width="105"/>
+                                        <DataGridTextColumn Header="LOGICAL SIZE" Binding="{Binding Bytes, Converter={StaticResource ByteSize}}" Width="130"/>
+                                        <DataGridTextColumn Header="ACTIVE USE" Binding="{Binding ActiveUse}" Width="120"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBox Text="{Binding LeftoverContentDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="210" MinHeight="65" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                                <ItemsControl ItemsSource="{Binding LeftoverContentCoverage}" Margin="0,8,0,8"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Caption}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                <Expander Header="Excluded / unknown metadata observations" Foreground="#ECF1FB"><ContentControl Content="{Binding LeftoverContentIssues}" ContentTemplate="{StaticResource RowsTemplate}" Height="150"/></Expander>
+                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

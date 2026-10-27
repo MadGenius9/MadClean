@@ -102,6 +102,7 @@ internal static class UiCapture
                     await Idle(window);
                     if (model.SelectedPage != link.Page || model.SelectedToolNavigation?.Page != link.Page || primary.SelectedIndex != -1)
                         throw new SmokeAssertionException("ui-tool-route");
+                    if (link.Page == 8) Capture(window, output, "tool-19.png", report);
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
                     AssertNoInventory(model);
                 }
@@ -156,6 +157,8 @@ internal static class UiCapture
             model.CheckFirmwareHistoryCommand == null || model.ReviewFirmwareHistorySourceCommand == null ||
             model.CheckFirmwareHistoryCommand.CanExecute(null) || model.ReviewFirmwareHistorySourceCommand.CanExecute(null))
             throw new SmokeAssertionException("ui-firmware-history-unchecked");
+        if (model.PreviewLeftoverContentsCommand == null || model.PreviewLeftoverContentsCommand.CanExecute(null) || model.LeftoverContentRows.Count != 0 || model.LeftoverContentIssues.Count != 0 || model.LeftoverContentCoverage.Count != 0 || model.SelectedLeftoverCandidate != null || model.SelectedLeftoverContent != null)
+            throw new SmokeAssertionException("ui-leftover-content-unchecked");
         if (model.AnalyzeDiskIdentitiesCommand == null || model.AnalyzeDiskIdentitiesCommand.CanExecute(null) || model.DiskIdentityRows.Count != 0 || model.DiskIdentityCoverage.Count != 0)
             throw new SmokeAssertionException("ui-disk-identity-unchecked");
         if (model.PreviewInstalledAppPlanCommand == null || model.ReviewInstalledAppHandoffCommand == null ||

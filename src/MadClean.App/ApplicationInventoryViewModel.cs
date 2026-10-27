@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
     public LeftoverCandidate? SelectedLeftoverCandidate
     {
         get => selectedLeftover;
-        set { Set(ref selectedLeftover, value); PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverDetails))); }
+        set { if (ReferenceEquals(selectedLeftover, value)) return; Set(ref selectedLeftover, value); InvalidateLeftoverContents(); PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverDetails))); }
     }
     public string SelectedLeftoverDetails => selectedLeftover == null ? "Select a candidate to inspect the evidence and cautions. No path here is authorized for deletion." :
         selectedLeftover.Path + "\n" + selectedLeftover.Evidence + "\n" + selectedLeftover.Caution;
@@ -42,6 +42,7 @@ public sealed partial class MainViewModel
     private void InitializeApplicationInventory()
     {
         InitializeInstalledAppPlans();
+        InitializeLeftoverContentReview();
         ViewLeftoverReviewCommand = new ActionCommand(() => SelectedPage = 8, () => true);
         RefreshInstalledApplicationsCommand = new AsyncCommand(() => RefreshInstalledApplications(false), () => !IsBusy);
         CaptureApplicationBaselineCommand = new AsyncCommand(() => RefreshInstalledApplications(true), () => !IsBusy);
@@ -49,6 +50,7 @@ public sealed partial class MainViewModel
     }
     private Task RefreshInstalledApplications(bool capture) => RunDiscoveryAsync(ActivityArea.InstalledApplications, "Reading installed app registrations", async token =>
     {
+        InvalidateLeftoverContents();
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         if (capture)
         {
@@ -85,6 +87,7 @@ public sealed partial class MainViewModel
     }
     private Task ReviewLeftovers() => RunDiscoveryAsync(ActivityArea.LeftoverReview, "Reviewing registration changes", async token =>
     {
+        InvalidateLeftoverContents();
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
         var baseline = applicationBaseline;
@@ -101,7 +104,8 @@ public sealed partial class MainViewModel
         { token.ThrowIfCancellationRequested(); return ProbeRecordedInstallDirectory(path); }), token);
         token.ThrowIfCancellationRequested();
         foreach (var item in review.Items) LeftoverCandidates.Add(item);
-        SelectedLeftoverCandidate = review.Items.FirstOrDefault();
+        // A file-level preview requires a separate explicit row selection.
+        SelectedLeftoverCandidate = null;
         LeftoverMessage = Stamp(review.State, review.Message);
         return review.State;
     }, error => LeftoverMessage = error);

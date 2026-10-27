@@ -18,6 +18,7 @@ internal static partial class NativeFixtures
         {
             Duplicates(fixture, report, token);
             DiskIdentity(fixture, report, token);
+            LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
             WerMetadata(report, token);
