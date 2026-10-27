@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "5c36ac382c4b2e6f826ad3a04f875263dc9d0d71",
-  "runId": "40499437709",
+  "sourceCommit": "735f081d3ed0a192007d73e32edf7262e76d1947",
+  "runId": "40501054903",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T11:56:22.4301831+00:00",
-  "completedUtc": "2026-10-27T11:56:29.9642542+00:00",
+  "startedUtc": "2026-10-27T12:09:25.83888+00:00",
+  "completedUtc": "2026-10-27T12:09:34.0189744+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -77,6 +77,16 @@
       "name": "diagnostics-metadata-contract",
       "state": "passed",
       "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+    },
+    {
+      "name": "defender-status-contract",
+      "state": "passed",
+      "detail": "Defender state=Available; projectedSchemaValid=true; parsedActualResult=true; knownStatusFlagCount=3; findingCount=0; historyReadable=true. This verifies the actual projected read-result contract only, including any stated Partial coverage. Known flags may be false; no protected/active/clean/signatures-current verdict is made. Empty history does not establish no threats. No modes, security flag values, versions, IDs, dates, paths or provider messages exported. Only fixed read-only getters requested; no scan, remediation, signature update, configuration change or elevation."
+    },
+    {
+      "name": "installed-registration-contract",
+      "state": "passed",
+      "detail": "Registration state=Partial; itemCount=59; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed."
     },
     {
       "name": "wer-v1-managed-layout",
