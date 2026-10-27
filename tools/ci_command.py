@@ -7,7 +7,7 @@ import re
 import subprocess
 import sys
 
-LABELS = {'restore','build','publisher-tests','core-tests','publish','smoke'}
+LABELS = {'restore','build','publisher-tests','core-tests','publish','smoke','native-abi'}
 MAX_LOG = 262_144
 
 _spec = importlib.util.spec_from_file_location("madclean_capture_scrubber", Path(__file__).with_name("ci_diagnostics.py"))

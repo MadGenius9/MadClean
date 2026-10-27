@@ -37,7 +37,7 @@ public sealed partial class MainViewModel
     public string FirmwareInstalledVersion => firmwareIdentity?.BiosVersion ?? "Unknown";
     public string FirmwareAvailableVersion => "Unknown — no exact-model/revision manufacturer BIOS version has been verified.";
     public string FirmwareComparison => "Unknown — vendor version ordering and exact OEM/model/SKU/board-revision compatibility are not verified. A Windows Update package is not a BIOS-version comparison.";
-    public string FirmwareManufacturerCheckTime => "Not checked — model-specific manufacturer collection is not implemented. Opening a guide does not check available firmware.";
+    public string FirmwareManufacturerCheckTime => firmwareHistoryTime;
     public string FirmwareGuideStatus => firmwareIdentity == null
         ? "Unknown — PC identity has not been obtained."
         : firmwareIdentity.PcManufacturer == "Unknown" || firmwareIdentity.PcModel == "Unknown"
@@ -65,12 +65,14 @@ public sealed partial class MainViewModel
         : $"{selectedFirmwareOffer.Title}\nSource: configured Windows Update service · update ID: {selectedFirmwareOffer.Identity}\nDriver class: {selectedFirmwareOffer.DriverClass}; package date: {selectedFirmwareOffer.PackageDate} (not installed BIOS date).\nAvailable BIOS/package version: Unknown. Exact model/revision and BIOS-versus-device role: Unknown.\nProvider description (not verified model-specific BIOS release notes): {selectedFirmwareOffer.Description}\nOfficial BIOS release notes/prerequisites: Unknown until checked on the exact OEM support source. No install/flash or restart is authorized.";
     private void InitializeFirmwareDiscovery()
     {
+        InitializeFirmwareHistory();
         ReadFirmwareIdentityCommand = new AsyncCommand(ReadFirmwareIdentity, () => !IsBusy);
         OpenFirmwareSupportCommand = new ActionCommand(() => OpenFirmwareGuide(false), () => firmwareGuide != null);
         OpenFirmwarePrecautionsCommand = new ActionCommand(() => OpenFirmwareGuide(true), () => firmwareGuide != null);
     }
     private Task ReadFirmwareIdentity() => RunDiscoveryAsync(ActivityArea.FirmwareIdentity, "Reading BIOS / PC identity", async token =>
     {
+        InvalidateFirmwareHistory();
         firmwareIdentity = null; firmwareGuide = null; FirmwareIdentityRows.Clear(); SelectedFirmwareFact = null;
         FirmwareGuideAction = ""; NotifyFirmwareIdentity();
         FirmwareIdentityMessage = "Reading supported local CIM identity classes…";

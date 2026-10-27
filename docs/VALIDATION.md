@@ -60,3 +60,9 @@ Build/native jobs have read-only contents permission. Only the trusted source-bo
 ## Later action gates
 
 [Cleanup](CLEANUP-ACTION-GATE.md), [startup](STARTUP-ACTIONS.md), [system tools](SYSTEM-TOOL-ACTIONS.md), [duplicate/shortcut actions](FILE-REVIEW-ROADMAP.md), [hardware](HARDWARE-UPGRADES.md) and [firmware](FIRMWARE-UPDATES.md) have distinct source/native/manual gates. Read-only fixtures do not prove deletion consistency, transaction/recovery durability, repair semantics, update installation, compatibility or firmware safety. Those capabilities remain blocked or queued, not silently enabled by development authorization or a successful test run.
+
+## Current additions awaiting scoped Windows evidence
+
+The latest integrated Linux validation has730 passing .NET cases, zero build warnings/errors, and70 passing Python cases plus one Windows-only alias fixture skipped. Selected installed-app plan tests cover complete/fresh/source-bound evidence, restrictions, ambiguous selection, malformed MSI identity, cancellation and bounds. Firmware history tests cover fixed-source privacy, authored source/variant/section context, driver-only releases, explicit UEFI extraction, changed/partial/malformed HTML, strict original URIs, HTTP206 rejection, access/offline/timeouts and cancellation. The actual default-client public-source probe is separately documented and is not a detected-PC compatibility check.
+
+The next Windows workflow compiles WER ABI assertions against its installed x64 SDK without linking/running a program; the harness adds managed-layout/existing-store checks and a real nested BIOS/Firmware view capture. Only a completed Windows run can verify these additions. Accessible empty WER stores leave populated-buffer handling unverified; permissions/missing stores remain inconclusive rather than no-crash claims. Distribution ZIP creation is disabled on ordinary pushes.

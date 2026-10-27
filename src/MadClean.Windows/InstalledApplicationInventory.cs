@@ -28,6 +28,7 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
         List<string> issues = [];
         int issueCount = 0, inspected = 0, hidden = 0, unnamed = 0, completedSources = 0;
         bool limited = false;
+        DateTimeOffset observedUtc = DateTimeOffset.UtcNow;
         void Issue(string location, string description)
         {
             issueCount++;
@@ -106,17 +107,21 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
                         // No command text, arguments, executable or registry estimate is collected.
                         var names = entry.GetValueNames().ToHashSet(StringComparer.OrdinalIgnoreCase);
                         bool hasRegisteredUninstaller = names.Contains("UninstallString") || names.Contains("QuietUninstallString");
-                        bool installer = entry.GetValue("WindowsInstaller", null, RegistryValueOptions.DoNotExpandEnvironmentNames) is int flag && flag == 1;
+                        var rawInstaller = entry.GetValue("WindowsInstaller", null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+                        bool? installer = rawInstaller switch { null => false, 0 => false, 1 => true, _ => null };
+                        if (installer == null) Issue(issueLabel, "WindowsInstaller has an unsupported flag value; mechanism remains unknown");
                         // ARPNOREMOVE writes NoRemove and disables supported ARP removal even when
                         // WindowsInstaller or stale uninstaller value names are still present.
                         var rawNoRemove = entry.GetValue("NoRemove", null, RegistryValueOptions.DoNotExpandEnvironmentNames);
                         bool? removalRestricted = rawNoRemove switch { null => false, 0 => false, 1 => true, _ => null };
                         if (removalRestricted == null)
                             Issue(issueLabel, "NoRemove has an unsupported flag value; uninstall support remains unknown");
-                        string support = removalRestricted.HasValue
-                            ? InstalledApplicationSupport.Describe(installer, hasRegisteredUninstaller, removalRestricted.Value)
+                        string support = removalRestricted.HasValue && installer.HasValue
+                            ? InstalledApplicationSupport.Describe(installer.Value, hasRegisteredUninstaller, removalRestricted.Value)
                             : "Unknown";
-                        applications.Add(new(identity, name, version, publisher, source.Label, installLocation, support));
+                        var evidence = new InstalledAppRegistrationEvidence(identity, source.Label, removalRestricted, installer,
+                            hasRegisteredUninstaller, installer == true ? InstalledAppActionPlans.ProductCodeFromSubkey(subkeyName) : null, observedUtc);
+                        applications.Add(new(identity, name, version, publisher, source.Label, installLocation, support, evidence));
                     }
                     catch (Exception ex) when (IsReadError(ex))
                     { Issue(issueLabel, $"entry could not be read (code 0x{ex.HResult:X8}); no action was attempted"); }

@@ -1,7 +1,7 @@
 namespace MadClean.Core;
 
 public sealed record InstalledApplication(string Identity, string Name, string Version, string Publisher,
-    string Source, string? InstallLocation, string UninstallSupport);
+    string Source, string? InstallLocation, string UninstallSupport, InstalledAppRegistrationEvidence? RegistrationEvidence = null);
 
 public sealed record LeftoverCandidate(string ApplicationIdentity, string Path, string Evidence, string Caution);
 

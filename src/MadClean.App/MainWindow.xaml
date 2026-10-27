@@ -374,7 +374,7 @@
                                                 <TextBlock Text="{Binding FirmwareInstalledVersion, StringFormat='Installed reported BIOS version: {0}'}"/>
                                                 <TextBlock Text="{Binding FirmwareAvailableVersion}" Margin="0,7,0,7"/>
                                                 <TextBlock Text="{Binding FirmwareComparison}" Foreground="#A6B1C7"/>
-                                                <TextBlock Text="Official BIOS release notes: Unknown until the exact manufacturer model/revision source is verified." Margin="0,7,0,7"/>
+                                                <TextBlock Text="Review official published release history below where supported; current-device BIOS applicability remains Unknown." Margin="0,7,0,7"/>
                                                 <TextBlock Text="{Binding FirmwareGuideStatus}"/>
                                                 <TextBlock Text="{Binding FirmwareOfficialSource}" FontSize="12" Margin="0,7,0,7"/>
                                                 <TextBlock Text="{Binding FirmwarePrerequisites}" Foreground="#A6B1C7"/>
@@ -382,10 +382,30 @@
                                                 <TextBlock Text="{Binding FirmwareGuideAction}" Foreground="#98D9FF"/>
                                             </StackPanel>
                                         </Border>
-                                        <TextBlock Text="Windows Update firmware-related offers" FontSize="18"/>
+                                        <TextBlock Text="Official manufacturer release history" FontSize="18" Margin="0,14,0,8"/>
+                                        <WrapPanel>
+                                            <Button Content="Check supported official history" Command="{Binding CheckFirmwareHistoryCommand}"/>
+                                            <Button Content="Review official release notes" Command="{Binding ReviewFirmwareHistorySourceCommand}" Background="#244B70"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding FirmwareHistoryMessage}" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="{Binding FirmwareManufacturerCheckTime}" FontSize="12"/>
+                                        <DataGrid ItemsSource="{Binding FirmwareHistoryRows}" SelectedItem="{Binding SelectedFirmwareRelease, Mode=TwoWay}" Height="175" Margin="0,8,0,8">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="PUBLISHED" Binding="{Binding PublishedDate}" Width="130"/>
+                                                <DataGridTextColumn Header="OFFICIAL RELEASE" Binding="{Binding Heading}" Width="*"/>
+                                                <DataGridTextColumn Header="PUBLISHED UEFI (IF STATED)" Binding="{Binding PublishedUefiVersion}" Width="220"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBox Text="{Binding FirmwareHistoryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="240" MinHeight="85" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
+                                        <ItemsControl ItemsSource="{Binding FirmwareHistoryCoverage}" Margin="0,8,0,8">
+                                            <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Caption}"/></DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding FirmwareHistoryLinkMessage}" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="Windows Update firmware-class offerings" FontSize="18" Margin="0,16,0,8"/>
                                         <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
                                             <TextBlock Text="{Binding FirmwareOffersMessage}" Style="{StaticResource Caption}"/>
                                         </ScrollViewer>
+
                                         <TextBlock Text="{Binding FirmwareOfferTime, StringFormat='Last Windows Update offer attempt: {0}'}" FontSize="12" Margin="0,0,0,8"/>
                                         <DataGrid ItemsSource="{Binding FirmwareOffers}" SelectedItem="{Binding SelectedFirmwareOffer, Mode=TwoWay}" Height="180">
                                             <DataGrid.Columns>
@@ -444,6 +464,8 @@
                                 </ScrollViewer>
                                 <WrapPanel Margin="0,0,0,12">
                                     <Button Content="Refresh registrations" Command="{Binding RefreshInstalledApplicationsCommand}"/>
+                                    <Button Content="Preview selected app review" Command="{Binding PreviewInstalledAppPlanCommand}" Background="#244B70"/>
+                                    <Button Content="Review Windows handoff" Command="{Binding ReviewInstalledAppHandoffCommand}" Background="#343E52" Foreground="White"/>
                                     <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}" Background="#244B70"/>
                                     <Button Content="Leftover review" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
                                 </WrapPanel>
@@ -457,9 +479,10 @@
                                     <DataGridTextColumn Header="UNINSTALL HINT" Binding="{Binding UninstallSupport}" Width="2*" MinWidth="180"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <ScrollViewer Grid.Row="2" MaxHeight="140" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                            <StackPanel Grid.Row="2" Margin="0,12,0,0">
                                 <TextBox Text="{Binding SelectedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
-                            </ScrollViewer>
+                                <TextBox Text="{Binding InstalledAppPlanDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="230" MinHeight="65" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0"/>
+                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

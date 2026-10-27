@@ -22,6 +22,24 @@ The coordinator adds the project to the solution/build and locked restore workfl
 9. Verifies the system-tool provider’s immutable execution gate, then submits a dummy acknowledged request that must return before identity, logging, UAC or process creation. It never executes DISM/SFC or enables the gate.
 10. Removes only its ownership-revalidated fixture tree, refusing reparse ambiguity. No production cleanup/delete/uninstall action is tested. Provider calls have bounded cancellation/deadlines; the entire harness has a four-minute watchdog.
 
+The separately invoked D1b WER probe reads only the disposable host's existing machine queue/archive through `WindowsWerMetadataInventory`, with a 30-day creation-time window. `wer-store-read-contract` verifies fixed sources, UTC bounds, minimized GUID/time observation schema and bounded counts. Report evidence contains only states/counts/booleans and fixed explanations, never the GUIDs, creation dates, coverage text, signatures, keys, report paths or contents. Existing usable metadata verifies only that narrow returned path. Completed accessible empty stores can pass the store-read contract while explicitly recording `populatedMetadataVerified=false`: populated-buffer marshalling, complete history and crash/health conclusions remain unverified. Missing/denied/unsupported/incomplete store reads are inconclusive. No report is created, submitted, archived, deleted or exported; no forced crash, dump read or store policy change occurs. Native calls remain cooperatively cancellable only, under the provider's existing bounded caller wait and single-worker gate.
+
+`wer-v1-managed-layout` independently checks CLR sequential layout against documented 64-bit V1 offsets. It is **not** a native SDK ABI proof. The compile-only [WerAbiAssertions.cpp](MadClean.WindowsSmoke/WerAbiAssertions.cpp) separately asserts the actual installed Windows SDK header layout and store enums. From an **x64 Windows SDK developer command prompt** at the repository root, create an owned `artifacts/windows-validation-abi` folder and compile without linking or executing:
+
+```text
+cl /nologo /c /W4 /WX /Fo:artifacts/windows-validation-abi/WerAbiAssertions.obj tools/MadClean.WindowsSmoke/WerAbiAssertions.cpp
+```
+
+Record SDK/compiler version and actual command outcome separately. The managed JSON check never claims this optional compile-only command ran. The declarations were checked against Microsoft's current [official SDK WerApi.h](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/WerApi.h), [V1 metadata documentation](https://learn.microsoft.com/windows/win32/api/werapi/ns-werapi-wer_report_metadata_v1) and existing `docs/WER-METADATA.md`. A static assertion passing cannot prove a populated live report response, lifetime races or cancellation inside a synchronous native call.
+
+The hosted-runner entry point discovers the installed latest Visual Studio x64 tools using the standard Installer `vswhere.exe`, initializes that installation's `vcvars64.bat`, and invokes its exact default Hostx64/x64 compiler. It downloads nothing and compiles `/c /W4 /WX` to `artifacts/native-abi/WerAbiAssertions.obj`; that object is not a distributed artifact. Its fixed system-PowerShell wrapper accepts no command input:
+
+```text
+python tools/ci_command.py native-abi -- python tools/compile_wer_sdk.py
+```
+
+Compiler discovery/configuration/exit failures fail closed. This separately recorded command must actually pass before claiming native installed-SDK ABI proof; it does not change the scope of `wer-v1-managed-layout`.
+
 ## Evidence and exit states
 
 Outputs are fixed beneath `artifacts/windows-validation`:
@@ -32,3 +50,5 @@ Outputs are fixed beneath `artifacts/windows-validation`:
 Exit 0 means all implemented scoped checks passed; it does not certify the whole roadmap or personal-PC safety. Exit 1 means a failed check or harness error. Exit 2 means an unavailable/unsupported/incomplete native verification (or no opt-in): **inconclusive is not a pass**. A Partial provider result can still verify a particular fixture relationship when the returned evidence supports it; incomplete coverage remains stated. Failures and provider/access uncertainty remain distinct in the JSON report. The harness never turns a returned PID, empty list, missing artifact or suppressed exception into success.
 
 CI should upload the report and captures even on failure. If publishing them to the private verification branch, preserve the report's source commit and screenshot hashes; never publish secrets, raw provider output or a public release as part of this harness.
+
+Roadmap-development validation does not require a distribution ZIP. Keep build, portable tests, compile-only ABI validation where configured, and native/UI evidence enabled on ordinary pushes; leave publish/compress/distribution-upload steps conditional on a separately selected `workflow_dispatch` package input (default false). Development report/test artifact transport is separate from packaging the application for delivery. Do not treat an old executable/ZIP as an artifact of the current validation run.

@@ -72,7 +72,24 @@ internal static class UiCapture
                     if (model.SelectedPage != destinations[index] || model.PrimaryNavigationIndex != index)
                         throw new SmokeAssertionException("ui-primary-route");
                 }
-                report.Pass("ui-primary-navigation", "All five displayed primary sections select the corresponding preserved page through the actual ListBox binding.");
+                var updates = Descendants<TabControl>(window).Single(control => control.Items.OfType<TabItem>().Any(item => Equals(item.Header, "BIOS / Firmware")));
+                updates.SelectedItem = updates.Items.OfType<TabItem>().Single(item => Equals(item.Header, "BIOS / Firmware"));
+                await Idle(window);
+                var historyCheck = Descendants<Button>(window).Single(button => Equals(button.Content, "Check supported official history"));
+                var historyReview = Descendants<Button>(window).Single(button => Equals(button.Content, "Review official release notes"));
+                if (!ReferenceEquals(historyCheck.Command, model.CheckFirmwareHistoryCommand) ||
+                    !ReferenceEquals(historyReview.Command, model.ReviewFirmwareHistorySourceCommand) ||
+                    historyCheck.IsEnabled || historyReview.IsEnabled)
+                    throw new SmokeAssertionException("ui-firmware-history-bindings");
+                AssertNoInventory(model);
+                // Scroll the actual live BIOS/Firmware content, without replacing/reparenting it.
+                // This capture is a nested subview, not a new top-level tool route.
+                historyCheck.BringIntoView();
+                await Idle(window);
+                if (!historyCheck.IsVisible || !ValidSize(historyCheck) || !historyReview.IsVisible || !ValidSize(historyReview))
+                    throw new SmokeAssertionException("ui-firmware-history-layout");
+                Capture(window, output, "tool-18.png", report);
+                report.Pass("ui-primary-navigation", "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions.");
 
                 var links = model.ToolNavigationItems.ToArray();
                 if (links.Length is < 7 or > 24 || links.Select(link => link.Page).Distinct().Count() != links.Length)
@@ -129,7 +146,18 @@ internal static class UiCapture
     private static void AssertNoInventory(MainViewModel model)
     {
         if (model.IsBusy || model.Activity.Count != 0 || model.Disks.Count != 0 || model.CleanupRows.Count != 0 || model.StartupRows.Count != 0)
-            throw new InvalidOperationException("Navigation started provider activity.");
+            throw new SmokeAssertionException("ui-navigation-provider-activity");
+        if (model.FirmwareHistoryRows.Count != 0 || model.FirmwareHistoryCoverage.Count != 0 || model.SelectedFirmwareRelease != null ||
+            model.FirmwareIdentityRows.Count != 0 || model.FirmwareOffers.Count != 0 ||
+            !model.FirmwareComparison.StartsWith("Unknown", StringComparison.Ordinal) ||
+            !model.FirmwareHistoryMessage.StartsWith("Not checked", StringComparison.Ordinal) ||
+            !model.FirmwareManufacturerCheckTime.StartsWith("Not checked", StringComparison.Ordinal) ||
+            model.CheckFirmwareHistoryCommand == null || model.ReviewFirmwareHistorySourceCommand == null ||
+            model.CheckFirmwareHistoryCommand.CanExecute(null) || model.ReviewFirmwareHistorySourceCommand.CanExecute(null))
+            throw new SmokeAssertionException("ui-firmware-history-unchecked");
+        if (model.PreviewInstalledAppPlanCommand == null || model.ReviewInstalledAppHandoffCommand == null ||
+            model.PreviewInstalledAppPlanCommand.CanExecute(null) || model.ReviewInstalledAppHandoffCommand.CanExecute(null))
+            throw new SmokeAssertionException("ui-installed-app-no-plan");
     }
 
     private static void AssertVisibleControls(MainWindow window)

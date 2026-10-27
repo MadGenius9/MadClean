@@ -78,6 +78,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         // clears unused private previews. It never force-stops a Windows transaction.
         startupActions.Dispose();
         (manufacturerServiceFacts as IDisposable)?.Dispose();
+        (firmwareReleaseHistory as IDisposable)?.Dispose();
     }
 
     private async Task RunAsync(bool online)

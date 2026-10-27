@@ -108,3 +108,9 @@ The development-only Windows smoke harness renders genuine WPF client content an
 ## Additional explicit read-only boundaries
 
 [WER-METADATA.md](WER-METADATA.md) records the official WER Store V1 functions, authoritative 64-bit ABI, minimized GUID/time projection and native ownership/wait limits. [STARTUP-ACTIONS.md](STARTUP-ACTIONS.md) describes no-follow current-user selected metadata and structural existing recovery inspection; both mutation APIs remain unavailable. [SYSTEM-TOOL-ACTIONS.md](SYSTEM-TOOL-ACTIONS.md) records freshly checked Microsoft DISM/SFC semantics and fixed-path Authenticode identity previews; execution is disabled. These APIs are never attached to ordinary Inspect. [GUIDED-WINDOWS-ACTIONS.md](GUIDED-WINDOWS-ACTIONS.md) defines exact documented page handoffs, not operation execution.
+
+## Selected application review and official release history
+
+Installed-app inventory now carries optional typed source-bound registration evidence, still without reading uninstall commands. The explicit [selected review plan](INSTALLED-APP-ACTION-PLANS.md) requires fresh complete/unique metadata and respects NoRemove. Its only follow-up routes to the existing reviewed general Windows Installed apps handoff; it passes no application/product identifier and executes no uninstall.
+
+The explicit [Surface firmware-history adapter](SURFACE-FIRMWARE-HISTORY.md) requests only the pinned public SKU reference and official release-history article, with exact supported15-inch identity, no credentials/redirects/cookies/asset requests and bounded decoded UTF-8 content. Dated release notes and optional explicit UEFI versions are documentary observations; installed comparison, latest applicable BIOS and physical compatibility remain Unknown. It is isolated from ordinary Inspect and WUA discovery.

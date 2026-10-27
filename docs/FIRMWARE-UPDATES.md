@@ -13,6 +13,10 @@ The original phase-one foundation remains read-only. Update Center now separates
 
 Installed reported BIOS version/date, PC/board identifiers, WUA metadata/source, provider description and attempt times are visible/copyable. Provider descriptions are not relabeled manufacturer-verified BIOS release notes. Identity attempts, WUA offer attempts and manufacturer verification status have separate labels. Cancellation/offline/query/parse/access errors never become Up to date. Reading identity is not an online vendor check, and opening a guide is not a successful page retrieval or version comparison.
 
+## Explicit official release-history review
+
+[Surface firmware-history discovery](SURFACE-FIRMWARE-HISTORY.md) is now implemented separately from local identity and WUA. Only the exact supported Surface Laptop 6 for Business 15-inch SKU can request its two pinned official sources; the current SKU row and authored article applicability must both verify that limited family scope. The 2033 13/13.5-inch naming discrepancy stays Unknown without HTTP. The UI shows dated manufacturer notes and nullable explicitly published UEFI package versions, source section and last attempt/retrieval times. A newer driver-only entry is not a newer BIOS. Installed-version comparison, exact device configuration and latest applicable BIOS remain Unknown. Browser review opens only the fixed official history page; no firmware file is fetched.
+
 ## Official guidance and current coverage
 
 The offline guide policy accepts only allowlisted exact HTTPS documentation URLs. The initial catalog recognizes exact normalized Microsoft computer OEM identity and a supported Surface-family model, then offers generic Microsoft Surface guidance and Microsoft UEFI power/recovery precautions. It explicitly does **not** identify the exact model/SKU/board revision, select firmware, verify a supported BIOS version or verify model-specific prerequisites. A motherboard or BIOS vendor cannot override the PC OEM.

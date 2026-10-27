@@ -10,6 +10,7 @@ public sealed partial class MainViewModel
 {
     private readonly IInstalledApplicationInventory installedApplications = new InstalledApplicationInventory();
     private IReadOnlyList<InstalledApplication>? applicationBaseline;
+    private CheckResult<InstalledApplication>? latestInstalledSnapshot;
     private string installedMessage = "Not checked. Refresh the covered Add/Remove Programs registrations to begin.";
     private string baselineMessage = "No baseline captured. Capture a complete inventory before uninstalling an app through Windows or its supported uninstaller outside MadClean.";
     private string leftoverMessage = "Not checked. After a complete baseline, use Review registration changes to inspect surviving prior install paths. Candidates are not proven junk.";
@@ -23,7 +24,7 @@ public sealed partial class MainViewModel
     public InstalledApplication? SelectedInstalledApplication
     {
         get => selectedApplication;
-        set { Set(ref selectedApplication, value); PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails))); }
+        set { Set(ref selectedApplication, value); InvalidateInstalledAppPlan(); PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails))); }
     }
     public string SelectedApplicationDetails => selectedApplication == null ? "Select a registration to review its reported metadata and uninstall capability hint." :
         $"{selectedApplication.Name} · {selectedApplication.Version} · publisher: {selectedApplication.Publisher}\nSource: {selectedApplication.Source}\nRegistration: {selectedApplication.Identity}\nInstall location: {selectedApplication.InstallLocation ?? "Unknown/unsupported"}\n{selectedApplication.UninstallSupport}. No uninstall command is collected or run; restricted registrations are not eligible for a future removal action.";
@@ -40,6 +41,7 @@ public sealed partial class MainViewModel
     public ICommand ReviewLeftoversCommand { get; private set; } = null!;
     private void InitializeApplicationInventory()
     {
+        InitializeInstalledAppPlans();
         ViewLeftoverReviewCommand = new ActionCommand(() => SelectedPage = 8, () => true);
         RefreshInstalledApplicationsCommand = new AsyncCommand(() => RefreshInstalledApplications(false), () => !IsBusy);
         CaptureApplicationBaselineCommand = new AsyncCommand(() => RefreshInstalledApplications(true), () => !IsBusy);
@@ -47,6 +49,7 @@ public sealed partial class MainViewModel
     }
     private Task RefreshInstalledApplications(bool capture) => RunDiscoveryAsync(ActivityArea.InstalledApplications, "Reading installed app registrations", async token =>
     {
+        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         if (capture)
         {
             applicationBaseline = null; LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
@@ -77,10 +80,12 @@ public sealed partial class MainViewModel
             token.ThrowIfCancellationRequested(); InstalledApplications.Add(app);
             if (++count % 128 == 0) await Task.Delay(1, token);
         }
+        latestInstalledSnapshot = new(result.State, result.Message, result.Items.ToArray());
         InstalledMessage = Stamp(result.State, result.Message);
     }
     private Task ReviewLeftovers() => RunDiscoveryAsync(ActivityArea.LeftoverReview, "Reviewing registration changes", async token =>
     {
+        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
         var baseline = applicationBaseline;
         if (baseline == null) { LeftoverMessage = "Capture a complete baseline first."; return CheckState.Unknown; }
