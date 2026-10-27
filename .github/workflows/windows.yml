@@ -92,13 +92,21 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
       - name: Restore locked Windows validation dependencies
-        run: dotnet restore MadClean.sln --locked-mode
+        run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
       - name: Build the development-only Windows harness
-        run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+        run: python tools/ci_command.py build -- dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
       - name: Capture real WPF content and exercise isolated native fixtures
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'
-        run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build
+        run: python tools/ci_command.py smoke -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build
+      - name: Preserve bounded native harness command logs
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-native-command-logs
+          path: artifacts/ci-logs/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Preserve scoped Windows validation evidence
         uses: actions/upload-artifact@v7
         if: always()
@@ -154,12 +162,21 @@ jobs:
           name: MadClean-ci-command-logs
           path: downloaded-logs
           digest-mismatch: error
+      - name: Retrieve this run's bounded native harness diagnostics
+        id: native_logs
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-native-command-logs
+          path: downloaded-native-logs
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
           MADCLEAN_BUILD_RESULT: ${{ needs.build-test-package.result }}
           MADCLEAN_VERIFICATION_RESULT: ${{ needs.windows-verification.result }}
           MADCLEAN_REPORT_DOWNLOAD_RESULT: ${{ steps.windows_evidence.outcome }}
           MADCLEAN_CORE_DOWNLOAD_RESULT: ${{ steps.core_evidence.outcome }}
+          MADCLEAN_NATIVE_LOG_DOWNLOAD_RESULT: ${{ steps.native_logs.outcome }}
           MADCLEAN_LOG_DOWNLOAD_RESULT: ${{ steps.command_logs.outcome }}
           MADCLEAN_STAGE_SDK: ${{ needs.build-test-package.outputs.sdk }}
           MADCLEAN_STAGE_RESTORE: ${{ needs.build-test-package.outputs.restore }}
@@ -173,8 +190,10 @@ jobs:
           --downloaded-reports downloaded
           --core-test-results downloaded-core
           --command-logs downloaded-logs
+          --native-command-logs downloaded-native-logs
           --build-result "$MADCLEAN_BUILD_RESULT"
           --verification-result "$MADCLEAN_VERIFICATION_RESULT"
           --report-download-result "$MADCLEAN_REPORT_DOWNLOAD_RESULT"
           --core-download-result "$MADCLEAN_CORE_DOWNLOAD_RESULT"
           --log-download-result "$MADCLEAN_LOG_DOWNLOAD_RESULT"
+          --native-log-download-result "$MADCLEAN_NATIVE_LOG_DOWNLOAD_RESULT"

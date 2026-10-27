@@ -54,8 +54,24 @@ class PublisherTests(unittest.TestCase):
     def test_complete_evidence_binds_real_files_and_changes_nothing_during_validation(self):
         _, summary, files = self.prepare()
         self.assertTrue(summary['passed'])
-        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json"},set(files))
+        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
+    def test_native_failed_download_cannot_admit_leftover_logs(self):
+        with patch.object(p.ci_diagnostics, '_safe', side_effect=AssertionError('must not read')):
+            _, summary, files=p.prepare(self.root,self.download,'success','failure',self.env,
+                native_command_logs=self.download,native_log_download_result='failure')
+        self.assertFalse(summary['nativeDiagnosticsPresent'])
+        self.assertNotIn('native-ci-diagnostics.json',files)
+    def test_native_logs_have_separate_fixed_export_and_never_substitute_for_report(self):
+        def collect(directory,context,outcome):
+            return {'scope':'TEST ONLY','stages':[]} if directory==self.download and outcome=='success' else None
+        with patch.object(p.ci_diagnostics,'collect',side_effect=collect):
+            _, summary, files=p.prepare(self.root,self.download,'success','success',self.env,
+                report_download_result='skipped',native_command_logs=self.download,native_log_download_result='success')
+        self.assertTrue(summary['nativeDiagnosticsPresent'])
+        self.assertFalse(summary['passed'])
+        self.assertIn('native-ci-diagnostics.json',files)
+        self.assertNotIn('ci-diagnostics.json',files)
     def test_failed_log_artifact_never_opens_the_download_directory(self):
         with patch.object(p.ci_diagnostics, '_safe', side_effect=AssertionError('must not read')):
             _, summary, files = p.prepare(self.root,self.download,'failure','skipped',self.env,

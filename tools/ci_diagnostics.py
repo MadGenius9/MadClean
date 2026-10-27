@@ -133,8 +133,16 @@ def _excerpt(text: str, maximum: int) -> tuple[str, bool]:
     if not any(line.strip() for line in lines):
         text = "No command output was captured. Exit code alone does not establish tests or Windows verification."
         return text, False
-    selected = set(range(max(0, len(lines) - 10), len(lines)))
+    # unittest's per-test "... ERROR" lines precede the useful traceback and can consume
+    # the entire excerpt. Prefer an actual traceback/error diagnostic when one exists.
+    trace = next((i for i, line in enumerate(lines) if line.startswith("Traceback (most recent call last):")), None)
+    if trace is not None:
+        selected = set(range(max(0, trace - 1), min(len(lines), trace + 22)))
+        selected.update(range(max(0, len(lines) - 8), len(lines)))
+    else:
+        selected = set(range(max(0, len(lines) - 10), len(lines)))
     for index, line in enumerate(lines):
+        if trace is not None: break
         if ERROR_LINE.search(line):
             selected.update(range(max(0, index - 2), min(len(lines), index + 3)))
             if len(selected) >= MAX_LINES - 5:

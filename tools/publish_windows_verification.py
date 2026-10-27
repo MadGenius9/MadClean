@@ -27,7 +27,7 @@ REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "shortcut-existing-local-fixture",
@@ -220,7 +220,7 @@ def core_test_summary(directory):
     return result
 
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped"):
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped"):
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -237,6 +237,12 @@ def prepare(root, download, build_result, verification_result, environment, core
     except (ValueError, OSError):
         # Reject the entire log payload while retaining trusted job outcomes for diagnosis.
         diagnostics, diagnostics_error = None, "log-evidence-rejected"
+    reject_unless(native_log_download_result in RESULTS, "native-log-download-result")
+    native_diagnostics_error = None
+    try:
+        native_diagnostics = ci_diagnostics.collect(native_command_logs, context, native_log_download_result)
+    except (ValueError, OSError):
+        native_diagnostics, native_diagnostics_error = None, "log-evidence-rejected"
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -259,6 +265,9 @@ def prepare(root, download, build_result, verification_result, environment, core
         "logArtifactOutcome": log_download_result,
         "diagnosticsPresent": diagnostics is not None,
         "diagnosticsError": diagnostics_error,
+        "nativeLogArtifactOutcome": native_log_download_result,
+        "nativeDiagnosticsPresent": native_diagnostics is not None,
+        "nativeDiagnosticsError": native_diagnostics_error,
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
     files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
@@ -268,6 +277,8 @@ def prepare(root, download, build_result, verification_result, environment, core
         files["core-tests.json"] = (json.dumps(core, indent=2) + "\n").encode()
     if diagnostics is not None:
         files["ci-diagnostics.json"] = (json.dumps(diagnostics, indent=2) + "\n").encode()
+    if native_diagnostics is not None:
+        files["native-ci-diagnostics.json"] = (json.dumps(native_diagnostics, indent=2) + "\n").encode()
     return root, summary, files
 
 def publish(root, files, source_commit):
@@ -302,10 +313,12 @@ def main():
     parser.add_argument("--core-download-result", choices=sorted(RESULTS), required=True)
     parser.add_argument("--command-logs", type=Path)
     parser.add_argument("--log-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--native-command-logs", type=Path)
+    parser.add_argument("--native-log-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

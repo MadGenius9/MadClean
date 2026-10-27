@@ -156,6 +156,12 @@ class CiDiagnosticsTests(unittest.TestCase):
         self.assertTrue(all(stage["truncated"] for stage in result["stages"]))
         self.assertTrue(all(len(stage["excerpt"].splitlines()) <= c.MAX_LINES for stage in result["stages"]))
 
+    def test_traceback_is_preferred_over_verbose_unittest_error_labels(self):
+        self.stage(text="\n".join([f"test_case_{i} ... ERROR" for i in range(100)])+
+            "\nTraceback (most recent call last):\n  File \"test.py\", line 1\nEvidenceError: unexpected-worktree\nFAILED (errors=100)\n")
+        excerpt=self.collect()['stages'][0]['excerpt']
+        self.assertIn('EvidenceError: unexpected-worktree',excerpt)
+        self.assertLessEqual(len(excerpt.splitlines()),c.MAX_LINES)
     def test_capture_truncation_remains_true_even_for_a_short_excerpt(self):
         self.stage(text="error CS0001\n", truncated=True)
         self.assertTrue(self.collect()["stages"][0]["truncated"])
