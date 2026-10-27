@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "735f081d3ed0a192007d73e32edf7262e76d1947",
-  "runId": "40501054903",
+  "sourceCommit": "e24e090a406a123f718e2dbf37511664aa9e0ceb",
+  "runId": "40503046113",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T12:09:25.83888+00:00",
-  "completedUtc": "2026-10-27T12:09:34.0189744+00:00",
+  "startedUtc": "2026-10-27T12:23:55.2658934+00:00",
+  "completedUtc": "2026-10-27T12:24:00.7740922+00:00",
   "passed": false,
-  "state": "inconclusive",
+  "state": "failed",
   "checks": [
     {
       "name": "ui-wide-size",
@@ -76,7 +76,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -87,6 +87,11 @@
       "name": "installed-registration-contract",
       "state": "passed",
       "detail": "Registration state=Partial; itemCount=59; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed."
+    },
+    {
+      "name": "bounded-registration-fixture",
+      "state": "failed",
+      "detail": "Fixed owned registry metadata invariant bounded-text-state failed; no production metadata/action readiness is inferred."
     },
     {
       "name": "wer-v1-managed-layout",
