@@ -35,3 +35,5 @@ Native fixtures should verify real inventory and selected type/byte previews, ma
 - [CompareObjectHandles](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-compareobjecthandles)
 - [CryptProtectData](https://learn.microsoft.com/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)
 - [RegOpenCurrentUser profile behavior](https://learn.microsoft.com/windows/win32/api/winreg/nf-winreg-regopencurrentuser)
+
+Current official documentation research in [STARTUP-BINDING-RESEARCH.md](STARTUP-BINDING-RESEARCH.md) confirms that RegOpenKeyTransacted accepts an existing ordinary handle with a NULL/empty subkey. The missing OPEN_LINK option alone therefore does not establish that enlistment is impossible. Exact source/link/namespace race binding and durable recovery proof remain unresolved; no production mutation gate is weakened by that research.

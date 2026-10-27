@@ -30,7 +30,7 @@ IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.p
 OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
-    "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "system-tool-execution-gate",
+    "defender-status-contract", "installed-registration-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "system-tool-execution-gate",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "shortcut-existing-local-fixture",
     "shortcut-missing-local-fixture", "shortcut-no-mutation", "diagnostics-metadata-contract", "fixture-teardown",
 }

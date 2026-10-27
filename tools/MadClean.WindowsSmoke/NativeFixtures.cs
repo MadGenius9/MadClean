@@ -21,6 +21,8 @@ internal static partial class NativeFixtures
             LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
+            DefenderStatus(report, token);
+            InstalledRegistrations(report, token);
             WerMetadata(report, token);
             HardwareMetadata(report, token);
             StartupReadOnly(fixture, report, token);

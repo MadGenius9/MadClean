@@ -8,6 +8,7 @@ namespace MadClean.App;
 
 public sealed partial class MainViewModel
 {
+    private const string RegistryCancellationCaveat = " Cancellation ends the wait; Windows may still finish a pending registry read. Another registration scan is blocked until that read returns.";
     private readonly IInstalledApplicationInventory installedApplications = new InstalledApplicationInventory();
     private IReadOnlyList<InstalledApplication>? applicationBaseline;
     private CheckResult<InstalledApplication>? latestInstalledSnapshot;
@@ -72,7 +73,7 @@ public sealed partial class MainViewModel
             else ApplicationBaselineMessage = "No baseline captured: the inventory was incomplete or unavailable. Resolve its errors before inferring missing registrations.";
         }
         return result.State;
-    }, error => { InstalledMessage = error; if (capture) ApplicationBaselineMessage = "No baseline captured. " + error; });
+    }, error => { InstalledMessage = error + RegistryCancellationCaveat; if (capture) ApplicationBaselineMessage = "No baseline captured. " + error + RegistryCancellationCaveat; });
     private async Task PublishInstalledApplications(CheckResult<InstalledApplication> result, CancellationToken token)
     {
         InstalledApplications.Clear(); SelectedInstalledApplication = null;
@@ -108,7 +109,7 @@ public sealed partial class MainViewModel
         SelectedLeftoverCandidate = null;
         LeftoverMessage = Stamp(review.State, review.Message);
         return review.State;
-    }, error => LeftoverMessage = error);
+    }, error => LeftoverMessage = error + RegistryCancellationCaveat);
     private static bool? ProbeRecordedInstallDirectory(string path)
     {
         if (InstalledApplicationPaths.NormalizeLocalDirectory(path) is not string local || !Path.IsPathFullyQualified(local)) return null;
