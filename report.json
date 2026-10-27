@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "d91a5e5f13f7ae6c2fcd4ca1958222734dd62853",
-  "runId": "40455699892",
+  "sourceCommit": "1a8c72755e16e601630bc14cbb50fd7d2a1c4fb0",
+  "runId": "40493148933",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T05:34:28.1561468+00:00",
-  "completedUtc": "2026-10-27T05:34:39.231527+00:00",
-  "passed": true,
-  "state": "passed",
+  "startedUtc": "2026-10-27T11:06:07.0245552+00:00",
+  "completedUtc": "2026-10-27T11:06:12.568771+00:00",
+  "passed": false,
+  "state": "inconclusive",
   "checks": [
     {
       "name": "ui-wide-size",
@@ -26,7 +26,7 @@
     {
       "name": "ui-primary-navigation",
       "state": "passed",
-      "detail": "All five displayed primary sections select the corresponding preserved page through the actual ListBox binding."
+      "detail": "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions."
     },
     {
       "name": "ui-tool-navigation",
@@ -66,7 +66,17 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+    },
+    {
+      "name": "wer-v1-managed-layout",
+      "state": "passed",
+      "detail": "Independent CLR sequential declarations match documented 64-bit V1 size=7960, reportIdOffset=7928 and creationTimeOffset=7944. This is not a native installed-SDK sizeof/offsetof assertion or populated-buffer proof."
+    },
+    {
+      "name": "wer-store-read-contract",
+      "state": "inconclusive",
+      "detail": "Native WER state=Unknown; readableStoreCount=0; populatedMetadataVerified=false. Store access, API support or completion remains unverified; no empty-store or health conclusion."
     },
     {
       "name": "hardware-metadata-contract",
@@ -121,6 +131,12 @@
       "width": 964,
       "height": 611,
       "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
+    },
+    {
+      "file": "tool-18.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "2b146850d531a053171bbb1297c199cbc1200fa987e3b20040052fd92b9f5063"
     },
     {
       "file": "tool-11.png",
