@@ -51,7 +51,7 @@ internal static partial class NativeFixtures
                 return;
             }
             var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (result.Items.Count > 20_000 || result.Items.Any(app => !ValidInstalledRegistration(app, before, after) || !identities.Add(app.Identity)))
+            if (result.Items.Count > 20_000 || result.Items.Any(app => !ValidInstalledRegistration(app, before, after, result.State) || !identities.Add(app.Identity)))
             {
                 report.Fail(check, "Actual registration projection violated its bound, unique fixed-source identity, normalized local path, typed metadata/evidence or observation-time contract. All offending values, identifiers, paths and provider text are withheld.");
                 return;
@@ -65,7 +65,7 @@ internal static partial class NativeFixtures
         }
     }
 
-    private static bool ValidInstalledRegistration(InstalledApplication app, DateTimeOffset before, DateTimeOffset after)
+    private static bool ValidInstalledRegistration(InstalledApplication app, DateTimeOffset before, DateTimeOffset after, CheckState snapshotState)
     {
         if (app == null || !InstalledMetadataText(app.Identity, 1_024) || !InstalledMetadataText(app.Name, 1_024) ||
             !InstalledMetadataText(app.Version, 256) || !InstalledMetadataText(app.Publisher, 512) || app.RegistrationEvidence is not { } evidence)
@@ -82,13 +82,15 @@ internal static partial class NativeFixtures
         if (!app.Identity.StartsWith(prefix, StringComparison.Ordinal)) return false;
         string subkey = app.Identity[prefix.Length..];
         if (!InstalledMetadataText(subkey, 256) || subkey.Contains('\\') ||
-            evidence.Identity != app.Identity || evidence.Source != app.Source || !evidence.HasRegisteredUninstaller.HasValue ||
+            evidence.Identity != app.Identity || evidence.Source != app.Source ||
+            ((!evidence.NoRemove.HasValue || !evidence.WindowsInstaller.HasValue || !evidence.HasRegisteredUninstaller.HasValue) && snapshotState != CheckState.Partial) ||
             evidence.ObservedUtc.Offset != TimeSpan.Zero || evidence.ObservedUtc < before || evidence.ObservedUtc > after ||
             app.InstallLocation != null && InstalledApplicationPaths.NormalizeLocalDirectory(app.InstallLocation) != app.InstallLocation)
             return false;
         string? expectedProduct = evidence.WindowsInstaller == true ? InstalledAppActionPlans.ProductCodeFromSubkey(subkey) : null;
         if (evidence.ProductCode != expectedProduct) return false;
-        string expectedSupport = evidence.NoRemove.HasValue && evidence.WindowsInstaller.HasValue
+        string expectedSupport = evidence.NoRemove == true ? InstalledApplicationSupport.Describe(false, false, true) :
+            evidence.NoRemove.HasValue && evidence.WindowsInstaller.HasValue && evidence.HasRegisteredUninstaller.HasValue
             ? InstalledApplicationSupport.Describe(evidence.WindowsInstaller.Value, evidence.HasRegisteredUninstaller.Value, evidence.NoRemove.Value)
             : "Unknown";
         return app.UninstallSupport == expectedSupport;

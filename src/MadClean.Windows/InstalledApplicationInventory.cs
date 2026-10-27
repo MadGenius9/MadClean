@@ -8,9 +8,9 @@ namespace MadClean.Windows;
 /// <summary>
 /// Read-only Add/Remove Programs registration inventory. Raw uninstall command values are never read.
 /// HKCU Software is shared on supported Windows; HKLM Software has separate 32/64-bit views.
-/// Caller timeout/cancellation does not abort synchronous registry calls or bound their allocations:
-/// GetSubKeyNames/GetValueNames still allocate complete per-call arrays before the cooperative checks.
-/// The worker alone owns RegistryKeys until return; interrupted waits cannot become complete baselines.
+/// Registry enumeration/query buffers have fixed per-field bounds; no full value/name arrays are read.
+/// Caller timeout/cancellation does not abort synchronous native calls. The worker alone owns
+/// RegistryKeys until return; interrupted waits cannot become complete baselines.
 /// </summary>
 public sealed class InstalledApplicationInventory : IInstalledApplicationInventory
 {
@@ -102,14 +102,26 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
                 using var registrations = hive.OpenSubKey(UninstallKey, writable: false);
                 Check();
                 if (registrations == null) { completedSources++; continue; }
-                // The array allocation itself is not bounded by the caller wait/entry count.
-                Check();
-                var subkeys = registrations.GetSubKeyNames();
-                Check();
-                foreach (string subkeyName in subkeys)
+                bool sourceComplete = false;
+                var observedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (uint index = 0; ; index++)
                 {
                     Check();
-                    if (inspected++ == MaximumEntries) { limited = true; break; }
+                    if (inspected >= MaximumEntries) { limited = true; break; }
+                    var keyName = BoundedRegistrationMetadata.EnumerateKey(registrations.Handle, index, Check);
+                    if (keyName.End) { sourceComplete = true; break; }
+                    inspected++;
+                    if (keyName.Name == null)
+                    {
+                        Issue(source.Identity, keyName.Issue + $" (native code {keyName.NativeError})");
+                        // A malformed returned name is one omitted entry and the index advances.
+                        // A native enumeration failure cannot establish the rest of this source.
+                        if (keyName.NativeError != 0) break;
+                        continue;
+                    }
+                    string subkeyName = keyName.Name;
+                    if (!observedNames.Add(subkeyName))
+                    { Issue(source.Identity, "registration name repeated during non-atomic enumeration; repeated entry omitted"); continue; }
                     string identity = source.Identity + "/" + UninstallKey + "\\" + subkeyName;
                     string issueLabel = source.Identity + "/" + SafeIssueLabel(subkeyName);
                     try
@@ -118,37 +130,43 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
                         using var entry = registrations.OpenSubKey(subkeyName, writable: false);
                         Check();
                         if (entry == null) { Issue(issueLabel, "registration changed during inventory; entry not read"); continue; }
-                        object? ReadValue(string valueName)
+                        bool? ReadFlag(string valueName)
                         {
-                            Check();
-                            var value = entry.GetValue(valueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
-                            Check();
-                            return value;
+                            var result = BoundedRegistrationMetadata.ReadFlag(entry.Handle, valueName, Check, token);
+                            if (result.State == RegistrationMetadataState.Missing) return false;
+                            if (result.State == RegistrationMetadataState.Valid) return result.Value;
+                            Issue(issueLabel, valueName + ": " + result.Issue + $" (native code {result.NativeError}); flag remains unknown");
+                            return null;
                         }
-                        // Only flags and documented display/install metadata are read. In particular,
-                        // GetValue is NEVER called for UninstallString or QuietUninstallString.
-                        if (ReadValue("SystemComponent") is int component && component == 1)
-                        { hidden++; continue; }
-                        var rawName = ReadValue("DisplayName");
-                        if (rawName == null || rawName is string emptyName && string.IsNullOrWhiteSpace(emptyName)) { unnamed++; continue; }
-                        if (rawName is not string name || name.Length > 1_024)
-                        { Issue(issueLabel, "DisplayName is unsupported or too long; entry omitted"); continue; }
+                        // Every helper enforces a fixed field whitelist. Uninstall command contents
+                        // cannot pass ReadText/ReadFlag and are never requested from the registry.
+                        bool? component = ReadFlag("SystemComponent");
+                        if (component == true) { hidden++; continue; }
+                        if (component == null) continue; // Unknown hidden-component status is not displayed as a normal app.
+                        var rawName = BoundedRegistrationMetadata.ReadText(entry.Handle, "DisplayName", Check, token);
+                        if (rawName.State == RegistrationMetadataState.Missing ||
+                            rawName.State == RegistrationMetadataState.Valid && string.IsNullOrWhiteSpace(rawName.Value))
+                        { unnamed++; continue; }
+                        if (rawName.State != RegistrationMetadataState.Valid || rawName.Value == null)
+                        { Issue(issueLabel, "DisplayName: " + rawName.Issue + $" (native code {rawName.NativeError}); entry omitted"); continue; }
+                        string name = rawName.Value;
 
-                        string ReadText(string valueName, int maximum)
+                        string ReadText(string valueName)
                         {
-                            var raw = ReadValue(valueName);
-                            if (raw == null || raw is string blank && string.IsNullOrWhiteSpace(blank)) return "Unknown";
-                            if (raw is string text && text.Length <= maximum) return text;
-                            Issue(issueLabel, valueName + " has an unsupported metadata type or length; value omitted");
-                            return "Unknown";
+                            var result = BoundedRegistrationMetadata.ReadText(entry.Handle, valueName, Check, token);
+                            if (result.State == RegistrationMetadataState.Invalid)
+                                Issue(issueLabel, valueName + ": " + result.Issue + $" (native code {result.NativeError}); value remains unknown");
+                            return result.State == RegistrationMetadataState.Valid && !string.IsNullOrWhiteSpace(result.Value) ? result.Value : "Unknown";
                         }
-                        string version = ReadText("DisplayVersion", 256);
-                        string publisher = ReadText("Publisher", 512);
+                        string version = ReadText("DisplayVersion");
+                        string publisher = ReadText("Publisher");
                         string? installLocation = null;
-                        var rawLocation = ReadValue("InstallLocation");
-                        if (rawLocation is string location && !string.IsNullOrWhiteSpace(location))
+                        var rawLocation = BoundedRegistrationMetadata.ReadText(entry.Handle, "InstallLocation", Check, token);
+                        if (rawLocation.State == RegistrationMetadataState.Invalid)
+                            Issue(issueLabel, "InstallLocation: " + rawLocation.Issue + $" (native code {rawLocation.NativeError}); path omitted");
+                        else if (rawLocation.State == RegistrationMetadataState.Valid && !string.IsNullOrWhiteSpace(rawLocation.Value))
                         {
-                            installLocation = InstalledApplicationPaths.NormalizeLocalDirectory(location);
+                            installLocation = InstalledApplicationPaths.NormalizeLocalDirectory(rawLocation.Value);
                             if (installLocation != null)
                             {
                                 try
@@ -157,35 +175,25 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
                                     var drive = new DriveInfo(installLocation[..3]);
                                     var driveType = drive.DriveType;
                                     Check();
-                                    if (driveType is not (DriveType.Fixed or DriveType.Removable or DriveType.Ram))
-                                        installLocation = null;
+                                    if (driveType is not (DriveType.Fixed or DriveType.Removable or DriveType.Ram)) installLocation = null;
                                 }
                                 catch (Exception ex) when (IsReadError(ex)) { installLocation = null; }
                             }
                             if (installLocation == null) Issue(issueLabel, "InstallLocation is not a verified local absolute directory; path omitted");
                         }
-                        else if (rawLocation != null && rawLocation is not string)
-                            Issue(issueLabel, "InstallLocation has an unsupported metadata type; path omitted");
-
-                        // Presence is a hint only: the command might be empty, broken, obsolete or blocked.
-                        // No command text, arguments, executable or registry estimate is collected.
-                        Check();
-                        var valueNames = entry.GetValueNames();
-                        Check();
-                        var names = valueNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                        Check();
-                        bool hasRegisteredUninstaller = names.Contains("UninstallString") || names.Contains("QuietUninstallString");
-                        var rawInstaller = ReadValue("WindowsInstaller");
-                        bool? installer = rawInstaller switch { null => false, 0 => false, 1 => true, _ => null };
-                        if (installer == null) Issue(issueLabel, "WindowsInstaller has an unsupported flag value; mechanism remains unknown");
-                        // ARPNOREMOVE writes NoRemove and disables supported ARP removal even when
-                        // WindowsInstaller or stale uninstaller value names are still present.
-                        var rawNoRemove = ReadValue("NoRemove");
-                        bool? removalRestricted = rawNoRemove switch { null => false, 0 => false, 1 => true, _ => null };
-                        if (removalRestricted == null)
-                            Issue(issueLabel, "NoRemove has an unsupported flag value; uninstall support remains unknown");
-                        string support = removalRestricted.HasValue && installer.HasValue
-                            ? InstalledApplicationSupport.Describe(installer.Value, hasRegisteredUninstaller, removalRestricted.Value)
+                        // lpData stays NULL for these two exact presence queries. Value contents,
+                        // even huge or malformed commands, are neither allocated nor inspected.
+                        var uninstall = BoundedRegistrationMetadata.ProbeUninstallerName(entry.Handle, "UninstallString", Check);
+                        var quiet = BoundedRegistrationMetadata.ProbeUninstallerName(entry.Handle, "QuietUninstallString", Check);
+                        if (uninstall.Exists == null) Issue(issueLabel, uninstall.Issue + $" (native code {uninstall.NativeError})");
+                        if (quiet.Exists == null) Issue(issueLabel, quiet.Issue + $" (native code {quiet.NativeError})");
+                        bool? hasRegisteredUninstaller = uninstall.Exists == true || quiet.Exists == true ? true :
+                            uninstall.Exists.HasValue && quiet.Exists.HasValue ? false : null;
+                        bool? installer = ReadFlag("WindowsInstaller");
+                        bool? removalRestricted = ReadFlag("NoRemove");
+                        string support = removalRestricted == true ? InstalledApplicationSupport.Describe(false, false, true) :
+                            removalRestricted.HasValue && installer.HasValue && hasRegisteredUninstaller.HasValue
+                            ? InstalledApplicationSupport.Describe(installer.Value, hasRegisteredUninstaller.Value, removalRestricted.Value)
                             : "Unknown";
                         var evidence = new InstalledAppRegistrationEvidence(identity, source.Label, removalRestricted, installer,
                             hasRegisteredUninstaller, installer == true ? InstalledAppActionPlans.ProductCodeFromSubkey(subkeyName) : null, observedUtc);
@@ -196,7 +204,7 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
                     { Issue(issueLabel, $"entry could not be read (code 0x{ex.HResult:X8}); no action was attempted"); }
                 }
                 if (limited) break;
-                completedSources++;
+                if (sourceComplete) completedSources++;
             }
             catch (Exception ex) when (IsReadError(ex))
             { Issue(source.Identity, $"registry source could not be read (code 0x{ex.HResult:X8}); check current-user access"); }

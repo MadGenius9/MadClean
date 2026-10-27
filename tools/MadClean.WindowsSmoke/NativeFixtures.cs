@@ -23,6 +23,7 @@ internal static partial class NativeFixtures
             Diagnostics(report, token);
             DefenderStatus(report, token);
             InstalledRegistrations(report, token);
+            BoundedRegistrations(fixture, report, token);
             WerMetadata(report, token);
             HardwareMetadata(report, token);
             StartupReadOnly(fixture, report, token);
