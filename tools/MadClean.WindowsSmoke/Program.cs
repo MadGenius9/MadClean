@@ -51,7 +51,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            report.Fail("harness", $"The harness did not complete (0x{ex.HResult:X8}); no broad Windows verification is claimed.");
+            report.Fail("harness", $"The harness raised {SmokeAssertionException.SafeContext(ex)} (0x{ex.HResult:X8}); no broad Windows verification is claimed.");
         }
         finally
         {

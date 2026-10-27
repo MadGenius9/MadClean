@@ -211,6 +211,32 @@ class PublisherTests(unittest.TestCase):
     def test_missing_core_evidence_never_allows_overall_pass(self):
         (self.download/'core-windows.trx').unlink()
         self.assertFalse(self.prepare()[1]['passed'])
+    def test_trx_diagnostics_preserve_observed_skip_outcomes_without_inventing_accounting(self):
+        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="Passed"/><UnitTestResult outcome="Passed"/><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="3" executed="2" passed="2" failed="0" notExecuted="0" error="0" warning="0" pending="0"/></ResultSummary></TestRun>')
+        core=p.core_test_summary(self.download)
+        self.assertEqual({'Passed':2,'NotExecuted':1},core['resultOutcomeTally'])
+        self.assertEqual(3,core['resultRecordCount'])
+        self.assertEqual(0,core['counterAttributes']['notExecuted'])
+        self.assertEqual(0,core['counterAttributes']['warning'])
+        self.assertFalse(core['countsConsistent'])
+        self.assertFalse(core['passed'])
+    def test_known_counter_skips_are_reported_separately_from_passed_tests(self):
+        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="Passed"/><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="2" executed="1" passed="1" failed="0" notExecuted="1"/></ResultSummary></TestRun>')
+        core=p.core_test_summary(self.download)
+        self.assertTrue(core['countsConsistent'])
+        self.assertEqual(1,core['counts']['passed'])
+        self.assertEqual(1,core['resultOutcomeTally']['NotExecuted'])
+    def test_trx_diagnostics_never_forward_unknown_metadata_or_outcome_text(self):
+        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="TEST-private-payload"/><UnitTestResult/></Results><ResultSummary><Counters total="2" executed="0" passed="0" failed="0" notExecuted="2" private="TEST-private-payload"/></ResultSummary></TestRun>')
+        core=p.core_test_summary(self.download)
+        self.assertEqual({'Unknown':2},core['resultOutcomeTally'])
+        self.assertEqual(1,core['unrecognizedCounterAttributeCount'])
+        self.assertNotIn('TEST-private-payload',json.dumps(core))
+        self.assertFalse(core['passed'])
+    def test_missing_or_invalid_trx_counters_still_reject(self):
+        for attributes in ['total="2" executed="1" passed="1" failed="0"', 'total="2" executed="1" passed="1" failed="0" notExecuted="1" error="private"']:
+            (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><ResultSummary><Counters '+attributes+'/></ResultSummary></TestRun>')
+            with self.assertRaisesRegex(p.EvidenceError,'^invalid-trx-counter$'): p.core_test_summary(self.download)
     def test_utf16_trx_doctype_is_rejected_before_any_entity_expansion(self):
         data='<?xml version="1.0" encoding="utf-16"?><!DOCTYPE x [<!ENTITY a "TEST-ONLY">]><x>&a;</x>'
         (self.download/'core-windows.trx').write_bytes(data.encode('utf-16'))

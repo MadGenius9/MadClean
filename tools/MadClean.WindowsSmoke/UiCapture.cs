@@ -18,11 +18,13 @@ internal static class UiCapture
         bool completed = false;
         var application = new MadClean.App.App();
         application.InitializeComponent();
-        application.StartupUri = null;
+        // StartupUri rejects null. Let the real App create its one startup window; qualify the
+        // resource assembly because this development harness, rather than MadClean, is the entry assembly.
+        application.StartupUri = new Uri("/MadClean;component/MainWindow.xaml", UriKind.Relative);
         application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         application.DispatcherUnhandledException += (_, args) =>
         {
-            string context = args.Exception is SmokeAssertionException assertion ? "Fixed invariant " + assertion.Code : SmokeAssertionException.SafeType(args.Exception);
+            string context = args.Exception is SmokeAssertionException assertion ? "Fixed invariant " + assertion.Code : SmokeAssertionException.SafeContext(args.Exception);
             report.Fail("ui-dispatcher", $"WPF raised {context} (0x{args.Exception.HResult:X8}); no complete UI capture is claimed.");
             args.Handled = true;
             application.Shutdown(1);
@@ -32,9 +34,10 @@ internal static class UiCapture
             MainWindow? window = null;
             try
             {
-                window = new MainWindow { Width = 1420, Height = 1000, Left = 0, Top = 0, WindowState = WindowState.Normal };
-                application.MainWindow = window;
-                window.Show();
+                // Startup is raised before WPF performs its default StartupUri action.
+                await application.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                window = application.MainWindow as MainWindow ?? throw new SmokeAssertionException("ui-startup-window");
+                window.Width = 1420; window.Height = 1000; window.Left = 0; window.Top = 0; window.WindowState = WindowState.Normal;
                 await Idle(window);
                 if (window.DataContext is not MainViewModel model) throw new SmokeAssertionException("ui-data-context");
                 AssertNoInventory(model);
@@ -96,7 +99,7 @@ internal static class UiCapture
             }
             catch (Exception ex)
             {
-                report.Fail("ui-capture", $"The production WPF smoke check raised {SmokeAssertionException.SafeType(ex)} (0x{ex.HResult:X8}); no arbitrary exception message/payload is included.");
+                report.Fail("ui-capture", $"The production WPF smoke check raised {SmokeAssertionException.SafeContext(ex)} (0x{ex.HResult:X8}); no arbitrary exception message/payload is included.");
             }
             finally
             {

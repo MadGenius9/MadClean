@@ -11,7 +11,7 @@ The coordinator adds the project to the solution/build and locked restore workfl
 
 ## What it does
 
-1. Loads the real production `App`/`MainWindow`, clears `StartupUri` before `Run` to avoid a second window, and uses software WPF rendering inside this process. It does **not** inject sample values, run UI commands, query providers through the UI, click updates or start maintenance.
+1. Loads the real production `App` with an assembly-qualified `StartupUri`, lets WPF create its single startup `MainWindow`, waits until application-idle before inspecting it, and uses software WPF rendering inside this process. It does **not** inject sample values, run UI commands, query providers through the UI, click updates or start maintenance.
 2. Captures actual WPF **client content** at the default 1420×1000 and minimum 980×650 window sizes. It checks the primary controls' visible bounds, exercises actual primary/More tools selection bindings, opens the real tool popup, visits all secondary pages and captures H1/new module pages. It asserts navigation generated no inventory activity. Physical keyboard/screen-reader behavior, true OS-DPI scaling, native DWM/title-bar composition and visual fidelity still need separate checks.
 3. After closing WPF, clears the closed dispatcher synchronization context and creates a uniquely named, ownership-marked fixture tree under repository `artifacts/windows-validation-fixtures-<GUID>`. Fixture files are intentionally test data; they are never injected into the production UI.
 4. Uses the public duplicate adapter on independent equal-content files, a different file with the same size, and (where supported) a real native hard-link alias. Checks content/identity relationships without a reclaimable-space or safe-delete claim.

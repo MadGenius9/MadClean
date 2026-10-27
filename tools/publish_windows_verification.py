@@ -213,7 +213,31 @@ def core_test_summary(directory):
         raw = counters.get(name, "")
         reject_unless(re.fullmatch(r"[0-9]{1,8}", raw) is not None, "invalid-trx-counter")
         result["counts"][name] = int(raw)
-    for test in document.findall("t:Results/t:UnitTestResult", namespace):
+    # Preserve bounded numeric evidence before interpreting adapter skip accounting.
+    # These names are the Microsoft VSTest TestRunSummary counter schema; unknown
+    # attribute names/values and arbitrary outcome text are never forwarded.
+    counter_names = ("total", "executed", "passed", "failed", "error", "timeout", "aborted",
+                     "inconclusive", "passedButRunAborted", "notRunnable", "notExecuted",
+                     "disconnected", "warning", "completed", "inProgress", "pending")
+    result["counterAttributes"] = {}
+    for name in counter_names:
+        if name in counters.attrib:
+            raw = counters.get(name)
+            reject_unless(re.fullmatch(r"[0-9]{1,8}", raw) is not None, "invalid-trx-counter")
+            result["counterAttributes"][name] = int(raw)
+    result["unrecognizedCounterAttributeCount"] = len(set(counters.attrib) - set(counter_names))
+    outcome_names = {"Error", "Failed", "Timeout", "Aborted", "Inconclusive", "PassedButRunAborted",
+                     "NotRunnable", "NotExecuted", "Disconnected", "Warning", "Passed", "Completed",
+                     "InProgress", "Pending"}
+    tests = document.findall("t:Results/t:UnitTestResult", namespace)
+    reject_unless(len(tests) <= 100_000, "trx-result-limit")
+    result["resultRecordCount"] = len(tests)
+    result["resultOutcomeTally"] = {}
+    for test in tests:
+        outcome = test.get("outcome")
+        key = outcome if outcome in outcome_names else "Unknown"
+        result["resultOutcomeTally"][key] = result["resultOutcomeTally"].get(key, 0) + 1
+    for test in tests:
         if test.get("outcome") != "Failed":
             continue
         name = test.get("testName", "Unknown test")
