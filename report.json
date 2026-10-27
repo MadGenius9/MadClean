@@ -1,19 +1,122 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ed5254fdb07859ab522aecc9b150b62e034ef0ab",
-  "runId": "40448559633",
+  "sourceCommit": "f470b3b34cfe5a4df7a3c05e6462e41cbc7380a8",
+  "runId": "40449446463",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T04:17:57.3208668+00:00",
-  "completedUtc": "2026-10-27T04:17:57.5147439+00:00",
+  "startedUtc": "2026-10-27T04:26:26.2021858+00:00",
+  "completedUtc": "2026-10-27T04:26:35.0146498+00:00",
   "passed": false,
-  "state": "failed",
+  "state": "inconclusive",
   "checks": [
     {
-      "name": "harness",
-      "state": "failed",
-      "detail": "The harness did not complete (0x80004003); no broad Windows verification is claimed."
+      "name": "ui-wide-size",
+      "state": "inconclusive",
+      "detail": "The desktop constrained the requested wide window; the captured dimensions are actual, but wide-layout validation is inconclusive."
+    },
+    {
+      "name": "ui-initial-state",
+      "state": "passed",
+      "detail": "Actual production WPF Overview loaded with unchecked values and zero activity events; no scan command was executed."
+    },
+    {
+      "name": "ui-compact-layout",
+      "state": "passed",
+      "detail": "Client content rendered at the minimum 980x650 window size; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks."
+    },
+    {
+      "name": "ui-primary-navigation",
+      "state": "passed",
+      "detail": "All five displayed primary sections select the corresponding preserved page through the actual ListBox binding."
+    },
+    {
+      "name": "ui-tool-navigation",
+      "state": "passed",
+      "detail": "All 11 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages were captured."
+    },
+    {
+      "name": "ui-tool-popup",
+      "state": "passed",
+      "detail": "The real More tools popup opens, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted."
+    },
+    {
+      "name": "duplicate-content-fixtures",
+      "state": "passed",
+      "detail": "Native fixture observations group equal bytes across different names, retain independent identities and exclude a same-size different-content file. Provider state Partial; this is scoped fixture evidence only."
+    },
+    {
+      "name": "duplicate-hardlink-fixture",
+      "state": "passed",
+      "detail": "An actual native hard link shares the original file identity and group and is explicitly labeled an alias, not an independent copy."
+    },
+    {
+      "name": "shortcut-existing-local-fixture",
+      "state": "passed",
+      "detail": "The native fixture returned TargetExists with a reason/source; this is target availability, not proof a shortcut can launch or is obsolete."
+    },
+    {
+      "name": "shortcut-missing-local-fixture",
+      "state": "passed",
+      "detail": "The native fixture returned LocalTargetMissing with a reason/source; this is target availability, not proof a shortcut can launch or is obsolete."
+    },
+    {
+      "name": "shortcut-no-mutation",
+      "state": "passed",
+      "detail": "Both shortcut entries and the existing target remain, and the absent target stays absent. No link or target was launched."
+    },
+    {
+      "name": "diagnostics-metadata-contract",
+      "state": "passed",
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+    },
+    {
+      "name": "fixture-teardown",
+      "state": "passed",
+      "detail": "Only the owned development fixture tree was removed; no application or personal-file cleanup action was exercised."
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "file": "overview-wide.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "b4a376028231c99bce60d33d92234f9bff1d37ee7dbe65c5aa617e206f31d650"
+    },
+    {
+      "file": "overview-compact.png",
+      "width": 964,
+      "height": 611,
+      "sha256": "cc7608049c51cb79a300d5becccbab225ebf82ce21bbd0556b9d3050a328e533"
+    },
+    {
+      "file": "tool-11.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "b5078b4a326c3af4a8cb90cc574a35a541f9f8c290c51a99864370eee9341107"
+    },
+    {
+      "file": "tool-12.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "85cb25a8545bcf68ab57a8ec9163d7c26802560fcfac06b34d6afa3b5d897d13"
+    },
+    {
+      "file": "tool-13.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "0a5f65b426f2f3d9904999e4f374b030cceefcf666fc374714268094f6673078"
+    },
+    {
+      "file": "tool-14.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "c26600d29adfacc1ef130c8cbee02e6e5c7661dbdd1b0dd5c21cedd33cdf06c3"
+    },
+    {
+      "file": "tool-15.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "056b316c165e9bebc6c78529e66242dbb8d7a4405993761ec360f8fcf51b4040"
+    }
+  ],
   "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
 }

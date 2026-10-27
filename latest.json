@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ed5254fdb07859ab522aecc9b150b62e034ef0ab",
-  "runId": "40448559633",
+  "sourceCommit": "f470b3b34cfe5a4df7a3c05e6462e41cbc7380a8",
+  "runId": "40449446463",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-10-27T04:18:19.458733+00:00",
+  "updatedUtc": "2026-10-27T04:26:52.107176+00:00",
   "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -26,5 +26,34 @@
   "nativeLogArtifactOutcome": "success",
   "nativeDiagnosticsPresent": true,
   "nativeDiagnosticsError": null,
-  "images": []
+  "images": [
+    {
+      "name": "overview-wide.png",
+      "sha256": "b4a376028231c99bce60d33d92234f9bff1d37ee7dbe65c5aa617e206f31d650"
+    },
+    {
+      "name": "overview-compact.png",
+      "sha256": "cc7608049c51cb79a300d5becccbab225ebf82ce21bbd0556b9d3050a328e533"
+    },
+    {
+      "name": "tool-11.png",
+      "sha256": "b5078b4a326c3af4a8cb90cc574a35a541f9f8c290c51a99864370eee9341107"
+    },
+    {
+      "name": "tool-12.png",
+      "sha256": "85cb25a8545bcf68ab57a8ec9163d7c26802560fcfac06b34d6afa3b5d897d13"
+    },
+    {
+      "name": "tool-13.png",
+      "sha256": "0a5f65b426f2f3d9904999e4f374b030cceefcf666fc374714268094f6673078"
+    },
+    {
+      "name": "tool-14.png",
+      "sha256": "c26600d29adfacc1ef130c8cbee02e6e5c7661dbdd1b0dd5c21cedd33cdf06c3"
+    },
+    {
+      "name": "tool-15.png",
+      "sha256": "056b316c165e9bebc6c78529e66242dbb8d7a4405993761ec360f8fcf51b4040"
+    }
+  ]
 }
