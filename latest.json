@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "sourceCommit": "d8e19973676a10736a254280632ed3ff95c9cea5",
+  "runId": "40443461467",
+  "runAttempt": 1,
+  "buildResult": "failure",
+  "verificationResult": "skipped",
+  "passed": false,
+  "updatedUtc": "2026-10-27T03:20:09.637475+00:00",
+  "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
+  "reportPresent": false,
+  "coreTestsPresent": false,
+  "reportArtifactOutcome": "failure",
+  "coreArtifactOutcome": "failure",
+  "images": []
+}
