@@ -62,7 +62,12 @@ internal sealed class OwnWindowSizing : IDisposable
             limits.MaximumTrack.Y = Math.Max(limits.MaximumTrack.Y, maximumHeight);
             Marshal.StructureToPtr(limits, lParam, fDeleteOld: false);
             LimitsMessages++;
-            handled = true;
+            // HwndSource invokes its public hooks newest-first. Do NOT mark this handled:
+            // Window.WmGetMinMaxInfo must consume our corrected structure and cache the
+            // tracking limits used again by Window.GetWindowMinMax/MeasureOverride.
+            // Swallowing it changes the HWND bounds but leaves WPF measuring against the
+            // old small-desktop cache, so an apparent native resize still captures compact UI.
+            handled = false;
         }
         return 0;
     }
