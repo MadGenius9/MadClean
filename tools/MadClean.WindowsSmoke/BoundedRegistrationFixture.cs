@@ -14,6 +14,7 @@ internal static partial class NativeFixtures
         const string check = "bounded-registration-fixture";
         BoundedFixtureRegistry? owned = null;
         bool verified = false, removed = false;
+        string? textFailureDetail = null;
         try
         {
             owned = new BoundedFixtureRegistry(fixture);
@@ -21,25 +22,32 @@ internal static partial class NativeFixtures
                 ?? throw new SmokeAssertionException("bounded-fixture-key");
             void Check() => token.ThrowIfCancellationRequested();
             void Write(string field, uint type, byte[] bytes) => owned.Write(key, field, type, bytes);
-            void Text(uint type, byte[] bytes, RegistrationMetadataState expected, string? value)
+            void Text(string caseCode, uint type, byte[] bytes, RegistrationMetadataState expected, string? value)
             {
                 Write("DisplayName", type, bytes);
                 var result = BoundedRegistrationMetadata.ReadText(key.Handle, "DisplayName", Check, token);
                 if (result.State != expected || result.Value != value || result.NativeError != 0)
-                    throw new SmokeAssertionException("bounded-text-state");
+                {
+                    uint storedCount = 0;
+                    int storedCode = RegQueryValueExW(key.Handle, "DisplayName", 0, out uint storedType, null, ref storedCount);
+                    // Only fixed developer case labels, enums, numeric ABI metadata and a match
+                    // boolean. Never include the returned/stored text or registry pathname.
+                    textFailureDetail = $"Owned text case={caseCode}; expectedState={expected}; observedState={result.State}; nativeCode={result.NativeError}; valueMatch={(result.Value == value ? "true" : "false")}; requestedType={type}; requestedBytes={bytes.Length}; storedProbeCode={storedCode}; storedType={storedType}; storedBytes={storedCount}. No text values or paths exported.";
+                    throw new SmokeAssertionException("bounded-text-" + caseCode);
+                }
             }
-            Text(1, Encoding.Unicode.GetBytes("Owned literal metadata\0"), RegistrationMetadataState.Valid, "Owned literal metadata");
-            Text(1, [0, 0], RegistrationMetadataState.Valid, "");
+            Text("literal", 1, Encoding.Unicode.GetBytes("Owned literal metadata\0"), RegistrationMetadataState.Valid, "Owned literal metadata");
+            Text("empty", 1, [0, 0], RegistrationMetadataState.Valid, "");
             string maximum = new('N', RegistrationMetadataDecoder.NameCharacters);
-            Text(1, Encoding.Unicode.GetBytes(maximum + "\0"), RegistrationMetadataState.Valid, maximum);
-            Text(1, Encoding.Unicode.GetBytes(maximum + "X\0"), RegistrationMetadataState.Invalid, null);
-            Text(3, Encoding.Unicode.GetBytes("Wrong binary type\0"), RegistrationMetadataState.Invalid, null);
-            Text(1, [65, 0, 0], RegistrationMetadataState.Invalid, null); // Odd byte count.
-            Text(1, [65, 0], RegistrationMetadataState.Invalid, null); // Missing NUL.
-            Text(1, [65, 0, 0, 0, 66, 0, 0, 0], RegistrationMetadataState.Invalid, null); // Embedded NUL.
-            Text(1, [0, 216, 0, 0], RegistrationMetadataState.Invalid, null); // Unpaired high surrogate.
+            Text("maximum", 1, Encoding.Unicode.GetBytes(maximum + "\0"), RegistrationMetadataState.Valid, maximum);
+            Text("over-cap", 1, Encoding.Unicode.GetBytes(maximum + "X\0"), RegistrationMetadataState.Invalid, null);
+            Text("binary-type", 3, Encoding.Unicode.GetBytes("Wrong binary type\0"), RegistrationMetadataState.Invalid, null);
+            Text("odd-bytes", 1, [65, 0, 0], RegistrationMetadataState.Invalid, null);
+            Text("unterminated", 1, [65, 0], RegistrationMetadataState.Invalid, null);
+            Text("embedded-nul", 1, [65, 0, 0, 0, 66, 0, 0, 0], RegistrationMetadataState.Invalid, null);
+            Text("unpaired-surrogate", 1, [0, 216, 0, 0], RegistrationMetadataState.Invalid, null);
             const string literal = "%MADCLEAN_BOUNDED_FIXTURE_ONLY%\\literal";
-            Text(2, Encoding.Unicode.GetBytes(literal + "\0"), RegistrationMetadataState.Valid, literal);
+            Text("literal-expand", 2, Encoding.Unicode.GetBytes(literal + "\0"), RegistrationMetadataState.Valid, literal);
             string versionMax = new('V', RegistrationMetadataDecoder.VersionCharacters);
             Write("DisplayVersion", 1, Encoding.Unicode.GetBytes(versionMax + "\0"));
             var version = BoundedRegistrationMetadata.ReadText(key.Handle, "DisplayVersion", Check, token);
@@ -116,7 +124,7 @@ internal static partial class NativeFixtures
             verified = true;
         }
         catch (SmokeAssertionException ex)
-        { report.Fail(check, "Fixed owned registry metadata invariant " + ex.Code + " failed; no production metadata/action readiness is inferred."); }
+        { report.Fail(check, textFailureDetail ?? "Fixed owned registry metadata invariant " + ex.Code + " failed; no production metadata/action readiness is inferred."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or ArgumentException or System.Security.SecurityException or OperationCanceledException)
         { report.Unknown(check, $"Owned registry metadata fixture could not complete (code 0x{ex.HResult:X8}); native bounded metadata behavior remains unverified."); }
         finally
