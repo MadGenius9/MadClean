@@ -611,12 +611,13 @@
                                 <StackPanel>
                                     <TextBlock Text="{Binding HardwareIdentityReferenceSummary}" FontSize="15" Margin="0,0,0,8"/>
                                     <TextBox Text="{Binding HardwareIdentityReferenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="100" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14" AutomationProperties.Name="Bundled identity source and verification limits"/>
-                                    <TextBlock Text="Manufacturer-verified limits: Not checked" FontSize="17"/>
+                                    <TextBlock Text="Upgrade compatibility limits: Unknown / not verified" FontSize="17"/>
                                     <TextBlock Text="Exact-model/revision RAM limits/types, supported CPUs and required BIOS, expansion and storage specifications are queued. Reported board version is not a verified PCB revision; reported device entries do not establish free physical slots or upgradeability." Style="{StaticResource Caption}" Margin="0,8,0,8"/>
                                     <TextBlock Text="Manual checks required" FontSize="17"/>
                                     <TextBlock Text="PSU capacity/connectors, case/GPU clearance, free physical slots and soldered-memory upgradeability remain Unknown. Budget/use-case advice is queued until compatibility can be verified. No purchases, firmware updates or other hardware changes run here." Style="{StaticResource Caption}" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
+                            <views:ManufacturerServiceView/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

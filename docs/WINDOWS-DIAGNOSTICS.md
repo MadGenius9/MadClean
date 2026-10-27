@@ -88,3 +88,5 @@ The following current official Microsoft documentation was read for this roadmap
 - [SFC command reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/sfc): administrator requirements and verify-only versus repair modes, limited to protected Windows system files.
 
 Current implementation details: [WER metadata](WER-METADATA.md) covers minimized supported store reads and bounded caller/native ownership. [System-tool actions](SYSTEM-TOOL-ACTIONS.md) covers fixed Microsoft descriptors, explicit identity verification and the immutable disabled production execution boundary. No launch setting or environment override enables D2/D3. The current [ledger](ROADMAP-STATUS.md) distinguishes code, source-bound Windows evidence and unresolved gates.
+
+The separate [component-store flag API research](COMPONENT-STORE-FLAGS.md) confirms that `ScanImage=FALSE` is not a fresh scan, but also identifies elevated initialization and supported ADK deployment gates. No API implementation, inbox-DLL assumption, ADK download or hidden elevation was added to make that proposal look complete.

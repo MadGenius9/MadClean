@@ -42,6 +42,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeSystemTools();
         InitializeStartupActions();
         InitializeWerMetadata();
+        InitializeManufacturerServiceFacts();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }
@@ -76,6 +77,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         // The service owns in-flight handles; disposal only cancels work before commit and
         // clears unused private previews. It never force-stops a Windows transaction.
         startupActions.Dispose();
+        (manufacturerServiceFacts as IDisposable)?.Dispose();
     }
 
     private async Task RunAsync(bool online)

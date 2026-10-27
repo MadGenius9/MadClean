@@ -149,7 +149,7 @@ public sealed class HardwareCompatibilityTests
     {
         var result = HardwareCompatibilityIdentityCatalog.Find("Microsoft Corporation", "Surface Laptop 6 for Business", "Surface_Laptop_6_for_Business_2033");
         Assert.NotNull(result); Assert.Contains("13.5-inch", result.ProductLabel);
-        Assert.Contains("MadClean has not retrieved the page in this session", result.Scope);
+        Assert.Contains("not a live retrieval", result.Scope);
         Assert.Contains("no RAM limit", result.Scope);
         Assert.Null(HardwareCompatibilityIdentityCatalog.Find("Microsoft Corporation", "Surface Laptop 6 for Business", "Surface_Laptop_6_for_Business_2035_OTHER"));
         Assert.Null(HardwareCompatibilityIdentityCatalog.Find("Microsoft Corporation", "Surface Laptop 6", "Surface_Laptop_6_for_Business_2033"));

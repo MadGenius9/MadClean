@@ -1,0 +1,15 @@
+<UserControl x:Class="MadClean.App.Views.ManufacturerServiceView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+            <TextBlock Text="Official manufacturer service guidance" FontSize="20"/>
+            <TextBlock Text="A separate online check for supported exact models. It retrieves fixed Microsoft Learn articles without sending hardware identifiers, serials or credentials. It verifies only the stated service-part/procedure facts; it does not download tools, select upgrade parts, purchase anything or change hardware/firmware." Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding ManufacturerServiceEligibility}" Style="{StaticResource Caption}"/>
+            <Button Content="Check supported manufacturer guidance online" Command="{Binding ReadManufacturerServiceFactsCommand}" HorizontalAlignment="Left" Margin="0,8,0,12"/>
+            <TextBlock Text="{Binding ManufacturerServiceMessage}" Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Text="{Binding ManufacturerServiceTime}" Style="{StaticResource Caption}"/>
+            <DataGrid ItemsSource="{Binding ManufacturerServiceRows}" SelectedItem="{Binding SelectedManufacturerServiceFact, Mode=TwoWay}" AutoGenerateColumns="False" Height="190" AutomationProperties.Name="Official manufacturer service observations"><DataGrid.Columns><DataGridTextColumn Header="TOPIC" Binding="{Binding Topic}" Width="160"/><DataGridTextColumn Header="OBSERVATION" Binding="{Binding Observation}" Width="*"/><DataGridTextColumn Header="SCOPE" Binding="{Binding Scope}" Width="2*"/></DataGrid.Columns></DataGrid>
+            <TextBox Text="{Binding ManufacturerServiceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="260" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Manufacturer source, retrieval time, scope and uncertainty"/>
+            <ItemsControl ItemsSource="{Binding ManufacturerServiceCoverage}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#A9BDD3" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

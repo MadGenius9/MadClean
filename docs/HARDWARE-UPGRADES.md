@@ -91,3 +91,7 @@ H3 acceptance gates:
 - Present verified limits separately from advisory choices, with alternative/no-change paths and clear user preferences. Surface uncertainty and conflicts without a scalar compatibility percentage.
 - Independent tests/review must cover missing budget/use case, unknown PSU/clearance/occupancy/soldered design, ambiguous BIOS prerequisites, conflicting sources and stale verification. No fully approved recommendation may escape when a required physical or manufacturer check is unresolved.
 - The user must review compatibility and any firmware prerequisite before a later selected action. This roadmap authorizes **no purchases, cart actions, component installation, BIOS/firmware downloads or updates, forced restarts or silent elevation**. Such capabilities require a separate explicit request and safety review; restore points are not hardware compatibility evidence or a recovery guarantee for firmware changes.
+
+## Narrow live service-source increment
+
+The explicit [Surface service-source checker](SURFACE-SERVICE-FACTS.md) retrieves only three fixed Microsoft Learn articles for two supported exact PC identities. It confirms limited family service-parts/procedure observations, not upgrade limits, exact part fit, RAM/CPU support or a recommendation. The source's13-inch label versus the2033 SKU reference's13.5-inch label is not silently rounded into part compatibility. H2 limit matching and H3 advice remain gated.

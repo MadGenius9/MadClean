@@ -1,6 +1,6 @@
 # Hardware evidence sources and strict scope gates
 
-This increment adds a small **bundled identity reference** and portable matching/advisory gates. It does not implement a manufacturer specification fetcher, a current BIOS catalogue, an upgrade recommendation engine, shopping or firmware actions. Hardware limits/CPU support/required-BIOS/expansion compatibility remain **Unknown or Unsupported** until an exact-product manufacturer document is actually retrieved and its claim verified. A source URL, a matched name or a test fixture is not that verification.
+This module includes a small **bundled identity reference**, portable matching/advisory gates, and a separate explicit live checker for three narrowly scoped Microsoft Surface family service observations. It does not implement a verified upgrade-limit catalogue, current BIOS catalogue, recommendation engine, shopping or firmware actions. See [SURFACE-SERVICE-FACTS.md](SURFACE-SERVICE-FACTS.md) for the limited online adapter. Hardware limits/CPU support/required-BIOS/expansion compatibility remain **Unknown or Unsupported** until an exact-product manufacturer document is actually retrieved and its claim verified. A source URL, a matched name or a test fixture is not that verification.
 
 ## What was directly inspected
 
@@ -11,7 +11,7 @@ The official [Microsoft Surface System SKU reference](https://learn.microsoft.co
 | Surface Laptop 6 for Business | `Surface_Laptop_6_for_Business_2033` | Surface Laptop 6 for Business 13.5-inch |
 | Surface Laptop 6 for Business | `Surface_Laptop_6_for_Business_2035` | Surface Laptop 6 for Business 15-inch |
 
-`HardwareCompatibilityIdentityCatalog` stores only these two developer-reviewed associations and their official reference URI/review date. It requires the expected Microsoft PC manufacturer identity plus exact model/SKU; it never uses a motherboard or BIOS-vendor fallback. Its scope text explicitly says the application **has not retrieved this page in the current session**. A catalogue match is not a fresh online check and supplies no RAM maximum, RAM upgradeability/soldered design, CPU replacement/support list, physical-slot availability, BIOS-version approval or compatible-part verdict. The System SKU is a model/configuration identifier; no serial, UUID or service tag is sent anywhere.
+`HardwareCompatibilityIdentityCatalog` stores only these two developer-reviewed associations and their official reference URI/review date. It requires the expected Microsoft PC manufacturer identity plus exact model/SKU; it never uses a motherboard or BIOS-vendor fallback. Its scope explicitly says the **bundled association itself is not a live retrieval**. A separately selected online source check records any actual current retrieval; the static catalogue cannot assert whether that check ran. A catalogue match is not a fresh online check and supplies no RAM maximum, RAM upgradeability/soldered design, CPU replacement/support list, physical-slot availability, BIOS-version approval or compatible-part verdict. The System SKU is a model/configuration identifier; no serial, UUID or service tag is sent anywhere.
 
 The published article identifies its official documentation source as [MicrosoftDocs/devices-docs, surface-system-sku-reference.md](https://github.com/microsoftdocs/devices-docs/blob/public/surface/surface-system-sku-reference.md). The published Learn table, rather than a guessed hardware property, was the consulted evidence.
 
@@ -22,7 +22,7 @@ The published article identifies its official documentation source as [Microsoft
 - [Dell Support Home](https://www.dell.com/support/home/en-us) was readable, but is a generic landing page, not an exact-model/revision/configuration specification. A guessed OptiPlex manual URL returned 404. Neither establishes a RAM/CPU/firmware claim.
 - [HP Support](https://support.hp.com/us-en) returned a minimal client application shell without readable product facts. HTTP success alone is not successful specification retrieval.
 
-These development access results do not predict whether a user's browser can open the sites. They do explain why this code contains **no manufacturer-verified upgrade-limit catalogue or live exact-product adapter**. The current supported BIOS workflow remains the separate read-only identity/WUA evidence and reviewed official guide links; no version ordering or flashing is introduced.
+These development access results do not predict whether a user's browser can open the sites. The subsequently discovered exact Surface service guides are accessible and support a narrow live family-service adapter, not a manufacturer-verified RAM/CPU/BIOS/expansion/part-compatibility catalogue. The current supported BIOS workflow remains the separate read-only identity/WUA evidence and reviewed official guide links; no version ordering or flashing is introduced.
 
 ## Portable policy contracts
 
@@ -38,4 +38,8 @@ No prices, currency conversion, performance promises, carts, purchases, download
 
 ## Validation scope
 
-Portable tests use **clearly named fixture identities and fixture documents** for policy behavior. They cover OEM/retail confusion, exact SKU/revision, URI ambiguity, inaccessible/stale/conflicting sources, identity-only catalogue limits, current firmware evidence, missing budget/use case and unresolved PSU/clearance/occupancy/soldered-memory checks. Fixtures are not production manufacturer verification. Actual Windows CIM identity, manufacturer document parsing and candidate compatibility still require their own integration/runtime review before H2/H3 can be described as complete.
+Portable tests use **clearly named fixture identities and fixture documents** for policy behavior. They cover OEM/retail confusion, exact SKU/revision, URI ambiguity, inaccessible/stale/conflicting sources, identity-only catalogue limits, current firmware evidence, missing budget/use case and unresolved PSU/clearance/occupancy/soldered-memory checks. Fixtures are not production manufacturer verification. The limited live source client/parser was separately probed against its actual three official articles using a known catalogue development scope, not a detected PC. That does not verify Windows CIM identity, physical applicability or candidate compatibility, and does not make H2/H3 complete.
+
+## Source-specific identity completeness
+
+`HardwareFact.SourceEnumerationComplete` records only whether its individual allowlisted CIM source returned one available, untruncated, bounded, valid-object enumeration. It is not evidence that a value is accurate or interpretable. Unknown raw memory-type meanings still make overall hardware inventory Partial. `HardwareIdentitySnapshotPolicy` permits the separate online guidance action only for a unique completed PC source with one exact manufacturer/model/SKU; unrelated unknown RAM fields cannot make that action permanently unreachable. Missing, truncated, duplicate, malformed, unrecognized or unattested identity remains blocked. No human coverage text is parsed into permission.

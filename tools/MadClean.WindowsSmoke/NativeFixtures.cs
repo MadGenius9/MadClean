@@ -19,6 +19,7 @@ internal static partial class NativeFixtures
             Duplicates(fixture, report, token);
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
+            HardwareMetadata(report, token);
             StartupReadOnly(fixture, report, token);
             SystemToolGate(report, token);
         }

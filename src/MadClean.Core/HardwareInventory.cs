@@ -4,7 +4,10 @@ using System.Text.Json;
 
 namespace MadClean.Core;
 
-public record HardwareFact(string Category, string Component, string Property, string Value, string Source);
+// Enumeration completeness describes only the source response, not accuracy or interpretation
+// of a particular value and never manufacturer-verified compatibility.
+public record HardwareFact(string Category, string Component, string Property, string Value, string Source,
+    bool SourceEnumerationComplete = false);
 public interface IHardwareInventory
 {
     Task<CheckResult<HardwareFact>> ReadAsync(CancellationToken token);
@@ -95,6 +98,8 @@ public static class HardwareInventoryParser
                 }
                 bool limited = truncated.GetBoolean() || reported > RecordLimit;
                 if (limited) partial = true;
+                bool enumerationComplete = !unexpectedSource && !limited && records.EnumerateArray().All(record =>
+                    record.ValueKind == JsonValueKind.Object && !Duplicates(record));
                 var unknownFields = new HashSet<string>(StringComparer.Ordinal);
                 int malformed = 0, parsed = 0;
                 foreach (var record in records.EnumerateArray().Take(RecordLimit))
@@ -106,7 +111,7 @@ public static class HardwareInventoryParser
                         string value = Value(record, field, out bool known);
                         if (!known) { partial = true; unknownFields.Add(field.Name); }
                         facts.Add(new(definition.Category, $"{definition.Component} {parsed}", field.Label ?? field.Name, value,
-                            $"root/cimv2:{definition.Class}.{field.Name}"));
+                            $"root/cimv2:{definition.Class}.{field.Name}", enumerationComplete));
                     }
                 }
                 coverage.Add($"{definition.Class}: {parsed - malformed} reported record(s)" +

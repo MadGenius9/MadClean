@@ -6,7 +6,7 @@ public sealed record HardwareCompatibilityIdentityReference(string Manufacturer,
 /// <summary>A tiny bundled developer-reviewed model association, not a live source check or upgrade catalog.</summary>
 public static class HardwareCompatibilityIdentityCatalog
 {
-    private const string IdentityOnly = "Bundled identity reference only, reviewed during development on 2026-10-26 (America/Chicago). MadClean has not retrieved the page in this session. This supplies no RAM limit, CPU support, upgradeability, BIOS-version approval or compatibility verdict.";
+    private const string IdentityOnly = "Bundled identity reference only, reviewed during development on 2026-10-26 (America/Chicago). This bundled association is not a live retrieval; a separately selected source check records any current retrieval. This supplies no RAM limit, CPU support, upgradeability, BIOS-version approval or compatibility verdict.";
     public static IReadOnlyList<HardwareCompatibilityIdentityReference> References { get; } = Array.AsReadOnly(new[]
     {
         new HardwareCompatibilityIdentityReference("Microsoft Corporation", "Surface Laptop 6 for Business", "Surface_Laptop_6_for_Business_2033", "Surface Laptop 6 for Business 13.5-inch", new("https://learn.microsoft.com/en-us/surface/surface-system-sku-reference"), new(2026, 10, 26), IdentityOnly),
