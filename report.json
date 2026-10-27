@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ae0826f58731b3e73ef3f7fdf20863a9e77e2259",
-  "runId": "40495791311",
+  "sourceCommit": "5c36ac382c4b2e6f826ad3a04f875263dc9d0d71",
+  "runId": "40499437709",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T11:26:52.6840837+00:00",
-  "completedUtc": "2026-10-27T11:26:57.1251944+00:00",
+  "startedUtc": "2026-10-27T11:56:22.4301831+00:00",
+  "completedUtc": "2026-10-27T11:56:29.9642542+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -52,6 +52,11 @@
       "name": "disk-identity-fixture",
       "state": "passed",
       "detail": "Native identity state=Available; observedPaths=4; observedUniqueFiles=3; hardLinkRelationshipVerified=true; fixtureBytesUnchanged=true. Independent equal-content and same-size different-content files remain separate identities; the actual alias counts once in observed unique logical bytes. No identities/paths/contents exported; outside-scope links, allocation, content deduplication and deletion safety are not established."
+    },
+    {
+      "name": "leftover-content-fixture",
+      "state": "passed",
+      "detail": "Native leftover state=Partial; ordinaryFileCount=2; ordinaryDirectoryCount=1; protectedExclusionsVerified=true; createdReparseCount=2; createdReparseExclusionsVerified=True; fixtureBytesUnchanged=true; activeUse=Unknown. Synthetic development registrations only, no actual uninstall/ARP write. Owned escape/cycle links were both excluded. No fixture paths, identities, contents or inventory exported; metadata does not establish ownership, inactivity, junk or deletion safety."
     },
     {
       "name": "shortcut-existing-local-fixture",
@@ -142,6 +147,12 @@
       "width": 1404,
       "height": 961,
       "sha256": "22857d2e5fa5a6eacac477e16e4f4673e88d864de8bb99ca4e50c65b997808b6"
+    },
+    {
+      "file": "tool-19.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "f19f88dfc9f1efc322d12294b9984efb40b5acab15dcc3b767fc9f5e48ec3e4c"
     },
     {
       "file": "tool-11.png",
