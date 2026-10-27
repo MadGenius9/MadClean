@@ -1,0 +1,6 @@
+{
+  "formatVersion": 1,
+  "purpose": "MadClean Windows validation",
+  "sourceBranch": "feat/phase-one-foundation",
+  "scope": "CI reports and WPF client captures only; no personal-PC inventory."
+}
