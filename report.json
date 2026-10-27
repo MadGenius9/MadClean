@@ -1,17 +1,17 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "f470b3b34cfe5a4df7a3c05e6462e41cbc7380a8",
-  "runId": "40449446463",
+  "sourceCommit": "536cdf6bf8700ce7d5cf4ad21a24c4117bb42c9a",
+  "runId": "40450948433",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T04:26:26.2021858+00:00",
-  "completedUtc": "2026-10-27T04:26:35.0146498+00:00",
+  "startedUtc": "2026-10-27T04:44:12.2035309+00:00",
+  "completedUtc": "2026-10-27T04:44:21.1194892+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
     {
       "name": "ui-wide-size",
       "state": "inconclusive",
-      "detail": "The desktop constrained the requested wide window; the captured dimensions are actual, but wide-layout validation is inconclusive."
+      "detail": "The actual window remains constrained after own-HWND resizing (Win32 code 0, limit messages 1); the captured dimensions are actual and wide-layout validation remains inconclusive."
     },
     {
       "name": "ui-initial-state",
@@ -21,7 +21,7 @@
     {
       "name": "ui-compact-layout",
       "state": "passed",
-      "detail": "Client content rendered at the minimum 980x650 window size; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks."
+      "detail": "The actual shown window reaches 980x650 within one DIP; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks."
     },
     {
       "name": "ui-primary-navigation",
@@ -31,7 +31,7 @@
     {
       "name": "ui-tool-navigation",
       "state": "passed",
-      "detail": "All 11 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages were captured."
+      "detail": "All 13 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages were captured."
     },
     {
       "name": "ui-tool-popup",
@@ -69,6 +69,36 @@
       "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
     },
     {
+      "name": "startup-fixture-inventory",
+      "state": "passed",
+      "detail": "The isolated owned HKCU fixture Run/RunOnce names were inventoried. No actual Windows startup source or command was enumerated by this fixture check."
+    },
+    {
+      "name": "startup-fixture-preview",
+      "state": "passed",
+      "detail": "Read-only previews preserve exact REG_SZ/REG_EXPAND_SZ kind and raw NUL-terminated byte count without exposing commands, writing a backup or changing registry data. This is not a disable/restore proof."
+    },
+    {
+      "name": "startup-fixture-mutation-gate",
+      "state": "passed",
+      "detail": "Both mutation APIs remain Unavailable even for a valid fixture preview/explicit request; pre-cancellation reports CancelledBeforeCommit. Source kinds/bytes, journal and files are unchanged. Atomic disable/restore and DPAPI durability remain unverified and unavailable."
+    },
+    {
+      "name": "startup-fixture-scope",
+      "state": "passed",
+      "detail": "The fixture factory rejects a wrong prefix, mismatched ownership GUID and out-of-topology backup directory without creating that directory or modifying owned data. Only isolated current-user fixture sources were used."
+    },
+    {
+      "name": "startup-fixture-teardown",
+      "state": "passed",
+      "detail": "Only the ownership-marked disposable HKCU fixture subtree was removed; actual startup sources were never modified."
+    },
+    {
+      "name": "system-tool-execution-gate",
+      "state": "passed",
+      "detail": "The hard gate rejects an acknowledged dummy repair descriptor with Unavailable/no elevation/no PID. The harness did not Prepare a tool identity, start servicing or request UAC; actual execution remains unverified and disabled."
+    },
+    {
       "name": "fixture-teardown",
       "state": "passed",
       "detail": "Only the owned development fixture tree was removed; no application or personal-file cleanup action was exercised."
@@ -79,43 +109,55 @@
       "file": "overview-wide.png",
       "width": 1028,
       "height": 749,
-      "sha256": "b4a376028231c99bce60d33d92234f9bff1d37ee7dbe65c5aa617e206f31d650"
+      "sha256": "cf4ac6a66723d1030a4eeb3fedf31bd75ce079b191e24eb4a672b0eaada79a4a"
     },
     {
       "file": "overview-compact.png",
       "width": 964,
       "height": 611,
-      "sha256": "cc7608049c51cb79a300d5becccbab225ebf82ce21bbd0556b9d3050a328e533"
+      "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
     },
     {
       "file": "tool-11.png",
       "width": 1028,
       "height": 749,
-      "sha256": "b5078b4a326c3af4a8cb90cc574a35a541f9f8c290c51a99864370eee9341107"
+      "sha256": "87762ab961718d70d6bb9338acca728913e977496dfbc3f72d6e9ffc71155738"
     },
     {
       "file": "tool-12.png",
       "width": 1028,
       "height": 749,
-      "sha256": "85cb25a8545bcf68ab57a8ec9163d7c26802560fcfac06b34d6afa3b5d897d13"
+      "sha256": "2d1700dcbf1974dbda0313e80d8feb01d7af7342f2b70e39894777f425eec468"
     },
     {
       "file": "tool-13.png",
       "width": 1028,
       "height": 749,
-      "sha256": "0a5f65b426f2f3d9904999e4f374b030cceefcf666fc374714268094f6673078"
+      "sha256": "4db534c1fe5971c008886b34287e6b95b53cb9d9061dc773521001a7f45936a4"
     },
     {
       "file": "tool-14.png",
       "width": 1028,
       "height": 749,
-      "sha256": "c26600d29adfacc1ef130c8cbee02e6e5c7661dbdd1b0dd5c21cedd33cdf06c3"
+      "sha256": "156d518f323193461811ec33eb97bd395852869e650feb32c8314586eef0c919"
     },
     {
       "file": "tool-15.png",
       "width": 1028,
       "height": 749,
-      "sha256": "056b316c165e9bebc6c78529e66242dbb8d7a4405993761ec360f8fcf51b4040"
+      "sha256": "0c652302df3ee5ce213f2d6bfe4c94b966a8473db318f6b5fe35299c5ff62748"
+    },
+    {
+      "file": "tool-16.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "b398dae1774e5023c24e9812b56041a642fa2acc87c657f77c1dc97fc8cd7bb6"
+    },
+    {
+      "file": "tool-17.png",
+      "width": 1028,
+      "height": 749,
+      "sha256": "b56886d289d614684cf3b227ca438e7899712c16350f77dcf7464a687913f4f9"
     }
   ],
   "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."

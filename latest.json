@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "f470b3b34cfe5a4df7a3c05e6462e41cbc7380a8",
-  "runId": "40449446463",
+  "sourceCommit": "536cdf6bf8700ce7d5cf4ad21a24c4117bb42c9a",
+  "runId": "40450948433",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-10-27T04:26:52.107176+00:00",
+  "updatedUtc": "2026-10-27T04:44:44.190943+00:00",
   "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -29,31 +29,39 @@
   "images": [
     {
       "name": "overview-wide.png",
-      "sha256": "b4a376028231c99bce60d33d92234f9bff1d37ee7dbe65c5aa617e206f31d650"
+      "sha256": "cf4ac6a66723d1030a4eeb3fedf31bd75ce079b191e24eb4a672b0eaada79a4a"
     },
     {
       "name": "overview-compact.png",
-      "sha256": "cc7608049c51cb79a300d5becccbab225ebf82ce21bbd0556b9d3050a328e533"
+      "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
     },
     {
       "name": "tool-11.png",
-      "sha256": "b5078b4a326c3af4a8cb90cc574a35a541f9f8c290c51a99864370eee9341107"
+      "sha256": "87762ab961718d70d6bb9338acca728913e977496dfbc3f72d6e9ffc71155738"
     },
     {
       "name": "tool-12.png",
-      "sha256": "85cb25a8545bcf68ab57a8ec9163d7c26802560fcfac06b34d6afa3b5d897d13"
+      "sha256": "2d1700dcbf1974dbda0313e80d8feb01d7af7342f2b70e39894777f425eec468"
     },
     {
       "name": "tool-13.png",
-      "sha256": "0a5f65b426f2f3d9904999e4f374b030cceefcf666fc374714268094f6673078"
+      "sha256": "4db534c1fe5971c008886b34287e6b95b53cb9d9061dc773521001a7f45936a4"
     },
     {
       "name": "tool-14.png",
-      "sha256": "c26600d29adfacc1ef130c8cbee02e6e5c7661dbdd1b0dd5c21cedd33cdf06c3"
+      "sha256": "156d518f323193461811ec33eb97bd395852869e650feb32c8314586eef0c919"
     },
     {
       "name": "tool-15.png",
-      "sha256": "056b316c165e9bebc6c78529e66242dbb8d7a4405993761ec360f8fcf51b4040"
+      "sha256": "0c652302df3ee5ce213f2d6bfe4c94b966a8473db318f6b5fe35299c5ff62748"
+    },
+    {
+      "name": "tool-16.png",
+      "sha256": "b398dae1774e5023c24e9812b56041a642fa2acc87c657f77c1dc97fc8cd7bb6"
+    },
+    {
+      "name": "tool-17.png",
+      "sha256": "b56886d289d614684cf3b227ca438e7899712c16350f77dcf7464a687913f4f9"
     }
   ]
 }
