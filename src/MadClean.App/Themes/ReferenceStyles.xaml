@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:MadClean.App">
+    <!-- Standalone styles: merged-dictionary order does not depend on App.xaml's implicit styles. -->
+    <Style x:Key="InspectButton" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="22,16"/>
+        <Setter Property="MinHeight" Value="64"/>
+        <Setter Property="BorderBrush" Value="#63C6FF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#198FFF" Offset="0"/>
+                    <GradientStop Color="#0063D9" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="NoWrap"
+                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                               FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"
+                               FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=Button}}"
+                               FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="InspectChrome" CornerRadius="10"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <!-- This overlay never changes border dimensions or content measurement. -->
+                        <Border x:Name="InspectFocus" Margin="-4" CornerRadius="14"
+                                BorderBrush="#D9F4FF" BorderThickness="2"
+                                IsHitTestVisible="False" Opacity="0"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="InspectChrome" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#35A3FF" Offset="0"/>
+                                        <GradientStop Color="#0879ED" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="InspectChrome" Property="BorderBrush" Value="#A9E4FF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="InspectChrome" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#0871D8" Offset="0"/>
+                                        <GradientStop Color="#004EAE" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="InspectFocus" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="InspectChrome" Property="Opacity" Value="0.45"/>
+                            <Setter TargetName="InspectFocus" Property="Opacity" Value="0"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TopNavigationItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="#B5C5DB"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="17,13"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid SnapsToDevicePixels="True">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="3"/>
+                        </Grid.RowDefinitions>
+                        <Border x:Name="NavigationChrome" CornerRadius="5,5,0,0"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <local:SymbolIcon Glyph="{TemplateBinding Tag}"
+                                           FontSize="17" Foreground="{TemplateBinding Foreground}"
+                                           Margin="0,0,10,0" VerticalAlignment="Center"
+                                            IsHitTestVisible="False"
+                                          />
+                                <TextBlock Grid.Column="1" Text="{TemplateBinding Content}"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           FontFamily="{TemplateBinding FontFamily}"
+                                           FontSize="{TemplateBinding FontSize}"
+                                           FontWeight="{TemplateBinding FontWeight}"
+                                           TextWrapping="NoWrap" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="NavigationUnderline" Grid.Row="1" Height="3"
+                                Background="Transparent" CornerRadius="1"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="NavigationChrome" Property="Background" Value="#18344F"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="#69CAFF"/>
+                            <Setter TargetName="NavigationChrome" Property="Background" Value="#122A43"/>
+                            <Setter TargetName="NavigationUnderline" Property="Background" Value="#42B7FF"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="NavigationChrome" Property="BorderBrush" Value="#B9E5FF"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Local item containers deliberately bind NavigationLink.Title, the selector's contract. -->
+    <Style x:Key="ReferenceToolSelectorItem" TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="#C9D8EC"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,9"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="ToolItemChrome" CornerRadius="5"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{Binding Content.Title, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   FontFamily="{TemplateBinding FontFamily}"
+                                   FontSize="{TemplateBinding FontSize}"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ToolItemChrome" Property="Background" Value="#16466B"/>
+                            <Setter Property="Foreground" Value="#8EDCFF"/>
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ToolItemChrome" Property="Background" Value="#1C4F77"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="ToolItemChrome" Property="BorderBrush" Value="#A5E1FF"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ToolSelector" TargetType="ComboBox">
+        <Setter Property="Foreground" Value="#B5C5DB"/>
+        <Setter Property="Background" Value="#122B43"/>
+        <Setter Property="BorderBrush" Value="#31516F"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="13,10"/>
+        <Setter Property="MinHeight" Value="44"/>
+        <Setter Property="MinWidth" Value="154"/>
+        <Setter Property="MaxDropDownHeight" Value="320"/>
+        <Setter Property="IsEditable" Value="False"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="IsTextSearchEnabled" Value="True"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ReferenceToolSelectorItem}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="AutomationProperties.Name" Value="More tools"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="ToolSelectorChrome" CornerRadius="7"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid>
+                                <ToggleButton x:Name="ToolSelectorToggle" Focusable="False" ClickMode="Press"
+                                              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                              Background="Transparent" BorderThickness="0">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent"/>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                                <Grid Margin="13,10,38,10" IsHitTestVisible="False">
+                                    <TextBlock x:Name="SelectedToolTitle"
+                                               Text="{Binding SelectedItem.Title, RelativeSource={RelativeSource TemplatedParent}}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontFamily="{TemplateBinding FontFamily}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               VerticalAlignment="Center" TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="ToolPlaceholder" Text="{TemplateBinding Tag}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontFamily="{TemplateBinding FontFamily}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               VerticalAlignment="Center" TextWrapping="NoWrap"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                                <Path x:Name="ToolSelectorArrow" Data="M 0 0 L 5 5 L 10 0"
+                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="1.7"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0"
+                                      RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
+                                    <Path.RenderTransform><RotateTransform Angle="0"/></Path.RenderTransform>
+                                </Path>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="ToolSelectorFocus" Margin="-3" CornerRadius="10"
+                                BorderBrush="#B9E5FF" BorderThickness="1" IsHitTestVisible="False" Opacity="0"/>
+                        <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                               PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                               IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                               StaysOpen="False" PopupAnimation="Fade">
+                            <Border x:Name="ToolDropDown" Background="#10263E" BorderBrush="#315575"
+                                    BorderThickness="1" CornerRadius="8" Padding="5" Margin="0,6,0,0"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <ScrollViewer x:Name="ToolDropDownScrollViewer" CanContentScroll="True"
+                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              Focusable="False" SnapsToDevicePixels="True">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"
+                                                    SnapsToDevicePixels="True"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="SelectedItem" Value="{x:Null}">
+                            <Setter TargetName="SelectedToolTitle" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="ToolPlaceholder" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ToolSelectorChrome" Property="Background" Value="#183751"/>
+                            <Setter TargetName="ToolSelectorChrome" Property="BorderBrush" Value="#527797"/>
+                        </Trigger>
+                        <Trigger Property="IsDropDownOpen" Value="True">
+                            <Setter TargetName="ToolSelectorChrome" Property="Background" Value="#153A59"/>
+                            <Setter TargetName="ToolSelectorChrome" Property="BorderBrush" Value="#69CAFF"/>
+                            <Setter TargetName="ToolSelectorArrow" Property="RenderTransform">
+                                <Setter.Value><RotateTransform Angle="180"/></Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="ToolSelectorFocus" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ToolSelectorChrome" Property="Opacity" Value="0.45"/>
+                            <Setter TargetName="ToolSelectorFocus" Property="Opacity" Value="0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

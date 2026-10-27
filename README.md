@@ -28,7 +28,7 @@ dotnet test tests/MadClean.Tests -c Release --no-build
 dotnet run --project src/MadClean.App -c Release --no-build
 ```
 
-Click **Scan local** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Update Center separates Apps, Drivers and BIOS / Firmware; **Read BIOS / PC identity** is a separate local read-only action. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
+Click **Inspect this PC** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Update Center separates Apps, Drivers and BIOS / Firmware; **Read BIOS / PC identity** is a separate local read-only action. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
 
 ### Produce a Windows executable
 
@@ -45,7 +45,7 @@ On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PA
 
 ## Interface
 
-The native WPF workspace uses shared dark controls, labeled icon navigation, responsive dashboard cards, wrapping header actions and visible keyboard/table selection. See [UI structure and visual validation](docs/UI.md). Current Linux builds verify compilation only; Windows rendering and fidelity to the earlier screenshot remain unverified until the reference and an actual Windows rendering can be compared.
+The supplied concept is implemented as a native navy/blue WPF workspace: horizontal Overview/Cleanup/Security/Startup/Updates navigation, an Inspect this PC hero, four inspection rows, a per-drive storage ring, Before you start guidance and an Activity footer. More tools retains every additional module. Inspect this PC runs local inventory only; online update discovery remains explicit. The ring uses real returned capacity or a neutral unchecked/unknown state, never the concept’s sample numbers. [UI structure and visual validation](docs/UI.md) records the inspected reference and remaining Windows rendering, keyboard/DPI and visual-comparison checks. Linux compilation does not verify visual fidelity.
 
 ## Read-only discovery extensions
 

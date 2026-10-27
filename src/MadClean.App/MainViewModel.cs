@@ -9,7 +9,8 @@ using MadClean.Windows;
 namespace MadClean.App;
 
 public sealed record ResultRow(string Name, string Detail, string State);
-public sealed record DiskRow(string Name, string Detail, double UsedPercent);
+public sealed record DiskRow(string Name, string Detail, double UsedPercent, long FreeBytes, long TotalBytes)
+{ public string Title => Name; }
 
 public sealed partial class MainViewModel : INotifyPropertyChanged
 {
@@ -18,7 +19,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private CancellationTokenSource? cancellation;
     private bool busy;
     private int selectedPage;
-    private string status = "Ready · checks have not run. Choose Scan local or Check updates.";
+    private string status = "Waiting for first inspection. Nothing has been checked.";
     private string diskSummary = "Not checked", cleanupSummary = "Not checked", startupSummary = "Not checked", securitySummary = "Unknown", updateSummary = "Not checked";
     private string diskMessage = "Disk capacity has not been checked.", cleanupMessage = "Cleanup has not been scanned.", startupMessage = "Startup entries have not been queried.", securityMessage = "Defender has not been queried.", appsMessage = "WinGet has not been queried.", systemMessage = "Windows Update has not been queried.", logMessage = @"Log: %LocalAppData%\MadClean\activity.jsonl";
     private static string ActivityLogPath()
@@ -35,6 +36,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeDiscovery();
         InitializeFirmwareDiscovery();
         InitializeHardwareDiscovery();
+        InitializeOverview();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }
@@ -48,7 +50,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<DiskRow> Disks { get; } = [];
     public ObservableCollection<string> Activity { get; } = [];
     public bool IsBusy { get => busy; private set { Set(ref busy, value); CommandManager.InvalidateRequerySuggested(); } }
-    public int SelectedPage { get => selectedPage; set => Set(ref selectedPage, value); }
+    public int SelectedPage { get => selectedPage; set { if (selectedPage == value) return; Set(ref selectedPage, value); NotifyShellNavigation(); } }
     public string Status { get => status; private set => Set(ref status, value); }
     public string DiskSummary { get => diskSummary; private set => Set(ref diskSummary, value); }
     public string CleanupSummary { get => cleanupSummary; private set => Set(ref cleanupSummary, value); }
@@ -81,6 +83,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             }
             else
             {
+                BeginStorageOverview();
                 Disks.Clear(); CleanupRows.Clear(); CleanupCategories.Clear(); StartupRows.Clear(); SecurityRows.Clear();
                 DiskSummary = CleanupSummary = StartupSummary = SecuritySummary = "Checking…";
                 DiskMessage = CleanupMessage = StartupMessage = SecurityMessage = "Checking…";
@@ -96,10 +99,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task LoadDisks(CancellationToken token) => await Guard(ActivityArea.Disks, async () =>
     {
         var result = await inventory.DisksAsync(token); token.ThrowIfCancellationRequested();
-        foreach (var d in result.Items) Disks.Add(new(d.Name, $"{Display.Bytes(d.FreeBytes)} free / {Display.Bytes(d.TotalBytes)}", d.TotalBytes == 0 ? 0 : 100d * (d.TotalBytes - d.FreeBytes) / d.TotalBytes));
+        foreach (var d in result.Items) Disks.Add(new(d.Name, $"{Display.Bytes(d.FreeBytes)} free / {Display.Bytes(d.TotalBytes)}", d.TotalBytes == 0 ? 0 : 100d * (d.TotalBytes - d.FreeBytes) / d.TotalBytes, d.FreeBytes, d.TotalBytes));
         DiskSummary = (result.Items.Count == 0 ? "Unknown" : Display.Bytes(result.Items.Sum(d => d.FreeBytes))) + (result.State == CheckState.Partial ? " (partial)" : "");
-        DiskMessage = Stamp(result.State, result.Message); Event(ActivityArea.Disks, Outcome(result.State));
-    }, text => { DiskMessage = text; DiskSummary = text; });
+        DiskMessage = Stamp(result.State, result.Message); CompleteStorageOverview(result.State); Event(ActivityArea.Disks, Outcome(result.State));
+    }, text => { DiskMessage = text; DiskSummary = text; CompleteStorageOverview(text.StartsWith("Cancelled", StringComparison.Ordinal) ? CheckState.Cancelled : CheckState.Failed); });
     private async Task LoadCleanup(CancellationToken token) => await Guard(ActivityArea.Cleanup, async () =>
     {
         var preferences = LoadCleanupPreferences();
