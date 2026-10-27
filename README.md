@@ -43,6 +43,10 @@ Normal development uses `packages.lock.json`; single-file `win-x64` packaging us
 
 On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PACKAGES` if home is read-only, then run the same restore/build/test commands. Windows targeting packs allow compilation; **WPF cannot run on Linux**. Do not substitute mock values and call Windows checks verified. No web server, database, API key or personal-PC access is needed to build.
 
+## Additional explicit review tools
+
+More tools includes duplicate content review, shortcut target observations, Windows Diagnostics (event metadata and separately requested minimized WER store metadata), guided Windows pages, startup recovery previews, and Microsoft integrity-tool identity previews. Each starts unchecked and requires its own selection/action; ordinary Inspect does not invoke them. Startup changes and DISM/SFC execution remain disabled. Opening a Windows Settings page does not prove a task completed. See [the execution ledger](docs/ROADMAP-STATUS.md) for implemented behavior, Windows evidence and unresolved action/source gates.
+
 ## Interface
 
 The supplied concept is implemented as a native navy/blue WPF workspace: horizontal Overview/Cleanup/Security/Startup/Updates navigation, an Inspect this PC hero, four inspection rows, a per-drive storage ring, Before you start guidance and an Activity footer. More tools retains every additional module. Inspect this PC runs local inventory only; online update discovery remains explicit. The ring uses real returned capacity or a neutral unchecked/unknown state, never the concept’s sample numbers. [UI structure and visual validation](docs/UI.md) records the inspected reference and remaining Windows rendering, keyboard/DPI and visual-comparison checks. Linux compilation does not verify visual fidelity.

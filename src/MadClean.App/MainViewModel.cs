@@ -39,6 +39,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeOverview();
         InitializeAdditionalDiscovery();
         InitializeGuidedWindowsTools();
+        InitializeSystemTools();
+        InitializeStartupActions();
+        InitializeWerMetadata();
     }
     public ICommand ScanCommand { get; }
     public ICommand UpdatesCommand { get; }
@@ -67,6 +70,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string SystemMessage { get => systemMessage; private set => Set(ref systemMessage, value); }
     public string LogMessage { get => logMessage; private set => Set(ref logMessage, value); }
     public void Cancel() => cancellation?.Cancel();
+    public void Shutdown()
+    {
+        Cancel();
+        // The service owns in-flight handles; disposal only cancels work before commit and
+        // clears unused private previews. It never force-stops a Windows transaction.
+        startupActions.Dispose();
+    }
 
     private async Task RunAsync(bool online)
     {

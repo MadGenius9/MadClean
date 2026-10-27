@@ -54,6 +54,7 @@ public sealed partial class MainViewModel
         {
             if (value == null || !DiagnosticRanges.Contains(value) || selectedDiagnosticRange == value) return;
             Set(ref selectedDiagnosticRange, value);
+            InvalidateWerMetadata();
             DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
             DiagnosticsMessage = "Time range changed. Choose Read event evidence to query the selected window.";
             DiagnosticsWindow = "Not checked for the new selection.";
@@ -117,6 +118,7 @@ public sealed partial class MainViewModel
         DuplicateAttempt = DateTimeOffset.Now.ToString("g"); DuplicateMessage = "Reading bounded selected-scope content and comparing stable file observations…";
         DuplicateCoverage = "In progress; no completed duplicate report is claimed.";
         var result = await duplicateInventory.ScanAsync(DuplicateFolder, token); token.ThrowIfCancellationRequested();
+        DuplicateCoverage = "No completed duplicate report was returned; review the provider status.";
         foreach (var report in result.Items)
         {
             foreach (var entry in report.Entries) DuplicateRows.Add(entry);
@@ -132,6 +134,7 @@ public sealed partial class MainViewModel
         ShortcutAttempt = DateTimeOffset.Now.ToString("g"); ShortcutMessage = "Reading bounded .lnk metadata; targets are never launched or actively resolved…";
         ShortcutCoverage = "In progress; no completed shortcut report is claimed.";
         var result = await shortcutInventory.ScanAsync(ShortcutFolder, token); token.ThrowIfCancellationRequested();
+        ShortcutCoverage = "No completed shortcut report was returned; review the provider status.";
         foreach (var report in result.Items)
         {
             foreach (var entry in report.Entries) ShortcutRows.Add(entry);
@@ -147,6 +150,7 @@ public sealed partial class MainViewModel
         DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
         DiagnosticsWindow = "In progress; no completed time window is claimed.";
         var result = await diagnosticsInventory.ReadAsync(SelectedDiagnosticRange.Days, token); token.ThrowIfCancellationRequested();
+        DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
         foreach (var report in result.Items)
         {
             foreach (var finding in report.Findings) DiagnosticRows.Add(finding);

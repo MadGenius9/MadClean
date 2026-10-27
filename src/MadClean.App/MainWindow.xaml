@@ -68,7 +68,7 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <Border Padding="72,46,46,28">
                                 <StackPanel>
-                                    <TextBlock FontSize="50" Margin="0,4,0,12" Foreground="#AFBED5"><Run Text="Your PC, " FontWeight="SemiBold" Foreground="#F4F8FF"/><Run Text="clearly understood"/></TextBlock>
+                                    <TextBlock FontSize="56" Margin="0,4,0,12" Foreground="#AFBED5"><Run Text="Your PC, " FontWeight="SemiBold" Foreground="#F4F8FF"/><Run Text="clearly understood"/></TextBlock>
                                     <TextBlock Text="A quick, read-only inspection of the key areas that affect your PC." Foreground="#ABBDD4" FontSize="17" Margin="0,0,0,30"/>
                                     <Button Style="{StaticResource InspectButton}" Command="{Binding ScanCommand}" ContentTemplate="{x:Null}" HorizontalAlignment="Left" MinWidth="380" MinHeight="74" AutomationProperties.Name="Inspect this PC" AutomationProperties.HelpText="Read local disk capacity, supported temporary-file candidates, startup entries and Defender status. Online updates require a separate action.">
                                         <StackPanel Orientation="Horizontal">
@@ -624,6 +624,8 @@
             <TabItem Header="Shortcut review"><views:ShortcutReviewView/></TabItem>
             <TabItem Header="Windows Diagnostics"><views:DiagnosticsView/></TabItem>
             <TabItem Header="Guided Windows workflows"><views:GuidedWindowsView/></TabItem>
+            <TabItem Header="Windows integrity tools"><views:SystemToolsView/></TabItem>
+            <TabItem Header="Startup recovery previews"><views:StartupActionsView/></TabItem>
         </TabControl>
         <Border Grid.Row="4" BorderBrush="#294256" BorderThickness="0,1,0,0" Background="#162A3B" Padding="28,10">
             <StackPanel>

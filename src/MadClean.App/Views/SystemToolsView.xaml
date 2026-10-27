@@ -1,0 +1,17 @@
+<UserControl x:Class="MadClean.App.Views.SystemToolsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Windows integrity tools" Style="{StaticResource SectionTitle}"/>
+            <TextBlock Text="Review exact Microsoft commands and verify their identity." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Separate from passive inspection. Execution is blocked while Windows runtime validation is pending. Verifying an executable does not diagnose Windows or prove a repair succeeded. No command runs on this page." Style="{StaticResource Caption}"/>
+            <ComboBox ItemsSource="{Binding SystemToolDefinitions}" SelectedItem="{Binding SelectedSystemTool, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose a Windows tool operation" MinWidth="320" HorizontalAlignment="Left" Margin="0,4,0,16" AutomationProperties.Name="Windows integrity operation selection">
+                <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ComboBox.Style>
+            </ComboBox>
+            <TextBox Text="{Binding SystemToolDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="400" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Exact Microsoft tool descriptor and trust observation"/>
+            <TextBlock Text="Signature verification may retrieve certificate/revocation metadata through Windows and write its normal certificate cache. Offline or unverifiable identity stays Unknown; there is no bypass." Style="{StaticResource Caption}"/>
+            <Button Content="Verify selected tool identity only" Command="{Binding VerifySystemToolCommand}" HorizontalAlignment="Left" Margin="0,8,0,12"/>
+            <TextBlock Text="{Binding SystemToolMessage}" Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite"/>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, Windows elevation consent, actual result evidence and separate validation. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

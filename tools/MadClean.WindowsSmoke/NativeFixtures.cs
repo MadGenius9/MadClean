@@ -6,7 +6,7 @@ using MadClean.Windows;
 
 namespace MadClean.WindowsSmoke;
 
-internal static class NativeFixtures
+internal static partial class NativeFixtures
 {
     public static void Run(string repository, SmokeReport report, CancellationToken token)
     {
@@ -19,6 +19,8 @@ internal static class NativeFixtures
             Duplicates(fixture, report, token);
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
+            StartupReadOnly(fixture, report, token);
+            SystemToolGate(report, token);
         }
         finally
         {
@@ -121,6 +123,23 @@ internal static class NativeFixtures
         else if (entry.State is ShortcutTargetState.Unknown or ShortcutTargetState.Unsupported or ShortcutTargetState.UnresolvedMetadata)
             report.Unknown(name, $"The fixture remains {entry.State}; no missing/broken or activation claim is inferred. App reason: " + BoundedReason(entry.Reason, 500));
         else report.Fail(name, $"The known local fixture was classified {entry.State} instead of {expected}.");
+    }
+
+    private static void SystemToolGate(SmokeReport report, CancellationToken token)
+    {
+        // Never Prepare a tool identity or start servicing merely to test the hard execution gate.
+        ISystemToolActions actions = new SystemToolActionsProvider();
+        if (actions.ProductionExecutionValidated)
+        {
+            report.Fail("system-tool-execution-gate", "The production execution gate unexpectedly reports enabled; no launch request was called.");
+            return;
+        }
+        var request = new SystemToolLaunchRequest(Guid.NewGuid(), SystemToolOperation.DismRestoreHealth,
+            new string('0', 64), UserSelectedOperation: true, EffectsAndElevationAcknowledged: true);
+        var result = Query(ct => actions.LaunchAsync(request, ct), token);
+        if (result.State != SystemToolRunState.Unavailable || result.ElevationRequested || result.ProcessId != null || result.ClientExitCode != null)
+            report.Fail("system-tool-execution-gate", "The dummy request did not remain an unavailable, non-elevated, process-free result.");
+        else report.Pass("system-tool-execution-gate", "The hard gate rejects an acknowledged dummy repair descriptor with Unavailable/no elevation/no PID. The harness did not Prepare a tool identity, start servicing or request UAC; actual execution remains unverified and disabled.");
     }
 
     private static void Diagnostics(SmokeReport report, CancellationToken token)

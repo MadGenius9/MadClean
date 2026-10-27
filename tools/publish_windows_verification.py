@@ -26,10 +26,11 @@ _diagnostic_spec.loader.exec_module(ci_diagnostics)
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
-IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png")
+IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png")
 OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
 REQUIRED_CHECKS = {
-    "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
+    "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
+    "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "system-tool-execution-gate",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "shortcut-existing-local-fixture",
     "shortcut-missing-local-fixture", "shortcut-no-mutation", "diagnostics-metadata-contract", "fixture-teardown",
 }
@@ -213,7 +214,7 @@ def core_test_summary(directory):
         raw = counters.get(name, "")
         reject_unless(re.fullmatch(r"[0-9]{1,8}", raw) is not None, "invalid-trx-counter")
         result["counts"][name] = int(raw)
-    # Preserve bounded numeric evidence before interpreting adapter skip accounting.
+    # Preserve bounded numeric evidence independently of adapter accounting.
     # These names are the Microsoft VSTest TestRunSummary counter schema; unknown
     # attribute names/values and arbitrary outcome text are never forwarded.
     counter_names = ("total", "executed", "passed", "failed", "error", "timeout", "aborted",
@@ -246,7 +247,26 @@ def core_test_summary(directory):
         if len(result["failures"]) == 32:
             break
     counts = result["counts"]
-    result["countsConsistent"] = counts["total"] == counts["executed"] + counts["notExecuted"] and counts["passed"] + counts["failed"] == counts["executed"]
+    tally = result["resultOutcomeTally"]
+    not_executed = tally.get("NotExecuted", 0)
+    # Microsoft VSTest's TestRunSummary serializes notExecuted as zero even
+    # when individual results are NotExecuted. Reconcile every result instead
+    # of guessing missing tests from total-executed or treating them as passes.
+    # Converter also maps None/NotFound to NotExecuted: this is not proof of an
+    # intentionally skipped test. Both raw counters and actual tally remain visible.
+    result["accountingNote"] = "Counts reconciled against every result record. VSTest may leave the raw notExecuted counter zero; per-record NotExecuted means not executed, not necessarily an intentional skip or pass."
+    other_counters = set(counter_names) - {"total", "executed", "passed", "failed", "notExecuted"}
+    result["countsConsistent"] = (
+        len(tests) == counts["total"] and
+        set(tally) <= {"Passed", "Failed", "NotExecuted"} and
+        tally.get("Passed", 0) == counts["passed"] and
+        tally.get("Failed", 0) == counts["failed"] and
+        counts["executed"] == counts["passed"] + counts["failed"] and
+        counts["total"] == counts["executed"] + not_executed and
+        counts["notExecuted"] in {0, not_executed} and
+        all(result["counterAttributes"].get(name, 0) == 0 for name in other_counters) and
+        result["unrecognizedCounterAttributeCount"] == 0
+    )
     result["passed"] = result["countsConsistent"] and counts["executed"] > 0 and counts["failed"] == 0 and counts["passed"] == counts["executed"]
     return result
 

@@ -42,7 +42,7 @@ class PublisherTests(unittest.TestCase):
             (self.download/name).write_bytes(data)
             self.report['screenshots'].append({'file':name,'width':100,'height':100,'sha256':hashlib.sha256(data).hexdigest()})
         self.save()
-        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results/><ResultSummary><Counters total="3" executed="3" passed="3" failed="0" notExecuted="0"/></ResultSummary></TestRun>')
+        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="Passed"/><UnitTestResult outcome="Passed"/><UnitTestResult outcome="Passed"/></Results><ResultSummary><Counters total="3" executed="3" passed="3" failed="0" notExecuted="0"/></ResultSummary></TestRun>')
     def save(self):
         (self.download/'report.json').write_text(json.dumps(self.report))
     def prepare(self, build='success', verify='success'):
@@ -211,15 +211,16 @@ class PublisherTests(unittest.TestCase):
     def test_missing_core_evidence_never_allows_overall_pass(self):
         (self.download/'core-windows.trx').unlink()
         self.assertFalse(self.prepare()[1]['passed'])
-    def test_trx_diagnostics_preserve_observed_skip_outcomes_without_inventing_accounting(self):
+    def test_trx_reconciles_vstest_zero_raw_not_executed_against_actual_records(self):
         (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="Passed"/><UnitTestResult outcome="Passed"/><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="3" executed="2" passed="2" failed="0" notExecuted="0" error="0" warning="0" pending="0"/></ResultSummary></TestRun>')
         core=p.core_test_summary(self.download)
         self.assertEqual({'Passed':2,'NotExecuted':1},core['resultOutcomeTally'])
         self.assertEqual(3,core['resultRecordCount'])
         self.assertEqual(0,core['counterAttributes']['notExecuted'])
         self.assertEqual(0,core['counterAttributes']['warning'])
-        self.assertFalse(core['countsConsistent'])
-        self.assertFalse(core['passed'])
+        self.assertTrue(core['countsConsistent'])
+        self.assertTrue(core['passed'])
+        self.assertIn('not necessarily an intentional skip',core['accountingNote'])
     def test_known_counter_skips_are_reported_separately_from_passed_tests(self):
         (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="Passed"/><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="2" executed="1" passed="1" failed="0" notExecuted="1"/></ResultSummary></TestRun>')
         core=p.core_test_summary(self.download)
@@ -237,6 +238,29 @@ class PublisherTests(unittest.TestCase):
         for attributes in ['total="2" executed="1" passed="1" failed="0"', 'total="2" executed="1" passed="1" failed="0" notExecuted="1" error="private"']:
             (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><ResultSummary><Counters '+attributes+'/></ResultSummary></TestRun>')
             with self.assertRaisesRegex(p.EvidenceError,'^invalid-trx-counter$'): p.core_test_summary(self.download)
+    def test_trx_incomplete_unknown_or_contradictory_results_cannot_pass(self):
+        for records, counters in [
+            ('', 'total="1" executed="1" passed="1" failed="0" notExecuted="0"'),
+            ('<UnitTestResult outcome="Unknown"/>', 'total="1" executed="1" passed="1" failed="0" notExecuted="0"'),
+            ('<UnitTestResult outcome="Error"/>', 'total="1" executed="1" passed="1" failed="0" notExecuted="0"'),
+            ('<UnitTestResult outcome="Passed"/>', 'total="1" executed="1" passed="0" failed="1" notExecuted="0"'),
+            ('<UnitTestResult outcome="Passed"/>', 'total="1" executed="1" passed="1" failed="0" notExecuted="1"'),
+            ('<UnitTestResult outcome="Passed"/>', 'total="1" executed="1" passed="1" failed="0" notExecuted="0" error="1"'),
+        ]:
+            with self.subTest(records=records,counters=counters):
+                (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>'+records+'</Results><ResultSummary><Counters '+counters+'/></ResultSummary></TestRun>')
+                core=p.core_test_summary(self.download)
+                self.assertFalse(core['countsConsistent'])
+                self.assertFalse(self.prepare()[1]['passed'])
+    def test_fully_accounted_but_unexecuted_run_cannot_pass(self):
+        (self.download/'core-windows.trx').write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="1" executed="0" passed="0" failed="0" notExecuted="0"/></ResultSummary></TestRun>')
+        core=p.core_test_summary(self.download)
+        self.assertTrue(core['countsConsistent'])
+        self.assertFalse(core['passed'])
+        self.assertFalse(self.prepare()[1]['passed'])
+    def test_reconciled_test_results_still_require_successful_actual_job_results(self):
+        self.assertFalse(self.prepare(build='failure')[1]['passed'])
+        self.assertFalse(self.prepare(verify='cancelled')[1]['passed'])
     def test_utf16_trx_doctype_is_rejected_before_any_entity_expansion(self):
         data='<?xml version="1.0" encoding="utf-16"?><!DOCTYPE x [<!ENTITY a "TEST-ONLY">]><x>&a;</x>'
         (self.download/'core-windows.trx').write_bytes(data.encode('utf-16'))

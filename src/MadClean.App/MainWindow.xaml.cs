@@ -10,6 +10,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent(); DataContext = model;
         SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
-        Closed += (_, _) => model.Cancel();
+        Closed += (_, _) => model.Shutdown();
     }
 }

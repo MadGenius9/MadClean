@@ -63,3 +63,5 @@ Linux compilation, portable tests and source inspection cannot render this WPF i
 | Scrollbars and native frame | Drag vertical/horizontal scrollbars, page tracks, and use wheel/keyboard scrolling in every detail grid/long page; disabled controls remain legible. Verify standard title-bar system menu, resize/maximize/restore/close and dark-frame fallback. |
 
 These are required manual runtime checks, not passed results. No new production sample-data, browser mockup or screenshot-generation feature is introduced to satisfy them. No personal-PC access or system-changing action is part of the visual review.
+
+The main navigation and inspection rows now use original frozen outline geometry for home, trash, shield, startup, update, disk, search and arrow symbols, avoiding font-version substitutions that changed their appearance. The actual compact Windows capture was inspected; the hero was enlarged toward the supplied reference. Full-width rendering is being checked with an own-HWND sizing helper on the disposable runner, not a generated screenshot or synthetic layout.

@@ -38,21 +38,29 @@ internal static class UiCapture
                 await application.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
                 window = application.MainWindow as MainWindow ?? throw new SmokeAssertionException("ui-startup-window");
                 window.Width = 1420; window.Height = 1000; window.Left = 0; window.Top = 0; window.WindowState = WindowState.Normal;
+                using var sizing = new OwnWindowSizing(window);
+                sizing.TryResize(1420, 1000, out int wideResizeError);
                 await Idle(window);
                 if (window.DataContext is not MainViewModel model) throw new SmokeAssertionException("ui-data-context");
                 AssertNoInventory(model);
-                if (window.ActualWidth < 1160) report.Unknown("ui-wide-size", "The desktop constrained the requested wide window; the captured dimensions are actual, but wide-layout validation is inconclusive.");
+                if (window.ActualWidth < 1160)
+                    report.Unknown("ui-wide-size", $"The actual window remains constrained after own-HWND resizing (Win32 code {wideResizeError}, limit messages {sizing.LimitsMessages}); the captured dimensions are actual and wide-layout validation remains inconclusive.");
+                else report.Pass("ui-wide-size", "The actual shown application window reaches the wide-layout breakpoint; no display settings, visual reparenting or synthetic layout were used.");
                 Capture(window, output, "overview-wide.png", report);
                 AssertVisibleControls(window);
                 report.Pass("ui-initial-state", "Actual production WPF Overview loaded with unchecked values and zero activity events; no scan command was executed.");
 
                 window.Width = 980; window.Height = 650;
+                sizing.TryResize(980, 650, out _);
                 await Idle(window);
                 AssertVisibleControls(window);
                 Capture(window, output, "overview-compact.png", report);
-                report.Pass("ui-compact-layout", "Client content rendered at the minimum 980x650 window size; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks.");
+                if (Math.Abs(window.ActualWidth - 980) > 1 || Math.Abs(window.ActualHeight - 650) > 1)
+                    report.Unknown("ui-compact-layout", "The actual window did not reach the requested 980x650 compact size. Captured dimensions are actual; compact-size proof remains inconclusive.");
+                else report.Pass("ui-compact-layout", "The actual shown window reaches 980x650 within one DIP; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks.");
 
                 window.Width = 1420; window.Height = 1000;
+                sizing.TryResize(1420, 1000, out _);
                 await Idle(window);
                 var primary = Descendants<ListBox>(window).Single(list => AutomationProperties.GetName(list) == "Main navigation");
                 var tools = Descendants<ComboBox>(window).Single(combo => AutomationProperties.GetName(combo) == "More tools");
