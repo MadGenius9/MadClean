@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Interop;
+using MadClean.Windows;
 namespace MadClean.App;
 
 public partial class MainWindow : Window
@@ -7,6 +9,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent(); DataContext = model;
+        SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
         Closed += (_, _) => model.Cancel();
     }
 }

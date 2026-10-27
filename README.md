@@ -43,6 +43,10 @@ Normal development uses `packages.lock.json`; single-file `win-x64` packaging us
 
 On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PACKAGES` if home is read-only, then run the same restore/build/test commands. Windows targeting packs allow compilation; **WPF cannot run on Linux**. Do not substitute mock values and call Windows checks verified. No web server, database, API key or personal-PC access is needed to build.
 
+## Interface
+
+The native WPF workspace uses shared dark controls, labeled icon navigation, responsive dashboard cards, wrapping header actions and visible keyboard/table selection. See [UI structure and visual validation](docs/UI.md). Current Linux builds verify compilation only; Windows rendering and fidelity to the earlier screenshot remain unverified until the reference and an actual Windows rendering can be compared.
+
 ## Read-only discovery extensions
 
 - **Cleanup preview:** select an eligible file to inspect/copy its complete path and observation, then optionally exclude that exact file. Choose a folder exclusion for that folder and descendants. Preferences persist in `%LocalAppData%\MadClean\cleanup-exclusions.json`; saving/removing preferences changes only MadClean settings and requires an explicit rescan. Invalid/unreadable/reparse settings are preserved and block cleanup discovery. No candidate is deleted.

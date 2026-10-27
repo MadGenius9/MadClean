@@ -1,41 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:MadClean.App" x:Class="MadClean.App.MainWindow" Title="MadClean · Read-only workspace" Width="1320" Height="880" MinWidth="980" MinHeight="650" Background="#10141D" FontFamily="Segoe UI" FontSize="14" Foreground="#ECF1FB">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:MadClean.App" x:Class="MadClean.App.MainWindow" Title="MadClean · Read-only workspace" Width="1320" Height="880" MinWidth="980" MinHeight="650" Background="#10141D" FontFamily="Segoe UI" FontSize="14" Foreground="#ECF1FB" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="202"/>
+            <ColumnDefinition Width="224"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <Border Background="#141925" BorderBrush="#293142" BorderThickness="0,0,1,0" Padding="18,28">
+        <Border Background="#141925" BorderBrush="#293142" BorderThickness="0,0,1,0" Padding="14,24">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Margin="7,0,0,34">
-                    <TextBlock Text="MAD / CLEAN" FontSize="21" FontWeight="Bold" Foreground="#73E2BE"/>
-                    <TextBlock Text="YOUR PC. IN FOCUS." FontSize="10" Foreground="{StaticResource Muted}" Margin="0,8,0,0"/>
+                    <TextBlock Text="MadClean" FontSize="26" FontWeight="Bold" Foreground="#73E2BE"/>
+                    <TextBlock Text="YOUR WINDOWS WORKSPACE" FontSize="10" Foreground="{StaticResource Muted}" Margin="0,8,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" Margin="7,20,0,0">
-                    <TextBlock Text="PHASE 01" FontSize="11" Foreground="#73E2BE"/>
-                    <TextBlock Text="Read-only foundation" FontSize="12" Margin="0,6,0,0"/>
+                    <TextBlock Text="READ-ONLY MODE" FontSize="11" Foreground="#73E2BE"/>
+                    <TextBlock Text="Inventory and previews" FontSize="12" Margin="0,6,0,0"/>
                     <TextBlock Text="No cleanup or installs" Style="{StaticResource Caption}"/>
                 </StackPanel>
                 <ListBox SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Foreground="#CBD4E5" VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Navigation">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
-                            <Setter Property="Padding" Value="13,14"/>
+                            <Setter Property="Padding" Value="12,11"/>
                             <Setter Property="Margin" Value="0,3"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="Tile" CornerRadius="7" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter/>
+                                        <Border x:Name="Tile" CornerRadius="7" Padding="{TemplateBinding Padding}" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
                                         <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tile" Property="Background" Value="#202C3C"/></Trigger>
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter TargetName="Tile" Property="Background" Value="#273C3B"/>
                                                 <Setter Property="Foreground" Value="#8CF0D0"/>
                                             </Trigger>
                                             <Trigger Property="IsKeyboardFocused" Value="True">
                                                 <Setter TargetName="Tile" Property="BorderBrush" Value="#73E2BE"/>
-                                                <Setter TargetName="Tile" Property="BorderThickness" Value="1"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -43,45 +47,41 @@
                             </Setter>
                         </Style>
                     </ListBox.ItemContainerStyle>
-                    <ListBoxItem Content="Overview"/>
-                    <ListBoxItem Content="Cleanup inventory"/>
-                    <ListBoxItem Content="Startup apps"/>
-                    <ListBoxItem Content="Security"/>
-                    <ListBoxItem Content="Update center"/>
-                    <ListBoxItem Content="MadClean updates"/>
-                    <ListBoxItem Content="Installed apps"/>
-                    <ListBoxItem Content="Disk space map"/>
-                    <ListBoxItem Content="Leftover review"/>
-                    <ListBoxItem Content="Capability queue"/>
-                    <ListBoxItem Content="Activity"/>
-                    <ListBoxItem Content="Hardware Upgrades"/>
+                    <ListBoxItem Content="Overview" Tag="&#xE80F;" AutomationProperties.Name="Overview"/>
+                    <ListBoxItem Content="Cleanup inventory" Tag="&#xE8B7;" AutomationProperties.Name="Cleanup inventory"/>
+                    <ListBoxItem Content="Startup apps" Tag="&#xE768;" AutomationProperties.Name="Startup apps"/>
+                    <ListBoxItem Content="Security" Tag="&#xE83D;" AutomationProperties.Name="Security"/>
+                    <ListBoxItem Content="Update center" Tag="&#xE895;" AutomationProperties.Name="Update center"/>
+                    <ListBoxItem Content="MadClean updates" Tag="&#xE946;" AutomationProperties.Name="MadClean updates"/>
+                    <ListBoxItem Content="Installed apps" Tag="&#xE71D;" AutomationProperties.Name="Installed apps"/>
+                    <ListBoxItem Content="Disk space map" Tag="&#xE7F1;" AutomationProperties.Name="Disk space map"/>
+                    <ListBoxItem Content="Leftover review" Tag="&#xE721;" AutomationProperties.Name="Leftover review"/>
+                    <ListBoxItem Content="Capability queue" Tag="&#xE8FD;" AutomationProperties.Name="Capability queue"/>
+                    <ListBoxItem Content="Activity" Tag="&#xE9D9;" AutomationProperties.Name="Activity"/>
+                    <ListBoxItem Content="Hardware Upgrades" Tag="&#xE950;" AutomationProperties.Name="Hardware Upgrades"/>
                 </ListBox>
             </DockPanel>
         </Border>
-        <Grid Grid.Column="1" Margin="30,24,24,20">
+        <Grid Grid.Column="1" Margin="24,24,24,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Grid Margin="0,0,0,22">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="A clearer view of your PC" FontSize="23" FontWeight="SemiBold"/>
-                    <TextBlock Text="Real Windows data. You stay in control." Style="{StaticResource Caption}"/>
+            <WrapPanel Margin="0,0,0,8">
+                <StackPanel Width="350" Margin="0,0,18,14" VerticalAlignment="Center">
+                    <TextBlock Text="Your PC, in focus" FontSize="26" FontWeight="SemiBold"/>
+                    <TextBlock Text="Explore real Windows data. Choose when to check." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
                 </StackPanel>
-                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                <WrapPanel VerticalAlignment="Center" Margin="0,0,0,14">
                     <Button Content="Scan local" Command="{Binding ScanCommand}" AutomationProperties.HelpText="Read local disks, temporary files, startup entries and Defender status"/>
                     <Button Content="Check updates" Command="{Binding UpdatesCommand}" Background="#ABC1F5" AutomationProperties.HelpText="Contact configured WinGet and Windows Update sources for discovery only"/>
                     <Button Content="Cancel" Command="{Binding CancelCommand}" Background="#343E52" Foreground="#FFFFFF"/>
                 </WrapPanel>
-            </Grid>
+            </WrapPanel>
             <StackPanel Grid.Row="1">
-                <Border Background="#1C2930" BorderBrush="#354D50" BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,16">
+                <Border Background="#1C2930" BorderBrush="#354D50" BorderThickness="1" CornerRadius="8" Padding="14,9" Margin="0,0,0,16">
                     <TextBlock Text="INVENTORY ONLY   ·   Nothing will be deleted, disabled, quarantined or installed." Foreground="#A9E8D7" FontSize="12"/>
                 </Border>
                 <Border Background="#243044" BorderBrush="#627CA8" BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,16" Visibility="{Binding HasMadCleanReminder, Converter={StaticResource BooleanVisibility}}">
@@ -102,43 +102,43 @@
                         <StackPanel>
                             <TextBlock Text="Overview" Style="{StaticResource SectionTitle}"/>
                             <TextBlock Text="Start a local scan to build your inventory. Online update discovery runs only when you choose Check updates." Style="{StaticResource Caption}"/>
-                            <WrapPanel>
-                                <Border Style="{StaticResource Card}" Width="280">
+                            <UniformGrid Columns="{Binding ActualWidth, RelativeSource={RelativeSource Self}, Converter={StaticResource DashboardColumns}}">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="DISK SPACE" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding DiskSummary}" FontSize="28" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="available across local fixed disks" Style="{StaticResource Caption}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource Card}" Width="280">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="CLEANUP INVENTORY" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding CleanupSummary}" FontSize="28" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="old temporary files · preview only" Style="{StaticResource Caption}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource Card}" Width="280">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="STARTUP ENTRIES" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding StartupSummary}" FontSize="28" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="registered entries · state not verified" Style="{StaticResource Caption}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource Card}" Width="280">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="DEFENDER" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding SecuritySummary}" FontSize="23" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="provider status · no new scan run" Style="{StaticResource Caption}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource Card}" Width="280">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="UPDATE DISCOVERY" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding UpdateSummary}" FontSize="23" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                         <TextBlock Text="software + Windows / driver offers" Style="{StaticResource Caption}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource Card}" Width="280">
+                                <Border Style="{StaticResource Card}" MinHeight="164">
                                     <StackPanel>
                                         <TextBlock Text="MADCLEAN UPDATES" Foreground="{StaticResource Muted}" FontSize="11"/>
                                         <TextBlock Text="{Binding MadCleanUpdateStatus}" FontSize="20" FontWeight="SemiBold" Margin="0,14,0,6"/>
@@ -146,7 +146,7 @@
                                         <Button Content="View app updates" Command="{Binding MadCleanReminderCommand}" Background="#ABC1F5"/>
                                     </StackPanel>
                                 </Border>
-                            </WrapPanel>
+                            </UniformGrid>
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
                                     <TextBlock Text="Storage details" FontSize="17" FontWeight="SemiBold"/>
@@ -234,36 +234,27 @@
                     </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Startup">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock Text="Startup apps" Style="{StaticResource SectionTitle}"/>
                             <TextBlock Text="{Binding StartupMessage}" Style="{StaticResource Caption}"/>
+                            <ContentControl Height="320" Content="{Binding StartupRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
+                            <StackPanel Margin="0,12,0,0">
+                                <TextBlock Text="Management actions are queued: exact entry selection, before/after preview and reversible enable/disable. Current inventory does not prove enabled state." Style="{StaticResource Caption}"/>
+                                <Button Content="View capability queue" Command="{Binding CapabilityQueueCommand}" HorizontalAlignment="Left" Background="#343E52" Foreground="White"/>
+                            </StackPanel>
                         </StackPanel>
-                        <ContentControl Grid.Row="1" Content="{Binding StartupRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
-                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                            <TextBlock Text="Management actions are queued: exact entry selection, before/after preview and reversible enable/disable. Current inventory does not prove enabled state." Style="{StaticResource Caption}"/>
-                            <Button Content="View capability queue" Command="{Binding CapabilityQueueCommand}" HorizontalAlignment="Left" Background="#343E52" Foreground="White"/>
-                        </StackPanel>
-                    </Grid>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Security">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock Text="Microsoft Defender" Style="{StaticResource SectionTitle}"/>
                             <TextBlock Text="{Binding SecurityMessage}" Style="{StaticResource Caption}"/>
                             <TextBlock Text="MadClean reports Windows protection status and recorded findings. It is not an antivirus engine. No scan, remediation, quarantine or setting change is performed." Style="{StaticResource Caption}"/>
+                            <ContentControl Height="320" Content="{Binding SecurityRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
                         </StackPanel>
-                        <ContentControl Grid.Row="1" Content="{Binding SecurityRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
-                    </Grid>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem Header="Updates">
                     <Grid>
