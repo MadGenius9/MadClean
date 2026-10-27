@@ -1,17 +1,17 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "536cdf6bf8700ce7d5cf4ad21a24c4117bb42c9a",
-  "runId": "40450948433",
+  "sourceCommit": "8d58f8a40bba55c85aed88882362e798e3d9f99e",
+  "runId": "40451768469",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T04:44:12.2035309+00:00",
-  "completedUtc": "2026-10-27T04:44:21.1194892+00:00",
-  "passed": false,
-  "state": "inconclusive",
+  "startedUtc": "2026-10-27T04:52:40.296704+00:00",
+  "completedUtc": "2026-10-27T04:52:50.8360419+00:00",
+  "passed": true,
+  "state": "passed",
   "checks": [
     {
       "name": "ui-wide-size",
-      "state": "inconclusive",
-      "detail": "The actual window remains constrained after own-HWND resizing (Win32 code 0, limit messages 1); the captured dimensions are actual and wide-layout validation remains inconclusive."
+      "state": "passed",
+      "detail": "The actual shown application window reaches the wide-layout breakpoint; no display settings, visual reparenting or synthetic layout were used."
     },
     {
       "name": "ui-initial-state",
@@ -66,7 +66,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
     },
     {
       "name": "startup-fixture-inventory",
@@ -107,9 +107,9 @@
   "screenshots": [
     {
       "file": "overview-wide.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "cf4ac6a66723d1030a4eeb3fedf31bd75ce079b191e24eb4a672b0eaada79a4a"
+      "width": 1404,
+      "height": 961,
+      "sha256": "f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf"
     },
     {
       "file": "overview-compact.png",
@@ -119,45 +119,45 @@
     },
     {
       "file": "tool-11.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "87762ab961718d70d6bb9338acca728913e977496dfbc3f72d6e9ffc71155738"
+      "width": 1404,
+      "height": 961,
+      "sha256": "9ff7ec6371e06ada4406d2e0e5813ead83341191f9e74a62a02aae4926a7797e"
     },
     {
       "file": "tool-12.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "2d1700dcbf1974dbda0313e80d8feb01d7af7342f2b70e39894777f425eec468"
+      "width": 1404,
+      "height": 961,
+      "sha256": "8316f4726e7e109712d1a4af0ad9be6f131fdc458f17020a765b6505925c43dc"
     },
     {
       "file": "tool-13.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "4db534c1fe5971c008886b34287e6b95b53cb9d9061dc773521001a7f45936a4"
+      "width": 1404,
+      "height": 961,
+      "sha256": "11e6670da9e9ec5ebb3d298be4a57d09dbf5ee30a2fb407b98361edddf86ca27"
     },
     {
       "file": "tool-14.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "156d518f323193461811ec33eb97bd395852869e650feb32c8314586eef0c919"
+      "width": 1404,
+      "height": 961,
+      "sha256": "470fe03af1e614b37321428d66a6d29a93c1c982065592895fa42f6aa539e854"
     },
     {
       "file": "tool-15.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "0c652302df3ee5ce213f2d6bfe4c94b966a8473db318f6b5fe35299c5ff62748"
+      "width": 1404,
+      "height": 961,
+      "sha256": "7b67688aba220c6f10cadfc0ac8450b86c147ddde2f854f2a9eea00be237ed04"
     },
     {
       "file": "tool-16.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "b398dae1774e5023c24e9812b56041a642fa2acc87c657f77c1dc97fc8cd7bb6"
+      "width": 1404,
+      "height": 961,
+      "sha256": "c1d622af6c420b0a50c4e481b5befadf9b943cb757424714f300818eb8dec7a0"
     },
     {
       "file": "tool-17.png",
-      "width": 1028,
-      "height": 749,
-      "sha256": "b56886d289d614684cf3b227ca438e7899712c16350f77dcf7464a687913f4f9"
+      "width": 1404,
+      "height": 961,
+      "sha256": "91eb711d515a76c0a9d8b4359807d761d8051ad80938f63a6db556331cb9f0d8"
     }
   ],
   "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
