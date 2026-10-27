@@ -63,9 +63,25 @@ internal static partial class NativeFixtures
             var before = DateTimeOffset.UtcNow;
             var result = Query(ct => new WindowsWerMetadataInventory().ReadAsync(30, ct), token);
             var after = DateTimeOffset.UtcNow;
+            string sourceStatus = "";
+            if (result.Items.Count == 1)
+            {
+                var statuses = result.Items[0].StoreStatuses;
+                if (statuses.Count != 2 || statuses.Select(status => status.Store).Distinct().Count() != 2 ||
+                    statuses.Any(status => !Enum.IsDefined(status.Store) || !Enum.IsDefined(status.State) || !Enum.IsDefined(status.Reason) ||
+                        status.InspectedKeys is < 0 or > WerMetadataProjection.MaximumRecordsPerStore || status.MetadataRecords < 0 ||
+                        status.MetadataRecords > status.InspectedKeys || status.ProjectedReferences < 0 || status.ProjectedReferences > status.MetadataRecords ||
+                        status.MetadataFailures < 0 || status.MetadataFailures > status.InspectedKeys))
+                {
+                    report.Fail(readCheck, "The native WER report omitted or contradicted its fixed two-source bounded diagnostic contract; no provider contents are exported.");
+                    return;
+                }
+                sourceStatus = string.Join("; ", statuses.Select(status =>
+                    $"{status.Store}={status.State}/{status.Reason}/keys:{status.InspectedKeys}/metadata:{status.MetadataRecords}/projected:{status.ProjectedReferences}/failures:{status.MetadataFailures}/limited:{(status.Truncated ? "true" : "false")}/result:{(status.LastNativeResult.HasValue ? "0x" + unchecked((uint)status.LastNativeResult.Value).ToString("X8") : "none")}"));
+            }
             if (result.State is not (CheckState.Available or CheckState.Partial))
             {
-                report.Unknown(readCheck, $"Native WER state={result.State}; readableStoreCount=0; populatedMetadataVerified=false. Store access, API support or completion remains unverified; no empty-store or health conclusion.");
+                report.Unknown(readCheck, $"Native WER state={result.State}; {sourceStatus}; populatedMetadataVerified=false. Store access/API/completion unverified; S_OK/null is Unknown, never empty or an invented native error.");
                 return;
             }
             if (result.Items.Count != 1)
@@ -86,14 +102,14 @@ internal static partial class NativeFixtures
                 report.Fail(readCheck, "Native WER source/window/count/minimized-observation schema violated the fixed contract. No report identifiers, dates, coverage strings or payloads are exported.");
                 return;
             }
-            int completedStores = stores.Count(store => data.Coverage.Any(note => note.StartsWith(store + ": Available;", StringComparison.Ordinal)));
+            int completedStores = data.StoreStatuses.Count(status => status.State == CheckState.Available && status.Reason == WerMetadataStoreReason.EnumerationComplete);
             int populatedStores = data.Observations.Select(row => row.Store).Distinct(StringComparer.Ordinal).Count();
             if (completedStores == 0 && populatedStores == 0)
             {
-                report.Unknown(readCheck, $"Native WER state={result.State}; completedStoreCount=0; populatedMetadataVerified=false. No completed readable store or usable metadata established; a partial response alone is not proof.");
+                report.Unknown(readCheck, $"Native WER state={result.State}; {sourceStatus}; populatedMetadataVerified=false. No completed readable store or usable metadata established; a partial response alone is not proof.");
                 return;
             }
-            report.Pass(readCheck, $"Native WER state={result.State}; completedStoreCount={completedStores}; populatedStoreCount={populatedStores}; projectedReferenceCount={data.Observations.Count}; populatedMetadataVerified={(data.Observations.Count > 0 ? "true" : "false")}. " +
+            report.Pass(readCheck, $"Native WER state={result.State}; {sourceStatus}; completedStoreCount={completedStores}; populatedStoreCount={populatedStores}; projectedReferenceCount={data.Observations.Count}; populatedMetadataVerified={(data.Observations.Count > 0 ? "true" : "false")}. " +
                 (data.Observations.Count > 0 ? "Existing GUID/time observations satisfy the minimized contract; no raw signature/key/file data is exported. " : "No usable in-window existing metadata returned: populated-buffer marshalling remains unverified. ") +
                 "Empty/readable stores are not no-crash, health, complete-history or upload-success proof. No store mutation, report creation or filesystem fallback was used.");
         }

@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
     public ICommand ResetDiskMapCommand { get; private set; } = null!;
     private void InitializeDiskMap()
     {
+        InitializeDiskIdentities();
         ChooseDiskMapFolderCommand = new AsyncCommand(ChooseDiskMapFolder, () => !IsBusy);
         DrillDiskMapCommand = new ActionCommand(DrillDiskMap, () => !IsBusy && SelectedDiskNode?.IsDirectory == true && SelectedDiskNode.Children.Count > 0);
         UpDiskMapCommand = new ActionCommand(() => ShowDiskFolder(diskMapParents.Pop()), () => !IsBusy && diskMapParents.Count > 0);
@@ -41,6 +42,7 @@ public sealed partial class MainViewModel
         var path = dialog.FolderName;
         await RunDiscoveryAsync(ActivityArea.DiskMap, "Mapping the selected local folder", async token =>
         {
+            InvalidateDiskIdentities();
             diskMapRoot = null; diskMapParents.Clear(); DiskMapCurrent = null; DiskMapChildren = Array.Empty<DiskUsageNode>(); SelectedDiskNode = null; DiskMapIssues.Clear();
             PropertyChanged?.Invoke(this, new(nameof(DiskMapChildren))); PropertyChanged?.Invoke(this, new(nameof(DiskMapPath))); PropertyChanged?.Invoke(this, new(nameof(DiskMapKnownBytes)));
             try
@@ -52,12 +54,13 @@ public sealed partial class MainViewModel
             { DiskMapMessage = "The selected drive could not be validated. Check the location and permissions."; return CheckState.Unavailable; }
             DiskMapMessage = "Reading file metadata under the selected folder; use Cancel to stop…";
             var report = await new DiskUsageScanner().ScanAsync(path, token); token.ThrowIfCancellationRequested();
+            diskIdentitySnapshot = report;
             diskMapRoot = report.Root; ShowDiskFolder(report.Root);
             bool partial = report.Truncated || report.Issues.Count > 0 || report.SkippedEntries > 0;
             DiskMapMessage = Stamp(partial ? CheckState.Partial : CheckState.Available,
                 $"{Display.Bytes(report.Root.Bytes)} known logical bytes; {report.SkippedEntries} observed skips; {report.Issues.Count} issues. " +
                 (partial ? "Incomplete: skipped/unreadable/unvisited bytes are unknown. " : "Selected-folder metadata inventory completed. ") +
-                "This is not allocated/physical disk usage; hardlinks may be counted more than once. No file contents were read or changed.");
+                "This is not allocated/physical disk usage; hardlinks may be counted more than once in this map. Use the optional identity analysis to inspect observed aliases separately. No file contents were read or changed.");
             DiskMapIssues.Clear(); foreach (var issue in report.Issues) DiskMapIssues.Add(new(issue.Path, issue.Reason, "Unknown / skipped"));
             return partial ? CheckState.Partial : CheckState.Available;
         }, error => DiskMapMessage = error);

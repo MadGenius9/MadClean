@@ -55,42 +55,47 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
     private static WerMetadataStoreSnapshot ReadStore(WerMetadataStore store, Stopwatch clock, CancellationToken token)
     {
         List<WerMetadataRecord> rows = [];
-        int inspected = 0, failures = 0; int? lastError = null;
+        int inspected = 0, failures = 0; int? lastError = null, lastResult = null;
         IntPtr handle = IntPtr.Zero, buffer = IntPtr.Zero;
-        WerMetadataStoreSnapshot Result(CheckState state, bool limited = false, int? code = null) =>
-            new(store, state, rows.ToArray(), inspected, limited, failures, code ?? lastError);
+        WerMetadataStoreSnapshot Result(CheckState state, bool limited = false, int? code = null,
+            WerMetadataStoreReason reason = WerMetadataStoreReason.Unspecified) =>
+            new(store, state, rows.ToArray(), inspected, limited, failures, code ?? lastError, reason, lastResult);
         bool Expired() => clock.Elapsed >= CooperativeBudget;
         try
         {
-            if (Expired()) return Result(CheckState.Unknown, limited: true);
+            if (Expired()) return Result(CheckState.Unknown, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
             token.ThrowIfCancellationRequested();
             int opened = Native.WerStoreOpen(store == WerMetadataStore.MachineQueue ? 3 : 2, ref handle);
+            lastResult = opened;
             token.ThrowIfCancellationRequested();
-            if (opened != 0) { handle = IntPtr.Zero; return Result(Classify(opened), code: opened); }
-            if (handle == IntPtr.Zero) return Result(CheckState.Unknown, code: unchecked((int)0x8000FFFF));
+            if (opened != 0) { handle = IntPtr.Zero; return Result(Classify(opened), code: opened, reason: WerMetadataStoreReason.StoreOpenFailed); }
+            if (handle == IntPtr.Zero) return Result(CheckState.Unknown, reason: WerMetadataStoreReason.SuccessfulOpenReturnedNullHandle);
             bool first = true;
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                if (Expired()) return Result(CheckState.Partial, limited: true);
+                if (Expired()) return Result(CheckState.Partial, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
                 IntPtr key = IntPtr.Zero;
                 try
                 {
                     int keyResult = first ? Native.WerStoreGetFirstReportKey(handle, ref key) : Native.WerStoreGetNextReportKey(handle, ref key);
+                    lastResult = keyResult;
                     first = false;
                     token.ThrowIfCancellationRequested();
-                    if (Expired()) return Result(CheckState.Partial, limited: true);
-                    if (NoMoreFiles(keyResult)) return Result(failures > 0 ? CheckState.Partial : CheckState.Available);
-                    if (keyResult != 0) return Result(inspected > 0 ? CheckState.Partial : Classify(keyResult), code: keyResult);
-                    if (key == IntPtr.Zero) return Result(CheckState.Unknown, code: unchecked((int)0x8000FFFF));
-                    if (inspected >= WerMetadataProjection.MaximumRecordsPerStore) return Result(CheckState.Partial, limited: true);
+                    if (Expired()) return Result(CheckState.Partial, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
+                    if (NoMoreFiles(keyResult)) return Result(failures > 0 ? CheckState.Partial : CheckState.Available,
+                        reason: failures > 0 ? WerMetadataStoreReason.MetadataQueryFailed : WerMetadataStoreReason.EnumerationComplete);
+                    if (keyResult != 0) return Result(inspected > 0 ? CheckState.Partial : Classify(keyResult), code: keyResult, reason: WerMetadataStoreReason.EnumerationFailed);
+                    if (key == IntPtr.Zero) return Result(CheckState.Unknown, reason: WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey);
+                    if (inspected >= WerMetadataProjection.MaximumRecordsPerStore) return Result(CheckState.Partial, limited: true, reason: WerMetadataStoreReason.RecordLimitReached);
                     inspected++;
                     if (buffer == IntPtr.Zero) buffer = Marshal.AllocHGlobal(Native.MetadataBytes);
                     Native.Zero(buffer);
                     // The key remains an opaque API-owned pointer. Never marshal it into a managed string.
                     int result = Native.WerStoreQueryReportMetadataV1(handle, key, buffer);
+                    lastResult = result;
                     token.ThrowIfCancellationRequested();
-                    if (Expired()) return Result(CheckState.Partial, limited: true);
+                    if (Expired()) return Result(CheckState.Partial, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
                     if (result != 0) { failures++; lastError = result; continue; }
                     var guidBytes = new byte[16];
                     Marshal.Copy(IntPtr.Add(buffer, Native.ReportIdOffset), guidBytes, 0, guidBytes.Length);

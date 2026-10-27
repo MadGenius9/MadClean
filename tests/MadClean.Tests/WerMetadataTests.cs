@@ -141,6 +141,66 @@ public sealed class WerMetadataTests
     {
         var result = Read();
         Assert.Equal(CheckState.Unknown, result.State); Assert.Empty(Report(result).Observations);
+        Assert.All(Report(result).StoreStatuses, status =>
+        {
+            Assert.Equal(WerMetadataStoreReason.MissingSourceResponse, status.Reason);
+            Assert.Null(status.LastNativeResult);
+        });
+    }
+
+    [Theory]
+    [InlineData(WerMetadataStoreReason.SuccessfulOpenReturnedNullHandle)]
+    [InlineData(WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey)]
+    public void SuccessfulNativeReturnWithMissingObjectStaysUnknownWithoutInventingAnHresult(WerMetadataStoreReason reason)
+    {
+        var queue = Source(WerMetadataStore.MachineQueue) with { State = CheckState.Unknown, Reason = reason, LastNativeResult = 0 };
+        var archive = EmptyArchive with { State = CheckState.Unknown, Reason = reason, LastNativeResult = 0 };
+        var result = Read(queue, archive);
+        Assert.Equal(CheckState.Unknown, result.State); Assert.Empty(Report(result).Observations);
+        Assert.All(Report(result).StoreStatuses, status =>
+        {
+            Assert.Equal(CheckState.Unknown, status.State); Assert.Equal(reason, status.Reason);
+            Assert.Equal(0, status.LastNativeResult); Assert.Equal(0, status.ProjectedReferences);
+        });
+        Assert.DoesNotContain(Report(result).Coverage, line => line.Contains("8000FFFF", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TypedDiagnosticsPreserveActualDenialAndOnlyExposeMinimizedStatusFields()
+    {
+        int denied = unchecked((int)0x80070005);
+        var queue = Source(WerMetadataStore.MachineQueue) with
+        { State = CheckState.Unavailable, NativeError = denied, LastNativeResult = denied, Reason = WerMetadataStoreReason.StoreOpenFailed };
+        var result = Read(queue, EmptyArchive);
+        var status = Assert.Single(Report(result).StoreStatuses, status => status.Store == WerMetadataStore.MachineQueue);
+        Assert.Equal(denied, status.LastNativeResult); Assert.Equal(CheckState.Unavailable, status.State);
+        Assert.Equal(WerMetadataStoreReason.StoreOpenFailed, status.Reason);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(status));
+        Assert.Equal(new[] { "Store", "State", "InspectedKeys", "MetadataRecords", "ProjectedReferences", "MetadataFailures", "Truncated", "LastNativeResult", "Reason" },
+            json.RootElement.EnumerateObject().Select(field => field.Name));
+    }
+
+    [Fact]
+    public void EnumerationEndIsDistinctFromFailureAndRetainsObservedNoMoreFilesResult()
+    {
+        var queue = Source(WerMetadataStore.MachineQueue) with
+        { Reason = WerMetadataStoreReason.EnumerationComplete, LastNativeResult = unchecked((int)0x80070012) };
+        var result = Read(queue, EmptyArchive with { Reason = WerMetadataStoreReason.EnumerationComplete, LastNativeResult = 18 });
+        Assert.Equal(CheckState.Available, result.State); Assert.Empty(Report(result).Observations);
+        Assert.All(Report(result).StoreStatuses, status => Assert.Equal(WerMetadataStoreReason.EnumerationComplete, status.Reason));
+        Assert.Equal(unchecked((int)0x80070012), Report(result).StoreStatuses.Single(status => status.Store == WerMetadataStore.MachineQueue).LastNativeResult);
+    }
+
+    [Fact]
+    public void ContradictoryNullObjectDiagnosticCannotAuthorizeAvailableSourceRows()
+    {
+        var queue = Source(WerMetadataStore.MachineQueue, Row(Guid.NewGuid())) with
+        { Reason = WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey, LastNativeResult = 0 };
+        var result = Read(queue, EmptyArchive);
+        Assert.Equal(CheckState.Partial, result.State); Assert.Empty(Report(result).Observations);
+        var status = Report(result).StoreStatuses.Single(status => status.Store == WerMetadataStore.MachineQueue);
+        Assert.Equal(CheckState.Unknown, status.State); Assert.Equal(WerMetadataStoreReason.InvalidSourceResponse, status.Reason);
+        Assert.Equal(0, status.LastNativeResult);
     }
 
     [Fact]
@@ -150,6 +210,8 @@ public sealed class WerMetadataTests
         var result = Read(Source(WerMetadataStore.MachineQueue, Row(Guid.NewGuid())), Source(WerMetadataStore.MachineQueue, Row(Guid.NewGuid())),
             Source(WerMetadataStore.MachineArchive, Row(accepted)));
         Assert.Equal(CheckState.Partial, result.State); Assert.Equal(accepted, Assert.Single(Report(result).Observations).ReportId);
+        var status = Report(result).StoreStatuses.Single(status => status.Store == WerMetadataStore.MachineQueue);
+        Assert.Equal(WerMetadataStoreReason.AmbiguousSourceResponse, status.Reason); Assert.Null(status.LastNativeResult);
     }
 
     [Fact]

@@ -62,12 +62,12 @@
                 <Setter Property="BorderBrush" Value="#2B3343"/>
                 <Setter Property="BorderThickness" Value="1"/>
             </Style>
-            <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Style x:Key="SectionTitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                 <Setter Property="FontSize" Value="25"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Margin" Value="0,0,0,12"/>
             </Style>
-            <Style x:Key="Caption" TargetType="TextBlock">
+            <Style x:Key="Caption" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                 <Setter Property="Foreground" Value="{StaticResource Muted}"/>
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="Margin" Value="0,6,0,12"/>

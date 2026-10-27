@@ -1,0 +1,46 @@
+# Optional selected-map identity accounting
+
+This separate, explicit read-only analysis accepts the existing selected-folder `DiskUsageReport`. It does not create another disk crawl, inspect file contents or run with elevation. A new disk map invalidates the old analysis. The analysis covers the original selected map, even if its presentation is currently focused on a child folder.
+
+Three totals have distinct meanings:
+
+- **Path logical bytes:** the sum of the selected snapshot's valid file lengths. Directory aggregate values are not counted again.
+- **Observed path logical bytes:** snapshot lengths of names whose current handle metadata was successfully revalidated. Unknown/changing names are excluded, not treated as measured zero-byte files.
+- **Observed unique-file logical bytes:** the above lengths counted once for each observed volume serial plus full 128-bit file identity. Equal lengths or file names do not establish aliases or content equality.
+
+These are unnamed-stream logical lengths, not physical allocation, whole-file alternate-stream totals, reclaimable bytes, duplicate-copy proof or deletion eligibility. Compression, sparse allocation, alternate streams, block sharing and filesystem overhead are not measured. Links outside the selected map remain unobserved: the native link count is displayed as provider metadata, not a complete enumeration of all link locations. An alias count means names observed in this analysis, not physical file copies. A zero-length successfully observed file remains a real observation.
+
+## Native boundary and official sources
+
+Microsoft's current official API documentation was checked for this increment using the MicrosoftDocs source on 2026-10-27:
+
+- [CreateFileW](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/fileapi/nf-fileapi-createfilew.md).
+- [GetFileInformationByHandleEx](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winbase/nf-winbase-getfileinformationbyhandleex.md).
+- [FILE_ID_INFO](https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_id_info), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winbase/ns-winbase-file_id_info.md).
+- [FILE_STANDARD_INFO](https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_standard_info), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winbase/ns-winbase-file_standard_info.md).
+- [FILE_BASIC_INFO](https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_basic_info), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winbase/ns-winbase-file_basic_info.md).
+- [GetFinalPathNameByHandleW](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew), [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/fileapi/nf-fileapi-getfinalpathnamebyhandlew.md).
+
+Production uses independent metadata-only System32 imports. It requests `FILE_READ_ATTRIBUTES` with `OPEN_EXISTING`, `FILE_FLAG_OPEN_REPARSE_POINT` and `FILE_FLAG_OPEN_NO_RECALL`; directory handles additionally use `FILE_FLAG_BACKUP_SEMANTICS` to open directories, without enabling backup privileges. No `READ_DATA`, `GENERIC_READ`, content stream, write, delete or disposition access is requested. Read/write sharing permits concurrent filesystem activity; delete sharing is omitted while the probe holds its handles.
+
+The adapter rejects UNC/device paths, named-stream syntax and non-fixed drives before ancestry/file opens. It constructs ancestor paths lexically, then opens and checks them from root to leaf. Directory handles stay owned through the file probe. It verifies canonical local paths and rejects reparse, offline, recall, encrypted and protected file attributes; inaccessible or unsupported identity metadata stays unknown. `OPEN_NO_RECALL` is a documented intent to avoid recall, not a claim that arbitrary third-party filesystem providers cannot perform metadata work. No placeholder data is requested or deliberately hydrated.
+
+Each exact selected file receives `FileIdInfo` (volume plus all 128 identity bits), `FileStandardInfo` (logical length, link count, directory/delete-pending flags) and `FileBasicInfo` observations before and after the query. Changed identity/length/link count/timestamps/attributes or a mismatch with the snapshot length excludes that path. The two metadata sets are sequential observations, not an atomic freeze; metadata-only access does not establish absence of active data handles or mapped views. A same-length replacement before analysis cannot be compared with historical identity because the original map collected lengths, not identities. Relationships are current observations tied to matching historical lengths, not proof the original file survived unchanged.
+
+Inconsistent lengths/link counts within an identity group, or more observed aliases than the reported link count, invalidate the entire group. Files queried at different times may still change between observations; the report never claims a simultaneous whole-tree snapshot. Filesystem/volume identities may be reused after deletion or on replacement volumes; this in-session analysis is not a persistent identity database or mutation authorization.
+
+## Bounds, errors and cancellation
+
+The portable validator accepts at most 4096 files and 8192 total nodes. It validates the complete bounded tree before native work: absolute canonical paths, immediate child relationships, unique case-insensitive paths, nonnegative lengths, file shape and overflow-safe path totals. Oversized, duplicated, redirected or malformed input returns Unknown with no report and no probes. Directory aggregate totals are deliberately not trusted as the file sum.
+
+At most 256 issue details are retained; further probes stop at that bound and the report is truncated. A source map with issues, skipped entries or truncation remains Partial even if every selected file query succeeds. Unknown paths have generic actionable issue text without native exception strings. All unknown paths therefore produce Partial with zero observed measurements and explicit gaps; this does not mean an empty folder or no hard links.
+
+A serial worker checks cancellation and a 15-second cooperative budget between native operations. The caller waits at most 20 seconds and can cancel its wait sooner. Synchronous native metadata calls cannot be forcibly interrupted. On timeout the caller returns Unknown; on requested cancellation it returns qualified Cancelled without a completed report. The worker alone keeps ownership of its handles, closes them on return and holds the single-worker gate until its actual `finally`; retries while pending return Unknown. A bounded caller response does not prove the native operation stopped. Late worker faults are observed without logging private exception contents.
+
+The Windows production adapter reports Unsupported on other platforms. It requires the Windows 8+ `FileIdInfo` interface and fails individual unsupported filesystem cases closed. There is no fallback to 64-bit file indices, name/size matching or content reads.
+
+## Validation gate
+
+Portable tests use explicitly test-only synthetic identity adapters and exercise independent volumes, alias groups, inconsistent metadata, inaccessible/changing/all-unknown paths, malformed identities, real zero lengths, malformed/duplicate/out-of-scope tree entries, overflow, file/issue bounds, partial source maps and cancellation. These tests do not establish native ABI correctness or Windows behavior.
+
+Windows runtime validation remains required: use only an exact owned repository artifact fixture with two native hard-linked names, a separate equal-length independent file, an out-of-scope alias, a zero-length file, changed length, sharing restrictions, reparse and access-denied cases. Verify full 128-bit identity and volume grouping, metadata-only access, reported link counts and all three totals. Any missing fixture capability is inconclusive rather than a pass. Do not query the user's personal files to validate this module. Do not delete, submit, install, download or elevate through this feature; no action executor is implemented here.

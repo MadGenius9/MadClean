@@ -25,6 +25,23 @@ public sealed partial class MainViewModel
     public string WerDetails => selectedWerObservation is { } item
         ? $"Category: {item.Category}\nStore: {item.Store}\nReport reference: {item.ReportId}\nRecorded creation UTC: {item.CreatedUtc:u}\nSource: {item.Source}\n{WerWindow}\n\nThis is stored report metadata, not a confirmed unique crash, current problem, cause, severity or integrity verdict. Queue/archive entries can overlap, expire or be absent under retention/policy. App names, raw signatures/parameters, file names and dump contents are not read into this view."
         : "Select a stored-report observation to inspect its source and recorded time. Retention, access, OS/API support and bounded coverage limit this corroborating evidence; no records does not mean healthy.";
+    private static string WerStoreStatusText(WerMetadataStoreStatus source)
+    {
+        string explanation = source.Reason switch
+        {
+            WerMetadataStoreReason.SuccessfulOpenReturnedNullHandle => "Windows returned success without a usable store handle. Store reading remains Unknown; this is not evidence of an empty store.",
+            WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey => "Windows returned success without a usable report key. Enumeration remains Unknown; this is not evidence of no reports.",
+            WerMetadataStoreReason.StoreOpenFailed => "Windows could not open this store. Review existing WER access/service policy before retrying; MadClean requests no elevation.",
+            WerMetadataStoreReason.EnumerationFailed => "Windows did not complete report-key enumeration; existing history coverage remains incomplete.",
+            WerMetadataStoreReason.EnumerationComplete => "Windows completed the current bounded key enumeration; this does not establish complete incident history or system health.",
+            WerMetadataStoreReason.BudgetExpired => "The metadata time budget expired; additional records remain unknown.",
+            WerMetadataStoreReason.RecordLimitReached => "The report-key limit was reached; additional records remain unknown.",
+            WerMetadataStoreReason.MetadataQueryFailed => "Some report metadata was unreadable; usable references do not establish complete coverage.",
+            _ => "The source response was missing, ambiguous or unqualified; no complete-store conclusion is possible."
+        };
+        string result = source.LastNativeResult is int code ? $"0x{unchecked((uint)code):X8}" : "not observed";
+        return $"{WerMetadataProjection.Label(source.Store)} · {source.State}: {explanation} Last observed API result: {result}.";
+    }
     private void InitializeWerMetadata() => ReadWerMetadataCommand = new AsyncCommand(ReadWerMetadata, () => !IsBusy);
     private void InvalidateWerMetadata()
     {
@@ -43,6 +60,7 @@ public sealed partial class MainViewModel
         {
             foreach (var item in report.Observations) WerRows.Add(item);
             foreach (var item in report.Coverage) WerCoverage.Add(item);
+            foreach (var source in report.StoreStatuses) WerCoverage.Add(WerStoreStatusText(source));
             WerWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
         }
         WerMessage = Stamp(result.State, result.Message);

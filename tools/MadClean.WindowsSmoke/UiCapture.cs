@@ -75,6 +75,7 @@ internal static class UiCapture
                 var updates = Descendants<TabControl>(window).Single(control => control.Items.OfType<TabItem>().Any(item => Equals(item.Header, "BIOS / Firmware")));
                 updates.SelectedItem = updates.Items.OfType<TabItem>().Single(item => Equals(item.Header, "BIOS / Firmware"));
                 await Idle(window);
+                AssertSectionTitleContrast(window);
                 var historyCheck = Descendants<Button>(window).Single(button => Equals(button.Content, "Check supported official history"));
                 var historyReview = Descendants<Button>(window).Single(button => Equals(button.Content, "Review official release notes"));
                 if (!ReferenceEquals(historyCheck.Command, model.CheckFirmwareHistoryCommand) ||
@@ -89,7 +90,7 @@ internal static class UiCapture
                 if (!historyCheck.IsVisible || !ValidSize(historyCheck) || !historyReview.IsVisible || !ValidSize(historyReview))
                     throw new SmokeAssertionException("ui-firmware-history-layout");
                 Capture(window, output, "tool-18.png", report);
-                report.Pass("ui-primary-navigation", "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions.");
+                report.Pass("ui-primary-navigation", "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions. The resolved Update center title wraps and exceeds4.5:1 against every actual root gradient stop; this is a scoped style check, not an accessibility audit.");
 
                 var links = model.ToolNavigationItems.ToArray();
                 if (links.Length is < 7 or > 24 || links.Select(link => link.Page).Distinct().Count() != links.Length)
@@ -155,9 +156,29 @@ internal static class UiCapture
             model.CheckFirmwareHistoryCommand == null || model.ReviewFirmwareHistorySourceCommand == null ||
             model.CheckFirmwareHistoryCommand.CanExecute(null) || model.ReviewFirmwareHistorySourceCommand.CanExecute(null))
             throw new SmokeAssertionException("ui-firmware-history-unchecked");
+        if (model.AnalyzeDiskIdentitiesCommand == null || model.AnalyzeDiskIdentitiesCommand.CanExecute(null) || model.DiskIdentityRows.Count != 0 || model.DiskIdentityCoverage.Count != 0)
+            throw new SmokeAssertionException("ui-disk-identity-unchecked");
         if (model.PreviewInstalledAppPlanCommand == null || model.ReviewInstalledAppHandoffCommand == null ||
             model.PreviewInstalledAppPlanCommand.CanExecute(null) || model.ReviewInstalledAppHandoffCommand.CanExecute(null))
             throw new SmokeAssertionException("ui-installed-app-no-plan");
+    }
+
+    private static void AssertSectionTitleContrast(MainWindow window)
+    {
+        var title = Descendants<TextBlock>(window).Single(block => block.IsVisible && block.Text == "Update center");
+        if (title.Foreground is not SolidColorBrush foreground || foreground.Color.A != 255 || foreground.Opacity != 1 ||
+            title.TextWrapping != TextWrapping.Wrap || window.Background is not GradientBrush background || background.Opacity != 1)
+            throw new SmokeAssertionException("ui-section-title-style");
+        static double Luminance(Color color)
+        {
+            static double Linear(byte value) => value / 255d <= 0.04045 ? value / 255d / 12.92 : Math.Pow((value / 255d + 0.055) / 1.055, 2.4);
+            return 0.2126 * Linear(color.R) + 0.7152 * Linear(color.G) + 0.0722 * Linear(color.B);
+        }
+        double text = Luminance(foreground.Color);
+        if (background.GradientStops.Count == 0 || background.GradientStops.Any(stop => stop.Color.A != 255 ||
+            (Math.Max(text, Luminance(stop.Color)) + 0.05) / (Math.Min(text, Luminance(stop.Color)) + 0.05) < 4.5))
+            throw new SmokeAssertionException("ui-section-title-contrast");
+        // Scoped resolved brush/style assertion, not a full accessibility or pixel/DPI audit.
     }
 
     private static void AssertVisibleControls(MainWindow window)

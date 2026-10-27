@@ -15,6 +15,7 @@ public static class WerMetadataProjection
             snapshots == null || snapshots.Count > 4)
             return CheckResult<WerMetadataReport>.Empty(CheckState.Unknown, "WER metadata boundaries/sources are invalid; no store observations were trusted.");
         List<WerMetadataObservation> observations = [];
+        List<WerMetadataStoreStatus> statuses = [];
         List<string> coverage =
         [
             $"Explicit local machine queue/archive metadata, fixed UTC creation-time interval [{startUtc:O}, {endUtc:O}). At most {MaximumRecordsPerStore} report keys inspected per store; enumeration order is not a documented chronological order.",
@@ -30,8 +31,27 @@ public static class WerMetadataProjection
             string name = Label(store);
             var matches = snapshots.Where(snapshot => snapshot != null && snapshot.Store == store).ToArray();
             if (matches.Length != 1)
-            { partial = true; coverage.Add($"{name}: {(matches.Length == 0 ? "missing" : "duplicate/ambiguous")} source response; coverage unknown."); continue; }
+            {
+                partial = true; coverage.Add($"{name}: {(matches.Length == 0 ? "missing" : "duplicate/ambiguous")} source response; coverage unknown.");
+                statuses.Add(new(store, CheckState.Unknown, 0, 0, 0, 0, false, null,
+                    matches.Length == 0 ? WerMetadataStoreReason.MissingSourceResponse : WerMetadataStoreReason.AmbiguousSourceResponse));
+                continue;
+            }
             var source = matches[0];
+            if (!Enum.IsDefined(source.State) || !Enum.IsDefined(source.Reason) ||
+                source.Records == null || source.InspectedKeys < 0 || source.InspectedKeys > MaximumRecordsPerStore ||
+                source.MetadataFailures < 0 || source.MetadataFailures > source.InspectedKeys ||
+                source.Records.Count > source.InspectedKeys || source.Records.Count > MaximumRecordsPerStore ||
+                (source.Reason is WerMetadataStoreReason.SuccessfulOpenReturnedNullHandle or WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey &&
+                    (source.State != CheckState.Unknown || source.LastNativeResult != 0)))
+            {
+                partial = true; coverage.Add($"{name}: inconsistent/bounded metadata counts or diagnostic state; source observations were not trusted.");
+                statuses.Add(new(store, CheckState.Unknown, 0, 0, 0, 0, false, source.LastNativeResult ?? source.NativeError,
+                    WerMetadataStoreReason.InvalidSourceResponse));
+                continue;
+            }
+            WerMetadataStoreStatus Status(int projected = 0) => new(store, source.State, source.InspectedKeys, source.Records.Count,
+                projected, source.MetadataFailures, source.Truncated, source.LastNativeResult ?? source.NativeError, source.Reason);
             string code = source.NativeError.HasValue ? $" Native code 0x{unchecked((uint)source.NativeError.Value):X8}." : "";
             if (source.State is not (CheckState.Available or CheckState.Partial))
             {
@@ -51,12 +71,9 @@ public static class WerMetadataProjection
                     CheckState.Cancelled => "Collection did not complete; no empty-store conclusion is valid.",
                     _ => "Source was not completed or returned an unrecognized state; no records trusted."
                 }) + code);
+                statuses.Add(Status());
                 continue;
             }
-            if (source.Records == null || source.InspectedKeys < 0 || source.InspectedKeys > MaximumRecordsPerStore ||
-                source.MetadataFailures < 0 || source.MetadataFailures > source.InspectedKeys ||
-                source.Records.Count > source.InspectedKeys || source.Records.Count > MaximumRecordsPerStore)
-            { partial = true; coverage.Add($"{name}: inconsistent/bounded metadata counts; source observations were not trusted."); continue; }
             completed++;
             if (source.State == CheckState.Partial || source.Truncated || source.MetadataFailures > 0 || source.NativeError.HasValue) partial = true;
             var accepted = new Dictionary<Guid, DateTimeOffset>();
@@ -78,6 +95,7 @@ public static class WerMetadataProjection
                 accepted.Add(row.ReportId, created);
             }
             var withinWindow = accepted.Where(row => row.Value >= startUtc && row.Value < endUtc).ToArray();
+            statuses.Add(Status(withinWindow.Length));
             observations.AddRange(withinWindow.Select(row => new WerMetadataObservation(name, row.Key, row.Value,
                 "Stored WER report", $"WerStoreQueryReportMetadataV1 / {name}")));
             coverage.Add($"{name}: {source.State}; {source.InspectedKeys} keys inspected, {withinWindow.Length} usable references in the selected creation-time window, {outside} outside-window records, {source.MetadataFailures} metadata query failures, {invalid} invalid records, {duplicates} duplicate/conflicting references omitted." +
@@ -93,7 +111,8 @@ public static class WerMetadataProjection
             : unsupported == 2 ? CheckState.Unsupported
             : unavailable > 0 ? CheckState.Unavailable : CheckState.Unknown;
         var report = new WerMetadataReport(startUtc, endUtc,
-            observations.OrderByDescending(row => row.CreatedUtc).ThenBy(row => row.Store, StringComparer.Ordinal).ToArray(), coverage);
+            observations.OrderByDescending(row => row.CreatedUtc).ThenBy(row => row.Store, StringComparer.Ordinal).ToArray(), coverage)
+            { StoreStatuses = statuses.ToArray() };
         return new(state, "Existing WER store metadata only. Review source coverage and report creation times; no unique-crash, cause, health, repair or upload-success conclusion is made.", [report]);
     }
 
