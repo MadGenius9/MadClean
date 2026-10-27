@@ -49,67 +49,122 @@ public sealed partial class MainViewModel
         CaptureApplicationBaselineCommand = new AsyncCommand(() => RefreshInstalledApplications(true), () => !IsBusy);
         ReviewLeftoversCommand = new AsyncCommand(ReviewLeftovers, () => !IsBusy && applicationBaseline != null);
     }
-    private Task RefreshInstalledApplications(bool capture) => RunDiscoveryAsync(ActivityArea.InstalledApplications, "Reading installed app registrations", async token =>
+    private Task RefreshInstalledApplications(bool capture)
     {
-        InvalidateLeftoverContents();
-        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
-        if (capture)
+        bool refreshStarted = false, refreshPublished = false;
+        return RunDiscoveryAsync(ActivityArea.InstalledApplications, "Reading installed app registrations", async token =>
         {
-            applicationBaseline = null; LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
-            LeftoverMessage = "The previous review was invalidated. Capture a complete new baseline before reviewing registration changes.";
-            ApplicationBaselineMessage = "Capturing a new baseline; a complete successful inventory is required.";
-        }
-        InstalledMessage = "Reading covered Add/Remove Programs registrations…";
-        var result = await installedApplications.ScanAsync(token); token.ThrowIfCancellationRequested();
-        await PublishInstalledApplications(result, token);
-        if (capture)
-        {
-            if (result.State == CheckState.Available)
+            InvalidateLeftoverContents();
+            LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
+            LeftoverMessage = applicationBaseline == null
+                ? "The prior registration-change review was invalidated. Capture a complete baseline before reviewing changes; no current absence conclusion is claimed."
+                : "The prior registration-change review was invalidated by this inventory refresh. Review changes again against the retained baseline; no current absence conclusion is claimed.";
+            BeginInstalledApplicationsRefresh();
+            refreshStarted = true;
+            if (capture)
             {
-                applicationBaseline = result.Items.ToArray();
-                ApplicationBaselineMessage = $"Complete baseline: {applicationBaseline.Count} covered registrations captured {DateTime.Now:g}. In memory for this session only.";
-                LeftoverMessage = "Baseline captured. A later complete review can compare registration changes and probe only recorded install paths; no uninstall is performed by MadClean.";
+                applicationBaseline = null;
+                LeftoverMessage = "The previous review was invalidated. Capture a complete new baseline before reviewing registration changes.";
+                ApplicationBaselineMessage = "Capturing a new baseline; a complete successful inventory is required.";
             }
-            else ApplicationBaselineMessage = "No baseline captured: the inventory was incomplete or unavailable. Resolve its errors before inferring missing registrations.";
-        }
-        return result.State;
-    }, error => { InstalledMessage = error + RegistryCancellationCaveat; if (capture) ApplicationBaselineMessage = "No baseline captured. " + error + RegistryCancellationCaveat; });
+            var result = await installedApplications.ScanAsync(token); token.ThrowIfCancellationRequested();
+            await PublishInstalledApplications(result, token);
+            refreshPublished = true;
+            if (capture)
+            {
+                if (result.State == CheckState.Available)
+                {
+                    applicationBaseline = result.Items.ToArray();
+                    ApplicationBaselineMessage = $"Complete baseline: {applicationBaseline.Count} covered registrations captured {DateTime.Now:g}. In memory for this session only.";
+                    LeftoverMessage = "Baseline captured. A later complete review can compare registration changes and probe only recorded install paths; no uninstall is performed by MadClean.";
+                }
+                else ApplicationBaselineMessage = "No baseline captured: the inventory was incomplete or unavailable. Resolve its errors before inferring missing registrations.";
+            }
+            return result.State;
+        }, error =>
+        {
+            if (refreshStarted && !refreshPublished) FailInstalledApplicationsRefresh(error);
+            if (capture)
+            {
+                applicationBaseline = null;
+                ApplicationBaselineMessage = "No baseline captured. " + error + RegistryCancellationCaveat;
+                LeftoverMessage = "No baseline captured. The previous review is invalidated; capture a complete baseline before reviewing registration changes.";
+            }
+        });
+    }
+    private void BeginInstalledApplicationsRefresh(string message = "Reading covered Add/Remove Programs registrations; no complete current inventory is displayed…")
+    {
+        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
+        InstalledApplications.Clear(); SelectedInstalledApplication = null;
+        InstalledMessage = message;
+    }
+    private void FailInstalledApplicationsRefresh(string error)
+    {
+        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
+        InstalledApplications.Clear(); SelectedInstalledApplication = null;
+        InstalledMessage = error + " No complete current installed-app inventory is displayed." + RegistryCancellationCaveat;
+    }
     private async Task PublishInstalledApplications(CheckResult<InstalledApplication> result, CancellationToken token)
     {
-        InstalledApplications.Clear(); SelectedInstalledApplication = null;
-        int count = 0;
-        foreach (var app in result.Items)
+        BeginInstalledApplicationsRefresh("Publishing covered registrations; displayed rows are incomplete until publication finishes…");
+        try
         {
-            token.ThrowIfCancellationRequested(); InstalledApplications.Add(app);
-            if (++count % 128 == 0) await Task.Delay(1, token);
+            int count = 0;
+            foreach (var app in result.Items)
+            {
+                token.ThrowIfCancellationRequested(); InstalledApplications.Add(app);
+                if (++count % 128 == 0) await Task.Delay(1, token);
+            }
+            var items = result.Items.ToArray();
+            token.ThrowIfCancellationRequested();
+            latestInstalledSnapshot = new(result.State, result.Message, items);
+            InstalledMessage = Stamp(result.State, result.Message);
         }
-        latestInstalledSnapshot = new(result.State, result.Message, result.Items.ToArray());
-        InstalledMessage = Stamp(result.State, result.Message);
+        catch (OperationCanceledException)
+        {
+            FailInstalledApplicationsRefresh("Cancelled · installed-app publication did not complete.");
+            throw;
+        }
+        catch (Exception)
+        {
+            FailInstalledApplicationsRefresh("Failed · installed-app publication did not complete.");
+            throw;
+        }
     }
-    private Task ReviewLeftovers() => RunDiscoveryAsync(ActivityArea.LeftoverReview, "Reviewing registration changes", async token =>
+    private Task ReviewLeftovers()
     {
-        InvalidateLeftoverContents();
-        latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
-        LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
-        var baseline = applicationBaseline;
-        if (baseline == null) { LeftoverMessage = "Capture a complete baseline first."; return CheckState.Unknown; }
-        LeftoverMessage = "Refreshing covered registrations; incomplete inventories will not be treated as missing apps…";
-        var result = await installedApplications.ScanAsync(token); token.ThrowIfCancellationRequested();
-        await PublishInstalledApplications(result, token);
-        if (result.State != CheckState.Available)
+        bool refreshStarted = false, refreshPublished = false;
+        return RunDiscoveryAsync(ActivityArea.LeftoverReview, "Reviewing registration changes", async token =>
         {
-            LeftoverMessage = "Unavailable for comparison: the refreshed inventory is incomplete. The complete baseline is retained; no absence or junk conclusion was made.";
-            return CheckState.Partial;
-        }
-        var review = await Task.Run(() => LeftoverReview.Compare(baseline, result.Items, path =>
-        { token.ThrowIfCancellationRequested(); return ProbeRecordedInstallDirectory(path); }), token);
-        token.ThrowIfCancellationRequested();
-        foreach (var item in review.Items) LeftoverCandidates.Add(item);
-        // A file-level preview requires a separate explicit row selection.
-        SelectedLeftoverCandidate = null;
-        LeftoverMessage = Stamp(review.State, review.Message);
-        return review.State;
-    }, error => LeftoverMessage = error + RegistryCancellationCaveat);
+            InvalidateLeftoverContents();
+            LeftoverCandidates.Clear(); SelectedLeftoverCandidate = null;
+            var baseline = applicationBaseline;
+            if (baseline == null) { LeftoverMessage = "Capture a complete baseline first."; return CheckState.Unknown; }
+            LeftoverMessage = "Refreshing covered registrations; incomplete inventories will not be treated as missing apps…";
+            BeginInstalledApplicationsRefresh();
+            refreshStarted = true;
+            var result = await installedApplications.ScanAsync(token); token.ThrowIfCancellationRequested();
+            await PublishInstalledApplications(result, token);
+            refreshPublished = true;
+            if (result.State != CheckState.Available)
+            {
+                LeftoverMessage = "Unavailable for comparison: the refreshed inventory is incomplete. The complete baseline is retained; no absence or junk conclusion was made.";
+                return CheckState.Partial;
+            }
+            var review = await Task.Run(() => LeftoverReview.Compare(baseline, result.Items, path =>
+            { token.ThrowIfCancellationRequested(); return ProbeRecordedInstallDirectory(path); }), token);
+            token.ThrowIfCancellationRequested();
+            foreach (var item in review.Items) LeftoverCandidates.Add(item);
+            // A file-level preview requires a separate explicit row selection.
+            SelectedLeftoverCandidate = null;
+            LeftoverMessage = Stamp(review.State, review.Message);
+            return review.State;
+        }, error =>
+        {
+            if (refreshStarted && !refreshPublished) FailInstalledApplicationsRefresh(error);
+            LeftoverMessage = error + RegistryCancellationCaveat;
+        });
+    }
     private static bool? ProbeRecordedInstallDirectory(string path)
     {
         if (InstalledApplicationPaths.NormalizeLocalDirectory(path) is not string local || !Path.IsPathFullyQualified(local)) return null;

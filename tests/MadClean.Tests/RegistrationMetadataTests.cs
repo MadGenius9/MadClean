@@ -103,6 +103,33 @@ public sealed class RegistrationMetadataTests
     }
 
     [Fact]
+    public void SupplementaryCharacterAtFieldBoundaryCountsBothUtf16CodeUnits()
+    {
+        const string literal = "ab𐐀";
+        var accepted = Text(literal + "\0", maximum: 4);
+        Assert.Equal(RegistrationMetadataState.Valid, accepted.State);
+        Assert.Equal(literal, accepted.Value);
+        var rejected = Text(literal + "\0", maximum: 3);
+        Assert.Equal(RegistrationMetadataState.Invalid, rejected.State);
+        Assert.Null(rejected.Value);
+    }
+
+    [Fact]
+    public void InvalidMetadataDoesNotEchoPrivateProviderTextIntoErrors()
+    {
+        const string privateSentinel = "private-metadata-397b1c7f";
+        foreach (string malformed in new[] { privateSentinel, privateSentinel + "\0hidden\0", privateSentinel + "\u202e\0" })
+        {
+            var result = Text(malformed);
+            Assert.Equal(RegistrationMetadataState.Invalid, result.State);
+            Assert.Null(result.Value);
+            Assert.NotEmpty(result.Issue);
+            Assert.DoesNotContain(privateSentinel, result.Issue, StringComparison.Ordinal);
+            Assert.InRange(result.Issue.Length, 1, 256);
+        }
+    }
+
+    [Fact]
     public void CancellationWinsEvenForMalformedInputsBeforeAnyDecode()
     {
         using var stop = new CancellationTokenSource(); stop.Cancel();

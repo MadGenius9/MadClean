@@ -22,6 +22,8 @@ Limits are 128 files, 128 directories, depth eight and 256 issues. The native ad
 
 ## Validation and remaining work
 
+Refreshing registrations invalidates the previous candidate list and its absence claims; an existing complete baseline may be retained for a new comparison. The selected-content flow retains its candidate only as explicitly labeled historical evidence while refreshing registrations and validating its exact scope again. Installed-app row publication has a separate incomplete state: cancellation/failure clears partly published rows and cannot leave an older complete status attached to a new partial list. A subsequent folder-preview failure does not invalidate an already completed registration inventory.
+
 Portable tests cover incomplete snapshots, missing/still-present/duplicate selected identities, exact-path substitution and widening, protected paths despite misleading cautions, all known-root overlap directions, neighboring path prefixes, unknown ownership coverage, descendant exclusions, malformed names, bounds and cancellation. They do not validate Windows handles, local volumes, path races, active-use status or GUI rendering. Native validation and full builds are coordinated separately; synthetic registrations and identity strings are test fixtures, not production inventory.
 
 This metadata preview is not reviewed deletion. A future action would need a separate explicit scope and evidence review, actual complete candidate/retained-data protections, final identity revalidation and supported bounded action/recovery semantics. It must never infer that shared dependencies, user data, saves, settings or unknown-owned files are safe to remove. Restore points do not recover deleted files. No deletion executor is introduced here.

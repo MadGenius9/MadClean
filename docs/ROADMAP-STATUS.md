@@ -31,7 +31,9 @@ A20-second cooperative worker and30-second caller wait preserve responsiveness. 
 
 ## Validation evidence
 
-The latest local locked restore and full Release solution build passed with **zero warnings/errors and809 .NET tests passed**. Python evidence tests: **70 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
+The latest local locked restore and full Release solution build passed with **zero warnings/errors and811 .NET tests passed**. Python evidence tests: **70 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
+
+The latest local reporting fix invalidates old leftover candidates on ordinary registration refresh, labels retained selected-content candidates as historical, and prevents interrupted row publication from retaining an older complete inventory status. A later folder-preview failure preserves an already completed app inventory. Two decoder regressions cover exact UTF-16 supplementary-character capacity and private malformed-text error suppression. These UI interactions still need Windows runtime validation; GitHub authentication remains invalid and no new CI run or ZIP is claimed.
 
 | Actual Windows implementation run | Observed results | Limits |
 | --- | --- | --- |
