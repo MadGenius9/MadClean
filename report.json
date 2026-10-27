@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "8d58f8a40bba55c85aed88882362e798e3d9f99e",
-  "runId": "40451768469",
+  "sourceCommit": "b523d09ca0c8931d59f452cf5ec44660abf00e3e",
+  "runId": "40455044689",
   "runAttempt": 1,
-  "startedUtc": "2026-10-27T04:52:40.296704+00:00",
-  "completedUtc": "2026-10-27T04:52:50.8360419+00:00",
+  "startedUtc": "2026-10-27T05:28:12.6711396+00:00",
+  "completedUtc": "2026-10-27T05:28:24.4213226+00:00",
   "passed": true,
   "state": "passed",
   "checks": [
@@ -66,7 +66,12 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+    },
+    {
+      "name": "hardware-metadata-contract",
+      "state": "passed",
+      "detail": "Native H1 state=Partial; projectedFacts=41; sourceClasses=6; pcRecords=1; schemaValid=true; pcSourceComplete=true. This attests the bounded PC source response only, not value accuracy, single-machine identity, supported hardware, manufacturer matching or compatibility. All returned hardware values are withheld."
     },
     {
       "name": "startup-fixture-inventory",
@@ -121,7 +126,7 @@
       "file": "tool-11.png",
       "width": 1404,
       "height": 961,
-      "sha256": "9ff7ec6371e06ada4406d2e0e5813ead83341191f9e74a62a02aae4926a7797e"
+      "sha256": "992e8cf3ede55ab263f9cbcb4556785878370b3f0f01e60f49a15e4e992c2d7a"
     },
     {
       "file": "tool-12.png",
