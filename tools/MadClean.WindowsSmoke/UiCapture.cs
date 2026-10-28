@@ -102,11 +102,33 @@ internal static class UiCapture
                     await Idle(window);
                     if (model.SelectedPage != link.Page || model.SelectedToolNavigation?.Page != link.Page || primary.SelectedIndex != -1)
                         throw new SmokeAssertionException("ui-tool-route");
+                    if (link.Page == 6)
+                    {
+                        var verify = Descendants<Button>(window).Single(button => Equals(button.Content, "Verify selected MSI metadata"));
+                        if (!ReferenceEquals(verify.Command, model.VerifyMsiRegistrationCommand) || verify.IsEnabled ||
+                            !verify.IsVisible || !ValidSize(verify))
+                            throw new SmokeAssertionException("ui-msi-command-binding");
+                        AssertNoInventory(model);
+                        var title = Descendants<TextBlock>(window).Single(block => block.IsVisible && block.Text == "Windows Installer registration evidence");
+                        title.BringIntoView();
+                        await Idle(window);
+                        if (window.Content is not FrameworkElement client || !title.IsVisible || !ValidSize(title))
+                            throw new SmokeAssertionException("ui-msi-panel-layout");
+                        Point origin = title.TranslatePoint(new Point(), client);
+                        if (!double.IsFinite(origin.X) || !double.IsFinite(origin.Y) || origin.X < -1 || origin.Y < -1 ||
+                            origin.X + title.ActualWidth > client.ActualWidth + 1 || origin.Y + title.ActualHeight > client.ActualHeight + 1)
+                            throw new SmokeAssertionException("ui-msi-panel-bounds");
+                        var rows = Descendants<DataGrid>(window).Single(grid => AutomationProperties.GetName(grid) == "Selected Windows Installer context and reported metadata");
+                        if (!ReferenceEquals(rows.ItemsSource, model.MsiRegistrationRows) || rows.Items.Count != 0)
+                            throw new SmokeAssertionException("ui-msi-rows-binding");
+                        // Actual scrolled subview, not a new navigation route or synthetic data.
+                        Capture(window, output, "tool-20.png", report);
+                    }
                     if (link.Page == 8) Capture(window, output, "tool-19.png", report);
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
                     AssertNoInventory(model);
                 }
-                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages were captured.");
+                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages and the actual scrolled initially unchecked MSI panel were captured; its command/empty rows bind to the production view model without executing a query.");
 
                 model.SelectedPage = 0;
                 await Idle(window);
@@ -164,6 +186,9 @@ internal static class UiCapture
         if (model.PreviewInstalledAppPlanCommand == null || model.ReviewInstalledAppHandoffCommand == null ||
             model.PreviewInstalledAppPlanCommand.CanExecute(null) || model.ReviewInstalledAppHandoffCommand.CanExecute(null))
             throw new SmokeAssertionException("ui-installed-app-no-plan");
+        if (model.VerifyMsiRegistrationCommand == null || model.VerifyMsiRegistrationCommand.CanExecute(null) ||
+            model.MsiRegistrationRows.Count != 0 || model.MsiRegistrationCoverage.Count != 0)
+            throw new SmokeAssertionException("ui-msi-registration-unchecked");
     }
 
     private static void AssertSectionTitleContrast(MainWindow window)

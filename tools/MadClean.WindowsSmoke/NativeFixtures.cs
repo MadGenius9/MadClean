@@ -22,7 +22,8 @@ internal static partial class NativeFixtures
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
             DefenderStatus(report, token);
-            InstalledRegistrations(report, token);
+            var registrations = InstalledRegistrations(report, token);
+            MsiRegistrations(registrations, report, token);
             BoundedRegistrations(fixture, report, token);
             WerMetadata(report, token);
             HardwareMetadata(report, token);

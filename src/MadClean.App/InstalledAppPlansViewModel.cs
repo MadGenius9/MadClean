@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
 
     private void InitializeInstalledAppPlans()
     {
+        InitializeMsiRegistration();
         PreviewInstalledAppPlanCommand = new ActionCommand(PreviewInstalledAppPlan,
             () => !IsBusy && latestInstalledSnapshot != null && selectedApplication != null);
         ReviewInstalledAppHandoffCommand = new ActionCommand(ReviewInstalledAppHandoff,
@@ -20,6 +21,7 @@ public sealed partial class MainViewModel
     }
     private void InvalidateInstalledAppPlan()
     {
+        InvalidateMsiRegistration();
         installedAppPlan = null;
         InstalledAppPlanDetails = "No current preview. Select a registration and prepare a fresh review plan; incomplete, restricted or ambiguous metadata cannot authorize a plan.";
         CommandManager.InvalidateRequerySuggested();

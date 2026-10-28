@@ -8,14 +8,14 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
-    private static void InstalledRegistrations(SmokeReport report, CancellationToken token)
+    private static CheckResult<InstalledApplication>? InstalledRegistrations(SmokeReport report, CancellationToken token)
     {
         const string check = "installed-registration-contract";
         var inventory = new InstalledApplicationInventory();
         if (inventory.HasPendingNativeRead)
         {
             report.Unknown(check, "An earlier registration worker is pending; no second query or cancellation experiment was started. Native registration metadata remains unverified.");
-            return;
+            return null;
         }
         try
         {
@@ -33,7 +33,7 @@ internal static partial class NativeFixtures
             if (!cancellationObserved || inventory.HasPendingNativeRead)
             {
                 report.Fail(check, "Pre-cancellation did not remain a cancelled/empty result or exception with no pending registration worker. No second query was started.");
-                return;
+                return null;
             }
             // Explicit actual CI-host metadata read, not a synthetic app list or ARP write.
             // No command value, executable, uninstall mechanism dispatch or plan is requested.
@@ -43,25 +43,27 @@ internal static partial class NativeFixtures
             if (inventory.HasPendingNativeRead)
             {
                 report.Unknown(check, $"Registration state={result.State}; preCancellationObserved=true; pendingWorker=true. The bounded caller returned while native work remains owned by its worker; no completed inventory proof or forced cancellation is claimed.");
-                return;
+                return null;
             }
             if (result.State is not (CheckState.Available or CheckState.Partial) || result.Items.Count == 0)
             {
                 report.Unknown(check, $"Registration state={result.State}; itemCount={result.Items.Count}; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=false. Missing/empty/incomplete/unavailable metadata is not proof of no installed applications or completed coverage.");
-                return;
+                return null;
             }
             var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (result.Items.Count > 20_000 || result.Items.Any(app => !ValidInstalledRegistration(app, before, after, result.State) || !identities.Add(app.Identity)))
             {
                 report.Fail(check, "Actual registration projection violated its bound, unique fixed-source identity, normalized local path, typed metadata/evidence or observation-time contract. All offending values, identifiers, paths and provider text are withheld.");
-                return;
+                return null;
             }
             report.Pass(check, $"Registration state={result.State}; itemCount={result.Items.Count}; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. " +
                 "This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed.");
+            return result; // In-memory reuse only; the distinct selected MSI check owns its verdict.
         }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
         {
             report.Unknown(check, $"The bounded registration metadata fixture did not complete (code 0x{ex.HResult:X8}); actualMetadataVerified=false. A native worker may still own pending handles; no force-close, empty-inventory conclusion or metadata export occurred.");
+            return null;
         }
     }
 

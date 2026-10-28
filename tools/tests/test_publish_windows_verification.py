@@ -133,6 +133,20 @@ class PublisherTests(unittest.TestCase):
     def test_passing_empty_or_incomplete_check_set_is_rejected(self):
         for checks in ([],self.report['checks'][:-1]):
             self.report['checks']=checks; self.save(); self.rejected()
+    def test_passing_report_cannot_omit_selected_msi_native_proof(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-registration-contract']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_msi_panel_capture(self):
+        self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-20.png']
+        self.save(); self.rejected()
+    def test_selected_msi_inconclusive_cannot_be_promoted_by_other_passing_evidence(self):
+        msi=next(check for check in self.report['checks'] if check['name']=='msi-registration-contract')
+        msi.update(state='inconclusive',detail='TEST-ONLY no exact selected MSI match; no real metadata')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='msi-registration-contract')['state'])
     def test_contradictory_pass_and_check_state_is_rejected(self):
         self.report['checks'][0]['state']='failed'; self.save(); self.rejected()
     def test_duplicate_check_names_are_rejected(self):
