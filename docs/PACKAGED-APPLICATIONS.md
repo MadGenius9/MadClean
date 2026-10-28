@@ -32,6 +32,8 @@ Portable tests cover strict scope/schema/field privacy, successful empty and sou
 
 No uninstall action or eligibility token exists. NonRemovable=false, SignatureKind=Store/System or a known version never grants removal permission, establishes integrity/running state or proves a supported cleanup target. Other profiles, framework/resource/optional/dependency packages, provisioning, portable apps and unregistered software remain outside this source.
 
+Actual [Windows run40721260816](https://github.com/MadGenius9/MadClean/actions/runs/40721260816), sourcecdf476b, returned48 actual Available package rows with valid projected schema and pre-cancellation observed. The initial empty package view and extracted desktop/MSI bindings passed, and genuine tool21/tool20 captures were inspected. The retained desktop search interaction also passed on59 loaded registrations/1 match. These checks export no package values and do not exercise populated package filtering, every provider policy or physical keyboard/accessibility. Core records reconcile878 Passed/10 NotExecuted.31 scoped checks passed; WER alone remains inconclusive, so aggregate validation is not a complete pass. Packaging was skipped.
+
 ## Official references
 
 Current official Microsoft sources were retrieved successfully during implementation; Learn proxy failures were not treated as API unavailability:
