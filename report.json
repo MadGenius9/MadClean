@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "dc5f5a40d7bf5bd1d36edfb68090e13a72d07cca",
-  "runId": "40722749952",
+  "sourceCommit": "1cb04995e2e3357a34e748c7137632fb315d9d1a",
+  "runId": "40726931566",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T16:11:21.6559893+00:00",
-  "completedUtc": "2026-10-28T16:11:33.7485814+00:00",
+  "startedUtc": "2026-10-28T16:36:06.6305059+00:00",
+  "completedUtc": "2026-10-28T16:36:19.0310141+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -44,6 +44,11 @@
       "detail": "Actual loadedRegistrationCount=59; positiveMatchCount=1; textboxBindingVerified=true; clearRestoresLoadedRows=true; hiddenSelectionCleared=true; fullInventoryAndBaselineUnchanged=true; noExtraActivity=true. One explicit bounded CI ARP refresh supplied real metadata; filtering started no further query/action. No screenshots were taken after metadata loading, and no names, publishers, query text, identities or provider output are exported. Coverage remains the original inventory state; no-match is not absence proof."
     },
     {
+      "name": "ui-packaged-app-search",
+      "state": "passed",
+      "detail": "Package sourceState=Available; actualLoadedRowCount=48; positiveMatchCount=1; textboxBindingVerified=true; exactSelectionAndDetailsVerified=true; hiddenSelectionAndDetailsCleared=true; clearRestoresSameRows=true; desktopSourceBaselineAndStatusUnchanged=true; noExtraFilterActivity=true. One explicit production current-user package getter supplied real rows after all captures and desktop search. No package values, query text, details, provider messages or later screenshots exported. Partial coverage remains incomplete; no-match is not absence proof, and no deployment or other package action occurred."
+    },
+    {
       "name": "duplicate-content-fixtures",
       "state": "passed",
       "detail": "Native fixture observations group equal bytes across different names, retain independent identities and exclude a same-size different-content file. Provider state Partial; this is scoped fixture evidence only."
@@ -81,7 +86,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=21; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
