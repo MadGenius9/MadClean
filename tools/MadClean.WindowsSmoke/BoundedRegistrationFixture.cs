@@ -14,6 +14,7 @@ internal static partial class NativeFixtures
         const string check = "bounded-registration-fixture";
         BoundedFixtureRegistry? owned = null;
         bool verified = false, removed = false;
+        bool nativeUnterminatedEstablished = false, normalizedUnterminatedSeed = false;
         string? textFailureDetail = null;
         try
         {
@@ -43,7 +44,43 @@ internal static partial class NativeFixtures
             Text("over-cap", 1, Encoding.Unicode.GetBytes(maximum + "X\0"), RegistrationMetadataState.Invalid, null);
             Text("binary-type", 3, Encoding.Unicode.GetBytes("Wrong binary type\0"), RegistrationMetadataState.Invalid, null);
             Text("odd-bytes", 1, [65, 0, 0], RegistrationMetadataState.Invalid, null);
-            Text("unterminated", 1, [65, 0], RegistrationMetadataState.Invalid, null);
+            // RegSetValueExW requires terminated input; malformed fixture writes need not retain
+            // the requested representation. Observe only this owned value's actual stored shape.
+            // RegQueryValueExW itself does not guarantee termination: production stays strict.
+            // https://learn.microsoft.com/windows/win32/api/winreg/nf-winreg-regsetvalueexw
+            // https://learn.microsoft.com/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
+            byte[] unterminatedSeed = [65, 0], stored = new byte[8];
+            try
+            {
+                Write("DisplayName", 1, unterminatedSeed);
+                uint storedCount = 0;
+                int shapeCode = RegQueryValueExW(key.Handle, "DisplayName", 0, out uint storedType, null, ref storedCount);
+                if (shapeCode != 0 || storedType != 1 || storedCount is not (2 or 4))
+                {
+                    textFailureDetail = $"Owned unterminated seed shape probeCode={shapeCode}; storedType={storedType}; storedBytes={storedCount}; recognizedShape=false. No values or paths exported.";
+                    throw new SmokeAssertionException("bounded-unterminated-seed-size");
+                }
+                uint received = (uint)stored.Length;
+                int readCode = RegQueryValueExW(key.Handle, "DisplayName", 0, out uint receivedType, stored, ref received);
+                bool shape = readCode == 0 && receivedType == storedType && received == storedCount &&
+                    stored[0] == 65 && stored[1] == 0 && (storedCount == 2 || stored[2] == 0 && stored[3] == 0);
+                if (!shape)
+                {
+                    textFailureDetail = $"Owned unterminated seed fixed-buffer readCode={readCode}; receivedType={receivedType}; receivedBytes={received}; queriedBytes={storedCount}; recognizedShape=false. No values or paths exported.";
+                    throw new SmokeAssertionException("bounded-unterminated-seed-shape");
+                }
+                nativeUnterminatedEstablished = storedCount == 2;
+                normalizedUnterminatedSeed = storedCount == 4;
+                var observed = BoundedRegistrationMetadata.ReadText(key.Handle, "DisplayName", Check, token);
+                var expected = nativeUnterminatedEstablished ? RegistrationMetadataState.Invalid : RegistrationMetadataState.Valid;
+                bool match = observed.Value == (nativeUnterminatedEstablished ? null : "A");
+                if (observed.State != expected || observed.NativeError != 0 || !match)
+                {
+                    textFailureDetail = $"Owned text case=unterminated-observed-shape; expectedState={expected}; observedState={observed.State}; nativeCode={observed.NativeError}; valueMatch={match}; nativeUnterminatedEstablished={nativeUnterminatedEstablished}; normalizedSeed={normalizedUnterminatedSeed}. No values or paths exported.";
+                    throw new SmokeAssertionException("bounded-unterminated-reader");
+                }
+            }
+            finally { Array.Clear(unterminatedSeed); Array.Clear(stored); }
             Text("embedded-nul", 1, [65, 0, 0, 0, 66, 0, 0, 0], RegistrationMetadataState.Invalid, null);
             Text("unpaired-surrogate", 1, [0, 216, 0, 0], RegistrationMetadataState.Invalid, null);
             const string literal = "%MADCLEAN_BOUNDED_FIXTURE_ONLY%\\literal";
@@ -134,7 +171,10 @@ internal static partial class NativeFixtures
             { report.Unknown("bounded-registration-teardown", $"Exact owned registry subtree teardown could not complete (code 0x{ex.HResult:X8}); no broader registry removal attempted."); }
         }
         if (verified && removed)
-            report.Pass(check, "Owned registry fixture verified bounded literal/empty/max/over-cap text, malformed types/termination/UTF16, strict DWORD flags, missing values, 255-character key enumeration/end, pre-call cancellation and uninstall-presence/API separation. seededBytesBelow64KiB=true; ownChildCount=2; nativeEndCode=259; exactMarkerTeardownVerified=true. No names/paths/values/hashes exported; no actual ARP/startup/command metadata touched. Runtime presence checks do not instrument lpData: NULL-data/no-command-read and fixed-allocation claims additionally rely on reviewed helper source.");
+            report.Pass(check, "Owned registry fixture verified bounded literal/empty/max/over-cap text, wrong types/odd bytes/embedded NUL/invalid UTF16, DWORD flags, missing values, 255-character key enumeration/end, pre-call cancellation and presence/API separation. " +
+                $"nativeUnterminatedEstablished={(nativeUnterminatedEstablished ? "true" : "false")}; normalizedUnterminatedSeed={(normalizedUnterminatedSeed ? "true" : "false")}; " +
+                (normalizedUnterminatedSeed ? "The owned unterminated request was stored as an exact terminated representation; native unterminated rejection remains unverified. " : "Exact stored unterminated bytes were rejected. ") +
+                "seededBytesBelow64KiB=true; ownChildCount=2; nativeEndCode=259; exactMarkerTeardownVerified=true. No names/paths/values/hashes exported; no actual ARP/startup/command metadata touched. NULL-data/no-command-read and fixed-allocation claims also rely on helper source review, not native-call instrumentation.");
         else if (verified)
             report.Unknown(check, "Owned metadata assertions completed, but exact marker-verified teardown did not complete; fixture is not a full pass.");
     }
