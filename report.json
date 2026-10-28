@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "84cccf9b374572a059fc22af3a1362f45dffce64",
-  "runId": "40699262668",
+  "sourceCommit": "cb8cde530b8ab883ed5cbaeb7a5dfab01dfcc261",
+  "runId": "40704430916",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T13:48:45.1750671+00:00",
-  "completedUtc": "2026-10-28T13:48:53.7785134+00:00",
+  "startedUtc": "2026-10-28T14:20:54.6926533+00:00",
+  "completedUtc": "2026-10-28T14:21:03.5080043+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -144,6 +144,11 @@
       "detail": "The hard gate rejects an acknowledged dummy repair descriptor with Unavailable/no elevation/no PID. The harness did not Prepare a tool identity, start servicing or request UAC; actual execution remains unverified and disabled."
     },
     {
+      "name": "startup-transaction-handle-probe",
+      "state": "passed",
+      "detail": "Isolated transaction state=Passed; rollbackObserved=True; commitObserved=True; teardownCompleted=True; pendingWorker=False; stage=rollback-and-commit-observed; nativeCode=none. Two sequential inert DWORD transactions verified handle-based enlistment rollback and commit only inside an ownership-marked development HKCU subtree. No actual startup registrations, SIDs, links, rename/concurrency cases, DPAPI recovery or production action gate exercised; durability and safe startup mutations remain unverified."
+    },
+    {
       "name": "fixture-teardown",
       "state": "passed",
       "detail": "Only the owned development fixture tree was removed; no application or personal-file cleanup action was exercised."
@@ -172,7 +177,7 @@
       "file": "tool-20.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7c0e6e58e54c885dc9044ebdc20e8290d13120adf3d334b210a862c5468db796"
+      "sha256": "1bcc7bad73c9fb92b4509a11fa2de378e65d40f7ceb8666fbbf5677d6f37b1de"
     },
     {
       "file": "tool-19.png",
@@ -223,5 +228,5 @@
       "sha256": "8452605c3fd21bf8343637e7c9214473756174bc1566d77d68c1e7c1351bfd6a"
     }
   ],
-  "limits": "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
+  "limits": "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions. No DWM/OS-DPI, exhaustive interaction, healthy/up-to-date or production-action readiness verdict."
 }
