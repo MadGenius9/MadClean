@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "c9b8554da657abaf8b6ccf555242647756071898",
-  "runId": "40695580791",
+  "sourceCommit": "84cccf9b374572a059fc22af3a1362f45dffce64",
+  "runId": "40699262668",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T13:27:51.0987564+00:00",
-  "completedUtc": "2026-10-28T13:28:04.1720408+00:00",
+  "startedUtc": "2026-10-28T13:48:45.1750671+00:00",
+  "completedUtc": "2026-10-28T13:48:53.7785134+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -31,7 +31,7 @@
     {
       "name": "ui-tool-navigation",
       "state": "passed",
-      "detail": "All 13 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages were captured."
+      "detail": "All 13 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages and the actual scrolled initially unchecked MSI panel were captured; its command/empty rows bind to the production view model without executing a query."
     },
     {
       "name": "ui-tool-popup",
@@ -76,7 +76,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 10 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=11; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -87,6 +87,11 @@
       "name": "installed-registration-contract",
       "state": "passed",
       "detail": "Registration state=Partial; itemCount=59; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed."
+    },
+    {
+      "name": "msi-registration-contract",
+      "state": "passed",
+      "detail": "MSI state=Partial; selectedQueryCount=1; instanceCount=1; actualBindingVerified=true; fixedSourceProvenanceVerified=true; preCancellationObserved=true; pendingWorker=false. A real exact-selected-product Installed context and display metadata match the reused actual ARP observation. Partial source coverage and NoRemove restrictions remain; this grants no action eligibility. No names, IDs/product codes, SID data, paths, versions, times, flags or provider messages exported. No all-products/other-user inventory, package open, install, uninstall, repair, source-path query, elevation or fixture MSI registration performed."
     },
     {
       "name": "bounded-registration-fixture",
@@ -162,6 +167,12 @@
       "width": 1404,
       "height": 961,
       "sha256": "22857d2e5fa5a6eacac477e16e4f4673e88d864de8bb99ca4e50c65b997808b6"
+    },
+    {
+      "file": "tool-20.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "7c0e6e58e54c885dc9044ebdc20e8290d13120adf3d334b210a862c5468db796"
     },
     {
       "file": "tool-19.png",
