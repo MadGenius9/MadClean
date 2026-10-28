@@ -139,6 +139,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_actual_installed_app_search_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-installed-app-search']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_populated_package_ui_proof(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-packaged-app-search']
+        self.save(); self.rejected()
+    def test_package_provider_success_cannot_promote_inconclusive_package_ui(self):
+        package_ui=next(check for check in self.report['checks'] if check['name']=='ui-packaged-app-search')
+        package_ui.update(state='inconclusive',detail='TEST-ONLY package UI supplied no usable rows; independent provider contract may pass')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='ui-packaged-app-search')['state'])
     def test_search_without_actual_rows_stays_inconclusive_despite_green_jobs(self):
         search=next(check for check in self.report['checks'] if check['name']=='ui-installed-app-search')
         search.update(state='inconclusive',detail='TEST-ONLY actual registration query returned no usable rows')

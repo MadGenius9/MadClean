@@ -31,9 +31,11 @@ A20-second cooperative worker and30-second caller wait preserve responsiveness. 
 
 ## Validation evidence
 
-The latest local locked restore and full Release solution build passed with **zero warnings/errors and888 .NET tests passed**. Python evidence tests: **82 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
+The latest local locked restore and full Release solution build passed with **zero warnings/errors and888 .NET tests passed**. Python evidence tests: **84 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
 
 Installed apps now separates desktop registrations from an explicit current-user Main/Bundle Windows-package inventory. Package fields and warnings preserve unknown/Partial coverage; no SIDs, manifests, installation paths, dependencies, other profiles or package actions are requested. Shared local Name/Publisher filtering retains separate full sources and ARP baselines. Package rows can overlap desktop and bundle/main records, so no combined unique-app count is claimed. Actual sourcecdf476b passed positive provider and nested-layout checks; the coordinator inspected the genuine unchecked package and full desktop MSI-panel captures. Populated package filtering and physical keyboard/accessibility checks remain unverified.
+
+The next required harness gate exercises actual populated package reading/search/selection/Clear through production UI bindings, after every screenshot and desktop search. It preserves separate desktop snapshots/baselines and exports only fixed counts/flags. Missing usable real rows or unfinished queries cannot become a passing interaction merely because the independent provider check passes. This additional gate still requires its own source-bound Windows result. The in-app capability queue now describes separate package/desktop coverage and the genuine Unknown WER result rather than implying a completed action milestone.
 
 The development harness tests sequential inert transaction rollback/commit through the public ordinary-handle enlistment route in a fresh ownership-marked HKCU fixture. It verifies terminal outcomes before ordinary reads and retains all fixture evidence while a worker/outcome/teardown is uncertain. This primitive passed on Windows as recorded below; it is not a production startup action or link/rename/concurrency/durable-recovery proof. Production startup mutations stay Unavailable.
 

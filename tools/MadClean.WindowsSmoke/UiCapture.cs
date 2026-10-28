@@ -13,7 +13,7 @@ using MadClean.Core;
 
 namespace MadClean.WindowsSmoke;
 
-internal static class UiCapture
+internal static partial class UiCapture
 {
     public static void Run(string output, SmokeReport report)
     {
@@ -176,6 +176,7 @@ internal static class UiCapture
                 // All captures and unchecked/navigation assertions are complete. This separate
                 // explicit CI metadata workflow must not produce any later screenshots.
                 await CheckInstalledAppSearch(window, model, report);
+                await CheckPackagedAppSearch(window, model, report);
                 completed = true;
             }
             catch (SmokeAssertionException ex)
