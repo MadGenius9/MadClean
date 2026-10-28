@@ -167,7 +167,16 @@ internal static partial class NativeFixtures
                 report.Unknown("diagnostics-metadata-contract", $"Provider state {result.State} did not establish a successfully read source; coverage remains inconclusive.");
                 return;
             }
-            report.Pass("diagnostics-metadata-contract", $"A real local metadata query returned state {result.State}, {data.Findings.Count} grouped observation(s) and {data.Coverage.Count} coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict.");
+            // Exercise the new summary with the already-read real provider result, without a
+            // second query, UI data injection, event contents or incident correlation.
+            var summary = DiagnosticRecurrenceSummaryBuilder.Build(result, DateTimeOffset.UtcNow, token);
+            if (summary.State != result.State || summary.StartUtc != data.StartUtc || summary.EndUtc != data.EndUtc ||
+                summary.ObservedRecords != data.Findings.Sum(finding => (long)finding.Count) ||
+                summary.ObservedGroups != data.Findings.Count ||
+                summary.RepeatedGroups != data.Findings.Count(finding => finding.Count >= 2) ||
+                summary.RecordsInRepeatedGroups != data.Findings.Where(finding => finding.Count >= 2).Sum(finding => (long)finding.Count))
+            { report.Fail("diagnostics-metadata-contract", "The actual projected event evidence could not produce a consistent bounded recurrence summary; no incident or health verdict was inferred."); return; }
+            report.Pass("diagnostics-metadata-contract", $"A real local metadata query returned state {result.State}, {data.Findings.Count} grouped observation(s) and {data.Coverage.Count} coverage note(s). recurrenceSummaryVerified=true; observedRecordCount={summary.ObservedRecords}; repeatedGroupCount={summary.RepeatedGroups}. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict.");
         }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
         { report.Unknown("diagnostics-provider", $"The bounded local event query could not finish (0x{ex.HResult:X8}); event-source access/coverage remains unverified."); }
