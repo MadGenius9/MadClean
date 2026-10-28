@@ -13,7 +13,15 @@
             <TextBlock Text="{Binding DiagnosticsAttempt, StringFormat='Last attempt: {0}'}" Foreground="#A9BDD3" FontSize="12"/>
             <TextBlock Text="{Binding DiagnosticsMessage}" Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsWindow}" Style="{StaticResource Caption}"/>
-            <DataGrid ItemsSource="{Binding DiagnosticRows}" SelectedItem="{Binding SelectedDiagnosticFinding, Mode=TwoWay}" Height="300" AutomationProperties.Name="Recurring event observations">
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
+                <TextBlock Text="Observed recurrence" FontSize="20"/>
+                <TextBlock Text="{Binding DiagnosticRecurrence}" Style="{StaticResource Caption}"/>
+                <CheckBox IsChecked="{Binding RepeatedDiagnosticsOnly, Mode=TwoWay}" Foreground="#ECF1FB" AutomationProperties.Name="Filter existing event observations to repeated groups">
+                    <TextBlock Text="Show repeated observations only (two or more event records)" TextWrapping="Wrap"/>
+                </CheckBox>
+                <TextBlock Text="Repeated records may describe the same incident. WER store references below are separate evidence and are never added to these totals. An empty filtered list does not mean no errors or a healthy system." Style="{StaticResource Caption}"/>
+            </StackPanel></Border>
+            <DataGrid ItemsSource="{Binding DiagnosticFindingsView}" SelectedItem="{Binding SelectedDiagnosticFinding, Mode=TwoWay}" Height="300" AutomationProperties.Name="Recurring event observations">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="CHANNEL" Binding="{Binding Channel}" Width="105"/>
                     <DataGridTextColumn Header="PROVIDER" Binding="{Binding Provider}" Width="2*" MinWidth="200"/>

@@ -58,6 +58,8 @@ public sealed partial class MainViewModel
             DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
             DiagnosticsMessage = "Time range changed. Choose Read event evidence to query the selected window.";
             DiagnosticsWindow = "Not checked for the new selection.";
+            DiagnosticsAttempt = "Not checked for the new selection";
+            ResetDiagnosticRecurrence("Time range changed. Read event evidence for the new selection.");
         }
     }
     public DuplicateEntry? SelectedDuplicateEntry
@@ -92,6 +94,7 @@ public sealed partial class MainViewModel
         ChooseShortcutFolderCommand = new ActionCommand(ChooseShortcutFolder, () => !IsBusy);
         ScanShortcutsCommand = new AsyncCommand(ScanShortcuts, () => !IsBusy && !string.IsNullOrWhiteSpace(ShortcutFolder));
         ReadDiagnosticsCommand = new AsyncCommand(ReadDiagnostics, () => !IsBusy);
+        InitializeDiagnosticRecurrence();
     }
     private void ChooseDuplicateFolder()
     {
@@ -149,6 +152,7 @@ public sealed partial class MainViewModel
         DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
         DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
         DiagnosticsWindow = "In progress; no completed time window is claimed.";
+        ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
         var result = await diagnosticsInventory.ReadAsync(SelectedDiagnosticRange.Days, token); token.ThrowIfCancellationRequested();
         DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
         foreach (var report in result.Items)
@@ -157,7 +161,13 @@ public sealed partial class MainViewModel
             foreach (var coverage in report.Coverage) DiagnosticCoverage.Add(coverage);
             DiagnosticsWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
         }
-        DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticRows.FirstOrDefault();
+        PublishDiagnosticRecurrence(result, token);
+        DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault();
         return result.State;
-    }, error => { DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made."; });
+    }, error =>
+    {
+        DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
+        DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.";
+        ResetDiagnosticRecurrence(error);
+    });
 }

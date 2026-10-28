@@ -71,6 +71,8 @@ Under **More tools**, **Duplicate review** reads bounded selected-folder content
 
 **Windows Diagnostics** reads existing minimized Application/System event metadata for an explicitly chosen 1/7/30-day window, grouping event records with source, time, coverage, uncertainty and impact. No records does not mean healthy; no event message/dump content, DISM/SFC or repair command is read/run. D1b/D2/D3 remain separate gated work.
 
+Its **Observed recurrence** summary shows counts from the returned event evidence, with an optional repeated-groups-only list filter. Counts mean event records, not unique crashes. Unknown checks have unknown totals; Partial evidence retains its coverage gaps. Filtering does not query Windows again, change the UTC window or combine WER store references with event counts.
+
 These modules never run with ordinary Inspect this PC. Linux tests validate portable policies, not Windows native behavior. The opt-in development [Windows validation harness](tools/README-WINDOWS-VALIDATION.md) and [execution ledger](docs/ROADMAP-STATUS.md) distinguish actual scoped evidence from pending roadmap gates.
 
 ## BIOS / Firmware and Hardware Upgrades
