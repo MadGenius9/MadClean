@@ -35,10 +35,13 @@ public sealed class InstalledApplicationSearch
     }
 
     public bool Matches(InstalledApplication? app)
+        => app != null && MatchesText(app.Name, app.Publisher);
+
+    public bool MatchesText(string? name, string? publisher)
     {
-        if (!IsValid || app == null) return false;
+        if (!IsValid) return false;
         if (IsEmpty) return true;
-        return app.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true ||
-            app.Publisher?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+        return name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true ||
+            publisher?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
     }
 }

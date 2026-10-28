@@ -2,6 +2,8 @@
 
 Selected Windows Installer metadata uses a separate explicit [product/context verification adapter](MSI-REGISTRATION-VERIFICATION.md). Its exact-product current-user/machine enumeration and fixed display/state queries collect no SIDs or package/source paths and invoke no activation, repair, installation or uninstall API. It preserves source coverage, NoRemove restrictions and unknown results; matching metadata is never action eligibility.
 
+[Current-user Windows packages](PACKAGED-APPLICATIONS.md) use fixed system PowerShell/Appx metadata for Main/Bundle registrations only. Query warnings preserve Partial without raw text, optional fields remain unknown, and neither signing/removal flags nor versions become trust/action/update verdicts. This source is separate from ARP/MSI, user baselines and unique-app counts; it requests no other profile, SID, manifest, paths, dependencies or deployment action.
+
 Official Microsoft documentation was checked before implementation, using Microsoft's official GitHub documentation sources because `learn.microsoft.com` was denied by the cloud proxy. Links below include the browsable reference and the source consulted. No third-party scraping or undocumented driver updater is used.
 
 ## WinGet

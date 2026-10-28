@@ -43,6 +43,7 @@ public sealed partial class MainViewModel
     private void InitializeApplicationInventory()
     {
         InitializeInstalledAppSearch();
+        InitializePackagedApplications();
         InitializeInstalledAppPlans();
         InitializeLeftoverContentReview();
         ViewLeftoverReviewCommand = new ActionCommand(() => SelectedPage = 8, () => true);

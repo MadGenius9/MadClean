@@ -172,6 +172,20 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_actual_msi_panel_capture(self):
         self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-20.png']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_package_panel_capture(self):
+        self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-21.png']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_current_user_package_proof(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='packaged-application-contract']
+        self.save(); self.rejected()
+    def test_empty_package_query_does_not_become_positive_projection_proof(self):
+        package=next(check for check in self.report['checks'] if check['name']=='packaged-application-contract')
+        package.update(state='inconclusive',detail='TEST-ONLY empty completed package query; no positive-row projection evidence')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='packaged-application-contract')['state'])
     def test_selected_msi_inconclusive_cannot_be_promoted_by_other_passing_evidence(self):
         msi=next(check for check in self.report['checks'] if check['name']=='msi-registration-contract')
         msi.update(state='inconclusive',detail='TEST-ONLY no exact selected MSI match; no real metadata')

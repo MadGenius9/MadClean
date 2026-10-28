@@ -25,6 +25,7 @@ internal static partial class NativeFixtures
             DefenderStatus(report, token);
             var registrations = InstalledRegistrations(report, token);
             MsiRegistrations(registrations, report, token);
+            PackagedApplications(report, token);
             BoundedRegistrations(fixture, report, token);
             WerMetadata(report, token);
             HardwareMetadata(report, token);

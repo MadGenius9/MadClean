@@ -449,68 +449,7 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
-                <TabItem Header="Installed apps">
-                    <ScrollViewer Margin="28,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="320"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Installed apps &amp; uninstall discovery" Style="{StaticResource SectionTitle}"/>
-                                <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
-                                    <TextBlock Text="{Binding InstalledMessage}" Style="{StaticResource Caption}"/>
-                                </ScrollViewer>
-                                <WrapPanel Margin="0,0,0,12">
-                                    <Button Content="Refresh registrations" Command="{Binding RefreshInstalledApplicationsCommand}"/>
-                                    <Button Content="Preview selected app review" Command="{Binding PreviewInstalledAppPlanCommand}" Background="#244B70"/>
-                                    <Button Content="Verify selected MSI metadata" Command="{Binding VerifyMsiRegistrationCommand}" Background="#244B70"/>
-                                    <Button Content="Review Windows handoff" Command="{Binding ReviewInstalledAppHandoffCommand}" Background="#343E52" Foreground="White"/>
-                                    <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}" Background="#244B70"/>
-                                    <Button Content="Leftover review" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
-                                </WrapPanel>
-                                <TextBlock Text="Uninstall execution is queued. Later actions will use supported uninstall mechanisms with exact app selection and review; application folders are never force-deleted." Style="{StaticResource Caption}"/>
-                                <TextBlock Text="Search loaded app names or publishers" Margin="0,0,0,6"/>
-                                <Grid Margin="0,0,0,4">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox Text="{Binding InstalledAppSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="256" AutomationProperties.Name="Search loaded installed apps by name or publisher" ToolTip="Filter the loaded app names and publishers without starting a new scan."/>
-                                    <Button Grid.Column="1" Content="Clear search" Command="{Binding ClearInstalledAppSearchCommand}" Background="#343E52" Margin="10,0,0,0"/>
-                                </Grid>
-                                <TextBlock Text="{Binding InstalledAppSearchSummary}" Style="{StaticResource Caption}"/>
-                            </StackPanel>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding InstalledApplicationsView}" SelectedItem="{Binding SelectedInstalledApplication, Mode=TwoWay}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Loaded installed-app registrations">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="APPLICATION" Binding="{Binding Name}" Width="2*" MinWidth="160"/>
-                                    <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*" MinWidth="100"/>
-                                    <DataGridTextColumn Header="PUBLISHER" Binding="{Binding Publisher}" Width="*" MinWidth="120"/>
-                                    <DataGridTextColumn Header="UNINSTALL HINT" Binding="{Binding UninstallSupport}" Width="2*" MinWidth="180"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                                <TextBox Text="{Binding SelectedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
-                                <TextBox Text="{Binding InstalledAppPlanDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="230" MinHeight="65" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0"/>
-                                <Border Style="{StaticResource Card}" Margin="0,16,0,0"><StackPanel>
-                                    <TextBlock Text="Windows Installer registration evidence" FontSize="20"/>
-                                    <TextBlock Text="A separate, selected read-only check. Available metadata does not authorize uninstall, prove package trust or override removal restrictions." Style="{StaticResource Caption}"/>
-                                    <TextBlock Text="{Binding MsiRegistrationAttempt, StringFormat='Last attempt: {0}'}" Style="{StaticResource Caption}"/>
-                                    <TextBlock Text="{Binding MsiRegistrationMessage}" Style="{StaticResource Caption}"/>
-                                    <DataGrid ItemsSource="{Binding MsiRegistrationRows}" Height="160" AutomationProperties.Name="Selected Windows Installer context and reported metadata">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="CONTEXT" Binding="{Binding Context}" Width="130"/>
-                                            <DataGridTextColumn Header="PRODUCT STATE" Binding="{Binding ProductState}" Width="125"/>
-                                            <DataGridTextColumn Header="REPORTED NAME" Binding="{Binding Name, TargetNullValue=Unknown}" Width="2*" MinWidth="180"/>
-                                            <DataGridTextColumn Header="VERSION" Binding="{Binding Version, TargetNullValue=Unknown}" Width="*" MinWidth="100"/>
-                                            <DataGridTextColumn Header="PUBLISHER" Binding="{Binding Publisher, TargetNullValue=Unknown}" Width="*" MinWidth="120"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                    <TextBox Text="{Binding MsiRegistrationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="80" MaxHeight="220" Margin="0,12,0,8" AutomationProperties.Name="Windows Installer source, restrictions and verification limits"/>
-                                    <ItemsControl ItemsSource="{Binding MsiRegistrationCoverage}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#A9BDD3" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                </StackPanel></Border>
-                            </StackPanel>
-                        </Grid>
-                    </ScrollViewer>
-                </TabItem>
+                <TabItem Header="Installed apps"><views:InstalledAppsView/></TabItem>
                 <TabItem Header="Disk space map">
                     <ScrollViewer Margin="28,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid>

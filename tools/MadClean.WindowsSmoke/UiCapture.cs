@@ -136,12 +136,32 @@ internal static class UiCapture
                         }
                         // Actual scrolled subview, not a new navigation route or synthetic data.
                         Capture(window, output, "tool-20.png", report);
+                        var sources = Descendants<TabControl>(window).Single(control => AutomationProperties.GetName(control) == "Installed application sources");
+                        if (sources.SelectedIndex != 0 || sources.Items.Count != 2 ||
+                            sources.Items[0] is not TabItem { Header: "Desktop registrations" } || sources.Items[1] is not TabItem { Header: "Windows packages" })
+                            throw new SmokeAssertionException("ui-package-source-tabs");
+                        sources.SelectedIndex = 1;
+                        await Idle(window);
+                        AssertNoInventory(model);
+                        var readPackages = Descendants<Button>(window).Single(button => Equals(button.Content, "Read Windows packages"));
+                        if (!ReferenceEquals(readPackages.Command, model.ReadPackagedApplicationsCommand) || !readPackages.IsEnabled ||
+                            !readPackages.IsVisible || !ValidSize(readPackages))
+                            throw new SmokeAssertionException("ui-package-command-binding");
+                        var packages = Descendants<DataGrid>(window).Single(grid => AutomationProperties.GetName(grid) == "Loaded current-user Windows package registrations");
+                        if (!ReferenceEquals(packages.ItemsSource, model.PackagedApplicationsView) || packages.Items.Count != 0)
+                            throw new SmokeAssertionException("ui-package-rows-binding");
+                        Capture(window, output, "tool-21.png", report);
+                        // The later actual-ARP search proof uses the desktop textbox. Restore
+                        // the real nested source before any data load; never capture loaded data.
+                        sources.SelectedIndex = 0;
+                        await Idle(window);
+                        if (sources.SelectedIndex != 0) throw new SmokeAssertionException("ui-package-source-restore");
                     }
                     if (link.Page == 8) Capture(window, output, "tool-19.png", report);
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
                     AssertNoInventory(model);
                 }
-                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. New-module/H1 pages and the actual scrolled initially unchecked MSI panel were captured; its command/empty rows bind to the production view model without executing a query.");
+                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation.");
 
                 model.SelectedPage = 0;
                 await Idle(window);
@@ -278,6 +298,11 @@ internal static class UiCapture
         if (model.VerifyMsiRegistrationCommand == null || model.VerifyMsiRegistrationCommand.CanExecute(null) ||
             model.MsiRegistrationRows.Count != 0 || model.MsiRegistrationCoverage.Count != 0)
             throw new SmokeAssertionException("ui-msi-registration-unchecked");
+        if (model.ReadPackagedApplicationsCommand == null || !model.ReadPackagedApplicationsCommand.CanExecute(null) ||
+            model.PackagedApplicationRows.Count != 0 || model.PackagedApplicationsView == null || !model.PackagedApplicationsView.IsEmpty ||
+            model.SelectedPackagedApplication != null || !model.PackagedApplicationsMessage.StartsWith("Not checked", StringComparison.Ordinal) ||
+            !model.PackagedApplicationsAttempt.StartsWith("Not checked", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-packaged-applications-unchecked");
     }
 
     private static void AssertSectionTitleContrast(MainWindow window)

@@ -1,0 +1,29 @@
+<UserControl x:Class="MadClean.App.Views.PackagedApplicationsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <TextBlock Text="Current-user Windows packages" FontSize="20"/>
+            <TextBlock Text="Main and bundle registrations for your current Windows profile. Package names are technical identities rather than friendly app names. Other profiles, dependency/resource packages and system-wide provisioning are outside this view. No update, uninstall or repair runs." Style="{StaticResource Caption}"/>
+            <Button Content="Read Windows packages" Command="{Binding ReadPackagedApplicationsCommand}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+            <TextBlock Text="{Binding PackagedApplicationsAttempt, StringFormat='Last attempt: {0}'}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding PackagedApplicationsMessage}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="Search loaded package names or publishers" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBox Text="{Binding InstalledAppSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="256" AutomationProperties.Name="Search loaded Windows packages by name or publisher"/>
+                <Button Grid.Column="1" Content="Clear package search" Command="{Binding ClearInstalledAppSearchCommand}" Background="#343E52" Margin="10,0,0,0"/>
+            </Grid>
+            <TextBlock Text="{Binding PackagedApplicationSearchSummary}" Style="{StaticResource Caption}"/>
+            <DataGrid ItemsSource="{Binding PackagedApplicationsView}" SelectedItem="{Binding SelectedPackagedApplication, Mode=TwoWay}" Height="300" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Loaded current-user Windows package registrations">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="PACKAGE NAME" Binding="{Binding Name}" Width="2*" MinWidth="200"/>
+                    <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*" MinWidth="130"/>
+                    <DataGridTextColumn Header="TYPE" Binding="{Binding PackageType}" Width="100"/>
+                    <DataGridTextColumn Header="ARCHITECTURE" Binding="{Binding Architecture}" Width="125"/>
+                    <DataGridTextColumn Header="REPORTED SIGNING KIND" Binding="{Binding SignatureKind}" Width="170"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBox Text="{Binding PackagedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="250" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected current-user package identity and coverage"/>
+            <TextBlock Text="Bundle and main records can describe the same software. Reported signing kind and non-removable flags do not independently verify trust, running state, health, updates or permission to remove an app. Desktop-app baselines and leftover comparisons remain separate." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

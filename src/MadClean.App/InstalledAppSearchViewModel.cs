@@ -25,6 +25,7 @@ public sealed partial class MainViewModel
             if (selectedApplication != null && !installedAppSearch.Matches(selectedApplication))
                 SelectedInstalledApplication = null;
             InstalledApplicationsView.Refresh();
+            RefreshPackagedApplicationSearch();
             NotifyInstalledAppSearchSummary();
             CommandManager.InvalidateRequerySuggested();
         }
