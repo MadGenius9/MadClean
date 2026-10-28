@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "c79e2d1eb0a44aee383abad583298377c803ac28",
-  "runId": "40706095248",
+  "sourceCommit": "7bffe3fd2d5c277a5b4fed7ead61dd3f7b79831b",
+  "runId": "40709942252",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T14:32:08.0338146+00:00",
-  "completedUtc": "2026-10-28T14:32:17.2977867+00:00",
+  "startedUtc": "2026-10-28T14:54:27.8613041+00:00",
+  "completedUtc": "2026-10-28T14:54:37.4988309+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -81,7 +81,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=11; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -152,6 +152,11 @@
       "name": "startup-transaction-handle-probe",
       "state": "passed",
       "detail": "Isolated transaction state=Passed; rollbackObserved=True; commitObserved=True; teardownCompleted=True; pendingWorker=False; stage=rollback-and-commit-observed; nativeCode=none. Two sequential inert DWORD transactions verified handle-based enlistment rollback and commit only inside an ownership-marked development HKCU subtree. No actual startup registrations, SIDs, links, rename/concurrency cases, DPAPI recovery or production action gate exercised; durability and safe startup mutations remain unverified."
+    },
+    {
+      "name": "startup-transaction-interference-probe",
+      "state": "passed",
+      "detail": "Isolated interference state=Passed; ordinaryWriteSucceeded=True; abortObserved=True; baselinePreserved=True; observedBeforeTimeout=True; teardownCompleted=True; pendingWorker=False; stage=abort-observed-after-ordinary-write; nativeCode=none. An abort was observed after one ordinary same-anchor inert DWORD write, before cleanup rollback and before the configured timeout boundary. This is a narrow owned sequence, not proof the write caused the abort, ABA prevention, rename/link/concurrency coverage, journal recovery, durability or safe production startup actions. No real startup registration or production gate changed."
     },
     {
       "name": "fixture-teardown",
