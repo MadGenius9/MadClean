@@ -34,6 +34,12 @@ internal static partial class NativeFixtures
             // Never remove its filesystem ownership marker while its outcome is uncertain.
             transactionProbeTeardownCompleted = false;
             transactionProbeTeardownCompleted = StartupTransactions(fixture, report, token);
+            if (transactionProbeTeardownCompleted && !StartupTransactionProbe.HasPendingNativeProbe)
+            {
+                transactionProbeTeardownCompleted = false;
+                transactionProbeTeardownCompleted = StartupTransactionInterference(fixture, report, token);
+            }
+            else report.Unknown("startup-transaction-interference-probe", "The earlier isolated transaction probe did not establish safe teardown; the interference probe was not started and the entire owned fixture tree is retained.");
         }
         finally
         {

@@ -10,6 +10,16 @@ The source handle is an ordinary non-predefined `RegOpenKeyExW` handle. For each
 
 Both branches query `GetTransactionInformation` and require the expected terminal outcome (Aborted3/Committed2) before closing the transaction and reading the ordinary anchor again. Rollback must preserve the original inert value; commit must expose the selected new inert value. Ordinary reads, owner/topology queries and cleanup do not occur while the transaction outcome is unknown. The documented interference behavior means ordinary key reads during an active transaction would invalidate this test.
 
+## Separate equal-value interference observation
+
+The subsequent `ProbeInterferenceAsync` reuses the same worker, fixed buffers, ownership validation and serial pending gate in a fresh owned subtree. It intentionally performs **one ordinary write** of the original inert DWORD through the original non-transacted anchor while an enlisted handle has a different uncommitted DWORD. This controlled write is the only exception to the positive probe's no-ordinary-operations rule. It performs no ordinary read or owner/topology query while active, commits nothing, and touches no real startup source.
+
+The first `GetTransactionInformation` query occurs immediately after that write, before closing the enlisted key or attempting an explicit cleanup rollback. Only this first observation may set AbortObserved. A qualifying sequence requires a successful ordinary write, first observed Aborted outcome, elapsed time strictly below the configured five-second timeout measured from before transaction creation, checked key/transaction closure, original ordinary-value readback and exact teardown. The timing check prevents a slow call crossing the configured timeout from being promoted into interference evidence; it is not a general proof of why Windows aborted.
+
+Failed/blocked writes, delayed observations, non-aborted first outcomes or query failures remain inconclusive. The worker may explicitly roll back and query a terminal state solely to make teardown safe; that cleanup cannot set the observation flags or turn the test into a pass. Unknown terminal outcomes retain the registry and outer ownership evidence as before. The separate required `startup-transaction-interference-probe` exports only fixed stage/native-code/state and NonTransactedWriteSucceeded/AbortObserved/BaselinePreserved/ObservedBeforeTimeout/teardown/pending booleans.
+
+The supported Microsoft remarks describe rollback after a non-transacted operation on the key. This experiment records the narrow observed sequence, not causality, universal conflict detection, ABA prevention, source/path identity, concurrent-thread isolation, ancestor/rename behavior or durable recovery. Production startup methods stay Unavailable. Actual Windows results for this additional observation remain pending.
+
 CreateTransaction's five-second timeout is not a native-call deadline: its documented automatic abort applies before preparation. Native failure, unavailable support or unknown outcome is inconclusive, not a reason to assume rollback. Closing a transaction handle after an uncertain commit is not proof of abort. No concurrent-writer, link, rename or adversarial namespace case is attempted by this initial probe.
 
 ## Resource and teardown ownership

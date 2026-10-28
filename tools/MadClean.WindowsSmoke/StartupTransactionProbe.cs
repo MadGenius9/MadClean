@@ -9,7 +9,13 @@ namespace MadClean.WindowsSmoke;
 
 internal enum StartupTransactionProbeState { Passed, Inconclusive, Failed, Pending }
 internal sealed record StartupTransactionProbeResult(StartupTransactionProbeState State, bool RollbackObserved,
-    bool CommitObserved, bool TeardownCompleted, string Stage, int? NativeError);
+    bool CommitObserved, bool TeardownCompleted, string Stage, int? NativeError)
+{
+    internal bool NonTransactedWriteSucceeded { get; init; }
+    internal bool AbortObserved { get; init; }
+    internal bool BaselinePreserved { get; init; }
+    internal bool ObservedBeforeTimeout { get; init; }
+}
 
 // Development-only proof of a narrow public API route. No production startup method calls this class.
 internal static class StartupTransactionProbe
@@ -19,7 +25,12 @@ internal static class StartupTransactionProbe
     internal static bool HasPendingNativeProbe => Volatile.Read(ref active) != 0;
     internal static Task<StartupTransactionProbeResult>? PendingCompletion => Volatile.Read(ref pending);
 
-    internal static async Task<StartupTransactionProbeResult> ProbeAsync(string fixtureDir, CancellationToken token)
+    internal static Task<StartupTransactionProbeResult> ProbeAsync(string fixtureDir, CancellationToken token) =>
+        StartAsync(fixtureDir, interference: false, token);
+    internal static Task<StartupTransactionProbeResult> ProbeInterferenceAsync(string fixtureDir, CancellationToken token) =>
+        StartAsync(fixtureDir, interference: true, token);
+
+    private static async Task<StartupTransactionProbeResult> StartAsync(string fixtureDir, bool interference, CancellationToken token)
     {
         if (token.IsCancellationRequested) return new(StartupTransactionProbeState.Inconclusive, false, false, false, "cancelled-before-start", null);
         if (!OperatingSystem.IsWindows()) return new(StartupTransactionProbeState.Inconclusive, false, false, false, "windows-required", null);
@@ -27,7 +38,7 @@ internal static class StartupTransactionProbe
             return new(StartupTransactionProbeState.Pending, false, false, false, "previous-native-worker-pending", null);
         var worker = Task.Run(() =>
         {
-            try { return new Worker(fixtureDir, token).Run(); }
+            try { return new Worker(fixtureDir, token, interference).Run(); }
             finally { Volatile.Write(ref active, 0); }
         }, CancellationToken.None);
         Volatile.Write(ref pending, worker);
@@ -51,7 +62,7 @@ internal static class StartupTransactionProbe
         internal int? NativeError { get; } = nativeError;
         internal bool Failed { get; } = failed;
     }
-    private sealed class Worker(string fixtureDir, CancellationToken token)
+    private sealed class Worker(string fixtureDir, CancellationToken token, bool interference)
     {
         private const string Prefix = @"Software\MadClean.WindowsSmoke";
         private const string Child = "TxrHandleProbe", OwnerName = "MadCleanFixtureOwner", ValueName = "InertProbeDword";
@@ -60,6 +71,7 @@ internal static class StartupTransactionProbe
         private string guid = "", owner = "";
         private bool created, marked, targetCreated, safeForCleanup = true;
         private bool rollbackObserved, commitObserved, teardown;
+        private bool nonTransactedWriteSucceeded, abortObserved, baselinePreserved, observedBeforeTimeout;
         private string stage = "initializing";
         private int? nativeError;
         private StartupTransactionProbeState state = StartupTransactionProbeState.Inconclusive;
@@ -91,9 +103,17 @@ internal static class StartupTransactionProbe
                 Native(RegOpenKeyExW(root, Child, 0, 3, out var ordinary), "open-ordinary-anchor"); anchor = ordinary;
                 VerifyTopology();
                 if (ReadDword(anchor) != 11) throw new Stop("baseline-inert-value-mismatch", failed: true);
-                Round(22, false); rollbackObserved = true;
-                Round(33, true); commitObserved = true;
-                state = StartupTransactionProbeState.Passed; stage = "rollback-and-commit-observed";
+                if (interference)
+                {
+                    Round(22, false, observeInterference: true);
+                    state = StartupTransactionProbeState.Passed; stage = "abort-observed-after-ordinary-write";
+                }
+                else
+                {
+                    Round(22, false); rollbackObserved = true;
+                    Round(33, true); commitObserved = true;
+                    state = StartupTransactionProbeState.Passed; stage = "rollback-and-commit-observed";
+                }
             }
             catch (Stop ex) { state = ex.Failed ? StartupTransactionProbeState.Failed : StartupTransactionProbeState.Inconclusive; stage = ex.Stage; nativeError = ex.NativeError; }
             catch (OperationCanceledException) { stage = "worker-observed-cancellation"; }
@@ -115,7 +135,13 @@ internal static class StartupTransactionProbe
                 anchor?.Dispose(); root?.Dispose(); prefix?.Dispose();
             }
             if (!teardown && state == StartupTransactionProbeState.Passed) state = StartupTransactionProbeState.Inconclusive;
-            return new(state, rollbackObserved, commitObserved, teardown, stage, nativeError);
+            return new(state, rollbackObserved, commitObserved, teardown, stage, nativeError)
+            {
+                NonTransactedWriteSucceeded = nonTransactedWriteSucceeded,
+                AbortObserved = abortObserved,
+                BaselinePreserved = baselinePreserved,
+                ObservedBeforeTimeout = observedBeforeTimeout
+            };
         }
 
         private void ValidateFilesystemOwner()
@@ -145,39 +171,71 @@ internal static class StartupTransactionProbe
             guid = parsed.ToString("N");
         }
 
-        private void Round(uint proposed, bool commit)
+        private void Round(uint proposed, bool commit, bool observeInterference = false)
         {
             Check();
-            stage = commit ? "create-commit-transaction" : "create-rollback-transaction";
-            using var transaction = CreateTransaction(IntPtr.Zero, IntPtr.Zero, 1, 0, 0, 5000, "MadClean development inert HKCU probe");
+            stage = observeInterference ? "create-interference-transaction" : commit ? "create-commit-transaction" : "create-rollback-transaction";
+            const uint transactionTimeoutMilliseconds = 5000;
+            long beforeCreation = Stopwatch.GetTimestamp();
+            using var transaction = CreateTransaction(IntPtr.Zero, IntPtr.Zero, 1, 0, 0, transactionTimeoutMilliseconds, "MadClean development inert HKCU probe");
             int creationError = transaction.IsInvalid ? Marshal.GetLastWin32Error() : 0;
             if (transaction.IsInvalid) throw new Stop(stage, creationError);
             safeForCleanup = false;
             ProbeKey? enlisted = null;
             bool terminal = false, terminalAttempted = false, outcomeAttempted = false;
+            string? interferenceLimit = null;
+            int? interferenceWriteError = null;
             try
             {
                 Check();
-                stage = commit ? "enlist-ordinary-handle-for-commit" : "enlist-ordinary-handle-for-rollback";
+                stage = observeInterference ? "enlist-ordinary-handle-for-interference" : commit ? "enlist-ordinary-handle-for-commit" : "enlist-ordinary-handle-for-rollback";
                 int code = RegOpenKeyTransactedW(anchor!, null, 0, 3, out var opened, transaction, IntPtr.Zero);
                 enlisted = opened; Native(code, stage); Check();
                 WriteDword(enlisted, proposed); Check();
                 if (ReadDword(enlisted) != proposed) throw new Stop("transacted-inert-readback-mismatch", failed: true);
                 Check();
-                // Close the bound registry key before terminal APIs, using RegCloseKey, not CloseHandle.
-                Native(enlisted.CloseChecked(), "close-transacted-key-before-terminal-call"); enlisted = null;
-                terminalAttempted = true;
-                stage = commit ? "commit-transaction" : "rollback-transaction";
-                bool success = commit ? CommitTransaction(transaction) : RollbackTransaction(transaction);
-                int error = success ? 0 : Marshal.GetLastWin32Error();
-                // Query outcome before cancellation/budget checks or any ordinary registry operation.
-                outcomeAttempted = true;
-                uint outcome = Outcome(transaction);
-                terminal = outcome is 2 or 3;
-                safeForCleanup = terminal;
-                if (!terminal) throw new Stop("transaction-outcome-undetermined");
-                if (!success) throw new Stop(stage, error);
-                if (outcome != (commit ? 2u : 3u)) throw new Stop("transaction-terminal-outcome-mismatch", failed: true);
+                if (observeInterference)
+                {
+                    // The sole intentional ordinary operation while enlisted: an equal-baseline
+                    // DWORD write on the same anchor. No ordinary read, owner query or topology
+                    // verification occurs until a terminal outcome is known and handles close.
+                    stage = "ordinary-equal-baseline-write";
+                    int writeCode = WriteDwordCode(anchor!, 11);
+                    nonTransactedWriteSucceeded = writeCode == 0;
+                    interferenceWriteError = writeCode == 0 ? null : writeCode;
+                    // This FIRST outcome observation precedes even closing the enlisted key, and
+                    // must never be replaced by the outcome after an explicit cleanup rollback.
+                    stage = "first-outcome-after-ordinary-write";
+                    outcomeAttempted = true;
+                    uint firstOutcome = Outcome(transaction);
+                    abortObserved = firstOutcome == 3;
+                    observedBeforeTimeout = Stopwatch.GetElapsedTime(beforeCreation) < TimeSpan.FromMilliseconds(transactionTimeoutMilliseconds);
+                    terminal = firstOutcome is 2 or 3;
+                    safeForCleanup = terminal;
+                    interferenceLimit = !nonTransactedWriteSucceeded ? "ordinary-baseline-write-not-observed-successful"
+                        : !observedBeforeTimeout ? "interference-observation-reached-timeout-window"
+                        : !abortObserved ? "abort-not-observed-before-explicit-rollback" : null;
+                    Native(enlisted.CloseChecked(), "close-transacted-key-after-first-observation"); enlisted = null;
+                    // The finally below settles an undetermined transaction solely to permit
+                    // teardown. It does not set AbortObserved or make this observation pass.
+                }
+                else
+                {
+                    // Close the bound registry key before terminal APIs, using RegCloseKey, not CloseHandle.
+                    Native(enlisted.CloseChecked(), "close-transacted-key-before-terminal-call"); enlisted = null;
+                    terminalAttempted = true;
+                    stage = commit ? "commit-transaction" : "rollback-transaction";
+                    bool success = commit ? CommitTransaction(transaction) : RollbackTransaction(transaction);
+                    int error = success ? 0 : Marshal.GetLastWin32Error();
+                    // Query outcome before cancellation/budget checks or any ordinary registry operation.
+                    outcomeAttempted = true;
+                    uint outcome = Outcome(transaction);
+                    terminal = outcome is 2 or 3;
+                    safeForCleanup = terminal;
+                    if (!terminal) throw new Stop("transaction-outcome-undetermined");
+                    if (!success) throw new Stop(stage, error);
+                    if (outcome != (commit ? 2u : 3u)) throw new Stop("transaction-terminal-outcome-mismatch", failed: true);
+                }
             }
             finally
             {
@@ -189,7 +247,7 @@ internal static class StartupTransactionProbe
                     enlisted.Dispose();
                     if (close != 0) { safeForCleanup = false; throw new Stop("transacted-key-close-uncertain", close); }
                 }
-                if (!terminal && !outcomeAttempted)
+                if (!terminal && (observeInterference || !outcomeAttempted))
                 {
                     if (!terminalAttempted)
                     {
@@ -203,15 +261,31 @@ internal static class StartupTransactionProbe
                 }
                 if (!terminal) safeForCleanup = false;
             }
+            // An explicit fallback rollback that still has no terminal outcome permits neither
+            // an ordinary read nor registry teardown. Do not presume CloseHandle settled it.
+            if (!terminal) throw new Stop("transaction-outcome-undetermined");
             // Outcome was explicitly verified. Close the transaction before ordinary anchor readback.
             int transactionClose = transaction.CloseChecked();
             if (transactionClose != 0)
             { safeForCleanup = false; throw new Stop("terminal-transaction-close-uncertain", transactionClose); }
             Check();
-            stage = commit ? "ordinary-read-after-commit" : "ordinary-read-after-rollback";
+            stage = observeInterference ? "ordinary-read-after-interference-terminal" : commit ? "ordinary-read-after-commit" : "ordinary-read-after-rollback";
             uint expected = commit ? proposed : 11u;
-            if (ReadDword(anchor!) != expected) throw new Stop("ordinary-terminal-readback-mismatch", failed: true);
-            Check();
+            uint observed = ReadDword(anchor!);
+            if (observeInterference)
+            {
+                baselinePreserved = observed == 11;
+                Check();
+                // A failed write, delayed observation or non-aborted first outcome is inconclusive,
+                // even if later teardown/readback succeeds. It does not imply an API contradiction.
+                if (interferenceLimit != null) throw new Stop(interferenceLimit, interferenceWriteError);
+                if (!baselinePreserved) throw new Stop("ordinary-terminal-readback-mismatch", failed: true);
+            }
+            else
+            {
+                if (observed != expected) throw new Stop("ordinary-terminal-readback-mismatch", failed: true);
+                Check();
+            }
         }
         private uint Outcome(ProbeTransaction transaction)
         {
@@ -270,10 +344,11 @@ internal static class StartupTransactionProbe
             }
             finally { Array.Clear(data); }
         }
-        private static void WriteDword(ProbeKey key, uint value)
+        private static void WriteDword(ProbeKey key, uint value) => Native(WriteDwordCode(key, value), "write-inert-dword");
+        private static int WriteDwordCode(ProbeKey key, uint value)
         {
             byte[] bytes = new byte[4]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, value);
-            try { Native(RegSetValueExW(key, ValueName, 0, 4, bytes, 4), "write-inert-dword"); }
+            try { return RegSetValueExW(key, ValueName, 0, 4, bytes, 4); }
             finally { Array.Clear(bytes); }
         }
         private static uint ReadDword(ProbeKey key)

@@ -150,6 +150,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_isolated_transaction_probe(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='startup-transaction-handle-probe']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_isolated_interference_probe(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='startup-transaction-interference-probe']
+        self.save(); self.rejected()
+    def test_nonqualifying_interference_sequence_remains_inconclusive(self):
+        probe=next(check for check in self.report['checks'] if check['name']=='startup-transaction-interference-probe')
+        probe.update(state='inconclusive',detail='TEST-ONLY no pre-cleanup abort evidence; no native activity')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='startup-transaction-interference-probe')['state'])
     def test_pending_isolated_transaction_cannot_be_promoted_by_green_jobs(self):
         probe=next(check for check in self.report['checks'] if check['name']=='startup-transaction-handle-probe')
         probe.update(state='inconclusive',detail='TEST-ONLY pending fixture worker; owned tree retained')

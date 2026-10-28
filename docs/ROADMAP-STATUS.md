@@ -31,9 +31,11 @@ A20-second cooperative worker and30-second caller wait preserve responsiveness. 
 
 ## Validation evidence
 
-The latest local locked restore and full Release solution build passed with **zero warnings/errors and862 .NET tests passed**. Python evidence tests: **77 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
+The latest local locked restore and full Release solution build passed with **zero warnings/errors and862 .NET tests passed**. Python evidence tests: **79 passed, one Windows-only alias case skipped**. No dependency lockfiles changed. Linux compilation does not run WPF or Windows providers.
 
 The development harness tests sequential inert transaction rollback/commit through the public ordinary-handle enlistment route in a fresh ownership-marked HKCU fixture. It verifies terminal outcomes before ordinary reads and retains all fixture evidence while a worker/outcome/teardown is uncertain. This primitive passed on Windows as recorded below; it is not a production startup action or link/rename/concurrency/durable-recovery proof. Production startup mutations stay Unavailable.
+
+A separate development-only equal-value ordinary-write observation now checks the first transaction outcome before key closure/cleanup rollback, within the configured timeout window, using the same isolated ownership/lifetime code. Cleanup-induced abort cannot create a pass; failed/late/non-aborted observations stay inconclusive. It tests a narrow sequence, not causality/ABA protection or production startup safety. Its actual Windows result remains pending.
 
 User-approved installed-app search filters loaded Name/Publisher data locally, preserving full snapshots/baselines and original coverage. Invalid inputs cannot broaden results; hidden selection clears prepared plans/MSI evidence. Its actual Windows interaction passed as recorded below. Search text is neither persisted nor logged, and screenshots are taken before the fixture's explicit metadata refresh. Physical keyboard/accessibility and broader provider policies remain separate validation.
 
