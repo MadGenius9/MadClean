@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "48f845477d2cd33ed3de09f15720d77f7aab2bdc",
-  "runId": "40694250332",
+  "sourceCommit": "2db85c94fb779fd91696fc268d0cbd36d28f15c9",
+  "runId": "40695156419",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T13:15:41.1139913+00:00",
-  "completedUtc": "2026-10-28T13:15:49.1566278+00:00",
+  "startedUtc": "2026-10-28T13:22:16.4053725+00:00",
+  "completedUtc": "2026-10-28T13:22:28.0028598+00:00",
   "passed": false,
-  "state": "failed",
+  "state": "inconclusive",
   "checks": [
     {
       "name": "ui-wide-size",
@@ -90,8 +90,8 @@
     },
     {
       "name": "bounded-registration-fixture",
-      "state": "failed",
-      "detail": "Owned text case=unterminated; expectedState=Invalid; observedState=Valid; nativeCode=0; valueMatch=false; requestedType=1; requestedBytes=2; storedProbeCode=0; storedType=1; storedBytes=4. No text values or paths exported."
+      "state": "passed",
+      "detail": "Owned registry fixture verified bounded literal/empty/max/over-cap text, wrong types/odd bytes/embedded NUL/invalid UTF16, DWORD flags, missing values, 255-character key enumeration/end, pre-call cancellation and presence/API separation. nativeUnterminatedEstablished=false; normalizedUnterminatedSeed=true; The owned unterminated request was stored as an exact terminated representation; native unterminated rejection remains unverified. seededBytesBelow64KiB=true; ownChildCount=2; nativeEndCode=259; exactMarkerTeardownVerified=true. No names/paths/values/hashes exported; no actual ARP/startup/command metadata touched. NULL-data/no-command-read and fixed-allocation claims also rely on helper source review, not native-call instrumentation."
     },
     {
       "name": "wer-v1-managed-layout",
