@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "dafb2412ff9744c23f16b5312a322d14c968d14b",
-  "runId": "40693650636",
+  "sourceCommit": "48f845477d2cd33ed3de09f15720d77f7aab2bdc",
+  "runId": "40694250332",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T13:11:49.457617+00:00",
-  "completedUtc": "2026-10-28T13:11:57.1354667+00:00",
+  "startedUtc": "2026-10-28T13:15:41.1139913+00:00",
+  "completedUtc": "2026-10-28T13:15:49.1566278+00:00",
   "passed": false,
   "state": "failed",
   "checks": [
@@ -76,7 +76,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). No raw event messages/payloads are stored here; zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -191,7 +191,7 @@
       "file": "tool-14.png",
       "width": 1404,
       "height": 961,
-      "sha256": "fd8408f1431b3bd9523796beda202e9e7e639824a2f7bd0c3f69136c50a34f09"
+      "sha256": "95eac58f818bf29edc2f68ae00bab39da49fc5c7487623a60d7711f144b9ee91"
     },
     {
       "file": "tool-15.png",
