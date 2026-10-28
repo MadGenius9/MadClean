@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "cb8cde530b8ab883ed5cbaeb7a5dfab01dfcc261",
-  "runId": "40704430916",
+  "sourceCommit": "c79e2d1eb0a44aee383abad583298377c803ac28",
+  "runId": "40706095248",
   "runAttempt": 1,
-  "startedUtc": "2026-10-28T14:20:54.6926533+00:00",
-  "completedUtc": "2026-10-28T14:21:03.5080043+00:00",
+  "startedUtc": "2026-10-28T14:32:08.0338146+00:00",
+  "completedUtc": "2026-10-28T14:32:17.2977867+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -37,6 +37,11 @@
       "name": "ui-tool-popup",
       "state": "passed",
       "detail": "The real More tools popup opens, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted."
+    },
+    {
+      "name": "ui-installed-app-search",
+      "state": "passed",
+      "detail": "Actual loadedRegistrationCount=59; positiveMatchCount=1; textboxBindingVerified=true; clearRestoresLoadedRows=true; hiddenSelectionCleared=true; fullInventoryAndBaselineUnchanged=true; noExtraActivity=true. One explicit bounded CI ARP refresh supplied real metadata; filtering started no further query/action. No screenshots were taken after metadata loading, and no names, publishers, query text, identities or provider output are exported. Coverage remains the original inventory state; no-match is not absence proof."
     },
     {
       "name": "duplicate-content-fixtures",
@@ -76,7 +81,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=11; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -177,7 +182,7 @@
       "file": "tool-20.png",
       "width": 1404,
       "height": 961,
-      "sha256": "1bcc7bad73c9fb92b4509a11fa2de378e65d40f7ceb8666fbbf5677d6f37b1de"
+      "sha256": "485dacacdae470c7e71261bd3542755eec41406c8ef97aa4f4f5aa877aa62ca6"
     },
     {
       "file": "tool-19.png",

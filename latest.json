@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "cb8cde530b8ab883ed5cbaeb7a5dfab01dfcc261",
-  "runId": "40704430916",
+  "sourceCommit": "c79e2d1eb0a44aee383abad583298377c803ac28",
+  "runId": "40706095248",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-10-28T14:21:20.129238+00:00",
+  "updatedUtc": "2026-10-28T14:32:42.121660+00:00",
   "scope": "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -41,7 +41,7 @@
     },
     {
       "name": "tool-20.png",
-      "sha256": "1bcc7bad73c9fb92b4509a11fa2de378e65d40f7ceb8666fbbf5677d6f37b1de"
+      "sha256": "485dacacdae470c7e71261bd3542755eec41406c8ef97aa4f4f5aa877aa62ca6"
     },
     {
       "name": "tool-19.png",
