@@ -14,6 +14,7 @@ internal static partial class NativeFixtures
         string marker = Guid.NewGuid().ToString("N");
         Directory.CreateDirectory(fixture);
         File.WriteAllText(Path.Combine(fixture, ".madclean-fixture-owner"), marker);
+        bool transactionProbeTeardownCompleted = true;
         try
         {
             Duplicates(fixture, report, token);
@@ -29,10 +30,18 @@ internal static partial class NativeFixtures
             HardwareMetadata(report, token);
             StartupReadOnly(fixture, report, token);
             SystemToolGate(report, token);
+            // The isolated transaction worker alone owns its registry/transaction cleanup.
+            // Never remove its filesystem ownership marker while its outcome is uncertain.
+            transactionProbeTeardownCompleted = false;
+            transactionProbeTeardownCompleted = StartupTransactions(fixture, report, token);
         }
         finally
         {
-            try
+            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted)
+            {
+                report.Unknown("fixture-teardown", "The isolated transaction probe is pending or did not establish registry teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
+            }
+            else try
             {
                 // Teardown is restricted to exactly this harness-created tree. Production scanners never delete.
                 if (Directory.GetParent(fixture)?.FullName != Path.Combine(repository, "artifacts") ||

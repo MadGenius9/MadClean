@@ -34,6 +34,8 @@ A process-wide singleton worker has a20-second cooperative budget and30-second c
 
 Portable tests cover source/context identity, GUID aliases, duplicate selection, stale/future/invalid timestamps, NoRemove preservation, Partial coverage, advertised/multiple/missing contexts, exact metadata mismatches, bounds/Unicode and cancellation. Linux compilation/tests do not validate Windows Installer behavior, UI interaction or uninstall actions. The development native check uses only already-installed CI-runner registrations; it never installs a fixture product, repairs software or changes actual ARP data. Missing usable coverage remains inconclusive. Actual source-bound results are recorded in the execution ledger when available.
 
+Actual source84cccf9/run40699262668 verified the first selected product's unique Installed context and exact display/source binding, with Partial source state, original restrictions, pre-cancellation and no pending worker. Core outcomes:829 Passed/10 NotExecuted.27 scoped checks passed, WER stayed inconclusive and packaging was skipped. Only fixed status/count/provenance fields were exported; no SID, product code or metadata values left the runner. This does not establish package authenticity, uninstall eligibility, every context/policy or general cancellation behavior. Actual initial command/empty-row binding checks passed; the first genuine image exposed only the panel heading, so body capture is being refined independently.
+
 ## Official references
 
 Current Microsoft documentation/SDK sources were retrieved successfully during implementation; Learn's proxy403 response was not treated as API unavailability:

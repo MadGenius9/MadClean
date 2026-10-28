@@ -110,7 +110,10 @@ internal static class UiCapture
                             throw new SmokeAssertionException("ui-msi-command-binding");
                         AssertNoInventory(model);
                         var title = Descendants<TextBlock>(window).Single(block => block.IsVisible && block.Text == "Windows Installer registration evidence");
-                        title.BringIntoView();
+                        var details = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Windows Installer source, restrictions and verification limits");
+                        // Bringing only the heading into view can leave the rest of this panel
+                        // below the viewport. Scroll the actual trailing detail control instead.
+                        details.BringIntoView();
                         await Idle(window);
                         if (window.Content is not FrameworkElement client || !title.IsVisible || !ValidSize(title))
                             throw new SmokeAssertionException("ui-msi-panel-layout");
@@ -121,6 +124,14 @@ internal static class UiCapture
                         var rows = Descendants<DataGrid>(window).Single(grid => AutomationProperties.GetName(grid) == "Selected Windows Installer context and reported metadata");
                         if (!ReferenceEquals(rows.ItemsSource, model.MsiRegistrationRows) || rows.Items.Count != 0)
                             throw new SmokeAssertionException("ui-msi-rows-binding");
+                        foreach (FrameworkElement control in new FrameworkElement[] { rows, details })
+                        {
+                            Point position = control.TranslatePoint(new Point(), client);
+                            if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||
+                                position.X < -1 || position.Y < -1 || position.X + control.ActualWidth > client.ActualWidth + 1 ||
+                                position.Y + control.ActualHeight > client.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-msi-panel-body-bounds");
+                        }
                         // Actual scrolled subview, not a new navigation route or synthetic data.
                         Capture(window, output, "tool-20.png", report);
                     }

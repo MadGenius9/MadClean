@@ -30,7 +30,7 @@ IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.p
 OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup",
-    "bounded-registration-fixture", "defender-status-contract", "installed-registration-contract", "msi-registration-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "system-tool-execution-gate",
+    "bounded-registration-fixture", "defender-status-contract", "installed-registration-contract", "msi-registration-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "system-tool-execution-gate",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "shortcut-existing-local-fixture",
     "shortcut-missing-local-fixture", "shortcut-no-mutation", "diagnostics-metadata-contract", "fixture-teardown",
 }
@@ -186,7 +186,7 @@ def validate_report(download, context):
             admitted[name] = data
     if report["passed"]:
         reject_unless(set(IMAGES) <= found, "missing-required-capture")
-    report["limits"] = "Development-only WPF client-content captures and read-only native fixture evidence; no DWM/OS-DPI, exhaustive interaction, servicing, installation, healthy/up-to-date or user-PC verdict."
+    report["limits"] = "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions. No DWM/OS-DPI, exhaustive interaction, healthy/up-to-date or production-action readiness verdict."
     return report, admitted
 
 class RejectDtdTreeBuilder(ET.TreeBuilder):
@@ -307,7 +307,7 @@ def prepare(root, download, build_result, verification_result, environment, core
         "buildResult": build_result, "verificationResult": verification_result,
         "passed": build_result == "success" and verification_result == "success" and report is not None and report["passed"] and core is not None and core["passed"],
         "updatedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "scope": "Real WPF client-content captures and read-only native fixture checks; no servicing, installation or user-PC actions.",
+        "scope": "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions.",
         "reportPresent": report is not None,
         "coreTestsPresent": core is not None,
         "reportArtifactOutcome": report_download_result,

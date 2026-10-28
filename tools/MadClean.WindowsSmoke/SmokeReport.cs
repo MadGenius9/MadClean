@@ -43,7 +43,7 @@ internal sealed class SmokeReport(string outputDirectory)
                 state = Failed ? "failed" : Inconclusive ? "inconclusive" : "passed",
                 checks = checks.ToArray(),
                 screenshots = images.ToArray(),
-                limits = "Development-only disposable Windows evidence. Client-content WPF renders at 96 DPI, not DWM/title-bar/real OS-DPI or exhaustive keyboard/provider validation. No healthy/up-to-date/repair verdict."
+                limits = "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions. Client WPF renders at 96 DPI, not DWM/OS-DPI or exhaustive keyboard/provider validation. No healthy/up-to-date/production-action readiness verdict."
             };
             string temporary = Path.Combine(outputDirectory, "report.json.new");
             File.WriteAllText(temporary, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));

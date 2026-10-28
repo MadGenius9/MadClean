@@ -1,6 +1,6 @@
 # Startup registry binding research — 2026-10-27
 
-**Research only. The production and fixture mutation methods remain unavailable. No registry operations, native experiments, executor changes or builds were performed for this research.** Current official Microsoft pages were freshly retrieved with HTTP 200 except the explicitly noted missing Win32 reference pages.
+**This original research performed no registry operations, native experiments, executor changes or builds. Production startup mutation methods remain unavailable.** A subsequent [development-only primitive probe](STARTUP-TRANSACTION-PROBE.md) now tests inert rollback/commit strictly inside an ownership-marked test subtree; it does not call or enable the production mutation methods or resolve the remaining binding/recovery gates. Current official Microsoft pages were freshly retrieved with HTTP200 except the explicitly noted missing Win32 reference pages.
 
 The public Win32 contract provides a more promising handle-relative route than the original unresolved gate implied. Missing `REG_OPTION_OPEN_LINK` in `RegOpenKeyTransacted` alone does **not** establish that safe enlistment is impossible. However, these references do not by themselves prove the entire no-follow/ancestor/rename/concurrent-writer and durable-recovery contract required by MadClean. Canonical names and equal value bytes are insufficient substitutes for that proof. Do not enable an executor on the strength of this document.
 

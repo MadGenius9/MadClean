@@ -136,6 +136,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_selected_msi_native_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-registration-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_isolated_transaction_probe(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='startup-transaction-handle-probe']
+        self.save(); self.rejected()
+    def test_pending_isolated_transaction_cannot_be_promoted_by_green_jobs(self):
+        probe=next(check for check in self.report['checks'] if check['name']=='startup-transaction-handle-probe')
+        probe.update(state='inconclusive',detail='TEST-ONLY pending fixture worker; owned tree retained')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='startup-transaction-handle-probe')['state'])
     def test_passing_report_cannot_omit_actual_msi_panel_capture(self):
         self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-20.png']
         self.save(); self.rejected()
