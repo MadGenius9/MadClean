@@ -24,6 +24,8 @@ The required `startup-transaction-handle-probe` report exports fixed outcome/sta
 
 A successful probe would establish only the tested sequential ordinary-handle enlistment and inert rollback/commit behavior on that Windows build. It does **not** establish no-follow source binding, ancestor/rename/delete-recreate stability, same-value replacement/concurrent-writer isolation, correspondence between an object and a path-defined startup registration, private durable DPAPI journals, crash/uncertain-commit reconciliation, restore-only-when-absent, stale one-shot previews or cross-resource atomicity. These remain the explicit gates in [binding research](STARTUP-BINDING-RESEARCH.md) and [startup actions](STARTUP-ACTIONS.md). No production action is enabled by a passing fixture or a Windows Settings handoff.
 
+Actual sourcecb8cde5/run40704430916 passed both sequential observations and exact teardown: rollbackObserved=true, commitObserved=true, teardownCompleted=true, pendingWorker=false. Core outcomes were829 Passed/10 NotExecuted;28 scoped checks passed, WER alone remained inconclusive and packaging was skipped. No real startup entry or production mutation method was called. This is the narrow primitive evidence described above; the remaining gates are unchanged.
+
 ## Official Microsoft contracts consulted
 
 Current official SDK/API sources were rechecked during implementation:

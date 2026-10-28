@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Automation;
@@ -8,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using MadClean.App;
+using MadClean.Core;
 
 namespace MadClean.WindowsSmoke;
 
@@ -151,6 +153,9 @@ internal static class UiCapture
                 tools.IsDropDownOpen = false;
                 AssertNoInventory(model);
                 report.Pass("ui-tool-popup", "The real More tools popup opens, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted.");
+                // All captures and unchecked/navigation assertions are complete. This separate
+                // explicit CI metadata workflow must not produce any later screenshots.
+                await CheckInstalledAppSearch(window, model, report);
                 completed = true;
             }
             catch (SmokeAssertionException ex)
@@ -176,6 +181,79 @@ internal static class UiCapture
         await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
         window.UpdateLayout();
         await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+    }
+
+    private static async Task CheckInstalledAppSearch(MainWindow window, MainViewModel model, SmokeReport report)
+    {
+        const string check = "ui-installed-app-search";
+        model.SelectedPage = 6;
+        await Idle(window);
+        var search = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Search loaded installed apps by name or publisher");
+        var clear = Descendants<Button>(window).Single(button => Equals(button.Content, "Clear search"));
+        var rows = Descendants<DataGrid>(window).Single(grid => AutomationProperties.GetName(grid) == "Loaded installed-app registrations");
+        if (!ReferenceEquals(rows.ItemsSource, model.InstalledApplicationsView) ||
+            !ReferenceEquals(model.InstalledApplicationsView.SourceCollection, model.InstalledApplications) ||
+            !ReferenceEquals(clear.Command, model.ClearInstalledAppSearchCommand) || clear.IsEnabled ||
+            search.MaxLength != InstalledApplicationSearch.MaximumQueryCharacters || search.Text.Length != 0 ||
+            model.InstalledApplications.Count != 0 || !model.RefreshInstalledApplicationsCommand.CanExecute(null))
+            throw new SmokeAssertionException("ui-installed-search-initial-bindings");
+        model.RefreshInstalledApplicationsCommand.Execute(null);
+        var watch = Stopwatch.StartNew();
+        while (model.IsBusy && watch.Elapsed < TimeSpan.FromSeconds(45))
+        { await Task.Delay(50); await Idle(window); }
+        if (model.IsBusy)
+        {
+            model.Cancel();
+            var cancellationWait = Stopwatch.StartNew();
+            while (model.IsBusy && cancellationWait.Elapsed < TimeSpan.FromSeconds(5))
+            { await Task.Delay(50); await Idle(window); }
+            report.Unknown(check, "The explicit CI registration refresh did not finish its bounded UI wait. Cancellation was requested; a native registry read may still finish. No search proof, forced abort or data capture is claimed.");
+            return;
+        }
+        var unfiltered = model.InstalledApplications.ToArray();
+        var candidate = unfiltered.FirstOrDefault(app =>
+        {
+            var query = InstalledApplicationSearch.Create(app.Name);
+            return query.IsValid && !query.IsEmpty;
+        });
+        if (candidate == null)
+        {
+            report.Unknown(check, "The explicit CI registration refresh supplied no usable actual name within the literal search bounds. Search interaction remains unverified; no app absence or sample-data conclusion was substituted.");
+            return;
+        }
+        int activityCount = model.Activity.Count;
+        string inventoryMessage = model.InstalledMessage, baselineMessage = model.ApplicationBaselineMessage;
+        search.Text = candidate.Name;
+        await Idle(window);
+        var positiveFilter = InstalledApplicationSearch.Create(candidate.Name);
+        int matches = unfiltered.Count(positiveFilter.Matches);
+        if (model.InstalledAppSearchText != candidate.Name || !clear.IsEnabled ||
+            !model.InstalledApplicationsView.Contains(candidate) || model.InstalledApplicationsView.Cast<object>().Count() != matches)
+            throw new SmokeAssertionException("ui-installed-search-positive-binding");
+        rows.SelectedItem = candidate;
+        await Idle(window);
+        if (!ReferenceEquals(model.SelectedInstalledApplication, candidate))
+            throw new SmokeAssertionException("ui-installed-search-selected-row-binding");
+        string absentQuery = "MadClean-search-fixture-" + Guid.NewGuid().ToString("N");
+        var negativeFilter = InstalledApplicationSearch.Create(absentQuery);
+        if (unfiltered.Any(negativeFilter.Matches))
+            throw new SmokeAssertionException("ui-installed-search-negative-fixture-not-distinct");
+        search.Text = absentQuery;
+        await Idle(window);
+        if (model.InstalledAppSearchText != absentQuery || !model.InstalledApplicationsView.IsEmpty || rows.Items.Count != 0 ||
+            model.SelectedInstalledApplication != null || model.PreviewInstalledAppPlanCommand.CanExecute(null) ||
+            model.ReviewInstalledAppHandoffCommand.CanExecute(null) || model.VerifyMsiRegistrationCommand.CanExecute(null) ||
+            !model.InstalledApplications.SequenceEqual(unfiltered) || model.InstalledMessage != inventoryMessage ||
+            model.ApplicationBaselineMessage != baselineMessage || model.Activity.Count != activityCount || model.IsBusy)
+            throw new SmokeAssertionException("ui-installed-search-hidden-selection-or-snapshot");
+        clear.Command.Execute(null);
+        await Idle(window);
+        if (search.Text.Length != 0 || model.InstalledAppSearchText.Length != 0 || clear.IsEnabled ||
+            model.InstalledApplicationsView.Cast<object>().Count() != unfiltered.Length ||
+            !model.InstalledApplications.SequenceEqual(unfiltered) || model.InstalledMessage != inventoryMessage ||
+            model.ApplicationBaselineMessage != baselineMessage || model.Activity.Count != activityCount || model.IsBusy)
+            throw new SmokeAssertionException("ui-installed-search-clear-or-snapshot");
+        report.Pass(check, $"Actual loadedRegistrationCount={unfiltered.Length}; positiveMatchCount={matches}; textboxBindingVerified=true; clearRestoresLoadedRows=true; hiddenSelectionCleared=true; fullInventoryAndBaselineUnchanged=true; noExtraActivity=true. One explicit bounded CI ARP refresh supplied real metadata; filtering started no further query/action. No screenshots were taken after metadata loading, and no names, publishers, query text, identities or provider output are exported. Coverage remains the original inventory state; no-match is not absence proof.");
     }
 
     private static void AssertNoInventory(MainViewModel model)

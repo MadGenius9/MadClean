@@ -471,8 +471,15 @@
                                     <Button Content="Leftover review" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
                                 </WrapPanel>
                                 <TextBlock Text="Uninstall execution is queued. Later actions will use supported uninstall mechanisms with exact app selection and review; application folders are never force-deleted." Style="{StaticResource Caption}"/>
+                                <TextBlock Text="Search loaded app names or publishers" Margin="0,0,0,6"/>
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding InstalledAppSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="256" AutomationProperties.Name="Search loaded installed apps by name or publisher" ToolTip="Filter the loaded app names and publishers without starting a new scan."/>
+                                    <Button Grid.Column="1" Content="Clear search" Command="{Binding ClearInstalledAppSearchCommand}" Background="#343E52" Margin="10,0,0,0"/>
+                                </Grid>
+                                <TextBlock Text="{Binding InstalledAppSearchSummary}" Style="{StaticResource Caption}"/>
                             </StackPanel>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding InstalledApplications}" SelectedItem="{Binding SelectedInstalledApplication, Mode=TwoWay}">
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding InstalledApplicationsView}" SelectedItem="{Binding SelectedInstalledApplication, Mode=TwoWay}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Loaded installed-app registrations">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="APPLICATION" Binding="{Binding Name}" Width="2*" MinWidth="160"/>
                                     <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*" MinWidth="100"/>

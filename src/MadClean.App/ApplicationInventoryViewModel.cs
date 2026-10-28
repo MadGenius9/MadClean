@@ -42,6 +42,7 @@ public sealed partial class MainViewModel
     public ICommand ReviewLeftoversCommand { get; private set; } = null!;
     private void InitializeApplicationInventory()
     {
+        InitializeInstalledAppSearch();
         InitializeInstalledAppPlans();
         InitializeLeftoverContentReview();
         ViewLeftoverReviewCommand = new ActionCommand(() => SelectedPage = 8, () => true);
@@ -94,6 +95,7 @@ public sealed partial class MainViewModel
     }
     private void BeginInstalledApplicationsRefresh(string message = "Reading covered Add/Remove Programs registrations; no complete current inventory is displayed…")
     {
+        SetInstalledAppSearchRefreshPending(true);
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         InstalledApplications.Clear(); SelectedInstalledApplication = null;
         InstalledMessage = message;
@@ -103,6 +105,7 @@ public sealed partial class MainViewModel
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
         InstalledApplications.Clear(); SelectedInstalledApplication = null;
         InstalledMessage = error + " No complete current installed-app inventory is displayed." + RegistryCancellationCaveat;
+        SetInstalledAppSearchRefreshPending(false);
     }
     private async Task PublishInstalledApplications(CheckResult<InstalledApplication> result, CancellationToken token)
     {
@@ -119,6 +122,7 @@ public sealed partial class MainViewModel
             token.ThrowIfCancellationRequested();
             latestInstalledSnapshot = new(result.State, result.Message, items);
             InstalledMessage = Stamp(result.State, result.Message);
+            SetInstalledAppSearchRefreshPending(false);
         }
         catch (OperationCanceledException)
         {

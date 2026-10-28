@@ -136,6 +136,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_selected_msi_native_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-registration-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_installed_app_search_proof(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-installed-app-search']
+        self.save(); self.rejected()
+    def test_search_without_actual_rows_stays_inconclusive_despite_green_jobs(self):
+        search=next(check for check in self.report['checks'] if check['name']=='ui-installed-app-search')
+        search.update(state='inconclusive',detail='TEST-ONLY actual registration query returned no usable rows')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='ui-installed-app-search')['state'])
     def test_passing_report_cannot_omit_isolated_transaction_probe(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='startup-transaction-handle-probe']
         self.save(); self.rejected()

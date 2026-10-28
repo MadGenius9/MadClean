@@ -1,0 +1,15 @@
+# Installed-app search
+
+The user-approved search box filters **already-loaded** installed-app names or publishers. It performs literal, case-insensitive Ordinal substring matching: punctuation, wildcard and regular-expression characters remain literal text. It does not search versions, installation paths, registry/product identities, uninstall hints, private files or other modules, and it starts no Windows/provider query.
+
+`InstalledApplicationSearch.Create` prepares a bounded immutable predicate. Input is limited to256 UTF-16 code units and validated before trimming outer whitespace. Unpaired surrogates, control/format characters and line/paragraph separators are rejected; invalid input shows an explanatory message and cannot silently become an empty filter that reveals every row. A valid empty/space-only query shows every nonnull loaded registration. Query text is private in the predicate and is never persisted, logged or uploaded. No fuzzy/locale-dependent normalization or speed claim is made.
+
+The WPF collection view filters the existing observable list, preserving its full source and the separately retained native snapshot/baseline. Count labels refer to **loaded registrations**, not every app on the PC, and retain the original inventory coverage message. Counts are suppressed during incomplete chunk publication. Refresh preserves the entered filter; Clear search only restores the current loaded view. No matches does not establish absence or completed uninstall.
+
+If the filter hides the selected registration, selection is cleared through the existing invalidation path. Prepared review plans and selected MSI results are invalidated; pending MSI publication is guarded by generation/selection/snapshot identity. Filtering does not abort a synchronous native query or authorize an operation. The grid explicitly supports one selected registration and does not synchronize selection to collection-view current-item changes. Existing NoRemove/complete-snapshot gates and explicit review actions remain unchanged.
+
+## Validation
+
+Portable tests cover literal punctuation/pattern characters, Name/Publisher-only scope, no hidden version/path/identity matching, null/empty/malformed input, exact Unicode capacity and culture/normalization boundaries. The full build and current counts are recorded in the execution ledger; Linux does not verify WPF interaction.
+
+The separate required `ui-installed-app-search` Windows check runs **after every screenshot and unchecked-navigation assertion**. It explicitly refreshes real CI-host ARP metadata, then tests the actual bound textbox, positive/negative filtering, hidden-selection invalidation, unchanged full source/baseline/status, Clear and no additional activity. It injects no app rows. No screenshots follow metadata loading, and only coarse counts/verification flags are exported—never app names, publishers, query text, identities or provider messages. No usable actual rows means inconclusive, never a fabricated pass. Native wait/cancellation remains owned by the existing registration adapter; no installer or startup action runs.
