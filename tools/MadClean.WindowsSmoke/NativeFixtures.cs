@@ -15,6 +15,7 @@ internal static partial class NativeFixtures
         Directory.CreateDirectory(fixture);
         File.WriteAllText(Path.Combine(fixture, ".madclean-fixture-owner"), marker);
         bool transactionProbeTeardownCompleted = true;
+        bool shortcutProbeTeardownCompleted = true;
         try
         {
             var duplicates = Duplicates(fixture, report, token);
@@ -37,6 +38,14 @@ internal static partial class NativeFixtures
             SystemToolCatalogs(report, token);
             SystemToolHeldCatalogs(report, token);
             SystemToolGate(report, token);
+            shortcutProbeTeardownCompleted = false;
+            shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token);
+            if (!shortcutProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe)
+            {
+                report.Unknown("startup-transaction-handle-probe", "The prior owned shortcut probe did not establish safe teardown; no transaction probe started and the ownership tree is retained.");
+                report.Unknown("startup-transaction-interference-probe", "The prior owned shortcut probe did not establish safe teardown; no interference probe started and the ownership tree is retained.");
+                return;
+            }
             // The isolated transaction worker alone owns its registry/transaction cleanup.
             // Never remove its filesystem ownership marker while its outcome is uncertain.
             transactionProbeTeardownCompleted = false;
@@ -50,9 +59,9 @@ internal static partial class NativeFixtures
         }
         finally
         {
-            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted)
+            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted)
             {
-                report.Unknown("fixture-teardown", "The isolated transaction probe is pending or did not establish registry teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
+                report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }
             else try
             {

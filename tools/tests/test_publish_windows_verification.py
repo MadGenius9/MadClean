@@ -139,6 +139,24 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_owned_shortcut_primitive_proofs(self):
+        for name in ('shortcut-rename-handle-probe','shortcut-mapped-write-witness'):
+            with self.subTest(name=name):
+                original=list(self.report['checks'])
+                self.report['checks']=[check for check in original if check['name']!=name]
+                self.save(); self.rejected()
+                self.report['checks']=original
+    def test_unobserved_owned_shortcut_or_mapping_cannot_become_overall_pass(self):
+        for name in ('shortcut-rename-handle-probe','shortcut-mapped-write-witness'):
+            with self.subTest(name=name):
+                proof=next(check for check in self.report['checks'] if check['name']==name)
+                proof.update(state='inconclusive',detail='TEST-ONLY native primitive unavailable; no actual fixture operations')
+                self.report.update(passed=False,state='inconclusive'); self.save()
+                _, summary, files=self.prepare()
+                self.assertFalse(summary['passed'])
+                published=json.loads(files['report.json'])
+                self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']==name)['state'])
+                proof.update(state='passed',detail='TEST-ONLY fixture evidence')
     def test_passing_report_cannot_omit_actual_inspection_ui_lifecycle(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-inspection-evidence']
         self.save(); self.rejected()

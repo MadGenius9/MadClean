@@ -17,7 +17,8 @@ public sealed partial class MainViewModel
     public string ExclusionsMessage { get => exclusionsMessage; private set => Set(ref exclusionsMessage, value); }
     public ResultRow? SelectedCleanupRow { get => selectedCleanupRow; set { Set(ref selectedCleanupRow, value); PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails))); CommandManager.InvalidateRequerySuggested(); } }
     public string SelectedCleanupDetails => selectedCleanupRow == null ? "Select a preview row to inspect and copy its complete path, size/observation and category before choosing an exclusion." :
-        selectedCleanupRow.Name + "\n" + selectedCleanupRow.Detail + "\n" + selectedCleanupRow.State;
+        selectedCleanupRow.Name + "\n" + selectedCleanupRow.Detail + "\n" + selectedCleanupRow.State +
+        "\nActive use is not established. Files can remain memory-mapped after ordinary handles close; a successful sharing check is not proof they are inactive. This is a read-only candidate, not deletion permission.";
     public CleanupExclusion? SelectedCleanupExclusion { get => selectedExclusion; set { Set(ref selectedExclusion, value); CommandManager.InvalidateRequerySuggested(); } }
     public ICommand ExcludeCleanupFileCommand { get; private set; } = null!;
     public ICommand ExcludeCleanupFolderCommand { get; private set; } = null!;

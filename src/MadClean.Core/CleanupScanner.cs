@@ -101,7 +101,8 @@ public sealed class CleanupScanner
                             if (info.LastWriteTimeUtc > cutoff || ProtectedExtensions.Contains(info.Extension) ||
                                 (attributes & (FileAttributes.Encrypted | FileAttributes.Offline | FileAttributes.System)) != 0)
                             { excluded++; continue; }
-                            // Sharing violation means active/locked: exclude rather than guess. Never read contents.
+                            // Exclude sharing conflicts. A successful open is not inactive-use proof:
+                            // existing mapped views can outlive ordinary handles. Never read contents.
                             using var handle = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
                             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) { excluded++; continue; }
                             candidates.Add(new(location.Category, path, handle.Length, info.LastWriteTimeUtc));

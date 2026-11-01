@@ -61,6 +61,8 @@ The user selects genuinely obsolete shortcuts after inspecting the S1 evidence. 
 
 Any action affects only the explicitly selected shortcut entry, never its target application, directory, data or another link. Reparse-point shortcut entries and uncertain identities are blocked. Use a reviewed supported reversible mechanism where possible, disclose recovery limits, and record actual per-item results/cancellation. No target cleanup, installer activation or automatic deletion is included.
 
+A [development-only handle-rename probe](SHORTCUT-ACTION-RESEARCH.md) now tests exact owned-file move/restore, collision and mapped-view semantics. It is not a client action or durable/private quarantine implementation; actual Windows proof is pending, and S2 remains unavailable.
+
 ## Incremental acceptance gates
 
 - **F1:** real fixture files and collision/same-size/different-content cases; filenames-only matches rejected; full-byte/stream policy; hard-link aliases; reparse ancestors/loops; locked/changed files; offline/cloud/protected scopes; bounded work and cancellation. Validate on disposable Windows filesystems with actual supported identity APIs; no production hashes or sample matches injected into UI.

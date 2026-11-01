@@ -136,7 +136,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         foreach (var c in report.Candidates)
         {
             token.ThrowIfCancellationRequested();
-            CleanupRows.Add(new(c.Path, $"{Display.Bytes(c.Bytes)} · modified {c.ModifiedUtc:u}", c.Category));
+            CleanupRows.Add(new(c.Path, $"{Display.Bytes(c.Bytes)} · modified {c.ModifiedUtc:u} · active use unknown", c.Category));
             if (++added % 128 == 0) await Task.Delay(1, token);
         }
         foreach (var issue in report.Issues) CleanupRows.Add(new(issue.Path, issue.Reason, issue.Category + " · excluded/error"));

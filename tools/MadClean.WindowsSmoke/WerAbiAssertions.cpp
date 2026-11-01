@@ -31,3 +31,7 @@ static_assert(offsetof(CRYPTCATMEMBER, gSubjectType) == 24, "Catalog member subj
 static_assert(offsetof(CRYPTCATMEMBER, pIndirectData) == 48, "Catalog member indirect-data offset differs.");
 static_assert(offsetof(SIP_INDIRECT_DATA, DigestAlgorithm) == 24, "SIP algorithm offset differs.");
 static_assert(offsetof(SIP_INDIRECT_DATA, Digest) == 48, "SIP digest offset differs.");
+// Current official WinBase.h: BOOLEAN/flags union, aligned HANDLE, DWORD, WCHAR[1].
+static_assert(offsetof(FILE_RENAME_INFO, RootDirectory) == 8, "Handle rename root offset differs.");
+static_assert(offsetof(FILE_RENAME_INFO, FileNameLength) == 16, "Handle rename length offset differs.");
+static_assert(offsetof(FILE_RENAME_INFO, FileName) == 20, "Handle rename name offset differs.");

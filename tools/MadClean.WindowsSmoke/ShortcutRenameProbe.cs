@@ -1,0 +1,383 @@
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using MadClean.Core;
+using Microsoft.Win32.SafeHandles;
+
+namespace MadClean.WindowsSmoke;
+
+internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObserved, bool RestoreObserved,
+    bool CollisionRefused, bool IdentityPreserved, bool BytesPreserved, bool TargetUnchanged,
+    bool AttributeAnchorHandoffObserved, bool? ExclusiveWithLiveMapping, bool? MappedWriteObserved,
+    bool TeardownCompleted, int? NativeErrorCode, string Reason);
+
+// Development-only object-rename proof. It is not a quarantine implementation, action
+// token, inactive/immutable-file test, ACL/privacy guarantee or durable recovery journal.
+internal static class ShortcutRenameProbe
+{
+    private static int active;
+    private static Task<ShortcutRenameProbeResult>? pending;
+    internal static bool HasPendingNativeProbe => Volatile.Read(ref active) != 0;
+    internal static Task<ShortcutRenameProbeResult>? PendingCompletion => Volatile.Read(ref pending);
+
+    internal static async Task<ShortcutRenameProbeResult> RunAsync(string ownedFixtureRoot, string ownerMarker,
+        Action<string, string> createOwnedShortcut, CancellationToken token)
+    {
+        if (token.IsCancellationRequested) return Empty(CheckState.Cancelled, "cancelled-before-start");
+        if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess) return Empty(CheckState.Unsupported, "windows-x64-required");
+        if (Interlocked.CompareExchange(ref active, 1, 0) != 0) return Empty(CheckState.Unavailable, "previous-native-worker-pending");
+        var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var completion = new TaskCompletionSource<ShortcutRenameProbeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Volatile.Write(ref pending, completion.Task);
+        var thread = new Thread(() =>
+        {
+            ShortcutRenameProbeResult result;
+            try { result = new ProbeWorker(ownedFixtureRoot, ownerMarker, createOwnedShortcut, stop.Token).Run(); }
+            catch { result = Empty(CheckState.Failed, "worker-failed-owned-tree-retained"); }
+            finally { stop.Dispose(); Volatile.Write(ref active, 0); }
+            completion.TrySetResult(result);
+        }) { IsBackground = true, Name = "MadClean owned shortcut rename proof" };
+        try { thread.SetApartmentState(ApartmentState.STA); thread.Start(); }
+        catch
+        {
+            stop.Dispose(); Volatile.Write(ref active, 0);
+            completion.TrySetResult(Empty(CheckState.Unavailable, "native-worker-start-unavailable"));
+        }
+        try { return await completion.Task.WaitAsync(TimeSpan.FromSeconds(45), token).ConfigureAwait(false); }
+        catch (TimeoutException)
+        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Unavailable, "caller-wait-expired-worker-owns-tree"); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Cancelled, "caller-cancelled-worker-owns-tree"); }
+    }
+
+    private static ShortcutRenameProbeResult Empty(CheckState state, string reason) =>
+        new(state, false, false, false, false, false, false, false, null, null, false, null, reason);
+
+    private sealed class ProbeWorker(string fixture, string marker, Action<string, string> createShortcut, CancellationToken token)
+    {
+        private const uint ReadAttributes = 0x80, Traverse = 0x20, GenericRead = 0x80000000, GenericWrite = 0x40000000, Delete = 0x10000;
+        private const uint BackupSemantics = 0x02000000, OpenReparse = 0x00200000, NoRecall = 0x00100000;
+        private const uint UnsafeAttributes = 0x400 | 0x1000 | 0x4000 | 0x40000 | 0x400000;
+        private readonly List<(string Path, SafeFileHandle Handle)> parents = [];
+        private readonly HashSet<string> ownedFiles = new(StringComparer.OrdinalIgnoreCase);
+        private string root = "", child = "", vault = "", source = "", collision = "", target = "", mapped = "";
+        private string reason = "initializing";
+        private bool created, uncertain, teardown, com;
+        private bool moved, restored, collisionRefused, identity, bytes, targetUnchanged, anchorHandoff;
+        private bool? exclusiveMapping, mappedWrite;
+        private int? nativeError;
+        private CheckState state = CheckState.Unavailable;
+
+        internal ShortcutRenameProbeResult Run()
+        {
+            try
+            {
+                Check(); ValidateAbi(); ValidateOwner();
+                using var ownership = Open(Path.Combine(root, ".madclean-fixture-owner"), GenericRead, 1);
+                if (ReadBytes(ownership, 32).Length != 32 || Encoding.ASCII.GetString(ReadBytes(ownership, 32)) != marker)
+                    throw new InvalidDataException();
+                int initialized = CoInitializeEx(0, 2);
+                if (initialized < 0) { reason = "com-initialization-unavailable"; return Result(); }
+                com = true; Check();
+                child = Path.Combine(root, "shortcut-rename-probe-" + Guid.NewGuid().ToString("N"));
+                reason = "create-owned-child";
+                if (!CreateDirectoryW(child, 0)) throw Native();
+                created = true;
+                vault = Path.Combine(child, "owned-destination");
+                if (!CreateDirectoryW(vault, 0)) throw Native();
+                OpenParent(child); OpenParent(vault);
+                target = Path.Combine(child, "target.bin"); mapped = Path.Combine(child, "mapped.bin");
+                source = Path.Combine(child, "source-" + Guid.NewGuid().ToString("N") + ".lnk");
+                collision = Path.Combine(child, "collision-" + Guid.NewGuid().ToString("N") + ".lnk");
+                ownedFiles.UnionWith([target, mapped, source, collision]);
+                WriteNew(target, [17, 34, 51, 68]);
+                Check(); reason = "create-owned-shortcuts";
+                createShortcut(source, target); Check(); createShortcut(collision, target); Check();
+                using var targetHandle = Open(target, GenericRead, 1);
+                var targetBefore = Identity(targetHandle); byte[] targetBytes = ReadBytes(targetHandle, 64);
+                using var collisionHandle = Open(collision, GenericRead, 7);
+                var collisionBefore = Identity(collisionHandle); byte[] collisionBytes = ReadBytes(collisionHandle, 1_048_576);
+                // READ_ATTRIBUTES is metadata-only: it is not a data-read share reservation.
+                using var anchor = Open(source, ReadAttributes, 7);
+                var prior = Identity(anchor);
+                using (var action = Open(source, GenericRead | Delete, 0))
+                {
+                    var actionIdentity = Identity(action);
+                    anchorHandoff = Same(prior, actionIdentity) && prior.Links == 1;
+                    if (!anchorHandoff) throw new InvalidDataException();
+                    byte[] original = ReadBytes(action, 1_048_576);
+                    if (original.Length == 0) throw new InvalidDataException();
+                    var destinationDirectory = parents.Single(item => item.Path == vault).Handle;
+                    var sourceDirectory = parents.Single(item => item.Path == child).Handle;
+                    string destinationLeaf = "moved-" + Guid.NewGuid().ToString("N") + ".lnk";
+                    string destination = Path.Combine(vault, destinationLeaf); ownedFiles.Add(destination);
+                    Check(); reason = "move-owned-link";
+                    MoveAndVerify(action, destinationDirectory, destinationLeaf, destination, prior, original); moved = true;
+                    Check(); reason = "restore-owned-link";
+                    MoveAndVerify(action, sourceDirectory, Path.GetFileName(source), source, prior, original); restored = true;
+                    Check(); reason = "collision-owned-link";
+                    RevalidateParents(); uncertain = true;
+                    bool replaced = Rename(action, sourceDirectory, Path.GetFileName(collision), out int collisionError);
+                    if (replaced) throw new InvalidDataException();
+                    bool originalPreserved = FinalPath(action) == source && Same(prior, Identity(action)) && original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576));
+                    bool destinationPreserved = Same(collisionBefore, Identity(collisionHandle)) && collisionBytes.AsSpan().SequenceEqual(ReadBytes(collisionHandle, 1_048_576));
+                    if (!originalPreserved || !destinationPreserved) throw new InvalidDataException();
+                    uncertain = false; collisionRefused = true; nativeError = collisionError;
+                    identity = Same(prior, Identity(action)); bytes = originalPreserved;
+                }
+                targetUnchanged = Same(targetBefore, Identity(targetHandle)) && targetBytes.AsSpan().SequenceEqual(ReadBytes(targetHandle, 64));
+                if (!targetUnchanged) throw new InvalidDataException();
+                Check(); reason = "mapped-view-witness";
+                MappedWitness();
+                if (uncertain) throw new InvalidOperationException();
+                RevalidateParents(); Check();
+                state = exclusiveMapping == true && mappedWrite == true ? CheckState.Available : CheckState.Partial;
+                reason = state == CheckState.Available ? "owned-primitives-and-mapped-witness-observed" : "owned-primitives-observed-mapping-unverified";
+            }
+            catch (OperationCanceledException) { state = CheckState.Cancelled; reason = "worker-cancelled-before-or-after-observed-operation"; }
+            catch (Win32Exception exception) { nativeError = exception.NativeErrorCode; state = CheckState.Unavailable; }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or
+                InvalidOperationException or NotSupportedException or System.Security.SecurityException or COMException)
+            { state = CheckState.Failed; }
+            finally
+            {
+                // Release only the child-directory guards first: keeping their no-DELETE
+                // leases would prevent fixture deletion. Root ancestry stays held below.
+                foreach (var parent in parents.Where(item => item.Path == child || item.Path == vault).Reverse()) parent.Handle.Dispose();
+                parents.RemoveAll(item => item.Path == child || item.Path == vault);
+                if (com) CoUninitialize();
+                // This deletes only this worker's disposable fixtures, after all operation
+                // handles/views/COM objects close. A user-facing action never calls here.
+                if (created && !uncertain)
+                {
+                    try
+                    {
+                        RevalidateParents();
+                        if (!OwnerStillMatches() || !SafeOwnedTree()) throw new InvalidDataException();
+                        Directory.Delete(child, true); teardown = !Directory.Exists(child);
+                    }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                    { teardown = false; }
+                }
+                foreach (var parent in parents.AsEnumerable().Reverse()) parent.Handle.Dispose();
+                parents.Clear();
+            }
+            return Result();
+        }
+        private ShortcutRenameProbeResult Result() => new(
+            (state is CheckState.Available or CheckState.Partial) && !teardown ? CheckState.Unknown : state,
+            moved, restored, collisionRefused, identity, bytes, targetUnchanged, anchorHandoff,
+            exclusiveMapping, mappedWrite, teardown, nativeError,
+            (state is CheckState.Available or CheckState.Partial) && !teardown ? "owned-tree-teardown-unverified" : reason);
+        private void Check() => token.ThrowIfCancellationRequested();
+        private void ValidateOwner()
+        {
+            reason = "validate-owned-root";
+            if (!Guid.TryParseExact(marker, "N", out var owner) || owner == Guid.Empty || marker != owner.ToString("N")) throw new InvalidDataException();
+            root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(fixture));
+            string name = Path.GetFileName(root); const string prefix = "windows-validation-fixtures-";
+            if (!name.StartsWith(prefix, StringComparison.Ordinal) || !Guid.TryParseExact(name[prefix.Length..], "N", out var id) || id == Guid.Empty ||
+                Path.GetFileName(Path.GetDirectoryName(root)) != "artifacts" || root.Length > 240 || root.StartsWith(@"\\", StringComparison.Ordinal) ||
+                root.Length < 4 || root[1] != ':' || root[2] != '\\' || GetDriveTypeW(Path.GetPathRoot(root)!) != 3) throw new InvalidDataException();
+            var chain = new Stack<string>();
+            for (string? current = root; current != null; current = Path.GetDirectoryName(current))
+            { if (chain.Count >= 64) throw new InvalidDataException(); chain.Push(current); }
+            while (chain.TryPop(out string? ancestor)) { Check(); OpenParent(ancestor); }
+            using var guard = Open(Path.Combine(root, ".madclean-fixture-owner"), GenericRead, 1);
+            if (Encoding.ASCII.GetString(ReadBytes(guard, 32)) != marker) throw new InvalidDataException();
+        }
+        private void OpenParent(string path)
+        {
+            // Owned-fixture-only sharing: permit ADD_FILE target opens, deny DELETE.
+            var handle = Open(path, ReadAttributes | Traverse, 3, directory: true);
+            parents.Add((path, handle));
+        }
+        private void RevalidateParents()
+        {
+            foreach (var parent in parents)
+                if (!string.Equals(FinalPath(parent.Handle), Path.TrimEndingDirectorySeparator(parent.Path), StringComparison.OrdinalIgnoreCase) ||
+                    !GetFileInformationByHandleEx(parent.Handle, 9, out TagInfo tag, 8) || (tag.Attributes & UnsafeAttributes) != 0)
+                    throw new InvalidDataException();
+        }
+        private SafeFileHandle Open(string path, uint access, uint share, bool directory = false)
+        {
+            var handle = CreateFileW(path, access, share, 0, 3, OpenReparse | NoRecall | (directory ? BackupSemantics : 0), 0);
+            if (handle.IsInvalid) { var error = Native(); handle.Dispose(); throw error; }
+            try
+            {
+                if (!GetFileInformationByHandleEx(handle, 9, out TagInfo tag, 8)) throw Native();
+                if ((tag.Attributes & UnsafeAttributes) != 0 || ((tag.Attributes & 0x10) != 0) != directory ||
+                    !string.Equals(FinalPath(handle), Path.TrimEndingDirectorySeparator(path), StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException();
+                return handle;
+            }
+            catch { handle.Dispose(); throw; }
+        }
+        private static void WriteNew(string path, byte[] bytes)
+        { using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None); stream.Write(bytes); }
+        private static byte[] ReadBytes(SafeFileHandle handle, int maximum)
+        {
+            if (!GetFileInformationByHandleEx(handle, 1, out StandardInfo info, 24)) throw Native();
+            if (info.EndOfFile < 0 || info.EndOfFile > maximum || info.Directory || info.DeletePending) throw new InvalidDataException();
+            if (!SetFilePointerEx(handle, 0, out long position, 0) || position != 0) throw Native();
+            byte[] data = new byte[(int)info.EndOfFile]; int total = 0;
+            byte[] part = new byte[Math.Min(65_536, data.Length)];
+            while (total < data.Length)
+            {
+                int requested = Math.Min(part.Length, data.Length - total);
+                if (!ReadFile(handle, part, (uint)requested, out uint read, 0)) throw Native();
+                if (read == 0 || read > requested) throw new InvalidDataException();
+                part.AsSpan(0, (int)read).CopyTo(data.AsSpan(total)); total += (int)read;
+            }
+            return data;
+        }
+        private static (ulong Volume, Guid Id, uint Links) Identity(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandleEx(handle, 18, out IdInfo id, 24) ||
+                !GetFileInformationByHandleEx(handle, 1, out StandardInfo standard, 24)) throw Native();
+            if (id.Id == Guid.Empty || standard.Directory || standard.DeletePending || standard.NumberOfLinks != 1) throw new InvalidDataException();
+            return (id.Volume, id.Id, standard.NumberOfLinks);
+        }
+        private static bool Same((ulong Volume, Guid Id, uint Links) first, (ulong Volume, Guid Id, uint Links) second) => first == second;
+        private void MoveAndVerify(SafeFileHandle action, SafeFileHandle directory, string leaf, string expected,
+            (ulong Volume, Guid Id, uint Links) prior, byte[] original)
+        {
+            RevalidateParents(); Check(); uncertain = true;
+            if (!Rename(action, directory, leaf, out int renameError))
+            {
+                var error = new Win32Exception(renameError);
+                if (Same(prior, Identity(action)) && original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576))) uncertain = false;
+                throw error;
+            }
+            // Once dispatched, verify the actual outcome before honoring cancellation.
+            if (FinalPath(action) != expected || !Same(prior, Identity(action)) || !original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576))) throw new InvalidDataException();
+            RevalidateParents(); uncertain = false;
+        }
+        private static bool Rename(SafeFileHandle sourceHandle, SafeFileHandle directory, string leaf, out int nativeError)
+        {
+            if (string.IsNullOrWhiteSpace(leaf) || leaf.Length > 100 || !leaf.EndsWith(".lnk", StringComparison.Ordinal) ||
+                leaf.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('-' or '.'))) throw new InvalidDataException();
+            byte[] name = Encoding.Unicode.GetBytes(leaf); nint buffer = Marshal.AllocHGlobal(24 + name.Length);
+            bool reference = false;
+            try
+            {
+                Marshal.Copy(new byte[24 + name.Length], 0, buffer, 24 + name.Length);
+                directory.DangerousAddRef(ref reference);
+                Marshal.WriteIntPtr(buffer, 8, directory.DangerousGetHandle()); Marshal.WriteInt32(buffer, 16, name.Length);
+                Marshal.Copy(name, 0, buffer + 20, name.Length);
+                bool result = SetFileInformationByHandle(sourceHandle, 3, buffer, (uint)(24 + name.Length));
+                nativeError = result ? 0 : Marshal.GetLastWin32Error();
+                return result;
+            }
+            finally { if (reference) directory.DangerousRelease(); Marshal.FreeHGlobal(buffer); }
+        }
+        private void MappedWitness()
+        {
+            Check(); WriteNew(mapped, [17, 0, 0, 0, 0, 0, 0, 0]);
+            nint view = 0; SafeFileHandle? mapping = null;
+            try
+            {
+                using (var original = Open(mapped, GenericRead | GenericWrite, 7))
+                {
+                    mapping = CreateFileMappingW(original, 0, 4, 0, 0, null);
+                    if (mapping.IsInvalid) { nativeError = Marshal.GetLastWin32Error(); return; }
+                    view = MapViewOfFile(mapping, 6, 0, 0, 8);
+                    if (view == 0) { nativeError = Marshal.GetLastWin32Error(); return; }
+                }
+                mapping.Dispose(); mapping = null; Check();
+                using var exclusive = CreateFileW(mapped, GenericRead | Delete, 0, 0, 3, OpenReparse | NoRecall, 0);
+                if (exclusive.IsInvalid) { exclusiveMapping = false; nativeError = Marshal.GetLastWin32Error(); return; }
+                exclusiveMapping = true;
+                Marshal.WriteByte(view, 42);
+                if (!FlushViewOfFile(view, 8)) { nativeError = Marshal.GetLastWin32Error(); return; }
+                mappedWrite = ReadBytes(exclusive, 64)[0] == 42 && Marshal.ReadByte(view) == 42;
+            }
+            finally
+            {
+                if (view != 0 && !UnmapViewOfFile(view))
+                { nativeError = Marshal.GetLastWin32Error(); uncertain = true; }
+                mapping?.Dispose();
+            }
+        }
+        private bool OwnerStillMatches()
+        {
+            using var guard = Open(Path.Combine(root, ".madclean-fixture-owner"), GenericRead, 1);
+            return Encoding.ASCII.GetString(ReadBytes(guard, 32)) == marker;
+        }
+        private bool SafeOwnedTree()
+        {
+            if (Directory.GetParent(child)?.FullName != root || !Path.GetFileName(child).StartsWith("shortcut-rename-probe-", StringComparison.Ordinal)) return false;
+            var remaining = new Stack<string>(); remaining.Push(child); int count = 0, queued = 1;
+            while (remaining.TryPop(out string? path))
+            {
+                if (++count > 32 || (File.GetAttributes(path) & (FileAttributes.ReparsePoint | FileAttributes.Offline)) != 0) return false;
+                if (Directory.Exists(path))
+                {
+                    if (path != child && path != vault) return false;
+                    foreach (string entry in Directory.EnumerateFileSystemEntries(path))
+                    { if (++queued > 32) return false; remaining.Push(entry); }
+                }
+                else if (!ownedFiles.Contains(path)) return false;
+            }
+            return true;
+        }
+        private static string FinalPath(SafeFileHandle handle)
+        {
+            var buffer = new StringBuilder(1024); uint count = GetFinalPathNameByHandleW(handle, buffer, 1024, 0);
+            if (count == 0) throw Native();
+            if (count >= 1024) throw new InvalidDataException();
+            string result = buffer.ToString();
+            if (result.StartsWith(@"\\?\", StringComparison.Ordinal)) result = result[4..];
+            return Path.TrimEndingDirectorySeparator(result);
+        }
+        private static Win32Exception Native() => new(Marshal.GetLastWin32Error());
+        private static void ValidateAbi()
+        {
+            if (Marshal.SizeOf<IdInfo>() != 24 || Marshal.OffsetOf<IdInfo>(nameof(IdInfo.Id)).ToInt32() != 8 ||
+                Marshal.SizeOf<StandardInfo>() != 24 || Marshal.OffsetOf<StandardInfo>(nameof(StandardInfo.NumberOfLinks)).ToInt32() != 16 ||
+                Marshal.OffsetOf<StandardInfo>(nameof(StandardInfo.DeletePending)).ToInt32() != 20 ||
+                Marshal.OffsetOf<StandardInfo>(nameof(StandardInfo.Directory)).ToInt32() != 21 ||
+                Marshal.SizeOf<RenameInfo>() != 24 || Marshal.OffsetOf<RenameInfo>(nameof(RenameInfo.Root)).ToInt32() != 8 ||
+                Marshal.OffsetOf<RenameInfo>(nameof(RenameInfo.NameLength)).ToInt32() != 16 ||
+                Marshal.OffsetOf<RenameInfo>(nameof(RenameInfo.Name)).ToInt32() != 20 || Marshal.SizeOf<TagInfo>() != 8) throw new PlatformNotSupportedException();
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)] private struct TagInfo { internal uint Attributes, ReparseTag; }
+    [StructLayout(LayoutKind.Sequential)] private struct RenameInfo { internal uint Flags; internal nint Root; internal uint NameLength; internal ushort Name; }
+    [StructLayout(LayoutKind.Sequential)] private struct IdInfo { internal ulong Volume; internal Guid Id; }
+    [StructLayout(LayoutKind.Sequential)] private struct StandardInfo
+    { internal long AllocationSize, EndOfFile; internal uint NumberOfLinks; [MarshalAs(UnmanagedType.U1)] internal bool DeletePending; [MarshalAs(UnmanagedType.U1)] internal bool Directory; }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern SafeFileHandle CreateFileW(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CreateDirectoryW(string path, nint security);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern uint GetDriveTypeW(string root);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, out TagInfo data, uint size);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, out StandardInfo data, uint size);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, out IdInfo data, uint size);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetFileInformationByHandle(SafeFileHandle file, int kind, nint data, uint size);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, StringBuilder path, uint size, uint flags);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetFilePointerEx(SafeFileHandle file, long distance, out long position, uint method);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool ReadFile(SafeFileHandle file, [Out] byte[] buffer, uint count, out uint read, nint overlapped);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern SafeFileHandle CreateFileMappingW(SafeFileHandle file, nint security, uint protect, uint high, uint low, string? name);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern nint MapViewOfFile(SafeFileHandle mapping, uint access, uint high, uint low, nuint size);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool UnmapViewOfFile(nint view);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool FlushViewOfFile(nint view, nuint size);
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern int CoInitializeEx(nint reserved, uint mode);
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern void CoUninitialize();
+}

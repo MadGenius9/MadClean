@@ -213,7 +213,7 @@
                                 <ScrollViewer MaxHeight="78" VerticalScrollBarVisibility="Auto">
                                     <TextBlock Text="{Binding CleanupMessage}" Style="{StaticResource Caption}"/>
                                 </ScrollViewer>
-                                <TextBlock Text="Exact candidate paths and logical sizes from the two supported temporary roots only. Saved exclusions are honored before traversal. This preview does not authorize deletion." Style="{StaticResource Caption}"/>
+                                <TextBlock Text="Exact candidate paths and logical sizes from the two supported temporary roots only. Saved exclusions are honored before traversal. Known sharing conflicts are excluded; active use remains unknown, including memory-mapped use. This preview does not authorize deletion." Style="{StaticResource Caption}"/>
                                 <WrapPanel Margin="0,0,0,12">
                                     <Button Content="Exclude selected file" Command="{Binding ExcludeCleanupFileCommand}"/>
                                     <Button Content="Exclude a folder…" Command="{Binding ExcludeCleanupFolderCommand}" Background="#244B70"/>
