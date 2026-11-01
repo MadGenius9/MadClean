@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "57ceaadc98c55166f3ae766d8efdc8224fd41fe8",
-  "runId": "41262850994",
+  "sourceCommit": "aa6abb8d9e77264f7ab22907534c361acf01dc12",
+  "runId": "41263689576",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T01:54:51.9034879+00:00",
-  "completedUtc": "2026-11-01T01:55:05.8129733+00:00",
+  "startedUtc": "2026-11-01T02:08:13.5964268+00:00",
+  "completedUtc": "2026-11-01T02:08:25.4088324+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -89,9 +89,14 @@
       "detail": "Both shortcut entries and the existing target remain, and the absent target stays absent. No link or target was launched."
     },
     {
+      "name": "shortcut-selected-recheck-fixture",
+      "state": "passed",
+      "detail": "Source coverage=Available; firstReadState=Available; secondReadState=Available; selectedReadCount=2; preCancellationObserved=true; missingThenExistsVerified=true; historicalSnapshotUnchanged=true; shortcutBytesUnchanged=true; ownedTargetPreserved=true; queryTimeBoundsVerified=true. The same exact selected scope was reused after a developer-owned CreateNew target restore simulation. No folder rescan, target launch/resolution, network lookup or removal occurred. No paths, identities, timestamps, link bytes or provider messages exported; availability observations do not establish identity continuity, obsolescence or removal safety."
+    },
+    {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -238,7 +243,13 @@
       "file": "tool-13.png",
       "width": 1404,
       "height": 961,
-      "sha256": "55c74a7d3aaf3c1b5290a10a96ee8030011dd9c0f6ae1c74dc195bff188c7cc9"
+      "sha256": "5fc2c007d804bc9e4bd5fd0a11c7f9d3e2ce91d845330de38fa07d58f481331b"
+    },
+    {
+      "file": "tool-23.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "3429e937e7ac1e74cf2c937d01a5b79d3b25da5c64e9b35a516f3bc74eec829f"
     },
     {
       "file": "tool-14.png",
