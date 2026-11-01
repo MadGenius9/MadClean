@@ -139,6 +139,18 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_independent_cpp_shortcut_control(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-rename-cpp-control']
+        self.save(); self.rejected()
+    def test_cpp_control_cannot_promote_unverified_managed_rename(self):
+        managed=next(check for check in self.report['checks'] if check['name']=='shortcut-rename-handle-probe')
+        managed.update(state='inconclusive',detail='TEST-ONLY managed Win32 outcome unverified; no native operation performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('passed',next(check for check in published['checks'] if check['name']=='shortcut-rename-cpp-control')['state'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='shortcut-rename-handle-probe')['state'])
     def test_passing_report_cannot_omit_owned_shortcut_primitive_proofs(self):
         for name in ('shortcut-rename-handle-probe','shortcut-mapped-write-witness'):
             with self.subTest(name=name):

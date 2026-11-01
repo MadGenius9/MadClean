@@ -40,6 +40,14 @@ internal static partial class NativeFixtures
             SystemToolGate(report, token);
             shortcutProbeTeardownCompleted = false;
             shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token);
+            if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
+            {
+                // Explicit independent control on a fresh child, even when managed Win32
+                // returned Unknown. It never retries/relabels the managed observations.
+                shortcutProbeTeardownCompleted = false;
+                shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token, cppControl: true);
+            }
+            else report.Unknown("shortcut-rename-cpp-control", "Managed probe ownership/teardown is uncertain; no independent C++ control started and the entire marked tree is retained.");
             if (!shortcutProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe)
             {
                 report.Unknown("startup-transaction-handle-probe", "The prior owned shortcut probe did not establish safe teardown; no transaction probe started and the ownership tree is retained.");

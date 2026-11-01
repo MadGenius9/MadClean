@@ -38,6 +38,16 @@ class CommandCaptureTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()): status=c.run('build',[sys.executable,'-c','print("x"*300000)'],root,dict(os.environ))
             self.assertEqual(0,status); self.assertLessEqual((root/'artifacts/ci-logs/build.log').stat().st_size,c.MAX_LOG)
             self.assertTrue(json.loads((root/'artifacts/ci-logs/build.json').read_text())['truncated'])
+    def test_shortcut_control_stage_retains_its_independent_compiler_outcome(self):
+        with tempfile.TemporaryDirectory(prefix='MadCleanControlCapture-') as directory:
+            root=Path(directory)
+            with contextlib.redirect_stdout(io.StringIO()):
+                status=c.run('shortcut-control',[sys.executable,'-c','print("TEST-ONLY compiler failure"); raise SystemExit(9)'],root,dict(os.environ))
+            metadata=json.loads((root/'artifacts/ci-logs/shortcut-control.json').read_text())
+            self.assertEqual(9,status)
+            self.assertEqual('shortcut-control',metadata['label'])
+            self.assertEqual(9,metadata['exitCode'])
+            self.assertFalse((root/'artifacts/ci-logs/native-abi.json').exists())
     def test_non_catalogued_label_and_executable_are_not_run(self):
         with self.assertRaises(ValueError): c.run('../outside',[sys.executable,'-c','raise Exception()'],Path('/unused'),{})
         with self.assertRaises(ValueError): c.run('build',['unsupported-program'],Path('/unused'),{})
