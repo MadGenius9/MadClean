@@ -47,6 +47,8 @@ On Linux, install the pinned SDK, use a writable `DOTNET_CLI_HOME` and `NUGET_PA
 
 More tools includes duplicate content review, shortcut target observations, Windows Diagnostics (event metadata and separately requested minimized WER store metadata), guided Windows pages, startup recovery previews, and Microsoft integrity-tool identity previews. Each starts unchecked and requires its own selection/action; ordinary Inspect does not invoke them. Startup changes and DISM/SFC execution remain disabled. Opening a Windows Settings page does not prove a task completed. See [the execution ledger](docs/ROADMAP-STATUS.md) for implemented behavior, Windows evidence and unresolved action/source gates.
 
+Shortcut review also offers [Recheck selected shortcut](docs/SHORTCUT-RECHECK.md): a fresh read of one selected `.lnk` and supported local target metadata, with prior/current evidence shown separately. It does not rescan siblings or overwrite the historical inventory. Missing/inaccessible/network/offline contexts remain unverified where appropriate; no shortcut is resolved, launched, saved or removed.
+
 In Hardware Upgrades, a separate online action can verify narrow official Surface Laptop 6 for Business family service observations after a complete supported PC identity is read. It requests three fixed public Microsoft articles without sending device identifiers. It does not establish RAM/CPU/BIOS limits, exact replacement-part fit or upgrade advice; other models and missing evidence remain Unknown/Unsupported. See [source scope and validation](docs/SURFACE-SERVICE-FACTS.md).
 
 ## Interface

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Buffers;
+using System.Text;
 
 namespace MadClean.Core;
 
@@ -38,7 +40,7 @@ public static class ShortcutTargetClassifier
                 "No stored target path was returned. Empty or malformed metadata is not proof of an obsolete shortcut.");
         if (target.Length > MaximumRawTargetCharacters)
             return Result(ShortcutTargetState.UnresolvedMetadata, "Stored target may exceed or meet the Shell path-buffer limit; truncation cannot be excluded, so no target probe was attempted.");
-        if (target.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format) || target.Contains('"'))
+        if (!ShortcutPathPolicy.HasSafeUnicode(target) || target.Contains('"'))
             return Result(ShortcutTargetState.UnresolvedMetadata, "Stored target contains ambiguous control/format or quoting metadata; no target probe was attempted.");
         if (target.StartsWith(@"\\?\", StringComparison.Ordinal) || target.StartsWith(@"\\.\", StringComparison.Ordinal))
             return Result(ShortcutTargetState.Unsupported, "Device/extended namespace targets are not supported by this bounded Shell path contract.");
@@ -89,7 +91,7 @@ public static class ShortcutPathPolicy
             return null;
         string path = value.Replace('/', '\\');
         if (path.Length < 3 || !char.IsAsciiLetter(path[0]) || path[1] != ':' || path[2] != '\\' ||
-            path.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format) ||
+            !HasSafeUnicode(path) ||
             path[2..].IndexOfAny([':', '*', '?', '"', '<', '>', '|', '%']) >= 0) return null;
         var parts = path[3..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
         if (!allowDriveRoot && parts.Length == 0) return null;
@@ -98,6 +100,19 @@ public static class ShortcutPathPolicy
             if (part is "." or ".." || part.EndsWith(' ') || part.EndsWith('.') || IsDevice(part)) return null;
         }
         return char.ToUpperInvariant(path[0]) + ":\\" + string.Join('\\', parts);
+    }
+
+    internal static bool HasSafeUnicode(string value)
+    {
+        var remaining = value.AsSpan();
+        while (!remaining.IsEmpty)
+        {
+            if (Rune.DecodeFromUtf16(remaining, out var rune, out int consumed) != OperationStatus.Done ||
+                Rune.GetUnicodeCategory(rune) is UnicodeCategory.Control or UnicodeCategory.Format or
+                    UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator) return false;
+            remaining = remaining[consumed..];
+        }
+        return true;
     }
 
     private static bool IsDevice(string part)

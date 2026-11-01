@@ -125,15 +125,27 @@ internal static partial class NativeFixtures
             CreateShortcut(existingLink, existing); CreateShortcut(missingLink, missing);
             var result = Query(ct => new WindowsShortcutInventory().ScanAsync(scope, ct), token);
             var data = SingleReport(result, "shortcut-provider", report);
-            if (data == null) return;
+            if (data == null)
+            {
+                report.Unknown("shortcut-selected-recheck-fixture", "The prior actual shortcut inventory did not establish a readable fixture snapshot; no selected recheck or external-restore fixture was started.");
+                return;
+            }
             CheckShortcut(data, existingLink, ShortcutTargetState.TargetExists, "shortcut-existing-local-fixture", result.State, report);
             CheckShortcut(data, missingLink, ShortcutTargetState.LocalTargetMissing, "shortcut-missing-local-fixture", result.State, report);
             if (!File.Exists(existing) || File.Exists(missing) || !File.Exists(existingLink) || !File.Exists(missingLink))
+            {
                 report.Fail("shortcut-no-mutation", "Read-only discovery changed fixture presence unexpectedly.");
-            else report.Pass("shortcut-no-mutation", "Both shortcut entries and the existing target remain, and the absent target stays absent. No link or target was launched.");
+                report.Unknown("shortcut-selected-recheck-fixture", "The earlier unchanged-fixture boundary failed; no recheck or external-restore simulation started.");
+                return;
+            }
+            report.Pass("shortcut-no-mutation", "Both shortcut entries and the existing target remain, and the absent target stays absent. No link or target was launched.");
+            ShortcutSelectedRecheckFixture(scope, missingLink, missing, result, report, token);
         }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException or COMException)
-        { report.Unknown("shortcut-provider", $"The bounded native fixture query could not finish (0x{ex.HResult:X8}); local-target classification is not verified here."); }
+        {
+            report.Unknown("shortcut-provider", $"The bounded native fixture query could not finish (0x{ex.HResult:X8}); local-target classification is not verified here.");
+            report.Unknown("shortcut-selected-recheck-fixture", "The preceding owned shortcut setup/inventory did not complete; no selected recheck proof is claimed.");
+        }
     }
 
     private static void CheckShortcut(ShortcutReport data, string path, ShortcutTargetState expected, string name, CheckState providerState, SmokeReport report)

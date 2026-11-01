@@ -3,10 +3,10 @@ using MadClean.Core;
 namespace MadClean.Windows;
 
 /// <summary>
-/// Explicit selected-folder Shell-link discovery only. The single background STA is never aborted;
+/// Explicit folder discovery and exact selected-link rechecks. The shared background STA is never aborted;
 /// cancellation/timeout stop further work and disclose any native call that has not returned yet.
 /// </summary>
-public sealed class WindowsShortcutInventory : IShortcutInventory
+public sealed partial class WindowsShortcutInventory : IShortcutInventory, IShortcutRecheck
 {
     private const int MaximumVisitedEntries = 10_000;
     private const int MaximumLinks = 1_000;
@@ -23,64 +23,11 @@ public sealed class WindowsShortcutInventory : IShortcutInventory
         string? local = ShortcutPathPolicy.NormalizeLocalPath(root, allowDriveRoot: false);
         if (local == null)
             return CheckResult<ShortcutReport>.Empty(CheckState.Unsupported, "Choose an explicit supported local folder, not a drive root, UNC/device path, variable, relative path or unsupported long path.");
-        if (token.IsCancellationRequested)
-            return CheckResult<ShortcutReport>.Empty(CheckState.Cancelled, "Shortcut discovery cancelled before a worker was started.");
-        if (!WorkerGate.Wait(0))
-            return CheckResult<ShortcutReport>.Empty(CheckState.Unavailable, "A previous shortcut metadata worker is still completing a native call. No additional worker was started; retry after it finishes.");
-
         var progress = new Progress();
-        var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var completion = new TaskCompletionSource<CheckResult<ShortcutReport>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var worker = new Thread(() =>
-        {
-            bool initialized = false;
-            try
-            {
-                int status = WindowsShortcutNative.CoInitializeEx(IntPtr.Zero, 2); // COINIT_APARTMENTTHREADED.
-                if (status < 0)
-                {
-                    completion.TrySetResult(new(CheckState.Failed, $"The read-only Shell COM apartment could not initialize (code 0x{status:X8}).", [progress.Snapshot(true)]));
-                    return;
-                }
-                initialized = true;
-                completion.TrySetResult(Scan(local, progress, stop.Token));
-            }
-            catch (OperationCanceledException)
-            { completion.TrySetResult(new(CheckState.Cancelled, "Shortcut discovery cancelled; completed observations remain review-only.", [progress.Snapshot(true)])); }
-            catch (Exception)
-            { completion.TrySetResult(new(CheckState.Failed, "Shortcut discovery could not complete. No target absence or obsolete-shortcut conclusion was inferred from the failure.", [progress.Snapshot(true)])); }
-            finally
-            {
-                try { if (initialized) WindowsShortcutNative.CoUninitialize(); }
-                finally { stop.Dispose(); WorkerGate.Release(); }
-            }
-        }) { IsBackground = true, Name = "MadClean read-only shortcut metadata" };
-
-        try
-        {
-            worker.SetApartmentState(ApartmentState.STA);
-            worker.Start();
-        }
-        catch (Exception)
-        {
-            stop.Dispose(); WorkerGate.Release();
-            return CheckResult<ShortcutReport>.Empty(CheckState.Failed, "The dedicated shortcut metadata thread could not start. No scan or target activation was performed.");
-        }
-        try { return await completion.Task.WaitAsync(ScanBudget, token).ConfigureAwait(false); }
-        catch (OperationCanceledException)
-        {
-            RequestStop(stop);
-            return new(CheckState.Cancelled,
-                "Shortcut discovery cancellation was requested. An in-flight read-only native/COM call may still finish before its worker and read leases close; no further work will be scheduled. No shortcut or target was changed.",
-                [progress.Snapshot(true)]);
-        }
-        catch (TimeoutException)
-        {
-            RequestStop(stop);
-            return new(CheckState.Partial,
-                "Shortcut discovery reached its 60-second wait budget. An in-flight read-only native/COM call may still finish before its worker and read leases close; no additional worker is permitted while it remains pending. Coverage is incomplete, not a broken-shortcut verdict.",
-                [progress.Snapshot(true)]);
-        }
+        return await RunMetadataWorkerAsync(
+            workerToken => Scan(local, progress, workerToken),
+            (state, message) => new CheckResult<ShortcutReport>(state, message, [progress.Snapshot(true)]),
+            "Shortcut discovery", CheckState.Partial, token).ConfigureAwait(false);
     }
 
     private static CheckResult<ShortcutReport> Scan(string root, Progress progress, CancellationToken token)
@@ -137,31 +84,10 @@ public sealed class WindowsShortcutInventory : IShortcutInventory
                                 { progress.SkipFile(); continue; }
                                 if (progress.Count == MaximumLinks)
                                 { progress.SkipFile(); progress.Limit(path, "The 1,000-link observation limit was reached."); break; }
-                                if (entryLease.LeafInformation.Bytes == 0 || entryLease.LeafInformation.Bytes > MaximumLinkBytes)
-                                {
-                                    progress.SkipFile();
-                                    progress.Add(ShortcutTargetClassifier.Classify(path,
-                                        new(null, MetadataProblem: "The .lnk file was empty or exceeded the 1 MiB metadata bound; it was not loaded."),
-                                        _ => throw new InvalidOperationException("No probe is permitted"), DateTimeOffset.UtcNow));
-                                    continue;
-                                }
-                                using var readLease = WindowsShortcutNative.OpenReadOnlyLink(path);
-                                if (readLease.IsInvalid || !WindowsShortcutNative.TryReadSafeFileInformation(readLease, out var readInfo) ||
-                                    readInfo.Bytes == 0 || readInfo.Bytes > MaximumLinkBytes)
-                                {
-                                    progress.SkipFile();
-                                    progress.Issue(path, "The shortcut is locked, changed, unreadable or unsupported; no metadata load was attempted.");
-                                    progress.Add(new(path, "", ShortcutTargetState.Unknown,
-                                        "Read-only shared access and stable supported shortcut metadata were not established; not a missing-target conclusion.",
-                                        ShortcutTargetClassifier.Source, DateTimeOffset.UtcNow));
-                                    continue;
-                                }
-                                var stored = WindowsShortcutMetadata.Read(path, token);
-                                token.ThrowIfCancellationRequested();
-                                var observation = ShortcutTargetClassifier.Classify(path, stored,
-                                    target => WindowsShortcutNative.ProbeTarget(target, token), DateTimeOffset.UtcNow);
-                                token.ThrowIfCancellationRequested();
-                                progress.Add(observation with { CheckedAt = DateTimeOffset.UtcNow });
+                                var inspection = InspectShortcut(path, entryLease.LeafInformation.Bytes, token);
+                                if (inspection.Skipped) progress.SkipFile();
+                                if (inspection.Issue != null) progress.Issue(path, inspection.Issue);
+                                progress.Add(inspection.Observation);
                             }
                         }
                     }

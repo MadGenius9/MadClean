@@ -55,6 +55,8 @@ The preview shows shortcut path, stored/interpreted target where safe, target ki
 
 ## S2 — later selected obsolete-shortcut removal
 
+S1 now includes a separate [selected shortcut recheck](SHORTCUT-RECHECK.md), showing historical and current evidence without rescanning the folder or enabling removal. A newly existing target invalidates an earlier missing observation as current evidence. New path metadata does not prove that the original shortcut object persisted, and this recheck does not satisfy the S2 identity/recovery/action gates below.
+
 The user selects genuinely obsolete shortcuts after inspecting the S1 evidence. Show each **shortcut file's** exact path and identity, target information, reason and intended removal; no default mass selection. Revalidate the shortcut and target-availability context immediately before action. Changed, offline, network, unsupported, inaccessible or temporary cases remain ineligible/unknown by default. A restored target clears a stale missing observation.
 
 Any action affects only the explicitly selected shortcut entry, never its target application, directory, data or another link. Reparse-point shortcut entries and uncertain identities are blocked. Use a reviewed supported reversible mechanism where possible, disclose recovery limits, and record actual per-item results/cancellation. No target cleanup, installer activation or automatic deletion is included.

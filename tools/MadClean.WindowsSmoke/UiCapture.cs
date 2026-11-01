@@ -185,6 +185,27 @@ internal static partial class UiCapture
                         AssertNoInventory(model);
                         Capture(window, output, "tool-22.png", report);
                     }
+                    if (link.Page == 13)
+                    {
+                        var recheck = Descendants<Button>(window).Single(button => Equals(button.Content, "Recheck selected shortcut"));
+                        var recheckDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Selected shortcut recheck evidence and limits");
+                        if (!ReferenceEquals(recheck.Command, model.RecheckSelectedShortcutCommand) || recheck.IsEnabled ||
+                            !recheckDetails.IsReadOnly || recheckDetails.Text != model.ShortcutRecheckDetails)
+                            throw new SmokeAssertionException("ui-shortcut-recheck-initial-bindings");
+                        recheckDetails.BringIntoView();
+                        await Idle(window);
+                        if (window.Content is not FrameworkElement client) throw new SmokeAssertionException("ui-shortcut-recheck-client");
+                        foreach (FrameworkElement control in new FrameworkElement[] { recheck, recheckDetails })
+                        {
+                            Point position = control.TranslatePoint(new Point(), client);
+                            if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||
+                                position.X < -1 || position.Y < -1 || position.X + control.ActualWidth > client.ActualWidth + 1 ||
+                                position.Y + control.ActualHeight > client.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-shortcut-recheck-controls-bounds");
+                        }
+                        AssertNoInventory(model);
+                        Capture(window, output, "tool-23.png", report);
+                    }
                     AssertNoInventory(model);
                 }
                 report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation.");
@@ -335,6 +356,9 @@ internal static partial class UiCapture
             model.PreviewDuplicatePairCommand.CanExecute(null) || model.ClearDuplicatePairCommand.CanExecute(null) ||
             !model.DuplicatePairMessage.StartsWith("Not prepared", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-duplicate-pair-unprepared");
+        if (model.ShortcutRows.Count != 0 || model.SelectedShortcutObservation != null || model.RecheckSelectedShortcutCommand == null ||
+            model.RecheckSelectedShortcutCommand.CanExecute(null) || !model.ShortcutRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-shortcut-recheck-unchecked");
     }
 
     private static void AssertSectionTitleContrast(MainWindow window)

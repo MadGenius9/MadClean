@@ -26,13 +26,13 @@ _diagnostic_spec.loader.exec_module(ci_diagnostics)
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
-IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png")
+IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png")
 OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search",
     "bounded-registration-fixture", "defender-status-contract", "installed-registration-contract", "msi-registration-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "duplicate-pair-review-fixture", "shortcut-existing-local-fixture",
-    "shortcut-missing-local-fixture", "shortcut-no-mutation", "diagnostics-metadata-contract", "fixture-teardown",
+    "shortcut-missing-local-fixture", "shortcut-no-mutation", "shortcut-selected-recheck-fixture", "diagnostics-metadata-contract", "fixture-teardown",
 }
 RESULTS = {"success", "failure", "cancelled", "skipped"}
 class EvidenceError(ValueError):

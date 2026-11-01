@@ -70,7 +70,14 @@ public sealed partial class MainViewModel
     public ShortcutObservation? SelectedShortcutObservation
     {
         get => selectedShortcutObservation;
-        set { Set(ref selectedShortcutObservation, value); PropertyChanged?.Invoke(this, new(nameof(ShortcutDetails))); }
+        set
+        {
+            if (ReferenceEquals(selectedShortcutObservation, value)) return;
+            selectedShortcutObservation = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedShortcutObservation)));
+            PropertyChanged?.Invoke(this, new(nameof(ShortcutDetails)));
+            InvalidateShortcutRecheckSelection();
+        }
     }
     public DiagnosticFinding? SelectedDiagnosticFinding
     {
@@ -96,6 +103,7 @@ public sealed partial class MainViewModel
         ReadDiagnosticsCommand = new AsyncCommand(ReadDiagnostics, () => !IsBusy);
         InitializeDiagnosticRecurrence();
         InitializeDuplicatePairReview();
+        InitializeShortcutRecheck();
     }
     private void ChooseDuplicateFolder()
     {
@@ -112,6 +120,7 @@ public sealed partial class MainViewModel
     {
         var dialog = new OpenFolderDialog { Title = "Choose one local folder for read-only .lnk inspection", Multiselect = false };
         if (dialog.ShowDialog() != true) return;
+        InvalidateShortcutRecheckSnapshot();
         ShortcutFolder = dialog.FolderName; ShortcutRows.Clear(); ShortcutIssues.Clear(); SelectedShortcutObservation = null;
         ShortcutMessage = "Scope selected. Choose Inspect shortcuts; no target is launched, searched, tracked or saved.";
         ShortcutCoverage = "Selected scope has not been inspected."; ShortcutAttempt = "Not checked for this selection";
@@ -142,6 +151,7 @@ public sealed partial class MainViewModel
     });
     private Task ScanShortcuts() => RunDiscoveryAsync(ActivityArea.ShortcutReview, "Inspecting shortcut metadata", async token =>
     {
+        InvalidateShortcutRecheckSnapshot();
         ShortcutRows.Clear(); ShortcutIssues.Clear(); SelectedShortcutObservation = null;
         ShortcutAttempt = DateTimeOffset.Now.ToString("g"); ShortcutMessage = "Reading bounded .lnk metadata; targets are never launched or actively resolved…";
         ShortcutCoverage = "In progress; no completed shortcut report is claimed.";
@@ -153,9 +163,16 @@ public sealed partial class MainViewModel
             foreach (var issue in report.Issues) ShortcutIssues.Add(issue);
             ShortcutCoverage = $"Visited {report.VisitedFiles}; skipped {report.SkippedFiles}; limited {report.Truncated}. {report.Coverage}";
         }
+        shortcutRecheckSnapshot = result;
         ShortcutMessage = Stamp(result.State, result.Message); SelectedShortcutObservation = ShortcutRows.FirstOrDefault();
+        CommandManager.InvalidateRequerySuggested();
         return result.State;
-    }, error => { ShortcutMessage = error + " Any in-flight native/COM metadata read may still finish; no target is launched."; ShortcutCoverage = "No completed report from this attempt; unavailable targets are not confirmed broken."; });
+    }, error =>
+    {
+        InvalidateShortcutRecheckSnapshot(); ShortcutRows.Clear(); ShortcutIssues.Clear(); SelectedShortcutObservation = null;
+        ShortcutMessage = error + " Any in-flight native/COM metadata read may still finish; no target is launched.";
+        ShortcutCoverage = "No completed report from this attempt; unavailable targets are not confirmed broken.";
+    });
     private Task ReadDiagnostics() => RunDiscoveryAsync(ActivityArea.DiagnosticsReport, "Reading existing event evidence", async token =>
     {
         DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;

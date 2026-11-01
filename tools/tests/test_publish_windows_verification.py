@@ -189,6 +189,20 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_duplicate_pair_worksheet_capture(self):
         self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-22.png']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_selected_shortcut_recheck_capture(self):
+        self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-23.png']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_shortcut_recheck_fixture(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-selected-recheck-fixture']
+        self.save(); self.rejected()
+    def test_shortcut_recheck_without_real_current_evidence_stays_inconclusive(self):
+        shortcut=next(check for check in self.report['checks'] if check['name']=='shortcut-selected-recheck-fixture')
+        shortcut.update(state='inconclusive',detail='TEST-ONLY current selected metadata unavailable; historical scan cannot substitute')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='shortcut-selected-recheck-fixture')['state'])
     def test_passing_report_cannot_omit_actual_duplicate_pair_fixture(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='duplicate-pair-review-fixture']
         self.save(); self.rejected()
