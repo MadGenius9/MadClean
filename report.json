@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "308653de54cc245a5625a142e035e4a454ad8d18",
-  "runId": "41342200691",
+  "sourceCommit": "0089601478b10210c63ac2f8862fac7e9601a7f9",
+  "runId": "41343946001",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T19:35:36.1397002+00:00",
-  "completedUtc": "2026-11-01T19:35:50.8838309+00:00",
+  "startedUtc": "2026-11-01T19:56:21.5816543+00:00",
+  "completedUtc": "2026-11-01T19:56:38.0538581+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -47,6 +47,11 @@
       "name": "ui-packaged-app-search",
       "state": "passed",
       "detail": "Package sourceState=Available; actualLoadedRowCount=48; positiveMatchCount=1; textboxBindingVerified=true; exactSelectionAndDetailsVerified=true; hiddenSelectionAndDetailsCleared=true; clearRestoresSameRows=true; desktopSourceBaselineAndStatusUnchanged=true; noExtraFilterActivity=true. One explicit production current-user package getter supplied real rows after all captures and desktop search. No package values, query text, details, provider messages or later screenshots exported. Partial coverage remains incomplete; no-match is not absence proof, and no deployment or other package action occurred."
+    },
+    {
+      "name": "ui-inspection-evidence",
+      "state": "passed",
+      "detail": "initialPositiveSourceCount=2; selectedActualRows=2; selectionStartsNoQuery=true; resetPendingObserved=True; cancellationRequested=True; completedBeforeCancelCount=1; preservationExercised=True; terminalRowCount=2; terminalStates=Storage:Available,Defender:Cancelled; noPendingOrPriorAttemptRows=true. Two explicit local production inspections only. Completed-source preservation is proved only when exercised before a live cancellation. No captures after data loading; no flags, capacities, provider messages, dates or source values exported. Available is source evidence, not health or action permission."
     },
     {
       "name": "duplicate-content-fixtures",
@@ -97,6 +102,16 @@
       "name": "diagnostics-metadata-contract",
       "state": "passed",
       "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+    },
+    {
+      "name": "storage-inspection-evidence-contract",
+      "state": "passed",
+      "detail": "sourceState=Available; projectedState=Available; schemaValid=true; collectionTimesPreserved=true; actualNonemptySource=True. Actual read result projected in memory only; no source values, drive capacities, security settings, messages or times exported. Collection time is not provider freshness, health, protection, complete storage ownership or action permission."
+    },
+    {
+      "name": "defender-inspection-evidence-contract",
+      "state": "passed",
+      "detail": "sourceState=Available; projectedState=Available; schemaValid=true; collectionTimesPreserved=true; actualNonemptySource=True. Actual read result projected in memory only; no source values, drive capacities, security settings, messages or times exported. Collection time is not provider freshness, health, protection, complete storage ownership or action permission."
     },
     {
       "name": "defender-status-contract",
@@ -176,12 +191,12 @@
     {
       "name": "system-tool-identity-contract",
       "state": "passed",
-      "detail": "fixedIdentityCount=2; unknownVersionCount=0; blockedGenuineRequestCount=2; preCancellationObserved=true; catalogPathSchemaVerified=true; productionExecutionEnabled=false; DismCheckHealth:state=Available/trust=MicrosoftSignatureVerified/policyState=Available/identityObserved=true/stage=Completed/reason=Observed/nativeResult=0x00000000/route=File/fileNative=0x00000000/catalogNative=none/cleanupResult=none/embedded=Matched/resources=1/originalNames=1/sourceSite=none/rootLength=916/blobLength=920/zeroTail=true; SfcVerifyOnly:state=Available/trust=MicrosoftSignatureVerified/policyState=Available/identityObserved=true/stage=Completed/reason=Observed/nativeResult=0x00000000/route=Catalog/fileNative=0x800B0100/catalogNative=0x00000000/cleanupResult=none/embedded=Matched/resources=1/originalNames=1/sourceSite=none/rootLength=924/blobLength=928/zeroTail=true. Only actual OS-file identity previews and hard-gated acknowledged requests were checked. No DISM/SFC command, elevation or repair ran; no "
+      "detail": "fixedIdentityCount=2; unknownVersions=0; blockedGenuineRequestCount=2; preCancelled=true; gate=false; DismCheckHealth:state=Available/trust=MicrosoftSignatureVerified/policyState=Available/identityObserved=true/stage=Completed/reason=Observed/nativeResult=0x00000000/route=File/fileNative=0x00000000/catalogNative=none/cleanupResult=none/embedded=Matched/resources=1/originalNames=1/sourceSite=none/rootLength=916/blobLength=920/zeroTail=true; SfcVerifyOnly:state=Available/trust=MicrosoftSignatureVerified/policyState=Available/identityObserved=true/stage=Completed/reason=Observed/nativeResult=0x00000000/route=Catalog/fileNative=0x800B0100/catalogNative=0x00000000/cleanupResult=none/embedded=Matched/resources=1/originalNames=1/sourceSite=none/rootLength=924/blobLength=928/zeroTail=true. No commands/elevation/repair; gate closed; source values withheld; no health/readiness verdict."
     },
     {
       "name": "system-tool-catalog-observation",
       "state": "passed",
-      "detail": "fixedPositiveObservationCount=2; preCancellationObserved=true; DismCheckHealth:state=Available/stage=Completed/reason=Observed/catalogs=1/members=26/matches=1/nativeError=none/nativeTrust=0x00000000/limited=true; SfcVerifyOnly:state=Available/stage=Completed/reason=Observed/catalogs=1/members=579/matches=1/nativeError=none/nativeTrust=0x00000000/limited=true. First-catalog existential observations only; no complete/unique catalog or broader trust coverage. No production identity fallback, tool command, install, elevation or repair; no paths, hashes, tags, subject identifiers or certificate data exported. Native certificate/cache behavior remains controlled by Windows."
+      "detail": "fixedPositiveObservationCount=2; preCancellationObserved=true; DismCheckHealth:state=Available/stage=Completed/reason=Observed/catalogs=1/members=26/matches=1/nativeError=none/nativeTrust=0x00000000/limited=true; SfcVerifyOnly:state=Available/stage=Completed/reason=Observed/catalogs=1/members=579/matches=1/nativeError=none/nativeTrust=0x00000000/limited=true. First-catalog existential observations only; no complete/unique catalog or broader trust coverage. This isolated fixture does not invoke production identity acceptance, tool commands, installs, elevation or repair; no paths, hashes, tags, subject identifiers or certificate data exported. Native certificate/cache behavior remains controlled by Windows."
     },
     {
       "name": "system-tool-held-catalog-observation",
@@ -277,10 +292,16 @@
       "sha256": "3429e937e7ac1e74cf2c937d01a5b79d3b25da5c64e9b35a516f3bc74eec829f"
     },
     {
+      "file": "tool-25.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "59868f989fcb5206485411f345b90d85f16378692cac9ab96e62618604b96724"
+    },
+    {
       "file": "tool-14.png",
       "width": 1404,
       "height": 961,
-      "sha256": "0bee2b0633edff29a94d93f78936f1a7e74a7cf23998670ead2369d336a00e48"
+      "sha256": "e0a0c1deaee9c49ab55c02b25e48eb12b060144701e805319614840de472d2ba"
     },
     {
       "file": "tool-15.png",
