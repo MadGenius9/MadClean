@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "fa074f669121ce811427b7b588e58026b75e7875",
-  "runId": "41354122993",
+  "sourceCommit": "158b7a48edbe5397f70ac51577797e963d2ee940",
+  "runId": "41358222404",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T21:55:02.1468635+00:00",
-  "completedUtc": "2026-11-01T21:55:11.1013303+00:00",
+  "startedUtc": "2026-11-01T22:43:24.4331917+00:00",
+  "completedUtc": "2026-11-01T22:43:38.9676737+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -106,12 +106,17 @@
     {
       "name": "shortcut-file-evidence-fixture",
       "state": "passed",
-      "detail": "sourceState=Available; firstPreviewState=Available; restoredState=Unavailable; full128IdentityMatched=true; nativeSizeMatched=true; sha256Matched=true; missingPreview=true; restoredTargetBlocked=true; hardLinkNonPreview=true; preCancel=true; linkAndSentinelBytesUnchanged=true; CanMove=false; DaclAssessment=NotChecked. Only owned fixture targets were deliberately created by the harness; no provider move, target launch, privacy or recovery claim is made."
+      "detail": "sourceState=Available; firstPreviewState=Available; restoredState=Unavailable; full128IdentityMatched=true; nativeSizeMatched=true; sha256Matched=true; missingPreview=true; restoredTargetBlocked=true; hardLinkNonPreview=true; preCancel=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Optional DACL facts have an independent check; only owned fixture targets were deliberately created by the harness. No provider move, target launch, privacy or recovery claim is made."
+    },
+    {
+      "name": "shortcut-dacl-fixture",
+      "state": "passed",
+      "detail": "providerState=Available; daclState=Available; present=True; nullDacl=False; protected=False; defaulted=False; aceCount=3; aclBytes=76; revision=2; descriptorReleased=true; nativeFactsMatched=true; meaningfulDaclBytesUnchanged=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Only one genuine owned file's current facts were observed; no ACL was set and no effective-access, ownership, privacy or recovery conclusion is made. Synthetic malformed/null/empty cases are not certified by this check."
     },
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=19; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -313,19 +318,19 @@
       "file": "tool-26.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
     },
     {
       "file": "tool-13.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
     },
     {
       "file": "tool-23.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
     },
     {
       "file": "tool-25.png",
