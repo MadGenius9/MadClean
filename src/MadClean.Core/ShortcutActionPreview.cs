@@ -5,13 +5,18 @@ public enum ShortcutProtectionState { Unknown, Protected, OutsideKnownProtectedF
 public enum ShortcutReadConsistency { Unknown, ObservedConsistent }
 public sealed record ShortcutFileEvidence(string ShortcutPath, ulong VolumeSerialNumber, Guid FileId,
     long Bytes, uint LinkCount, string Sha256, DateTimeOffset ReadStartedUtc, DateTimeOffset ReadCompletedUtc,
-    ShortcutReadConsistency Consistency);
+    ShortcutReadConsistency Consistency)
+{
+    public ShortcutDaclObservation? Dacl { get; init; }
+}
 public sealed record ShortcutActionPreview(ShortcutObservation Prior, ShortcutObservation? Current,
     ShortcutFileEvidence? Evidence, ShortcutProtectionState Protection, string ProtectionReason,
     ShortcutActionReviewState ReviewState, CheckState SourceCoverageState, string Coverage)
 {
     public bool CanMove => false;
-    public string DaclAssessment => "NotChecked; deferred";
+    public string DaclAssessment => Evidence?.Dacl is { } dacl
+        ? $"Recorded DACL facts: {dacl.State}. Effective access, ownership and privacy remain unverified."
+        : "NotChecked; no DACL observation. Effective access and ownership remain unverified.";
 }
 public interface IShortcutActionPreview
 {
@@ -32,7 +37,7 @@ public static class ShortcutActionPreviewPolicy
         var now = DateTimeOffset.UtcNow;
         const string coverage = "Prior file identity continuity is unknown; the historical observation does not identify the current file object. " +
             "Read consistency is observed for one bounded inspection, not immutability or later path stability. " +
-            "DACL and ownership: NotChecked; no effective-access or private-file claim is made. " +
+            "Optional DACL facts describe one security-descriptor query only; effective access, ownership and privacy remain unverified. " +
             "No lease survives this result, and no move, deletion, backup or action permission is granted. " +
             "A missing target is not proof of obsolete software or disposable shortcut data.";
         CheckResult<ShortcutActionPreview> Result(ShortcutActionReviewState review, string reason,
@@ -88,7 +93,8 @@ public static class ShortcutActionPreviewPolicy
             return Result(ShortcutActionReviewState.Unknown, "Bounded current file identity/hash/time/link evidence was not established; no action permission exists.", current with { });
         return Result(ShortcutActionReviewState.Preview,
             "Read-only documentary preview established for one current missing-target shortcut. Moving remains disabled.",
-            current with { }, evidence with { });
+            current with { }, evidence with { Dacl = ShortcutDaclObservationPolicy.Normalize(evidence.Dacl,
+                evidence.ReadStartedUtc, evidence.ReadCompletedUtc, token) });
     }
 
     private static bool Utc(DateTimeOffset value) => value != default && value.Offset == TimeSpan.Zero;

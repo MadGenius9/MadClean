@@ -58,6 +58,7 @@ public sealed partial class WindowsShortcutInventory : IShortcutActionPreview
                         var inspection = InspectShortcut(scope.ShortcutPath, (ulong)before.Bytes, token);
                         var afterMetadata = WindowsShortcutPreviewNative.Observe(handle, scope.ShortcutPath);
                         second = WindowsShortcutPreviewNative.Hash(stream, before.Bytes, token);
+                        var dacl = WindowsShortcutDaclReader.Read(handle, token);
                         var after = WindowsShortcutPreviewNative.Observe(handle, scope.ShortcutPath);
                         token.ThrowIfCancellationRequested();
                         if (before != afterMetadata || before != after || !CryptographicOperations.FixedTimeEquals(first, second))
@@ -70,7 +71,8 @@ public sealed partial class WindowsShortcutInventory : IShortcutActionPreview
                         var current = new CheckResult<ShortcutObservation>(currentState,
                             "Fresh guarded selected-link metadata; no activation or target contents.", [observation]);
                         var evidence = new ShortcutFileEvidence(scope.ShortcutPath, before.Volume, before.FileId, before.Bytes,
-                            before.Links, Convert.ToHexString(first).ToLowerInvariant(), started, completed, ShortcutReadConsistency.ObservedConsistent);
+                            before.Links, Convert.ToHexString(first).ToLowerInvariant(), started, completed, ShortcutReadConsistency.ObservedConsistent)
+                        { Dacl = dacl };
                         return ShortcutActionPreviewPolicy.Create(scope, current, evidence, protection, token);
                     }
                     finally

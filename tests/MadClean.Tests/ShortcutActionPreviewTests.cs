@@ -175,4 +175,41 @@ public sealed class ShortcutActionPreviewTests
         Assert.ThrowsAny<OperationCanceledException>(() => ShortcutActionPreviewPolicy.Create(f.Scope, f.Current, f.Evidence,
             ShortcutProtectionState.OutsideKnownProtectedFolders, cancellation.Token));
     }
+
+    [Fact]
+    public void OptionalDaclFactsAreBoundToThisReadAndGrantNoActionPermission()
+    {
+        var f = Fixture();
+        var dacl = new ShortcutDaclObservation(CheckState.Available, ShortcutDaclReason.Observed, 0,
+            f.Evidence.ReadStartedUtc, f.Evidence.ReadCompletedUtc, true, false, true, false, 1, 16, 2,
+            ShortcutDescriptorReleaseState.Released, null);
+        var evidence = f.Evidence with { Dacl = dacl };
+        var preview = Preview(ShortcutActionPreviewPolicy.Create(f.Scope, f.Current, evidence,
+            ShortcutProtectionState.OutsideKnownProtectedFolders));
+        Assert.Equal(CheckState.Available, preview.Evidence!.Dacl!.State);
+        Assert.Equal(ShortcutActionReviewState.Preview, preview.ReviewState);
+        Assert.False(preview.CanMove);
+        Assert.Contains("remain unverified", preview.DaclAssessment);
+        Assert.Contains("ownership", preview.DaclAssessment);
+    }
+
+    [Fact]
+    public void RejectedDaclFactsDoNotBecomeAPermissionsVerdictOrEraseIndependentFileEvidence()
+    {
+        var f = Fixture();
+        var evidence = f.Evidence with
+        {
+            Dacl = new(CheckState.Available, ShortcutDaclReason.Observed, 0,
+                f.Evidence.ReadStartedUtc.AddSeconds(-1), f.Evidence.ReadCompletedUtc,
+                true, false, true, false, 1, 16, 2, ShortcutDescriptorReleaseState.Released, null)
+        };
+        var result = ShortcutActionPreviewPolicy.Create(f.Scope, f.Current, evidence,
+            ShortcutProtectionState.OutsideKnownProtectedFolders);
+        var preview = Preview(result);
+        Assert.Equal(CheckState.Available, result.State); // Describes file evidence, not DACL/effective access.
+        Assert.Equal(ShortcutActionReviewState.Preview, preview.ReviewState);
+        Assert.Equal(CheckState.Unknown, preview.Evidence!.Dacl!.State);
+        Assert.Null(preview.Evidence.Dacl.DaclPresent);
+        Assert.False(preview.CanMove);
+    }
 }

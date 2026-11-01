@@ -145,6 +145,16 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_selected_shortcut_file_evidence(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-file-evidence-fixture']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_independent_dacl_facts(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-dacl-fixture']
+        self.save(); self.rejected()
+    def test_unverified_dacl_facts_remain_inconclusive_with_other_checks_passed(self):
+        next(check for check in self.report['checks'] if check['name']=='shortcut-dacl-fixture').update(state='inconclusive',detail='TEST-ONLY descriptor facts unverified; no native query')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='shortcut-dacl-fixture')['state'])
     def test_passing_report_cannot_omit_shortcut_evidence_panel_or_image(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-shortcut-file-evidence']
         self.save(); self.rejected()

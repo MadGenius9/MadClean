@@ -139,6 +139,8 @@ The read-only ARP adapter now keeps exactly one native worker across instances, 
 
 The separate [selected shortcut file-evidence adapter](SHORTCUT-FILE-EVIDENCE.md) reads bounded contents only after an explicit user action and configured protected/Startup-folder exclusions. It uses the existing single STA gate and guarded exact-file metadata reader, plus full FILE_ID_INFO and bounded same-handle byte/metadata bookends. Official API, known-folder flag and GUID sources consulted before implementation are linked in that document. This is documentary evidence with no surviving lease, permissions assessment, historical identity continuity or action authorization; moving/removal remains absent.
 
+Its optional [DACL observation](SHORTCUT-DACL-OBSERVATION.md) uses DACL-only GetSecurityInfo on that same existing GENERIC_READ handle, which already maps READ_CONTROL. The API-owned descriptor is bounded and validated after allocation, aggregate facts are copied without SID/ACE exports, and LocalFree release is confirmed before acceptance. A retained allocation disables further security queries. The separate visible DACL state never turns file evidence into effective-access, ownership, privacy or action permission; security changes and extra rights are absent.
+
 ## Independent WER store counts
 
 [WER store counts](WER-STORE-COUNTS.md) use one optional WerStoreGetReportCount call on each same already-open fixed machine store. Actual HRESULT/count/time are independent of report enumeration and the selected time interval. Missing/failing support remains unknown; zero never establishes health or promotes S_OK/null-key enumeration. Worker ownership, bounded waiting, no payloads and no report actions remain unchanged.

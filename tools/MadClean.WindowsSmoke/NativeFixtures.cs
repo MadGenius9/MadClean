@@ -30,6 +30,8 @@ internal static partial class NativeFixtures
             }
             ShortcutFileEvidenceFixture(fixture, report, token);
             if (WindowsShortcutInventory.HasPendingMetadataRead) return;
+            ShortcutDaclFixture(fixture, report, token);
+            if (WindowsShortcutInventory.HasPendingMetadataRead) return;
             Diagnostics(report, token);
             StorageInspectionEvidence(report, token);
             DefenderStatus(report, token);

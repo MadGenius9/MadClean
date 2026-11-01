@@ -7,6 +7,7 @@
 #include <mscat.h>
 #include <wintrust.h>
 #include <winternl.h>
+#include <aclapi.h>
 #include <cstddef>
 #include <type_traits>
 
@@ -42,3 +43,9 @@ static_assert(sizeof(NTSTATUS) == 4 && sizeof(ULONG) == 4, "Native status/length
 static_assert(sizeof(IO_STATUS_BLOCK) == 16, "Native IO status block layout differs.");
 static_assert(offsetof(IO_STATUS_BLOCK, Status) == 0, "Native IO status offset differs.");
 static_assert(offsetof(IO_STATUS_BLOCK, Information) == 8, "Native IO information offset differs.");
+static_assert(sizeof(SECURITY_DESCRIPTOR_RELATIVE) == 20, "Relative security descriptor header differs.");
+static_assert(sizeof(SECURITY_DESCRIPTOR_CONTROL) == 2, "Descriptor control width differs.");
+static_assert(sizeof(ACL) == 8 && sizeof(ACL_SIZE_INFORMATION) == 12 && sizeof(ACL_REVISION_INFORMATION) == 4,
+    "Aggregate ACL metadata layouts differ.");
+using DaclQuery = DWORD (WINAPI*)(HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION, PSID*, PSID*, PACL*, PACL*, PSECURITY_DESCRIPTOR*);
+static_assert(std::is_same<decltype(&GetSecurityInfo), DaclQuery>::value, "DACL query signature differs.");

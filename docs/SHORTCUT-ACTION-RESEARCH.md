@@ -1,6 +1,6 @@
 # Selected shortcut action research
 
-S2 production actions remain unavailable. The approved next step is a **development-only owned native primitive test, including a mapped-write witness**. It may test disposable fixture objects only. No App action, production Windows executor or client-file move is enabled. This document does not certify immutable bytes, privacy or durable recovery, and does not change source-bound evidence in the execution ledger.
+S2 production actions remain unavailable. The separate owned native NT primitive test has passed; Win32 controls and the mapped-write witness remain inconclusive. Selected file/target evidence and optional aggregate DACL observations are implemented read-only, with new DACL runtime proof pending. No App action, production Windows executor or client-file move is enabled. This document does not certify immutable bytes, effective access, ownership, privacy or durable recovery, and does not change source-bound evidence in the execution ledger.
 
 ## Supported rename primitive and limits
 

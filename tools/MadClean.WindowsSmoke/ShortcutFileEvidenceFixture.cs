@@ -58,7 +58,7 @@ internal static partial class NativeFixtures
                 evidence.Consistency != ShortcutReadConsistency.ObservedConsistent || evidence.ReadStartedUtc.Offset != TimeSpan.Zero ||
                 evidence.ReadCompletedUtc.Offset != TimeSpan.Zero || evidence.ReadStartedUtc < selected.ValidatedUtc ||
                 evidence.ReadStartedUtc > data.Current.CheckedAt || data.Current.CheckedAt > evidence.ReadCompletedUtc ||
-                evidence.ReadCompletedUtc > DateTimeOffset.UtcNow || data.DaclAssessment != "NotChecked; deferred")
+                evidence.ReadCompletedUtc > DateTimeOffset.UtcNow)
                 throw new SmokeAssertionException("shortcut-evidence-native-projection-contract");
             ShortcutEvidenceAssertUnchanged(sourceBytes, sentinel, sentinelBytes);
             if (File.Exists(missing)) throw new SmokeAssertionException("shortcut-evidence-inspection-created-target");
@@ -119,7 +119,7 @@ internal static partial class NativeFixtures
             if (!File.ReadAllBytes(missing).AsSpan().SequenceEqual(restoredBytes) || File.Exists(multiTarget))
                 throw new SmokeAssertionException("shortcut-evidence-final-target-boundary");
             report.Pass(check,
-                $"sourceState={snapshot.State}; firstPreviewState={first.State}; restoredState={restored.State}; full128IdentityMatched=true; nativeSizeMatched=true; sha256Matched=true; missingPreview=true; restoredTargetBlocked=true; hardLinkNonPreview=true; preCancel=true; linkAndSentinelBytesUnchanged=true; CanMove=false; DaclAssessment=NotChecked. Only owned fixture targets were deliberately created by the harness; no provider move, target launch, privacy or recovery claim is made.");
+                $"sourceState={snapshot.State}; firstPreviewState={first.State}; restoredState={restored.State}; full128IdentityMatched=true; nativeSizeMatched=true; sha256Matched=true; missingPreview=true; restoredTargetBlocked=true; hardLinkNonPreview=true; preCancel=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Optional DACL facts have an independent check; only owned fixture targets were deliberately created by the harness. No provider move, target launch, privacy or recovery claim is made.");
         }
         catch (SmokeAssertionException ex)
         { report.Fail(check, "Owned shortcut evidence invariant " + ex.Code + " failed; no client action or recovery is validated."); }

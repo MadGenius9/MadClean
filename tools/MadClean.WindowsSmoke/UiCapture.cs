@@ -162,15 +162,19 @@ internal static partial class UiCapture
                     {
                         var evidenceButton = Descendants<Button>(window).Single(button => Equals(button.Content, "Inspect selected file evidence"));
                         var evidenceDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Selected shortcut file identity, target and uncertainty");
+                        var daclSummary = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "Recorded shortcut access-control state and uncertainty");
                         evidenceDetails.BringIntoView();
                         await Idle(window);
                         if (!ReferenceEquals(evidenceButton.Command, model.InspectShortcutFileEvidenceCommand) || evidenceButton.IsEnabled ||
                             !evidenceDetails.IsReadOnly || evidenceDetails.Text != model.ShortcutFileEvidenceDetails ||
                             evidenceDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.ShortcutFileEvidenceDetails) ||
-                            !model.ShortcutFileEvidenceMessage.StartsWith("Not checked", StringComparison.Ordinal))
+                            !model.ShortcutFileEvidenceMessage.StartsWith("Not checked", StringComparison.Ordinal) ||
+                            daclSummary.Text != model.ShortcutDaclSummary ||
+                            daclSummary.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.ShortcutDaclSummary) ||
+                            !daclSummary.Text.StartsWith("Access controls: Not checked", StringComparison.Ordinal))
                             throw new SmokeAssertionException("ui-shortcut-file-evidence-binding");
                         if (window.Content is not FrameworkElement shortcutClient) throw new SmokeAssertionException("ui-shortcut-file-evidence-client");
-                        foreach (var element in new FrameworkElement[] { evidenceButton, evidenceDetails })
+                        foreach (var element in new FrameworkElement[] { evidenceButton, evidenceDetails, daclSummary })
                         {
                             Point point = element.TranslatePoint(new Point(), shortcutClient);
                             if (!element.IsVisible || !ValidSize(element) || !double.IsFinite(point.X) || !double.IsFinite(point.Y) || point.X < -1 || point.Y < -1 ||
