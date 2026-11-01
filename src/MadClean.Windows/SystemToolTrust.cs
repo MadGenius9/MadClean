@@ -81,7 +81,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
             string hash = Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
             var versionInfo = FileVersionInfo.GetVersionInfo(path);
             if (!string.Equals(versionInfo.OriginalFilename, definition.FileName, StringComparison.OrdinalIgnoreCase))
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The signed original executable filename does not match the selected fixed system tool; no identity was accepted.",
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The reported original executable filename does not match the selected fixed system tool; its exact resource provenance remains unverified and no identity was accepted.",
                     new(SystemToolIdentityStage.VersionMetadata, SystemToolIdentityReason.OriginalFilenameMismatch, 0));
             string? version = versionInfo.FileVersion;
             if (string.IsNullOrWhiteSpace(version) || version.Length > 128 || version.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format))
