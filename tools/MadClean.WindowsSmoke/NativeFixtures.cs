@@ -31,6 +31,7 @@ internal static partial class NativeFixtures
             WerMetadata(report, token);
             HardwareMetadata(report, token);
             StartupReadOnly(fixture, report, token);
+            SystemToolIdentities(report, token);
             SystemToolGate(report, token);
             // The isolated transaction worker alone owns its registry/transaction cleanup.
             // Never remove its filesystem ownership marker while its outcome is uncertain.

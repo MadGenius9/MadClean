@@ -59,3 +59,5 @@ Portable tests validate descriptor/request boundaries, not native trust/UAC or r
 - actual selected repairs and separately selected follow-up checks on disposable VMs only, with no forced restarts or personal-PC repair tests.
 
 This stage is a reviewable gated boundary, **not completion of working D2/D3 repairs**. A BIOS update, registry cleaner, DLL download or repair-all workflow is not authorized or implemented by it.
+
+The additional [identity-observation policy and native validation](SYSTEM-TOOL-IDENTITY-OBSERVATION.md) separates accepted provider projections from Windows integrity and launch readiness. Real fixed DISM/SFC executable verification and valid-preview closed-gate checks now have their own required harness contract. Its source-bound runtime status belongs in the execution ledger; it never runs the selected command, enables the production gate or substitutes for the D2/D3 requirements above.

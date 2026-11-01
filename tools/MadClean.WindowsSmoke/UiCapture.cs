@@ -158,6 +158,23 @@ internal static partial class UiCapture
                         if (sources.SelectedIndex != 0) throw new SmokeAssertionException("ui-package-source-restore");
                     }
                     if (link.Page == 8) Capture(window, output, "tool-19.png", report);
+                    if (link.Page == 16)
+                    {
+                        var identitySummary = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "Microsoft tool identity observation summary");
+                        identitySummary.BringIntoView();
+                        await Idle(window);
+                        if (!identitySummary.IsVisible || !ValidSize(identitySummary) || identitySummary.Text != model.SystemToolIdentitySummary ||
+                            identitySummary.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.SystemToolIdentitySummary) ||
+                            !identitySummary.Text.Contains("not checked", StringComparison.OrdinalIgnoreCase))
+                            throw new SmokeAssertionException("ui-system-tool-identity-summary-binding");
+                        if (window.Content is not FrameworkElement client) throw new SmokeAssertionException("ui-system-tool-identity-summary-client");
+                        Point position = identitySummary.TranslatePoint(new Point(), client);
+                        if (!double.IsFinite(position.X) || !double.IsFinite(position.Y) || position.X < -1 || position.Y < -1 ||
+                            position.X + identitySummary.ActualWidth > client.ActualWidth + 1 ||
+                            position.Y + identitySummary.ActualHeight > client.ActualHeight + 1)
+                            throw new SmokeAssertionException("ui-system-tool-identity-summary-bounds");
+                        AssertNoInventory(model);
+                    }
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
                     if (link.Page == 12)
                     {
@@ -359,6 +376,8 @@ internal static partial class UiCapture
         if (model.ShortcutRows.Count != 0 || model.SelectedShortcutObservation != null || model.RecheckSelectedShortcutCommand == null ||
             model.RecheckSelectedShortcutCommand.CanExecute(null) || !model.ShortcutRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-shortcut-recheck-unchecked");
+        if (!model.SystemToolIdentitySummary.Contains("not checked", StringComparison.OrdinalIgnoreCase))
+            throw new SmokeAssertionException("ui-system-tool-identity-unchecked");
     }
 
     private static void AssertSectionTitleContrast(MainWindow window)
