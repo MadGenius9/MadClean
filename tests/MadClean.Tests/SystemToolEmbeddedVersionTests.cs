@@ -109,7 +109,7 @@ public sealed class SystemToolEmbeddedVersionTests
         foreach (byte[] invalid in new byte[][]
         {
             [.. root, 1, 0], [.. root, 0], [.. root, 0, 0, 0], [.. root, 0, 0, 0, 0],
-            [.. root, 0, 0, 0, 0, 0, 0], [.. Version(), 0, 0, 0, 0], [.. Version(), 0]
+            [.. root, 0, 0, 0, 0, 0, 0], [.. Version(), 0]
         }) Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, invalid)).State);
         var wrongKey = (byte[])padded.Clone(); Word(wrongKey, 6, 'X');
         Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, wrongKey)).State);
@@ -117,18 +117,39 @@ public sealed class SystemToolEmbeddedVersionTests
         Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, wrongType)).State);
     }
     [Fact]
-    public void RejectedFullDwordTailReportsBoundedRootStructureWithoutChangingAcceptance()
+    public void RejectedEightByteTailReportsBoundedRootStructureWithoutChangingAcceptance()
     {
         byte[] root = Version();
-        var result = Read(Pe(false, [.. root, 0, 0, 0, 0]));
+        var result = Read(Pe(false, [.. root, 0, 0, 0, 0, 0, 0, 0, 0]));
         Assert.Equal(SystemToolEmbeddedVersionState.Malformed, result.State);
         Assert.Equal(root.Length, result.DeclaredRootLength);
-        Assert.Equal(root.Length + 4, result.ResourceBlobLength);
+        Assert.Equal(root.Length + 8, result.ResourceBlobLength);
         Assert.True(result.RootTrailingBytesZero);
         Assert.True(result.FailureSite is > 0 and <= 1000);
-        var nonzero = Read(Pe(false, [.. root, 0, 1, 0, 0]));
+        var nonzero = Read(Pe(false, [.. root, 0, 1, 0, 0, 0, 0, 0, 0]));
         Assert.False(nonzero.RootTrailingBytesZero);
         Assert.Equal(SystemToolEmbeddedVersionState.Malformed, nonzero.State);
+    }
+    [Fact]
+    public void AlignedRootAcceptsExactlyOneExtraZeroDwordWithoutWeakeningNameEvidence()
+    {
+        byte[] root = Version(); Assert.Equal(0, root.Length % 4);
+        var accepted = Read(Pe(false, [.. root, 0, 0, 0, 0]));
+        Assert.Equal(SystemToolEmbeddedVersionState.Matched, accepted.State);
+        Assert.Equal("10.0.1.2", accepted.FileVersion); Assert.Equal(1, accepted.OriginalFilenameCount);
+        Assert.Equal(root.Length, accepted.DeclaredRootLength); Assert.Equal(root.Length + 4, accepted.ResourceBlobLength);
+        Assert.True(accepted.RootTrailingBytesZero); Assert.Null(accepted.FailureSite);
+        foreach (byte[] invalid in new byte[][]
+        {
+            [.. root, 0], [.. root, 0, 0], [.. root, 0, 0, 0], [.. root, 0, 1, 0, 0],
+            [.. root, 0, 0, 0, 0, 0], [.. root, 0, 0, 0, 0, 0, 0, 0, 0]
+        }) Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, invalid)).State);
+        byte[] missing = Version(null);
+        Assert.Equal(SystemToolEmbeddedVersionState.Missing, Read(Pe(false, [.. missing, 0, 0, 0, 0])).State);
+        byte[] mismatch = Version("Other.exe");
+        Assert.Equal(SystemToolEmbeddedVersionState.Mismatched, Read(Pe(false, [.. mismatch, 0, 0, 0, 0])).State);
+        Assert.Equal(SystemToolEmbeddedVersionState.Mismatched,
+            Read(Pe(false, [.. root, 0, 0, 0, 0], [.. mismatch, 0, 0, 0, 0])).State);
     }
     [Theory]
     [InlineData("Dism.exe.mui")][InlineData("Other.exe")][InlineData("Dism.exe ")][InlineData("Dism.exe\0Other.exe")]
