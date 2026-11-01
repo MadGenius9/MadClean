@@ -148,6 +148,16 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_dacl_facts(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-dacl-fixture']
         self.save(); self.rejected()
+    def test_passing_report_requires_selected_pair_and_directory_sharing_proofs(self):
+        for name in ('duplicate-pair-recheck-fixture','ui-duplicate-pair-recheck','shortcut-directory-sharing-observation'):
+            with self.subTest(name=name):
+                original=self.report['checks']
+                self.report['checks']=[check for check in original if check['name']!=name]
+                self.save(); self.rejected()
+                self.report['checks']=original
+    def test_current_pair_initial_image_is_required(self):
+        (self.download/'tool-27.png').unlink()
+        self.rejected()
     def test_passing_report_cannot_omit_a_directory_guard_profile(self):
         for name in ('shortcut-rename-source-guard','shortcut-rename-destination-guard','shortcut-rename-ancestor-guard'):
             with self.subTest(name=name):

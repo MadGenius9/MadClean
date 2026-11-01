@@ -15,3 +15,15 @@ Current official sources were read before designing the experiment. [CreateFileW
 Windows outcomes for these new profiles remain pending. Source review and compilation do not prove either compatibility or namespace protection.
 
 The combined solution builds with zero warnings/errors. Python tooling checks pass121 tests with one Windows-only skip (122 total), including omitted-profile and baseline-not-promoting-unknown-profile guards. Portable Core logic is unchanged from1,039 passing tests. Independent combined review found no material blocker in the owned test's setup, lifetime, independent reporting or retained-tree behavior.
+
+## Actual compatibility outcomes
+
+[Run 41359970620](https://github.com/MadGenius9/MadClean/actions/runs/41359970620), source `6209215`, immutable evidence `80ef357ea89c2e521ef3960cf728e68d54ae0ac1`, established the following independent outcomes:
+
+| Strengthened lease | Move / restore | Actual last NTSTATUS | Interpretation |
+| --- | --- | --- | --- |
+| Source parent | Move observed; restore not observed; 2 calls / 1 verified success | `0xC0000043` | Does not establish the required move-and-restore compatibility. |
+| Destination parent | First move not observed; 1 call / 0 successes | `0xC0000043` | Does not establish rename compatibility. |
+| Fixture ancestor | Move, restore and collision refusal observed; 3 calls / 2 successes | `0xC0000035` collision refusal | Only this single strengthened-ancestor configuration passed the owned sequence. |
+
+All three reached safe teardown with no pending worker. The independent baseline NT check remained passing. Source/destination sharing failures were not promoted by the ancestor or baseline result. Core1,029 Passed/10 NotExecuted reconcile1,039;47 scoped passes/no failures/six inconclusive, SDK/control/build passed and packaging skipped. None of these results proves combined guards, reparse resistance or namespace protection. The separate [sharing observation](DIRECTORY-SHARING-OBSERVATION.md) examines permission relationships without a reparse operation.

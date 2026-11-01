@@ -19,7 +19,10 @@ internal static partial class NativeFixtures
         try
         {
             var duplicates = Duplicates(fixture, report, token);
+            if (WindowsDuplicateInventory.HasPendingFileRead) return;
             DuplicatePairReviewFixture(fixture, duplicates, report, token);
+            DuplicatePairRecheckFixture(fixture, report, token);
+            if (WindowsDuplicateInventory.HasPendingFileRead) return;
             DiskIdentity(fixture, report, token);
             LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
@@ -84,6 +87,12 @@ internal static partial class NativeFixtures
                     report.Unknown(check, "A prior owned probe did not confirm safe teardown; no new guard experiment started and the entire ownership tree is retained.");
                 }
             }
+            if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
+            {
+                ShortcutDirectorySharingFixture(fixture, report, token);
+                shortcutProbeTeardownCompleted = ShortcutDirectorySharingCleanupConfirmed;
+            }
+            else report.Unknown("shortcut-directory-sharing-observation", "A previous probe has uncertain ownership; no directory-sharing fixture started and the marked tree is retained.");
             if (!shortcutProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe)
             {
                 report.Unknown("startup-transaction-handle-probe", "The prior owned shortcut probe did not establish safe teardown; no transaction probe started and the ownership tree is retained.");
@@ -103,7 +112,7 @@ internal static partial class NativeFixtures
         }
         finally
         {
-            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead)
+            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed)
             {
                 report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }

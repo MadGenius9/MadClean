@@ -31,6 +31,8 @@ Size is not a safety verdict. Never label a confirmed content match “junk,” 
 - Prefer supported reversible removal where available, disclose when recovery cannot be guaranteed, and require confirmation of the exact selected changes. Restore points do not recover deleted files. Show real per-item outcomes, cancellation/partial results and recovery limits; never claim success from a button click or partial failure.
 - Protect hard-linked objects from ordinary removal by default. Any later specialized unlink workflow needs a separate exact-path/link-count preview and validation; removing one name commonly frees no content allocation. No automatic linking/deduplication, application replacement or forced elevation is included.
 
+Duplicate F2b now includes a separate [fresh selected-pair recheck](DUPLICATE-PAIR-RECHECK.md): exactly two current guarded streams, full bytes/EOF/stamp checks, independent current outcomes and no surviving keeper lease. It does not enable F2 removal or substitute for retained-copy protection through a later action.
+
 ## S1 — read-only shortcut-target discovery
 
 Current bounds: 10,000 visited entries, 1,000 `.lnk` observations, 1 MiB per link, depth 64, 100 issues and a 60-second caller wait budget. One background STA worker per process is permitted; timeout/cancellation can leave one native metadata call finishing and temporarily block another scan. Guarded no-follow/no-recall local read leases are held through inspection. Advertised/extended, arguments/environment, namespace, network, unavailable/denied or reparse contexts remain unverified; no passive Resolve/save/launch/icon/installer activation exists.

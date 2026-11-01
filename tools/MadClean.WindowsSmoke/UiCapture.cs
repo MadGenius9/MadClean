@@ -263,6 +263,26 @@ internal static partial class UiCapture
                         }
                         AssertNoInventory(model);
                         Capture(window, output, "tool-22.png", report);
+                        var freshPair = Descendants<Button>(window).Single(button => Equals(button.Content, "Recheck selected pair"));
+                        var freshDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Current duplicate pair comparison, time and uncertainty");
+                        freshDetails.BringIntoView();
+                        await Idle(window);
+                        if (!ReferenceEquals(freshPair.Command, model.RecheckDuplicatePairCommand) || freshPair.IsEnabled ||
+                            !freshDetails.IsReadOnly || freshDetails.Text != model.DuplicatePairRecheckDetails ||
+                            freshDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.DuplicatePairRecheckDetails) ||
+                            !model.DuplicatePairRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
+                            throw new SmokeAssertionException("ui-duplicate-pair-recheck-binding");
+                        foreach (FrameworkElement control in new FrameworkElement[] { freshPair, freshDetails })
+                        {
+                            Point position = control.TranslatePoint(new Point(), client);
+                            if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||
+                                position.X < -1 || position.Y < -1 || position.X + control.ActualWidth > client.ActualWidth + 1 ||
+                                position.Y + control.ActualHeight > client.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-duplicate-pair-recheck-bounds");
+                        }
+                        AssertNoInventory(model);
+                        Capture(window, output, "tool-27.png", report);
+                        report.Pass("ui-duplicate-pair-recheck", "Actual initial fresh-pair command/details bindings, disabled-without-selection state and in-client bounds verified without content reads or sample data. Populated pair-selection/cancellation lifecycle remains unverified.");
                     }
                     if (link.Page == 13)
                     {
@@ -441,6 +461,9 @@ internal static partial class UiCapture
             model.PreviewDuplicatePairCommand.CanExecute(null) || model.ClearDuplicatePairCommand.CanExecute(null) ||
             !model.DuplicatePairMessage.StartsWith("Not prepared", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-duplicate-pair-unprepared");
+        if (model.RecheckDuplicatePairCommand == null || model.RecheckDuplicatePairCommand.CanExecute(null) ||
+            !model.DuplicatePairRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-duplicate-pair-recheck-unchecked");
         if (model.ShortcutRows.Count != 0 || model.SelectedShortcutObservation != null || model.RecheckSelectedShortcutCommand == null ||
             model.RecheckSelectedShortcutCommand.CanExecute(null) || !model.ShortcutRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-shortcut-recheck-unchecked");

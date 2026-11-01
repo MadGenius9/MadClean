@@ -39,6 +39,13 @@
                     <TextBox Text="{Binding DuplicatePairDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Duplicate snapshot pair preview and limits"/>
                 </StackPanel>
             </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"><StackPanel>
+                <TextBlock Text="Recheck the selected pair" FontSize="20"/>
+                <TextBlock Text="Separately compare exactly these two files again, up to 64 MiB each. Application exclusions are refreshed first. This reads contents without rescanning the folder. No file is removed and no retained copy stays protected after this read." Style="{StaticResource Caption}"/>
+                <Button Content="Recheck selected pair" Command="{Binding RecheckDuplicatePairCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding DuplicatePairRecheckMessage}" Style="{StaticResource Caption}"/>
+                <TextBox Text="{Binding DuplicatePairRecheckDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Current duplicate pair comparison, time and uncertainty"/>
+            </StackPanel></Border>
             <Expander Header="Exclusions, errors and incomplete coverage">
                 <DataGrid ItemsSource="{Binding DuplicateIssues}" Height="180">
                     <DataGrid.Columns><DataGridTextColumn Header="PATH / SCOPE" Binding="{Binding Path}" Width="2*"/><DataGridTextColumn Header="REASON" Binding="{Binding Reason}" Width="3*"/></DataGrid.Columns>

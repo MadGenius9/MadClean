@@ -26,17 +26,20 @@ public sealed partial class MainViewModel
     }
     private void InitializeDuplicatePairReview()
     {
+        InitializeDuplicatePairRecheck();
         PreviewDuplicatePairCommand = new ActionCommand(PreviewDuplicatePair, () => !IsBusy && duplicatePairSnapshot != null && DuplicateCandidate != null && DuplicateRetainedEntry != null);
         ClearDuplicatePairCommand = new ActionCommand(ResetDuplicatePairReview, () => !IsBusy && (DuplicateCandidate != null || DuplicateRetainedEntry != null));
     }
     private void InvalidateDuplicatePairPreview()
     {
+        InvalidateDuplicatePairRecheck();
         DuplicatePairMessage = "Selection changed. Prepare a new snapshot pair preview; no file change is authorized.";
         DuplicatePairDetails = "Choose a retained independent copy and a different candidate from the same byte-compared group. A hard-link alias is not an independent backup. Snapshot evidence cannot establish current removal safety.";
         CommandManager.InvalidateRequerySuggested();
     }
     private void ResetDuplicatePairReview()
     {
+        InvalidateDuplicatePairRecheck();
         DuplicateCandidate = null;
         DuplicateRetainedEntry = null;
         DuplicatePairMessage = "Not prepared. Choose both files yourself after scanning. Nothing is preselected or removed.";

@@ -1,0 +1,11 @@
+# Owned directory-sharing observations
+
+This development fixture measures separate documented sharing relationships before any S2 client action. It changes only fresh owned directories and a sentinel within the marked disposable test tree. It performs no reparse, ACL, privilege, registry or client operation.
+
+Matching unguarded controls establish directory rename/restore with a permissive metadata anchor, a generic-write open, and a metadata-only attribute writer with a temporary Hidden toggle. Only after those controls succeed does the fixture observe a read-attribute/traverse handle with read-only sharing: directory rename refusal, data-write open refusal, guard acquisition with a preopened data writer, and preopened/new attribute-only writers coexisting with the guard.
+
+Attribute changes are observed through the held directory identity, then original attributes are restored. Directory renames are restored to their exact original identity/path. All operation handles close before a final full identity/path/attribute/empty-directory and sentinel audit. Any restoration uncertainty latches CleanupConfirmed false, retains the entire owned tree and skips later mutation fixtures. There is no local recursive deletion or rights/privilege fallback.
+
+A positive test means only that those relationships were observed with successful controls. In particular, metadata modification coexisting with a read-sharing guard defeats a blanket claim that the guard prevents all changes. It does not prove a reparse attack, resistance to reparse changes, namespace protection, inactivity or action readiness. Unexpected or unavailable capabilities remain Unknown rather than being relabeled protection.
+
+Official [CreateFileW](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/fileapi/nf-fileapi-createfilew.md), [SetFileAttributesW](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/fileapi/nf-fileapi-setfileattributesw.md) and [MoveFileExW](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winbase/nf-winbase-movefileexw.md) sources were freshly read before implementation. MoveFileEx uses flags zero: no overwrite, copy-across-volumes or delayed-restart behavior. Current runtime proof is pending.

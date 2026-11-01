@@ -4,15 +4,61 @@ using Microsoft.Win32;
 namespace MadClean.Windows;
 
 /// <summary>Explicit, bounded Windows-only content observations. No deletion or persistent hashes.</summary>
-public sealed class WindowsDuplicateInventory : IDuplicateFileInventory
+public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
 {
+    private static int activeFileRead;
+    public static bool HasPendingFileRead => Volatile.Read(ref activeFileRead) != 0;
+    public static bool HasPendingPairRead => HasPendingFileRead;
+
     public Task<CheckResult<DuplicateReport>> ScanAsync(string root, CancellationToken token)
+        => RunOwnedFileReadAsync(stop => new DuplicateDiscoveryEngine().Scan(root, new WindowsAccess(), stop), token);
+
+    private static async Task<CheckResult<T>> RunOwnedFileReadAsync<T>(Func<CancellationToken, CheckResult<T>> read,
+        CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!OperatingSystem.IsWindows())
-            return Task.FromResult(CheckResult<DuplicateReport>.Empty(CheckState.Unsupported,
-                "Duplicate discovery requires supported Windows file identities and stable read handles. No content scan ran on this platform."));
-        return Task.Run(() => new DuplicateDiscoveryEngine().Scan(root, new WindowsAccess(), token), token);
+            return CheckResult<T>.Empty(CheckState.Unsupported,
+                "Duplicate observations require supported Windows file identities and guarded read handles. No content read ran on this platform.");
+        if (Interlocked.CompareExchange(ref activeFileRead, 1, 0) != 0)
+            return CheckResult<T>.Empty(CheckState.Unavailable,
+                "A duplicate read worker is still finishing. Wait for it to release its handles before trying again.");
+        var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var completion = new TaskCompletionSource<CheckResult<T>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        // Cancellation must never prevent the owner from starting and releasing its gate.
+        _ = Task.Run(() =>
+        {
+            CheckResult<T> result;
+            try
+            {
+                result = read(stop.Token);
+                stop.Token.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException)
+            { result = CheckResult<T>.Empty(CheckState.Cancelled, "The duplicate read was cancelled; no action ran."); }
+            catch (Exception)
+            { result = CheckResult<T>.Empty(CheckState.Failed, "The duplicate read worker failed unexpectedly. Retry the query; no action ran and no complete result was accepted."); }
+            finally { stop.Dispose(); Volatile.Write(ref activeFileRead, 0); }
+            completion.TrySetResult(result);
+        }, CancellationToken.None);
+        try
+        {
+            var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(45), token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            return result;
+        }
+        catch (TimeoutException)
+        {
+            try { stop.Cancel(); } catch (ObjectDisposedException) { }
+            return CheckResult<T>.Empty(CheckState.Unavailable,
+                "The caller wait expired. The duplicate read worker retains its handles until its pending read finishes; no action ran.");
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            try { stop.Cancel(); } catch (ObjectDisposedException) { }
+            return CheckResult<T>.Empty(CheckState.Cancelled,
+                "Cancellation was requested. The duplicate read worker retains its handles until its pending read finishes; no action ran.");
+        }
     }
 
     private sealed class WindowsAccess : IDuplicateFileAccess
@@ -39,21 +85,30 @@ public sealed class WindowsDuplicateInventory : IDuplicateFileInventory
         {
             token.ThrowIfCancellationRequested();
             string? rootError = null;
-            try
-            {
-                selectedRoot = NormalizeLocalRoot(root);
-                AddKnownRoots();
-                if (Protected(selectedRoot)) rootError = "The selected root is a protected/system/application/cache/credential location; select a different local data folder.";
-            }
-            catch (Exception ex) when (ReadError(ex)) { rootError = "Select an existing absolute fixed-local data folder, not a drive root, network/device path or protected area."; }
+            bool exclusionsIncomplete = false;
+            try { exclusionsIncomplete = PrepareScope(root, token, requireCompleteExclusions: false); }
+            catch (Exception ex) when (ReadError(ex))
+            { rootError = ex is DuplicateReadException ? ex.Message : "Select an existing absolute fixed-local data folder, not a drive root, network/device path or protected area."; }
             if (rootError != null) { yield return new(root ?? "", false, rootError); yield break; }
-
-            bool registrationIncomplete = AddRegisteredRoots(token);
-            if (Protected(selectedRoot))
-            { yield return new(selectedRoot, false, "The selected root is within a known registered application installation; excluded without traversal."); yield break; }
-            if (registrationIncomplete)
-                yield return new(selectedRoot, false, "Registered application-location exclusions are incomplete or limited. Known locations remain protected; unknown ownership is not evidence of safe removal.");
+            if (exclusionsIncomplete)
+                yield return new(selectedRoot, false, "Known-folder or registered application-location exclusions are incomplete or limited. Known locations remain protected; unknown ownership is not evidence of safe removal.");
             foreach (var item in Walk(selectedRoot, 0, token)) yield return item;
+        }
+
+        public bool PrepareScope(string root, CancellationToken token, bool requireCompleteExclusions)
+        {
+            token.ThrowIfCancellationRequested();
+            selectedRoot = NormalizeLocalRoot(root);
+            protectedRoots.Clear(); entries = 0;
+            bool incomplete = AddKnownRoots(requireCompleteExclusions);
+            if (Protected(selectedRoot))
+                throw new DuplicateReadException("The selected root is a protected/system/application/cache/credential location; select a different local data folder.");
+            incomplete |= AddRegisteredRoots(token);
+            if (Protected(selectedRoot))
+                throw new DuplicateReadException("The selected root is within a known registered application installation; excluded without traversal.");
+            if (incomplete && requireCompleteExclusions)
+                throw new DuplicateReadException("Required known-folder or registered application exclusions could not be refreshed completely; no selected file contents were read. Retry when that metadata is available.");
+            return incomplete;
         }
 
         public IDuplicateReadHandle Open(string path, bool content, CancellationToken token)
@@ -118,16 +173,23 @@ public sealed class WindowsDuplicateInventory : IDuplicateFileInventory
                 throw new ArgumentException();
             return full;
         }
-        private void AddKnownRoots()
+        private bool AddKnownRoots(bool requireLocalRoots)
         {
+            bool incomplete = false;
             foreach (var folder in new[] { Environment.SpecialFolder.Windows, Environment.SpecialFolder.ProgramFiles,
                 Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.CommonProgramFiles,
                 Environment.SpecialFolder.CommonProgramFilesX86, Environment.SpecialFolder.CommonApplicationData,
                 Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolder.ApplicationData })
             {
-                var path = Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify);
-                if (Path.IsPathFullyQualified(path)) protectedRoots.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)));
+                try
+                {
+                    var path = Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify);
+                    if (!Path.IsPathFullyQualified(path)) { incomplete = true; continue; }
+                    protectedRoots.Add(requireLocalRoots ? NormalizeLocalRoot(path) : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)));
+                }
+                catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
             }
+            return incomplete;
         }
         private bool AddRegisteredRoots(CancellationToken token)
         {
@@ -141,20 +203,25 @@ public sealed class WindowsDuplicateInventory : IDuplicateFileInventory
                     using var baseKey = RegistryKey.OpenBaseKey(hive, view);
                     using var registrations = baseKey.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall", false);
                     if (registrations == null) continue;
-                    if (registrations.SubKeyCount > 10_000) { incomplete = true; continue; }
-                    foreach (var name in registrations.GetSubKeyNames())
+                    for (uint index = 0; ; index++)
                     {
                         token.ThrowIfCancellationRequested();
+                        var key = BoundedRegistrationMetadata.EnumerateKey(registrations.Handle, index, token.ThrowIfCancellationRequested);
+                        if (key.End) break;
                         if (++visited > 10_000 || protectedRoots.Count >= 2048) return true;
+                        if (key.Name == null) { incomplete = true; continue; }
                         try
                         {
-                            using var registration = registrations.OpenSubKey(name, false);
+                            using var registration = registrations.OpenSubKey(key.Name, false);
                             if (registration == null) { incomplete = true; continue; }
-                            var raw = registration.GetValue("InstallLocation", null, RegistryValueOptions.DoNotExpandEnvironmentNames);
-                            if (raw == null || raw is string empty && string.IsNullOrWhiteSpace(empty)) continue;
-                            if (raw is not string location || location.Length > 4096 || location.Any(char.IsControl) || !Path.IsPathFullyQualified(location) || location.StartsWith(@"\\", StringComparison.Ordinal))
+                            var raw = BoundedRegistrationMetadata.ReadText(registration.Handle, "InstallLocation", token.ThrowIfCancellationRequested, token);
+                            if (raw.State == RegistrationMetadataState.Missing) continue;
+                            if (raw.State != RegistrationMetadataState.Valid || raw.Value is not string location)
                             { incomplete = true; continue; }
-                            protectedRoots.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(location)));
+                            if (string.IsNullOrWhiteSpace(location)) continue;
+                            string? normalized = NormalizeRegisteredRoot(location);
+                            if (normalized == null) { incomplete = true; continue; }
+                            protectedRoots.Add(normalized);
                         }
                         catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
                     }
@@ -162,6 +229,26 @@ public sealed class WindowsDuplicateInventory : IDuplicateFileInventory
                 catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
             }
             return incomplete;
+        }
+        private static string? NormalizeRegisteredRoot(string location)
+        {
+            // Preserve unexpanded metadata as unknown. Never interpret environment,
+            // device, ADS or malformed components as a complete exclusion source.
+            if (location.Length > 4096 || location != location.Trim()) return null;
+            string path = location.Replace('/', '\\');
+            if (path.Length < 3 || !char.IsAsciiLetter(path[0]) || path[1] != ':' || path[2] != '\\' ||
+                path.AsSpan(2).IndexOfAny(':', '%') >= 0) return null;
+            string trimmed = Path.TrimEndingDirectorySeparator(path);
+            if (trimmed.Length == 3) return char.ToUpperInvariant(path[0]) + ":\\";
+            foreach (string part in trimmed[3..].Split('\\'))
+            {
+                // Reuse the strict Unicode/device/component policy without imposing
+                // its short *whole shortcut target* cap on a bounded registry path.
+                string component = "C:\\" + part;
+                if (part.Length == 0 || !string.Equals(component,
+                    ShortcutPathPolicy.NormalizeLocalPath(component, false), StringComparison.Ordinal)) return null;
+            }
+            return char.ToUpperInvariant(trimmed[0]) + trimmed[1..];
         }
         private bool Protected(string path)
         {
