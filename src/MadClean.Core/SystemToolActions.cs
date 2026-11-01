@@ -11,7 +11,13 @@ public enum SystemToolIdentityReason
     OriginalFilenameMismatch, IdentityBoundsOrPath, OtherUnavailable, WaitExpired, PendingWorker, UnsupportedPlatform
 }
 public sealed record SystemToolIdentityDiagnostic(SystemToolIdentityStage Stage, SystemToolIdentityReason Reason,
-    int? NativeTrustResult);
+    int? NativeTrustResult)
+{
+    // Bounded parser observations only; none of these diagnostics grants trust or launch permission.
+    public SystemToolEmbeddedVersionState? EmbeddedVersionState { get; init; }
+    public int? EmbeddedVersionResourceCount { get; init; }
+    public int? EmbeddedOriginalNameCount { get; init; }
+}
 public sealed record SystemToolActionDefinition(SystemToolOperation Operation, string Title, string FileName,
     IReadOnlyList<string> Arguments, SystemToolActionKind Kind, string Effect, string Elevation,
     string Network, string Cancellation, string Reboot, string WindowsLogReference);

@@ -198,6 +198,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_actual_system_tool_identity(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-identity-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_embedded_version_evidence(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-embedded-version-fixture']
+        self.save(); self.rejected()
+    def test_signature_proof_cannot_promote_missing_embedded_metadata(self):
+        version=next(check for check in self.report['checks'] if check['name']=='system-tool-embedded-version-fixture')
+        version.update(state='inconclusive',detail='TEST-ONLY held file has no qualified embedded original-name evidence; signature alone is insufficient')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='system-tool-embedded-version-fixture')['state'])
     def test_unavailable_signature_identity_cannot_be_promoted_by_disabled_launch_gate(self):
         identity=next(check for check in self.report['checks'] if check['name']=='system-tool-identity-contract')
         identity.update(state='inconclusive',detail='TEST-ONLY genuine identity unavailable; disabled launch is not signature proof')

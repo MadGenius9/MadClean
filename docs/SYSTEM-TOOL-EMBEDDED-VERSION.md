@@ -1,0 +1,21 @@
+# Version metadata from held executable bytes
+
+The system-tool identity reader now obtains version metadata directly from the same already-open executable stream whose signature was checked, with its existing read/ancestry leases retained. It no longer calls FileVersionInfo or a path-based version API. No image loader, MUI lookup, DLL activation, external resource path, SFC/DISM command or new trust fallback is used.
+
+The portable reader requires a readable seekable stream bounded to32 MiB. It seeks explicitly, reads fixed bounded spans, leaves the caller's stream open and restores its original position. Failed restoration cannot yield Matched; cancellation remains cancellation. The Windows caller explicitly resets position before fingerprinting and metadata inspection rather than assuming native signature verification preserved the cursor.
+
+The reader accepts PE32/PE32+ header/resource layouts with checked file-backed RVA mapping, disjoint section spans and bounded directories. Limits:96 sections,1 MiB resource directory,256 total traversed directory entries,three resource levels,8 version blobs of at most65,535 bytes,16 string tables and256 string fields per blob. It rejects cycles, duplicate/conflicting entries, raw/virtual overflow or unbacked spans, invalid lengths/alignment/padding and malformed UTF-16. It parses RT_VERSION bytes only; other resources are not loaded or executed.
+
+Version numbers come from the embedded VS_FIXEDFILEINFO binary fields, not localized display strings. All observed fixed versions must agree. At least one embedded OriginalFilename must be present and every present value must match the selected fixed executable basename case-insensitively. Unknown names, conflicting versions, missing data, malformed or unsupported structures remain non-Matched. There is no MUI-suffix allowance, filename guessing or permission to accept another Microsoft executable.
+
+Parser states are Matched/Missing/Mismatched/Ambiguous/Malformed/Unsupported. These describe this bounded metadata read, not signature trust, Windows integrity or execution permission. The production identity path accepts metadata only in Matched state after the existing native Microsoft signature checks; all other states remain Unknown with fixed diagnostic state/counts. Actual names, versions, paths and raw resource bytes are not exported in CI evidence.
+
+## Validation and limits
+
+Portable handcrafted PE/VERSIONINFO fixtures cover32/64-bit structures, language/table consistency, conflicts/missing names, header/RVA/section/resource bounds, cycles/overlap/truncation, malformed Unicode/alignment, short reads, nonseekable streams, position restoration and cancellation. These are parser tests, not trusted Windows binaries.
+
+The separate required `system-tool-embedded-version-fixture` opens only the two fixed OS system files through the existing guarded read helpers, then checks actual parser states/counts, numeric version shape and stream ownership. It performs no signature verification and cannot establish identity by itself. Both real files need Matched metadata for that narrow positive fixture; other states stay inconclusive. The distinct identity contract still requires native trust and remains a separate gate, including for SFC's unresolved file-signature result. No metadata fixture is injected into the UI.
+
+Source-bound actual Windows results belong in [the execution ledger](ROADMAP-STATUS.md). This implementation does not presume the earlier DISM mismatch came from MUI. The previous failure and official version API provenance are recorded in [the research note](SYSTEM-TOOL-IDENTITY-RESEARCH.md). Catalog member binding and D2/D3 action validation remain queued; execution is still disabled.
+
+Official format references: [PE format](https://learn.microsoft.com/windows/win32/debug/pe-format), [VS_VERSIONINFO](https://learn.microsoft.com/windows/win32/menurc/vs-versioninfo), [VS_FIXEDFILEINFO](https://learn.microsoft.com/windows/win32/api/verrsrc/ns-verrsrc-vs_fixedfileinfo), [StringFileInfo](https://learn.microsoft.com/windows/win32/menurc/stringfileinfo), [StringTable](https://learn.microsoft.com/windows/win32/menurc/stringtable) and [String](https://learn.microsoft.com/windows/win32/menurc/string-str).

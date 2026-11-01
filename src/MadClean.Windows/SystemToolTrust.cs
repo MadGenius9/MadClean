@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Formats.Asn1;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -30,11 +29,13 @@ internal sealed class SystemToolTrustedLease : IDisposable
     internal string ToolVersion { get; }
     internal string Sha256 { get; }
     internal string SignatureDetail { get; }
+    internal SystemToolEmbeddedVersion EmbeddedVersionObservation { get; }
     private SystemToolTrustedLease(List<SafeFileHandle> directories, FileStream file, string systemDirectory,
-        string toolPath, string version, string hash, string signatureDetail)
+        string toolPath, string version, string hash, string signatureDetail, SystemToolEmbeddedVersion embeddedVersion)
     {
         this.directories = directories; this.file = file; SystemDirectory = systemDirectory;
         ToolPath = toolPath; ToolVersion = version; Sha256 = hash; SignatureDetail = signatureDetail;
+        EmbeddedVersionObservation = embeddedVersion;
     }
     internal static SystemToolTrustedLease Open(SystemToolActionDefinition definition, CancellationToken token)
     {
@@ -63,6 +64,12 @@ internal sealed class SystemToolTrustedLease : IDisposable
                     new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             string signature = SystemToolTrustNative.VerifyMicrosoftSignature(path, stream.SafeFileHandle);
             token.ThrowIfCancellationRequested();
+            // Native trust verification may use the file cursor. Reset the SAME held stream
+            // explicitly before fingerprinting; never hash from an assumed current position.
+            if (stream.Seek(0, SeekOrigin.Begin) != 0 || stream.Position != 0)
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
+                    "The held tool stream could not be positioned for a bounded complete fingerprint.",
+                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             byte[] buffer = new byte[65_536]; long readTotal = 0;
             while (true)
@@ -79,15 +86,31 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool changed or could not be read consistently; no identity was accepted.",
                     new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             string hash = Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
-            var versionInfo = FileVersionInfo.GetVersionInfo(path);
-            if (!string.Equals(versionInfo.OriginalFilename, definition.FileName, StringComparison.OrdinalIgnoreCase))
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The reported original executable filename does not match the selected fixed system tool; its exact resource provenance remains unverified and no identity was accepted.",
-                    new(SystemToolIdentityStage.VersionMetadata, SystemToolIdentityReason.OriginalFilenameMismatch, 0));
-            string? version = versionInfo.FileVersion;
+            // Read VERSIONINFO only from these exact already-held and signature-qualified EXE
+            // bytes. Windows path-based version APIs can merge strings from an unleased MUI.
+            if (stream.Seek(0, SeekOrigin.Begin) != 0 || stream.Position != 0)
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
+                    "The held tool stream could not be positioned for embedded version metadata.",
+                    new(SystemToolIdentityStage.VersionMetadata, SystemToolIdentityReason.IdentityBoundsOrPath, 0));
+            var embedded = SystemToolEmbeddedVersionReader.Read(stream, definition.FileName, token);
+            if (embedded.State != SystemToolEmbeddedVersionState.Matched)
+            {
+                var diagnostic = new SystemToolIdentityDiagnostic(SystemToolIdentityStage.VersionMetadata,
+                    embedded.State == SystemToolEmbeddedVersionState.Mismatched
+                        ? SystemToolIdentityReason.OriginalFilenameMismatch : SystemToolIdentityReason.IdentityBoundsOrPath, 0)
+                {
+                    EmbeddedVersionState = embedded.State,
+                    EmbeddedVersionResourceCount = embedded.ResourceCount,
+                    EmbeddedOriginalNameCount = embedded.OriginalFilenameCount
+                };
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
+                    "The held executable's bounded embedded version metadata did not establish the exact selected original filename; no identity was accepted. No MUI or path-based metadata fallback was used.", diagnostic);
+            }
+            string? version = embedded.FileVersion;
             if (string.IsNullOrWhiteSpace(version) || version.Length > 128 || version.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format))
                 version = "Unknown";
             token.ThrowIfCancellationRequested();
-            return new(leases, stream, system, path, version, hash, signature);
+            return new(leases, stream, system, path, version, hash, signature, embedded);
         }
         catch
         {

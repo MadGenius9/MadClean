@@ -38,7 +38,14 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
                     identity.ToolVersion, identity.Sha256, SystemToolTrustState.MicrosoftSignatureVerified, identity.SignatureDetail,
                     now, now.AddMinutes(2), ProductionExecutionValidated && identity.ToolVersion != "Unknown",
                     "Production execution is disabled pending separate disposable-Windows and manual validation. Checking a signature does not run DISM/SFC or establish system health.")
-                { Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0) };
+                {
+                    Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0)
+                    {
+                        EmbeddedVersionState = identity.EmbeddedVersionObservation.State,
+                        EmbeddedVersionResourceCount = identity.EmbeddedVersionObservation.ResourceCount,
+                        EmbeddedOriginalNameCount = identity.EmbeddedVersionObservation.OriginalFilenameCount
+                    }
+                };
                 return new CheckResult<SystemToolActionPreview>(identity.ToolVersion == "Unknown" ? CheckState.Partial : CheckState.Available,
                     "Read-only tool identity preview obtained. No servicing command, elevation, repair or restart was requested.", [preview]);
             }

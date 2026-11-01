@@ -65,9 +65,15 @@ internal static partial class NativeFixtures
                 string reason = diagnostic != null && Enum.IsDefined(diagnostic.Reason) ? diagnostic.Reason.ToString() : "Unknown";
                 string nativeResult = diagnostic?.NativeTrustResult is int observedNativeResult
                     ? "0x" + unchecked((uint)observedNativeResult).ToString("X8") : "none";
+                string embedded = diagnostic?.EmbeddedVersionState is { } embeddedState && Enum.IsDefined(embeddedState)
+                    ? embeddedState.ToString() : "Unknown";
+                string resources = diagnostic?.EmbeddedVersionResourceCount is int resourceCount && resourceCount is >= 0 and <= 8
+                    ? resourceCount.ToString(CultureInfo.InvariantCulture) : "unknown";
+                string originals = diagnostic?.EmbeddedOriginalNameCount is int originalCount && originalCount is >= 0 and <= 128
+                    ? originalCount.ToString(CultureInfo.InvariantCulture) : "unknown";
                 // Returned fixed enum/code metadata only. Never derive a cause or trust from a
                 // diagnostic, parse Message/TrustDetail, or change positive identity requirements.
-                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}");
+                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}");
                 if (result.State is not (CheckState.Available or CheckState.Partial) || trust != SystemToolTrustState.MicrosoftSignatureVerified || assessed.IdentityObserved != true)
                     continue;
                 var definition = SystemToolActionsCatalog.Find(operation)!;

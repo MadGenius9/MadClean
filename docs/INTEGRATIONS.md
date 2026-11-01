@@ -117,6 +117,8 @@ The development-only Windows smoke harness renders genuine WPF client content an
 
 [System-tool identity observations](SYSTEM-TOOL-IDENTITY-OBSERVATION.md) add a strict projection-consistency policy and explicit identity-only UI summary, using an independently OS-derived system path. Existing native trust policy is unchanged. The new development check requires real identity evidence for both fixed executables and proves a genuine-preview request still encounters the disabled gate; it never runs DISM/SFC. Missing revocation/catalog evidence stays unverified, and no fallback authenticates an unchecked file.
 
+[Held executable version resources](SYSTEM-TOOL-EMBEDDED-VERSION.md) replace the former FileVersionInfo lookup, whose strings could be MUI-merged. A bounded portable PE reader parses only the existing signed read-leased stream, retaining exact original-name requirements and consistent numeric versions. This uses no loader, new signature route, MUI fallback or action permission. A separate fixed-file parser fixture is expressly not cryptographic identity proof.
+
 ## Selected application review and official release history
 
 Installed-app inventory now carries optional typed source-bound registration evidence, still without reading uninstall commands. The explicit [selected review plan](INSTALLED-APP-ACTION-PLANS.md) requires fresh complete/unique metadata and respects NoRemove. Its only follow-up routes to the existing reviewed general Windows Installed apps handoff; it passes no application/product identifier and executes no uninstall.

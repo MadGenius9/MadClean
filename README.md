@@ -49,6 +49,8 @@ More tools includes duplicate content review, shortcut target observations, Wind
 
 Windows integrity tools now presents [tool identity evidence separately from Windows integrity](docs/SYSTEM-TOOL-IDENTITY-OBSERVATION.md). Accepted identity observations show their time and expiry; unavailable, inconsistent or stale metadata remains unknown. A Microsoft signature observation does not run a corruption check or authorize a command. No SFC/DISM execution control is enabled.
 
+Tool version metadata is read from [the same held executable bytes](docs/SYSTEM-TOOL-EMBEDDED-VERSION.md), with strict embedded-name/version checks and no MUI/path-based lookup or executable loading. Parsing metadata successfully does not establish signature trust or Windows health; both remain separate checks.
+
 Shortcut review also offers [Recheck selected shortcut](docs/SHORTCUT-RECHECK.md): a fresh read of one selected `.lnk` and supported local target metadata, with prior/current evidence shown separately. It does not rescan siblings or overwrite the historical inventory. Missing/inaccessible/network/offline contexts remain unverified where appropriate; no shortcut is resolved, launched, saved or removed.
 
 In Hardware Upgrades, a separate online action can verify narrow official Surface Laptop 6 for Business family service observations after a complete supported PC identity is read. It requests three fixed public Microsoft articles without sending device identifiers. It does not establish RAM/CPU/BIOS limits, exact replacement-part fit or upgrade advice; other models and missing evidence remain Unknown/Unsupported. See [source scope and validation](docs/SURFACE-SERVICE-FACTS.md).
