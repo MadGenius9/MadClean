@@ -99,6 +99,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             else
             {
                 BeginStorageOverview();
+                BeginInspectionEvidence();
                 Disks.Clear(); CleanupRows.Clear(); CleanupCategories.Clear(); StartupRows.Clear(); SecurityRows.Clear();
                 DiskSummary = CleanupSummary = StartupSummary = SecuritySummary = "Checking…";
                 DiskMessage = CleanupMessage = StartupMessage = SecurityMessage = "Checking…";
@@ -107,8 +108,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             Status = $"Checks finished · {DateTime.Now:t}. Review each provider's results and limitations.";
             Event(ActivityArea.Session, ActivityOutcome.Completed);
         }
-        catch (OperationCanceledException) { if (online) UpdateSummary = "Cancelled"; Status = "Cancelled · completed results remain; unfinished checks are marked Cancelled."; Event(ActivityArea.Session, ActivityOutcome.Cancelled); }
-        catch (Exception) { if (online) UpdateSummary = "Failed"; Status = "An unexpected query failure occurred. Retry the check; no successful result is claimed."; Event(ActivityArea.Session, ActivityOutcome.Failed); }
+        catch (OperationCanceledException) { if (online) UpdateSummary = "Cancelled"; else FinishPendingInspectionEvidence(CheckState.Cancelled); Status = "Cancelled · completed results remain; unfinished checks are marked Cancelled."; Event(ActivityArea.Session, ActivityOutcome.Cancelled); }
+        catch (Exception) { if (online) UpdateSummary = "Failed"; else FinishPendingInspectionEvidence(CheckState.Failed); Status = "An unexpected query failure occurred. Retry the check; no successful result is claimed."; Event(ActivityArea.Session, ActivityOutcome.Failed); }
         finally { cancellation = null; IsBusy = false; }
     }
     private async Task LoadDisks(CancellationToken token) => await Guard(ActivityArea.Disks, async () =>
@@ -116,6 +117,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         var result = await inventory.DisksAsync(token); token.ThrowIfCancellationRequested();
         foreach (var d in result.Items) Disks.Add(new(d.Name, $"{Display.Bytes(d.FreeBytes)} free / {Display.Bytes(d.TotalBytes)}", d.TotalBytes == 0 ? 0 : 100d * (d.TotalBytes - d.FreeBytes) / d.TotalBytes, d.FreeBytes, d.TotalBytes));
         DiskSummary = (result.Items.Count == 0 ? "Unknown" : Display.Bytes(result.Items.Sum(d => d.FreeBytes))) + (result.State == CheckState.Partial ? " (partial)" : "");
+        CompleteStorageEvidence(result, token);
         DiskMessage = Stamp(result.State, result.Message); CompleteStorageOverview(result.State); Event(ActivityArea.Disks, Outcome(result.State));
     }, text => { DiskMessage = text; DiskSummary = text; CompleteStorageOverview(text.StartsWith("Cancelled", StringComparison.Ordinal) ? CheckState.Cancelled : CheckState.Failed); });
     private async Task LoadCleanup(CancellationToken token) => await Guard(ActivityArea.Cleanup, async () =>
@@ -165,6 +167,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             SecurityRows.Add(new("Detection history", $"{s.Findings.Count} recorded entries; not a new scan", s.FindingsState));
             foreach (var f in s.Findings) SecurityRows.Add(new("Threat ID " + f.ThreatId, "Last status change: " + f.LastStatusChange, "Action success: " + f.ActionSuccess));
         }
+        CompleteDefenderEvidence(result, token);
         SecurityMessage = Stamp(result.State, result.Message); Event(ActivityArea.Defender, Outcome(result.State));
     }, text => { SecurityMessage = text; SecuritySummary = text; });
     private async Task LoadApps(CancellationToken token) => await Guard(ActivityArea.Apps, async () =>
@@ -183,8 +186,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task Guard(ActivityArea area, Func<Task> action, Action<string> markFailure)
     {
         try { await action(); }
-        catch (OperationCanceledException) { markFailure("Cancelled"); Event(area, ActivityOutcome.Cancelled); throw; }
-        catch (Exception) { markFailure("Failed · provider query could not complete; retry and check Windows access."); Event(area, ActivityOutcome.Failed); }
+        catch (OperationCanceledException) { InterruptInspectionEvidence(area, CheckState.Cancelled); markFailure("Cancelled"); Event(area, ActivityOutcome.Cancelled); throw; }
+        catch (Exception) { InterruptInspectionEvidence(area, CheckState.Failed); markFailure("Failed · provider query could not complete; retry and check Windows access."); Event(area, ActivityOutcome.Failed); }
     }
     private static ActivityOutcome Outcome(CheckState state) => state switch
     { CheckState.Available => ActivityOutcome.Completed, CheckState.Partial => ActivityOutcome.Partial, CheckState.Cancelled => ActivityOutcome.Cancelled, _ => ActivityOutcome.Failed };

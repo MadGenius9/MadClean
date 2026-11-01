@@ -6,6 +6,8 @@ The goal is an evidence-based system-health report explaining observed symptoms 
 
 ## D1 — passive, read-only evidence report
 
+The [inspection-evidence panel](DIAGNOSTIC-INSPECTION-EVIDENCE.md) adds the current session’s existing disk and Defender observations, separately from Event Log and WER time windows. It starts no additional query, retains source-specific cancellation/failure and collection times, and supplies coverage, uncertainty, impact context and next step without a health verdict. Only the existing local Inspect action updates these two rows.
+
 Current D1a: explicit 1/7/30-day UTC window; at most 1,000 returned records per channel and 256 groups; levels 1/2/3 plus supported WER informational records. Only channel, provider, event ID/version/level, record reference and UTC time are projected. Per-channel statuses, truncation, whole-log count/bounds and their non-atomic/retention uncertainty are visible. Messages, payload properties, user IDs, paths and dump contents are not requested. The fixed system PowerShell query is capped at 90 seconds overall and cancellable as a metadata-query process; that runner must never be reused for servicing.
 
 The in-app **Observed recurrence** summary counts the already-returned event records, groups, groups with at least two records, and records in those repeated groups. Group identity includes channel, provider, event ID and schema version. A separate checkbox filters the displayed list to repeated groups without another query; summary totals still cover all returned groups. Event records may describe the same incident. Separate WER store references are never added to these totals or treated as confirmed incident matches.

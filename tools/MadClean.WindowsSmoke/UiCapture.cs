@@ -177,6 +177,24 @@ internal static partial class UiCapture
                     }
                     if (link.Page == 14)
                     {
+                        var evidenceGrid = Descendants<DataGrid>(window).Single(grid => AutomationProperties.GetName(grid) == "Local inspection evidence and source states");
+                        var evidenceDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Inspection source, time, uncertainty and impact");
+                        evidenceDetails.BringIntoView();
+                        await Idle(window);
+                        if (!ReferenceEquals(evidenceGrid.ItemsSource, model.InspectionEvidenceRows) || evidenceGrid.SelectedItem != null ||
+                            model.SelectedInspectionEvidence != null || !evidenceDetails.IsReadOnly || evidenceDetails.Text != model.InspectionEvidenceDetails ||
+                            evidenceDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.InspectionEvidenceDetails))
+                            throw new SmokeAssertionException("ui-inspection-evidence-binding");
+                        if (window.Content is not FrameworkElement evidenceClient) throw new SmokeAssertionException("ui-inspection-evidence-client");
+                        foreach (var element in new FrameworkElement[] { evidenceGrid, evidenceDetails })
+                        {
+                            Point point = element.TranslatePoint(new Point(), evidenceClient);
+                            if (!element.IsVisible || !ValidSize(element) || !double.IsFinite(point.X) || !double.IsFinite(point.Y) || point.X < -1 || point.Y < -1 ||
+                                point.X + element.ActualWidth > evidenceClient.ActualWidth + 1 || point.Y + element.ActualHeight > evidenceClient.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-inspection-evidence-bounds");
+                        }
+                        AssertNoInventory(model);
+                        Capture(window, output, "tool-25.png", report);
                         var counts = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "WER current-store counts and uncertainty");
                         counts.BringIntoView();
                         await Idle(window);
@@ -258,6 +276,7 @@ internal static partial class UiCapture
                 // explicit CI metadata workflow must not produce any later screenshots.
                 await CheckInstalledAppSearch(window, model, report);
                 await CheckPackagedAppSearch(window, model, report);
+                await CheckInspectionEvidence(window, model, report);
                 completed = true;
             }
             catch (SmokeAssertionException ex)
@@ -360,6 +379,11 @@ internal static partial class UiCapture
 
     private static void AssertNoInventory(MainViewModel model)
     {
+        if (model.InspectionEvidenceRows.Count != 2 || model.SelectedInspectionEvidence != null ||
+            model.InspectionEvidenceRows.Select(row => row.Area).Distinct().Count() != 2 ||
+            model.InspectionEvidenceRows.Any(row => row.State != MadClean.Core.CheckState.Unknown || row.AttemptedUtc != null || row.CompletedUtc != null ||
+                !row.Observation.StartsWith("Not checked", StringComparison.Ordinal)))
+            throw new SmokeAssertionException("ui-inspection-evidence-unchecked");
         if (model.IsBusy || model.Activity.Count != 0 || model.Disks.Count != 0 || model.CleanupRows.Count != 0 || model.StartupRows.Count != 0)
             throw new SmokeAssertionException("ui-navigation-provider-activity");
         if (model.FirmwareHistoryRows.Count != 0 || model.FirmwareHistoryCoverage.Count != 0 || model.SelectedFirmwareRelease != null ||

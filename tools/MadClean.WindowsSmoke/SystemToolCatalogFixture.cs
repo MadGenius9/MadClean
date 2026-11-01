@@ -89,7 +89,7 @@ internal static partial class NativeFixtures
                 }
             }
             string detail = $"fixedPositiveObservationCount={observed}; preCancellationObserved=true; " + string.Join("; ", outcomes) +
-                ". First-catalog existential observations only; no complete/unique catalog or broader trust coverage. No production identity fallback, tool command, install, elevation or repair; no paths, hashes, tags, subject identifiers or certificate data exported. Native certificate/cache behavior remains controlled by Windows.";
+                ". First-catalog existential observations only; no complete/unique catalog or broader trust coverage. This isolated fixture does not invoke production identity acceptance, tool commands, installs, elevation or repair; no paths, hashes, tags, subject identifiers or certificate data exported. Native certificate/cache behavior remains controlled by Windows.";
             if (observed == 2) report.Pass(check, detail);
             else report.Unknown(check, detail);
         }

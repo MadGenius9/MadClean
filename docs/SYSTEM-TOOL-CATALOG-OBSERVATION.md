@@ -28,3 +28,7 @@ Even a successful catalog observation would establish only this selected binding
 ## Source-bound isolated evidence
 
 [Run41340826576](https://github.com/MadGenius9/MadClean/actions/runs/41340826576), source733af5b, evidence87ac233c74925789bf41fd64975dd5af24641963, passed both standalone observations: DISM one catalog/26 members/one match and SFC one catalog/579 members/one match, native trust0 and existing Microsoft qualification, Limited=true. It also passed the installed-SDK assertions. The source had no production fallback; it does not validate the subsequent held-stream integration. Overall37 scoped passes/zero failures/two inconclusive; core976 Passed/10 NotExecuted, publish skipped. New held-stream/provider results remain pending.
+
+## Actual held-stream integration evidence
+
+[Run41342200691](https://github.com/MadGenius9/MadClean/actions/runs/41342200691), source308653d, evidence4ced63cadee0fb628c2810aa8367ccf8cfbf8591, passed both actual provider identity routes: DISM File0 and SFC File0x800B0100 followed by Catalog0, both policy Available with strict embedded metadata. Both genuine acknowledged requests remained blocked. The held fixtures preserved the same open handles and original position7, including pre-cancellation. SDK/build passed;976 core records Passed/10 NotExecuted reconcile986,39 scoped checks passed, no failed checks, WER enumeration alone inconclusive. Publishing was skipped. This is runner-scoped identity/ownership evidence, not a health, command-execution, general catalog or failure-policy certification.

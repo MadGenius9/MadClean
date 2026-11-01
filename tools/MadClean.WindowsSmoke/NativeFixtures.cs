@@ -23,6 +23,7 @@ internal static partial class NativeFixtures
             LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
             Diagnostics(report, token);
+            StorageInspectionEvidence(report, token);
             DefenderStatus(report, token);
             var registrations = InstalledRegistrations(report, token);
             MsiRegistrations(registrations, report, token);

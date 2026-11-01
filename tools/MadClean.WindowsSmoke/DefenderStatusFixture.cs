@@ -10,12 +10,17 @@ internal static partial class NativeFixtures
     private static void DefenderStatus(SmokeReport report, CancellationToken token)
     {
         const string check = "defender-status-contract";
+        bool evidenceReported = false;
         try
         {
             // Explicit disposable-host read only. The existing production adapter uses fixed
             // Get-MpComputerStatus and Get-MpThreatDetection getters, not a scan/remediation,
             // signature update, preference change or elevation. Never export its returned values.
+            var before = DateTimeOffset.UtcNow;
             var result = Query(ct => new WindowsInventory().DefenderAsync(ct), token);
+            var after = DateTimeOffset.UtcNow;
+            DefenderInspectionEvidence(result, before, after, report, token);
+            evidenceReported = true;
             if (result.State is not (CheckState.Available or CheckState.Partial))
             {
                 string reason = result.State switch
@@ -61,6 +66,7 @@ internal static partial class NativeFixtures
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
         {
             report.Unknown(check, $"The bounded Defender read did not complete (code 0x{ex.HResult:X8}); parsedActualResult=false. No live status verification, protection verdict or raw security/provider data is exported.");
+            if (!evidenceReported) report.Unknown("defender-inspection-evidence-contract", "The shared actual Defender read/projection did not complete; no second query or security-value export, no protection/health proof.");
         }
     }
 }

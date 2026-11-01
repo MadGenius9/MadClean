@@ -139,6 +139,35 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_inspection_ui_lifecycle(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-inspection-evidence']
+        self.save(); self.rejected()
+    def test_unobserved_inspection_ui_cancel_lifecycle_cannot_become_pass(self):
+        evidence=next(check for check in self.report['checks'] if check['name']=='ui-inspection-evidence')
+        evidence.update(state='inconclusive',detail='TEST-ONLY cancellation/reset observation unavailable; no query performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='ui-inspection-evidence')['state'])
+    def test_passing_report_cannot_omit_inspection_evidence_contracts(self):
+        for name in ('storage-inspection-evidence-contract','defender-inspection-evidence-contract'):
+            with self.subTest(name=name):
+                original=list(self.report['checks'])
+                self.report['checks']=[check for check in original if check['name']!=name]
+                self.save(); self.rejected()
+                self.report['checks']=original
+    def test_unavailable_inspection_evidence_cannot_become_overall_pass(self):
+        evidence=next(check for check in self.report['checks'] if check['name']=='defender-inspection-evidence-contract')
+        evidence.update(state='inconclusive',detail='TEST-ONLY missing actual status source; no query performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='defender-inspection-evidence-contract')['state'])
+    def test_missing_inspection_evidence_image_is_rejected(self):
+        (self.download/'tool-25.png').unlink()
+        self.save(); self.rejected()
     def test_passing_report_cannot_omit_held_catalog_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-held-catalog-observation']
         self.save(); self.rejected()

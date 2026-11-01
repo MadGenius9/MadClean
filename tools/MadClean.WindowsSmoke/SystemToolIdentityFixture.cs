@@ -145,8 +145,8 @@ internal static partial class NativeFixtures
                     string.Join("; ", outcomes) + ". Both genuine identities were not established. Certificate/revocation/catalog or pending-provider gaps remain unverified; no bypass, forced closure or servicing command occurred. No paths, hashes, versions, certificate values or provider messages exported.");
                 return;
             }
-            report.Pass(check, $"fixedIdentityCount=2; unknownVersionCount={unknownVersions}; blockedGenuineRequestCount=2; preCancellationObserved=true; catalogPathSchemaVerified=true; productionExecutionEnabled=false; " +
-                string.Join("; ", outcomes) + ". Only actual OS-file identity previews and hard-gated acknowledged requests were checked. No DISM/SFC command, elevation or repair ran; no paths/hashes/versions/certificate data exported. Signature checks may use normal Windows certificate/cache infrastructure. No dynamic zero-log-write instrumentation or Windows health/action-readiness claim.");
+            report.Pass(check, $"fixedIdentityCount=2; unknownVersions={unknownVersions}; blockedGenuineRequestCount=2; preCancelled=true; gate=false; " +
+                string.Join("; ", outcomes) + ". No commands/elevation/repair; gate closed; source values withheld; no health/readiness verdict.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or ArgumentException or OperationCanceledException or TimeoutException)
         {

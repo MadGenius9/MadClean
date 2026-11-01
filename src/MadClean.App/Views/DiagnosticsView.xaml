@@ -2,7 +2,18 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24">
             <TextBlock Text="Windows Diagnostics" Style="{StaticResource SectionTitle}"/>
-            <TextBlock Text="Existing event evidence. Source, time and uncertainty included." FontSize="19" Margin="0,0,0,10"/>
+            <TextBlock Text="Inspection observations and existing event evidence." FontSize="19" Margin="0,0,0,10"/>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,16"><StackPanel>
+                <TextBlock Text="Inspection evidence · this session" FontSize="20"/>
+                <TextBlock Text="Disk space and Defender settings already collected by Inspect this PC. This panel starts no queries. Each observation keeps its collection time and limitations; Available means a source response, not a healthy PC. Event and WER windows below are separate." Style="{StaticResource Caption}"/>
+                <DataGrid ItemsSource="{Binding InspectionEvidenceRows}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" SelectedItem="{Binding SelectedInspectionEvidence, Mode=TwoWay}" Height="150" AutomationProperties.Name="Local inspection evidence and source states"><DataGrid.Columns>
+                    <DataGridTextColumn Header="AREA" Binding="{Binding Area}" Width="120"/>
+                    <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="120"/>
+                    <DataGridTextColumn Header="OBSERVATION" Binding="{Binding Observation}" Width="*" MinWidth="220"/>
+                    <DataGridTextColumn Header="COLLECTED UTC" Binding="{Binding CompletedUtc, StringFormat=u}" Width="180"/>
+                </DataGrid.Columns></DataGrid>
+                <TextBox Text="{Binding InspectionEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="210" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0" AutomationProperties.Name="Inspection source, time, uncertainty and impact"/>
+            </StackPanel></Border>
             <TextBlock Text="Read bounded local Application/System metadata for reported warning/error/critical events and supported WER records. Counts refer to event records, not unique crashes or confirmed causes. No Security log, messages, payloads, dump contents, integrity check or repair is collected or started." Style="{StaticResource Caption}"/>
             <WrapPanel Margin="0,4,0,12">
                 <ComboBox ItemsSource="{Binding DiagnosticRanges}" SelectedItem="{Binding SelectedDiagnosticRange, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose time range" Width="190" Margin="0,0,12,0" AutomationProperties.Name="Diagnostic evidence time range">
