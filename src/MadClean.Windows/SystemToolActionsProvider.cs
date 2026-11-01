@@ -43,7 +43,8 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
                     {
                         EmbeddedVersionState = identity.EmbeddedVersionObservation.State,
                         EmbeddedVersionResourceCount = identity.EmbeddedVersionObservation.ResourceCount,
-                        EmbeddedOriginalNameCount = identity.EmbeddedVersionObservation.OriginalFilenameCount
+                        EmbeddedOriginalNameCount = identity.EmbeddedVersionObservation.OriginalFilenameCount,
+                        EmbeddedVersionFailureSite = identity.EmbeddedVersionObservation.FailureSite
                     }
                 };
                 return new CheckResult<SystemToolActionPreview>(identity.ToolVersion == "Unknown" ? CheckState.Partial : CheckState.Available,

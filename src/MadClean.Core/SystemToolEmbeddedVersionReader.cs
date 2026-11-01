@@ -1,18 +1,26 @@
 using System.Buffers.Binary;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace MadClean.Core;
 
 public enum SystemToolEmbeddedVersionState { Matched, Missing, Mismatched, Ambiguous, Malformed, Unsupported }
 public sealed record SystemToolEmbeddedVersion(SystemToolEmbeddedVersionState State, string FileVersion,
-    int ResourceCount, int OriginalFilenameCount);
+    int ResourceCount, int OriginalFilenameCount)
+{
+    // Compiled validation call site only; no input data, exception text or stack trace.
+    public int? FailureSite { get; init; }
+}
 
 /// <summary>Reads bounded embedded PE VERSIONINFO bytes only, never a path, MUI loader or executable image.</summary>
 public static class SystemToolEmbeddedVersionReader
 {
-    private sealed class Rejected(SystemToolEmbeddedVersionState state) : Exception
-    { internal SystemToolEmbeddedVersionState State { get; } = state; }
+    private sealed class Rejected(SystemToolEmbeddedVersionState state, int? site = null) : Exception
+    {
+        internal SystemToolEmbeddedVersionState State { get; } = state;
+        internal int? Site { get; } = site;
+    }
     private sealed record Section(uint Rva, uint VirtualSize, uint RawSize, uint Offset);
     private sealed record Block(int Start, int End, ushort ValueLength, ushort Type, string Key, int Value, int Children);
     private static readonly UnicodeEncoding Utf16 = new(false, false, true);
@@ -33,7 +41,7 @@ public static class SystemToolEmbeddedVersionReader
             parser.Seek(0);
             result = parser.Parse();
         }
-        catch (Rejected exception) { result = Result(exception.State, parser.ResourceCount, parser.OriginalCount); }
+        catch (Rejected exception) { result = Result(exception.State, parser.ResourceCount, parser.OriginalCount) with { FailureSite = exception.Site }; }
         catch (Exception exception) when (exception is IOException or NotSupportedException or ObjectDisposedException or
             ArgumentException or OverflowException)
         { result = Result(SystemToolEmbeddedVersionState.Malformed, parser.ResourceCount, parser.OriginalCount); }
@@ -292,7 +300,8 @@ public static class SystemToolEmbeddedVersionReader
         private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset, 2));
         private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset, 4));
         private static bool Overlap(uint a, uint aLength, uint b, uint bLength) => aLength > 0 && bLength > 0 && (ulong)a < (ulong)b + bLength && (ulong)b < (ulong)a + aLength;
-        private static void Require(bool condition, SystemToolEmbeddedVersionState state = SystemToolEmbeddedVersionState.Malformed)
-        { if (!condition) throw new Rejected(state); }
+        private static void Require(bool condition, SystemToolEmbeddedVersionState state = SystemToolEmbeddedVersionState.Malformed,
+            [CallerLineNumber] int site = 0)
+        { if (!condition) throw new Rejected(state, site); }
     }
 }

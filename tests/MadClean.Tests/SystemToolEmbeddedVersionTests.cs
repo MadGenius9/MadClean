@@ -71,6 +71,17 @@ public sealed class SystemToolEmbeddedVersionTests
         var result = Read(Pe(plus, Version()));
         Assert.Equal(SystemToolEmbeddedVersionState.Matched, result.State); Assert.Equal("10.0.1.2", result.FileVersion);
         Assert.Equal(1, result.ResourceCount); Assert.Equal(1, result.OriginalFilenameCount);
+        Assert.Null(result.FailureSite);
+    }
+    [Fact]
+    public void MalformedFixtureReportsOnlyBoundedCompiledValidationSite()
+    {
+        var data = Pe(false, Version());
+        Dword(data, 512 + 192, uint.MaxValue - 4);
+        var result = Read(data);
+        Assert.Equal(SystemToolEmbeddedVersionState.Malformed, result.State);
+        Assert.True(result.FailureSite is > 0 and <= 1000);
+        Assert.Equal("Unknown", result.FileVersion);
     }
     [Fact]
     public void ConsistentLanguagesAndTablesAreAcceptedButConflictingVersionsAreNot()

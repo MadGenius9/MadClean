@@ -71,9 +71,11 @@ internal static partial class NativeFixtures
                     ? resourceCount.ToString(CultureInfo.InvariantCulture) : "unknown";
                 string originals = diagnostic?.EmbeddedOriginalNameCount is int originalCount && originalCount is >= 0 and <= 128
                     ? originalCount.ToString(CultureInfo.InvariantCulture) : "unknown";
+                string sourceSite = diagnostic?.EmbeddedVersionFailureSite is int site && site is >= 1 and <= 1000
+                    ? site.ToString(CultureInfo.InvariantCulture) : "none";
                 // Returned fixed enum/code metadata only. Never derive a cause or trust from a
                 // diagnostic, parse Message/TrustDetail, or change positive identity requirements.
-                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}");
+                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}/sourceSite={sourceSite}");
                 if (result.State is not (CheckState.Available or CheckState.Partial) || trust != SystemToolTrustState.MicrosoftSignatureVerified || assessed.IdentityObserved != true)
                     continue;
                 var definition = SystemToolActionsCatalog.Find(operation)!;

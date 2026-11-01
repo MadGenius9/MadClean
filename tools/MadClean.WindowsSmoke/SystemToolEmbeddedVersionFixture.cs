@@ -41,7 +41,7 @@ internal static partial class NativeFixtures
                 handle = null; // The FileStream exclusively owns this safe handle now.
                 if (stream.Length is <= 0 or > 33_554_432)
                 {
-                    outcomes.Add($"{operation}:state=Unsupported/resources=unknown/originalNames=unknown/streamRestored=unknown");
+                    outcomes.Add($"{operation}:state=Unsupported/resources=unknown/originalNames=unknown/streamRestored=unknown/sourceSite=none");
                     continue;
                 }
                 stream.Position = 0;
@@ -50,7 +50,8 @@ internal static partial class NativeFixtures
                 string state = Enum.IsDefined(parsed.State) ? parsed.State.ToString() : "Unknown";
                 string resources = parsed.ResourceCount is >= 0 and <= 8 ? parsed.ResourceCount.ToString(CultureInfo.InvariantCulture) : "unknown";
                 string originals = parsed.OriginalFilenameCount is >= 0 and <= 128 ? parsed.OriginalFilenameCount.ToString(CultureInfo.InvariantCulture) : "unknown";
-                outcomes.Add($"{operation}:state={state}/resources={resources}/originalNames={originals}/streamRestored={restored}");
+                string sourceSite = parsed.FailureSite is int site && site is >= 1 and <= 1000 ? site.ToString(CultureInfo.InvariantCulture) : "none";
+                outcomes.Add($"{operation}:state={state}/resources={resources}/originalNames={originals}/streamRestored={restored}/sourceSite={sourceSite}");
                 if (!restored)
                 {
                     report.Fail(check, "The fixed-file embedded reader did not leave its stream open at the original zero position. No metadata values exported or trust inferred.");
@@ -68,7 +69,7 @@ internal static partial class NativeFixtures
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or ArgumentException or
                 OperationCanceledException or System.Security.SecurityException or SystemToolTrustFailure)
             {
-                outcomes.Add($"{operation}:state=Unavailable/resources=unknown/originalNames=unknown/streamRestored=unknown");
+                outcomes.Add($"{operation}:state=Unavailable/resources=unknown/originalNames=unknown/streamRestored=unknown/sourceSite=none");
             }
             finally
             {

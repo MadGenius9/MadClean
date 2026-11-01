@@ -17,6 +17,7 @@ public sealed record SystemToolIdentityDiagnostic(SystemToolIdentityStage Stage,
     public SystemToolEmbeddedVersionState? EmbeddedVersionState { get; init; }
     public int? EmbeddedVersionResourceCount { get; init; }
     public int? EmbeddedOriginalNameCount { get; init; }
+    public int? EmbeddedVersionFailureSite { get; init; }
 }
 public sealed record SystemToolActionDefinition(SystemToolOperation Operation, string Title, string FileName,
     IReadOnlyList<string> Arguments, SystemToolActionKind Kind, string Effect, string Elevation,
