@@ -148,6 +148,21 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_dacl_facts(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-dacl-fixture']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_a_directory_guard_profile(self):
+        for name in ('shortcut-rename-source-guard','shortcut-rename-destination-guard','shortcut-rename-ancestor-guard'):
+            with self.subTest(name=name):
+                original=self.report['checks']
+                self.report['checks']=[check for check in original if check['name']!=name]
+                self.save(); self.rejected()
+                self.report['checks']=original
+    def test_baseline_success_does_not_promote_an_unverified_directory_guard(self):
+        next(check for check in self.report['checks'] if check['name']=='shortcut-rename-destination-guard').update(state='inconclusive',detail='TEST-ONLY guard compatibility unverified; no operation')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='shortcut-rename-destination-guard')['state'])
+        self.assertEqual('passed',next(check for check in published['checks'] if check['name']=='shortcut-rename-nt-control')['state'])
     def test_unverified_dacl_facts_remain_inconclusive_with_other_checks_passed(self):
         next(check for check in self.report['checks'] if check['name']=='shortcut-dacl-fixture').update(state='inconclusive',detail='TEST-ONLY descriptor facts unverified; no native query')
         self.report.update(passed=False,state='inconclusive'); self.save()

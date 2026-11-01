@@ -9,12 +9,14 @@ namespace MadClean.WindowsSmoke;
 
 internal enum ShortcutRenameProbeBackend { ManagedWin32, CppWin32, NativeNt }
 internal enum ShortcutRenameProbeFileSystem { Unknown, Ntfs, Refs }
+internal enum ShortcutRenameGuardProfile { Baseline, SourceParentShareRead, DestinationParentShareRead, FixtureAncestorShareRead }
 internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObserved, bool RestoreObserved,
     bool CollisionRefused, bool IdentityPreserved, bool BytesPreserved, bool TargetUnchanged,
     bool AttributeAnchorHandoffObserved, bool? ExclusiveWithLiveMapping, bool? MappedWriteObserved,
     bool TeardownCompleted, int? NativeErrorCode, string Reason)
 {
     internal ShortcutRenameProbeBackend Backend { get; init; }
+    internal ShortcutRenameGuardProfile GuardProfile { get; init; }
     internal int ControlApiCalls { get; init; }
     internal int? ScalarDiagBufferBytes { get; init; }
     internal int? ScalarDiagNameBytes { get; init; }
@@ -47,30 +49,35 @@ internal static class ShortcutRenameProbe
 
     internal static Task<ShortcutRenameProbeResult> RunAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, CancellationToken token)
-        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.ManagedWin32, token);
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.ManagedWin32, ShortcutRenameGuardProfile.Baseline, token);
 
     internal static Task<ShortcutRenameProbeResult> RunCppControlAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, CancellationToken token)
-        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.CppWin32, token);
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.CppWin32, ShortcutRenameGuardProfile.Baseline, token);
 
     internal static Task<ShortcutRenameProbeResult> RunNtControlAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, CancellationToken token)
-        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.NativeNt, token);
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.NativeNt, ShortcutRenameGuardProfile.Baseline, token);
+
+    internal static Task<ShortcutRenameProbeResult> RunNtGuardControlAsync(string ownedFixtureRoot, string ownerMarker,
+        Action<string, string> createOwnedShortcut, ShortcutRenameGuardProfile profile, CancellationToken token)
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.NativeNt, profile, token);
 
     private static async Task<ShortcutRenameProbeResult> StartAsync(string ownedFixtureRoot, string ownerMarker,
-        Action<string, string> createOwnedShortcut, ShortcutRenameProbeBackend backend, CancellationToken token)
+        Action<string, string> createOwnedShortcut, ShortcutRenameProbeBackend backend, ShortcutRenameGuardProfile profile, CancellationToken token)
     {
-        if (token.IsCancellationRequested) return Empty(CheckState.Cancelled, "cancelled-before-start", backend);
-        if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess) return Empty(CheckState.Unsupported, "windows-x64-required", backend);
-        if (Interlocked.CompareExchange(ref active, 1, 0) != 0) return Empty(CheckState.Unavailable, "previous-native-worker-pending", backend);
+        if (token.IsCancellationRequested) return Empty(CheckState.Cancelled, "cancelled-before-start", backend, profile);
+        if (!Enum.IsDefined(profile)) return Empty(CheckState.Unsupported, "guard-profile-unsupported", backend, profile);
+        if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess) return Empty(CheckState.Unsupported, "windows-x64-required", backend, profile);
+        if (Interlocked.CompareExchange(ref active, 1, 0) != 0) return Empty(CheckState.Unavailable, "previous-native-worker-pending", backend, profile);
         var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
         var completion = new TaskCompletionSource<ShortcutRenameProbeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         Volatile.Write(ref pending, completion.Task);
         var thread = new Thread(() =>
         {
             ShortcutRenameProbeResult result;
-            try { result = new ProbeWorker(ownedFixtureRoot, ownerMarker, createOwnedShortcut, backend, stop.Token).Run(); }
-            catch { result = Empty(CheckState.Failed, "worker-failed-owned-tree-retained", backend); }
+            try { result = new ProbeWorker(ownedFixtureRoot, ownerMarker, createOwnedShortcut, backend, profile, stop.Token).Run(); }
+            catch { result = Empty(CheckState.Failed, "worker-failed-owned-tree-retained", backend, profile); }
             finally { stop.Dispose(); Volatile.Write(ref active, 0); }
             completion.TrySetResult(result);
         }) { IsBackground = true, Name = "MadClean owned shortcut rename proof" };
@@ -78,20 +85,20 @@ internal static class ShortcutRenameProbe
         catch
         {
             stop.Dispose(); Volatile.Write(ref active, 0);
-            completion.TrySetResult(Empty(CheckState.Unavailable, "native-worker-start-unavailable", backend));
+            completion.TrySetResult(Empty(CheckState.Unavailable, "native-worker-start-unavailable", backend, profile));
         }
         try { return await completion.Task.WaitAsync(TimeSpan.FromSeconds(45), token).ConfigureAwait(false); }
         catch (TimeoutException)
-        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Unavailable, "caller-wait-expired-worker-owns-tree", backend); }
+        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Unavailable, "caller-wait-expired-worker-owns-tree", backend, profile); }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
-        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Cancelled, "caller-cancelled-worker-owns-tree", backend); }
+        { try { stop.Cancel(); } catch (ObjectDisposedException) { } return Empty(CheckState.Cancelled, "caller-cancelled-worker-owns-tree", backend, profile); }
     }
 
-    private static ShortcutRenameProbeResult Empty(CheckState state, string reason, ShortcutRenameProbeBackend backend) =>
-        new(state, false, false, false, false, false, false, false, null, null, false, null, reason) { Backend = backend };
+    private static ShortcutRenameProbeResult Empty(CheckState state, string reason, ShortcutRenameProbeBackend backend, ShortcutRenameGuardProfile profile) =>
+        new(state, false, false, false, false, false, false, false, null, null, false, null, reason) { Backend = backend, GuardProfile = profile };
 
     private sealed class ProbeWorker(string fixture, string marker, Action<string, string> createShortcut,
-        ShortcutRenameProbeBackend backend, CancellationToken token)
+        ShortcutRenameProbeBackend backend, ShortcutRenameGuardProfile profile, CancellationToken token)
     {
         private const uint ReadAttributes = 0x80, Traverse = 0x20, GenericRead = 0x80000000, GenericWrite = 0x40000000, Delete = 0x10000;
         private const uint BackupSemantics = 0x02000000, OpenReparse = 0x00200000, NoRecall = 0x00100000;
@@ -162,6 +169,8 @@ internal static class ShortcutRenameProbe
                     if (!anchorHandoff) throw new InvalidDataException();
                     byte[] original = ReadBytes(action, 1_048_576);
                     if (original.Length == 0) throw new InvalidDataException();
+                    Check(); reason = "strengthen-owned-directory-guard";
+                    StrengthenSelectedParent();
                     var destinationDirectory = parents.Single(item => item.Path == vault).Handle;
                     var sourceDirectory = parents.Single(item => item.Path == child).Handle;
                     string destinationLeaf = "moved-" + Guid.NewGuid().ToString("N") + ".lnk";
@@ -235,7 +244,7 @@ internal static class ShortcutRenameProbe
             exclusiveMapping, mappedWrite, teardown, nativeError,
             (state is CheckState.Available or CheckState.Partial) && !teardown ? "owned-tree-teardown-unverified" : reason)
         {
-            Backend = backend, ControlApiCalls = controlCalls, ScalarDiagBufferBytes = diagnosticBufferBytes,
+            Backend = backend, GuardProfile = profile, ControlApiCalls = controlCalls, ScalarDiagBufferBytes = diagnosticBufferBytes,
             ScalarDiagNameBytes = diagnosticNameBytes, ScalarDiagRootDirValid = diagnosticRoot,
             ScalarDiagSameVolume = diagnosticVolume, FileSystem = fileSystem,
             MappingReadOnlyOpenRequested = mappingReadOnlyOpenRequested, MappedNativeErrorCode = mappedNativeError,
@@ -266,6 +275,47 @@ internal static class ShortcutRenameProbe
             // Owned-fixture-only sharing: permit ADD_FILE target opens, deny DELETE.
             var handle = Open(path, ReadAttributes | Traverse, 3, directory: true);
             parents.Add((path, handle));
+        }
+        private void StrengthenSelectedParent()
+        {
+            if (profile == ShortcutRenameGuardProfile.Baseline) return;
+            string selected = profile switch
+            {
+                ShortcutRenameGuardProfile.SourceParentShareRead => child,
+                ShortcutRenameGuardProfile.DestinationParentShareRead => vault,
+                ShortcutRenameGuardProfile.FixtureAncestorShareRead => root,
+                _ => throw new InvalidDataException()
+            };
+            RevalidateParents(); Check();
+            int index = parents.FindIndex(item => item.Path == selected);
+            if (index < 0) throw new InvalidDataException();
+            var previous = parents[index];
+            var before = DirectoryIdentity(previous.Handle);
+            SafeFileHandle? replacement = Open(selected, ReadAttributes | Traverse, 1, directory: true);
+            try
+            {
+                // Both leases overlap. Compare the complete native directory identity,
+                // volume, tag and final path before replacing the prior RW-share lease.
+                if (before != DirectoryIdentity(replacement) || before != DirectoryIdentity(previous.Handle) ||
+                    !string.Equals(FinalPath(previous.Handle), selected, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(FinalPath(replacement), selected, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException();
+                Check();
+                parents[index] = (selected, replacement);
+                replacement = null;
+                previous.Handle.Dispose();
+            }
+            finally { replacement?.Dispose(); }
+        }
+        private static (ulong Volume, Guid Id, uint Attributes, uint ReparseTag) DirectoryIdentity(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandleEx(handle, 18, out IdInfo id, 24) ||
+                !GetFileInformationByHandleEx(handle, 1, out StandardInfo standard, 24) ||
+                !GetFileInformationByHandleEx(handle, 9, out TagInfo tag, 8)) throw Native();
+            if (id.Id == Guid.Empty || !standard.Directory || standard.DeletePending ||
+                (tag.Attributes & 0x10) == 0 || (tag.Attributes & UnsafeAttributes) != 0 || tag.ReparseTag != 0)
+                throw new InvalidDataException();
+            return (id.Volume, id.Id, tag.Attributes, tag.ReparseTag);
         }
         private void RevalidateParents()
         {

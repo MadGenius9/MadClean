@@ -22,6 +22,8 @@ Undo must begin with a fresh user selection of the actual quarantined object and
 
 ## Next acceptance stages
 
+The [owned directory-guard compatibility matrix](SHORTCUT-DIRECTORY-GUARDS.md) now isolates source-parent, destination-parent and ancestor sharing changes before considering a client move. Baseline native success does not establish operation compatibility under stronger guards or protection from concurrent namespace changes. No production gate is enabled by this experiment.
+
 1. **Owned development primitive/witness:** validate only disposable fixture files and folders; test handle-bound relative rename, same-volume checks, no-overwrite collision, identity/byte observations, explicit restore and the mapped-write limitation. Native success would establish only those observations on the tested Windows build. It would not prove the entire S2 workflow, private ACL policy or crash recovery.
 2. **Read-only client eligibility/preview producer:** collect fresh real shortcut identity, bounded bytes, DACL and supported target-availability evidence, retaining source/time/coverage and uncertainty. Keep `CanMove=false` until the remaining action and recovery gates are reviewed and validated. S1's selected recheck remains read-only and is not an action token.
 3. **Separately reviewed future action:** exact user selection/preview/acknowledgment, fresh guarded KnownMissing target evidence, supported handle handoff, an eligible same-volume recovery location, private storage policy, bounded journal and honest per-item outcomes. Only the selected shortcut object may move; its target/application/data must never be changed.

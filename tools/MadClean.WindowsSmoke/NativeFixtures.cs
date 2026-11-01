@@ -65,6 +65,25 @@ internal static partial class NativeFixtures
                 shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token, ntControl: true);
             }
             else report.Unknown("shortcut-rename-nt-control", "Prior probe ownership/teardown uncertain; no separate NT control started and the entire marked tree is retained.");
+            foreach (var profile in new[] { ShortcutRenameGuardProfile.SourceParentShareRead,
+                ShortcutRenameGuardProfile.DestinationParentShareRead, ShortcutRenameGuardProfile.FixtureAncestorShareRead })
+            {
+                if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
+                {
+                    shortcutProbeTeardownCompleted = false;
+                    shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token, ntControl: true, guardProfile: profile);
+                }
+                else
+                {
+                    string check = profile switch
+                    {
+                        ShortcutRenameGuardProfile.SourceParentShareRead => "shortcut-rename-source-guard",
+                        ShortcutRenameGuardProfile.DestinationParentShareRead => "shortcut-rename-destination-guard",
+                        _ => "shortcut-rename-ancestor-guard"
+                    };
+                    report.Unknown(check, "A prior owned probe did not confirm safe teardown; no new guard experiment started and the entire ownership tree is retained.");
+                }
+            }
             if (!shortcutProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe)
             {
                 report.Unknown("startup-transaction-handle-probe", "The prior owned shortcut probe did not establish safe teardown; no transaction probe started and the ownership tree is retained.");
