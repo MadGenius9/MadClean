@@ -116,6 +116,20 @@ public sealed class SystemToolEmbeddedVersionTests
         var wrongType = (byte[])padded.Clone(); Word(wrongType, 4, 1);
         Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, wrongType)).State);
     }
+    [Fact]
+    public void RejectedFullDwordTailReportsBoundedRootStructureWithoutChangingAcceptance()
+    {
+        byte[] root = Version();
+        var result = Read(Pe(false, [.. root, 0, 0, 0, 0]));
+        Assert.Equal(SystemToolEmbeddedVersionState.Malformed, result.State);
+        Assert.Equal(root.Length, result.DeclaredRootLength);
+        Assert.Equal(root.Length + 4, result.ResourceBlobLength);
+        Assert.True(result.RootTrailingBytesZero);
+        Assert.True(result.FailureSite is > 0 and <= 1000);
+        var nonzero = Read(Pe(false, [.. root, 0, 1, 0, 0]));
+        Assert.False(nonzero.RootTrailingBytesZero);
+        Assert.Equal(SystemToolEmbeddedVersionState.Malformed, nonzero.State);
+    }
     [Theory]
     [InlineData("Dism.exe.mui")][InlineData("Other.exe")][InlineData("Dism.exe ")][InlineData("Dism.exe\0Other.exe")]
     public void FilenameAliasesSuffixesAndEmbeddedNullsCannotMatch(string original)

@@ -102,7 +102,10 @@ internal sealed class SystemToolTrustedLease : IDisposable
                     EmbeddedVersionState = embedded.State,
                     EmbeddedVersionResourceCount = embedded.ResourceCount,
                     EmbeddedOriginalNameCount = embedded.OriginalFilenameCount,
-                    EmbeddedVersionFailureSite = embedded.FailureSite
+                    EmbeddedVersionFailureSite = embedded.FailureSite,
+                    DeclaredRootLength = embedded.DeclaredRootLength,
+                    ResourceBlobLength = embedded.ResourceBlobLength,
+                    RootTrailingBytesZero = embedded.RootTrailingBytesZero
                 };
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
                     "The held executable's bounded embedded version metadata did not establish the exact selected original filename; no identity was accepted. No MUI or path-based metadata fallback was used.", diagnostic);

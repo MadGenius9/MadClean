@@ -11,6 +11,9 @@ public sealed record SystemToolEmbeddedVersion(SystemToolEmbeddedVersionState St
 {
     // Compiled validation call site only; no input data, exception text or stack trace.
     public int? FailureSite { get; init; }
+    public int? DeclaredRootLength { get; init; }
+    public int? ResourceBlobLength { get; init; }
+    public bool? RootTrailingBytesZero { get; init; }
 }
 
 /// <summary>Reads bounded embedded PE VERSIONINFO bytes only, never a path, MUI loader or executable image.</summary>
@@ -55,7 +58,12 @@ public static class SystemToolEmbeddedVersionReader
             }
         }
         token.ThrowIfCancellationRequested();
-        return restore ? result : Result(SystemToolEmbeddedVersionState.Unsupported, parser.ResourceCount, parser.OriginalCount);
+        return (restore ? result : Result(SystemToolEmbeddedVersionState.Unsupported, parser.ResourceCount, parser.OriginalCount)) with
+        {
+            DeclaredRootLength = parser.DeclaredRootLength,
+            ResourceBlobLength = parser.ResourceBlobLength,
+            RootTrailingBytesZero = parser.RootTrailingBytesZero
+        };
     }
 
     private static SystemToolEmbeddedVersion Result(SystemToolEmbeddedVersionState state, int resources, int originals) => new(state, "Unknown", resources, originals);
@@ -66,6 +74,8 @@ public static class SystemToolEmbeddedVersionReader
     {
         internal long Length;
         internal int ResourceCount, OriginalCount;
+        internal int? DeclaredRootLength, ResourceBlobLength;
+        internal bool? RootTrailingBytesZero;
         private uint resourceRva, resourceSize;
         private long resourceFile;
         private int directoryEntries, stringFields;
@@ -203,7 +213,13 @@ public static class SystemToolEmbeddedVersionReader
         private void ParseVersion(byte[] bytes)
         {
             stringFields = 0;
+            DeclaredRootLength = null; ResourceBlobLength = null; RootTrailingBytesZero = null;
             var root = ReadBlock(bytes, 0, bytes.Length);
+            DeclaredRootLength = root.End; ResourceBlobLength = bytes.Length;
+            bool tailZero = true;
+            for (int index = root.End; index < bytes.Length; index++)
+            { token.ThrowIfCancellationRequested(); if (bytes[index] != 0) tailZero = false; }
+            RootTrailingBytesZero = tailZero;
             Require(root.Key == "VS_VERSION_INFO");
             Require(root.Type == 0);
             // VS_VERSIONINFO.wLength excludes alignment padding after the root.

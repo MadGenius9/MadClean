@@ -73,9 +73,12 @@ internal static partial class NativeFixtures
                     ? originalCount.ToString(CultureInfo.InvariantCulture) : "unknown";
                 string sourceSite = diagnostic?.EmbeddedVersionFailureSite is int site && site is >= 1 and <= 1000
                     ? site.ToString(CultureInfo.InvariantCulture) : "none";
+                string rootLength = diagnostic?.DeclaredRootLength is int declared && declared is >= 0 and <= 65535 ? declared.ToString(CultureInfo.InvariantCulture) : "unknown";
+                string blobLength = diagnostic?.ResourceBlobLength is int blob && blob is >= 0 and <= 65535 ? blob.ToString(CultureInfo.InvariantCulture) : "unknown";
+                string zeroTail = diagnostic?.RootTrailingBytesZero is bool zero ? zero ? "true" : "false" : "unknown";
                 // Returned fixed enum/code metadata only. Never derive a cause or trust from a
                 // diagnostic, parse Message/TrustDetail, or change positive identity requirements.
-                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}/sourceSite={sourceSite}");
+                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}/sourceSite={sourceSite}/rootLength={rootLength}/blobLength={blobLength}/zeroTail={zeroTail}");
                 if (result.State is not (CheckState.Available or CheckState.Partial) || trust != SystemToolTrustState.MicrosoftSignatureVerified || assessed.IdentityObserved != true)
                     continue;
                 var definition = SystemToolActionsCatalog.Find(operation)!;

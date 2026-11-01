@@ -18,6 +18,9 @@ public sealed record SystemToolIdentityDiagnostic(SystemToolIdentityStage Stage,
     public int? EmbeddedVersionResourceCount { get; init; }
     public int? EmbeddedOriginalNameCount { get; init; }
     public int? EmbeddedVersionFailureSite { get; init; }
+    public int? DeclaredRootLength { get; init; }
+    public int? ResourceBlobLength { get; init; }
+    public bool? RootTrailingBytesZero { get; init; }
 }
 public sealed record SystemToolActionDefinition(SystemToolOperation Operation, string Title, string FileName,
     IReadOnlyList<string> Arguments, SystemToolActionKind Kind, string Effect, string Elevation,

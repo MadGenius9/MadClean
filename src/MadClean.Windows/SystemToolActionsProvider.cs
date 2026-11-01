@@ -44,7 +44,10 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
                         EmbeddedVersionState = identity.EmbeddedVersionObservation.State,
                         EmbeddedVersionResourceCount = identity.EmbeddedVersionObservation.ResourceCount,
                         EmbeddedOriginalNameCount = identity.EmbeddedVersionObservation.OriginalFilenameCount,
-                        EmbeddedVersionFailureSite = identity.EmbeddedVersionObservation.FailureSite
+                        EmbeddedVersionFailureSite = identity.EmbeddedVersionObservation.FailureSite,
+                        DeclaredRootLength = identity.EmbeddedVersionObservation.DeclaredRootLength,
+                        ResourceBlobLength = identity.EmbeddedVersionObservation.ResourceBlobLength,
+                        RootTrailingBytesZero = identity.EmbeddedVersionObservation.RootTrailingBytesZero
                     }
                 };
                 return new CheckResult<SystemToolActionPreview>(identity.ToolVersion == "Unknown" ? CheckState.Partial : CheckState.Available,
