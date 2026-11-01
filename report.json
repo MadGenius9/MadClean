@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "787fbf666f3bb63e7bf1acf9b16c6b37ea90af7c",
-  "runId": "41306474471",
+  "sourceCommit": "1c3912b06798dc5e242ae3a3dcd28f95080eddca",
+  "runId": "41307901114",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T12:29:12.8822869+00:00",
-  "completedUtc": "2026-11-01T12:29:21.6368185+00:00",
+  "startedUtc": "2026-11-01T12:47:49.1849694+00:00",
+  "completedUtc": "2026-11-01T12:48:03.6175297+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -96,7 +96,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
