@@ -186,6 +186,20 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_actual_package_panel_capture(self):
         self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-21.png']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_duplicate_pair_worksheet_capture(self):
+        self.report['screenshots']=[image for image in self.report['screenshots'] if image['file']!='tool-22.png']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_actual_duplicate_pair_fixture(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='duplicate-pair-review-fixture']
+        self.save(); self.rejected()
+    def test_missing_independent_copy_cannot_become_positive_pair_proof(self):
+        pair=next(check for check in self.report['checks'] if check['name']=='duplicate-pair-review-fixture')
+        pair.update(state='inconclusive',detail='TEST-ONLY no independent owned-fixture copy with required typed evidence')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='duplicate-pair-review-fixture')['state'])
     def test_passing_report_cannot_omit_current_user_package_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='packaged-application-contract']
         self.save(); self.rejected()

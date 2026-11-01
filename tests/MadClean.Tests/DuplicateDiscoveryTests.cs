@@ -30,7 +30,15 @@ public sealed class DuplicateDiscoveryTests : IDisposable
         Assert.Equal(entries[0].GroupId, entries[1].GroupId);
         Assert.NotEqual(entries[0].Identity, entries[1].Identity);
         Assert.DoesNotContain(entries, entry => entry.Path == different);
-        Assert.All(entries, entry => Assert.Contains("complete byte comparison", entry.Verification));
+        Assert.All(entries, entry =>
+        {
+            Assert.Contains("complete byte comparison", entry.Verification);
+            Assert.Equal(DuplicateEvidenceKind.ByteComparedIndependentFile, entry.EvidenceKind);
+            Assert.Equal(1u, entry.ObservedLinkCount);
+            Assert.NotNull(entry.ObservedUtc);
+            Assert.Equal(TimeSpan.Zero, entry.ObservedUtc!.Value.Offset);
+        });
+        Assert.Equal(entries[0].ObservedUtc, entries[1].ObservedUtc);
         Assert.Equal(0, access.ActiveHandles);
     }
 
@@ -59,6 +67,11 @@ public sealed class DuplicateDiscoveryTests : IDisposable
         Assert.Equal(first.Identity, aliasEntry.Identity);
         Assert.Equal(first.GroupId, aliasEntry.GroupId);
         Assert.Contains("not an independent copy", aliasEntry.Relationship);
+        Assert.Equal(DuplicateEvidenceKind.ByteComparedIndependentFile, first.EvidenceKind);
+        Assert.Equal(DuplicateEvidenceKind.SameFileAlias, aliasEntry.EvidenceKind);
+        Assert.Equal(2u, first.ObservedLinkCount);
+        Assert.Equal(first.ObservedLinkCount, aliasEntry.ObservedLinkCount);
+        Assert.Equal(first.ObservedUtc, aliasEntry.ObservedUtc);
         Assert.DoesNotContain(alias, access.ContentOpened);
     }
 
@@ -70,6 +83,8 @@ public sealed class DuplicateDiscoveryTests : IDisposable
         var entries = Report(new DuplicateDiscoveryEngine().Scan(root, access, default)).Entries;
         Assert.Equal(2, entries.Count); Assert.All(entries, entry => Assert.StartsWith("A", entry.GroupId));
         Assert.DoesNotContain(entries, entry => entry.Verification.Contains("complete byte comparison", StringComparison.Ordinal));
+        Assert.Equal(DuplicateEvidenceKind.AliasAnchor, entries.Single(entry => entry.Path == a).EvidenceKind);
+        Assert.Equal(DuplicateEvidenceKind.SameFileAlias, entries.Single(entry => entry.Path == alias).EvidenceKind);
     }
 
     [Fact]

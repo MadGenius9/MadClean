@@ -1,7 +1,13 @@
 namespace MadClean.Core;
 
 public sealed record FileReviewIssue(string Path, string Reason);
-public sealed record DuplicateEntry(string GroupId, string Path, long Bytes, string Identity, string Relationship, string Verification);
+public enum DuplicateEvidenceKind { Unknown, ByteComparedIndependentFile, SameFileAlias, AliasAnchor }
+public sealed record DuplicateEntry(string GroupId, string Path, long Bytes, string Identity, string Relationship, string Verification)
+{
+    public DuplicateEvidenceKind EvidenceKind { get; init; }
+    public DateTimeOffset? ObservedUtc { get; init; }
+    public uint? ObservedLinkCount { get; init; }
+}
 public sealed record DuplicateReport(IReadOnlyList<DuplicateEntry> Entries, IReadOnlyList<FileReviewIssue> Issues,
     int VisitedFiles, int SkippedFiles, bool Truncated, string Coverage);
 public interface IDuplicateFileInventory

@@ -22,12 +22,29 @@
                 </DataGrid.Columns>
             </DataGrid>
             <TextBox Text="{Binding DuplicateDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="170" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected duplicate path, identity and verification"/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Review a retained copy and a candidate" FontSize="20"/>
+                    <TextBlock Text="A snapshot worksheet only. Choose both files explicitly; nothing is selected for removal. Same-file aliases cannot substitute for an independent retained copy. No additional file read or change occurs here." Style="{StaticResource Caption}"/>
+                    <TextBlock Text="Copy to retain" Margin="0,0,0,6"/>
+                    <ListBox ItemsSource="{Binding DuplicateRows}" SelectedItem="{Binding DuplicateRetainedEntry, Mode=TwoWay}" DisplayMemberPath="Path" IsSynchronizedWithCurrentItem="False" SelectionMode="Single" Height="110" AutomationProperties.Name="Duplicate snapshot copy to retain" Margin="0,0,0,12">
+                        <ListBox.Style><Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ListBox.Style>
+                    </ListBox>
+                    <TextBlock Text="Candidate to review" Margin="0,0,0,6"/>
+                    <ListBox ItemsSource="{Binding DuplicateRows}" SelectedItem="{Binding DuplicateCandidate, Mode=TwoWay}" DisplayMemberPath="Path" IsSynchronizedWithCurrentItem="False" SelectionMode="Single" Height="110" AutomationProperties.Name="Duplicate snapshot candidate to review" Margin="0,0,0,12">
+                        <ListBox.Style><Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ListBox.Style>
+                    </ListBox>
+                    <WrapPanel><Button Content="Preview selected pair" Command="{Binding PreviewDuplicatePairCommand}"/><Button Content="Clear pair selection" Command="{Binding ClearDuplicatePairCommand}" Background="#343E52"/></WrapPanel>
+                    <TextBlock Text="{Binding DuplicatePairMessage}" Style="{StaticResource Caption}"/>
+                    <TextBox Text="{Binding DuplicatePairDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Duplicate snapshot pair preview and limits"/>
+                </StackPanel>
+            </Border>
             <Expander Header="Exclusions, errors and incomplete coverage">
                 <DataGrid ItemsSource="{Binding DuplicateIssues}" Height="180">
                     <DataGrid.Columns><DataGridTextColumn Header="PATH / SCOPE" Binding="{Binding Path}" Width="2*"/><DataGridTextColumn Header="REASON" Binding="{Binding Reason}" Width="3*"/></DataGrid.Columns>
                 </DataGrid>
             </Expander>
-            <TextBlock Text="A match is a snapshot, not deletion eligibility, a backup or guaranteed reclaimable space. Keepers, shared data, saves and settings require a separate later review; ordinary inspection never starts this content scan." Style="{StaticResource Caption}"/>
+            <TextBlock Text="A match or pair preview is a snapshot, not deletion eligibility, a backup or guaranteed reclaimable space. Shared data, saves and settings stay protected; ordinary inspection never starts this content scan. Removal remains unavailable." Style="{StaticResource Caption}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -17,7 +17,8 @@ internal static partial class NativeFixtures
         bool transactionProbeTeardownCompleted = true;
         try
         {
-            Duplicates(fixture, report, token);
+            var duplicates = Duplicates(fixture, report, token);
+            DuplicatePairReviewFixture(fixture, duplicates, report, token);
             DiskIdentity(fixture, report, token);
             LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
@@ -63,7 +64,7 @@ internal static partial class NativeFixtures
         }
     }
 
-    private static void Duplicates(string fixture, SmokeReport report, CancellationToken token)
+    private static CheckResult<DuplicateReport>? Duplicates(string fixture, SmokeReport report, CancellationToken token)
     {
         string scope = Path.Combine(fixture, "duplicates"); Directory.CreateDirectory(scope);
         string first = Path.Combine(scope, "different-name-one.txt"), second = Path.Combine(scope, "different-name-two.txt");
@@ -79,24 +80,24 @@ internal static partial class NativeFixtures
             if (data == null)
             {
                 report.Unknown("duplicate-fixture-context", "App result: " + BoundedReason(result.Message, 600));
-                return;
+                return null;
             }
             var a = data.Entries.FirstOrDefault(entry => PathEquals(entry.Path, first));
             var b = data.Entries.FirstOrDefault(entry => PathEquals(entry.Path, second));
             bool falseMatch = data.Entries.Any(entry => PathEquals(entry.Path, different) && (entry.GroupId == a?.GroupId || entry.GroupId == b?.GroupId));
             if (falseMatch)
-            { report.Fail("duplicate-content-fixtures", "Same-size but different bytes were included with verified matching fixture contents."); return; }
+            { report.Fail("duplicate-content-fixtures", "Same-size but different bytes were included with verified matching fixture contents."); return null; }
             if (a == null || b == null)
             {
                 if (result.State == CheckState.Available) report.Fail("duplicate-content-fixtures", "A completed fixture inventory omitted the two independent byte-identical files.");
                 else report.Unknown("duplicate-content-fixtures", $"Fixture content equality was not established; provider state {result.State}, {data.Issues.Count} bounded issue(s). No duplicate-proof claim. " + SafeFixtureContext(result.Message, data.Issues));
-                return;
+                return null;
             }
             if (a.GroupId != b.GroupId || string.IsNullOrWhiteSpace(a.Identity) || string.IsNullOrWhiteSpace(b.Identity) || a.Identity == b.Identity || a.Bytes != content.Length || b.Bytes != content.Length)
-            { report.Fail("duplicate-content-fixtures", "Returned fixture group/identity/length evidence contradicts independent byte-identical files."); return; }
+            { report.Fail("duplicate-content-fixtures", "Returned fixture group/identity/length evidence contradicts independent byte-identical files."); return null; }
             report.Pass("duplicate-content-fixtures", $"Native fixture observations group equal bytes across different names, retain independent identities and exclude a same-size different-content file. Provider state {result.State}; this is scoped fixture evidence only.");
             if (!linked)
-            { report.Unknown("duplicate-hardlink-fixture", "The native hard-link fixture could not be created on this runner; identity/alias behavior is not verified here."); return; }
+            { report.Unknown("duplicate-hardlink-fixture", "The native hard-link fixture could not be created on this runner; identity/alias behavior is not verified here."); return result; }
             var link = data.Entries.FirstOrDefault(entry => PathEquals(entry.Path, alias));
             if (link == null)
             {
@@ -106,9 +107,10 @@ internal static partial class NativeFixtures
             else if (link.Identity != a.Identity || link.GroupId != a.GroupId || !(link.Relationship.Contains("alias", StringComparison.OrdinalIgnoreCase) || a.Relationship.Contains("alias", StringComparison.OrdinalIgnoreCase)))
                 report.Fail("duplicate-hardlink-fixture", "A known hard-link alias was reported with inconsistent file identity or without an alias relationship.");
             else report.Pass("duplicate-hardlink-fixture", "An actual native hard link shares the original file identity and group and is explicitly labeled an alias, not an independent copy.");
+            return result;
         }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
-        { report.Unknown("duplicate-provider", $"The bounded native fixture query could not finish (0x{ex.HResult:X8}); Windows content/identity verification is not claimed."); }
+        { report.Unknown("duplicate-provider", $"The bounded native fixture query could not finish (0x{ex.HResult:X8}); Windows content/identity verification is not claimed."); return null; }
     }
 
     private static void Shortcuts(string fixture, SmokeReport report, CancellationToken token)

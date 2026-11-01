@@ -159,7 +159,8 @@ public sealed class DuplicateDiscoveryEngine
                 }
                 bool independent = group.Files.Count > 1;
                 if (!independent && group.Reference.Aliases.Count == 0) continue;
-                string time = DateTimeOffset.UtcNow.ToString("O");
+                var observedUtc = DateTimeOffset.UtcNow;
+                string time = observedUtc.ToString("O");
                 string groupId = (independent ? "D" : "A") + (++number).ToString("D3");
                 foreach (var file in group.Files)
                 {
@@ -167,10 +168,20 @@ public sealed class DuplicateDiscoveryEngine
                         ? $"Full SHA-256 narrowing + complete byte comparison; stable handles rechecked {time}; no ADS present. Observation only, not deletion eligibility."
                         : $"Same-file handle identity observed {time}; no independent duplicate copy established.";
                     entries.Add(new(groupId, file.Path, file.Handle.Stamp.Bytes, file.Handle.Stamp.Identity,
-                        $"{(independent ? "Independent file object" : "File object with aliases")}; {file.Handle.Stamp.LinkCount} links reported", verification));
+                        $"{(independent ? "Independent file object" : "File object with aliases")}; {file.Handle.Stamp.LinkCount} links reported", verification)
+                    {
+                        EvidenceKind = independent ? DuplicateEvidenceKind.ByteComparedIndependentFile : DuplicateEvidenceKind.AliasAnchor,
+                        ObservedUtc = observedUtc,
+                        ObservedLinkCount = file.Handle.Stamp.LinkCount
+                    });
                     foreach (var alias in file.Aliases)
                         entries.Add(new(groupId, alias, file.Handle.Stamp.Bytes, file.Handle.Stamp.Identity,
-                            "Same-file hard-link alias, not an independent copy", $"128-bit handle identity + volume verified {time}; no additional recoverable-byte claim."));
+                            "Same-file hard-link alias, not an independent copy", $"128-bit handle identity + volume verified {time}; no additional recoverable-byte claim.")
+                        {
+                            EvidenceKind = DuplicateEvidenceKind.SameFileAlias,
+                            ObservedUtc = observedUtc,
+                            ObservedLinkCount = file.Handle.Stamp.LinkCount
+                        });
                 }
             }
             token.ThrowIfCancellationRequested();

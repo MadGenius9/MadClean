@@ -95,11 +95,13 @@ public sealed partial class MainViewModel
         ScanShortcutsCommand = new AsyncCommand(ScanShortcuts, () => !IsBusy && !string.IsNullOrWhiteSpace(ShortcutFolder));
         ReadDiagnosticsCommand = new AsyncCommand(ReadDiagnostics, () => !IsBusy);
         InitializeDiagnosticRecurrence();
+        InitializeDuplicatePairReview();
     }
     private void ChooseDuplicateFolder()
     {
         var dialog = new OpenFolderDialog { Title = "Choose one local folder for read-only content review", Multiselect = false };
         if (dialog.ShowDialog() != true) return;
+        InvalidateDuplicatePairSnapshot();
         DuplicateFolder = dialog.FolderName; DuplicateRows.Clear(); DuplicateIssues.Clear(); SelectedDuplicateEntry = null;
         DuplicateMessage = "Scope selected. This scan reads file contents; review the exclusions before choosing Scan selected folder.";
         DuplicateCoverage = "Selected scope has not been scanned. System/application/credential/reparse/offline/active/unsupported files are protected by the provider policy.";
@@ -117,6 +119,7 @@ public sealed partial class MainViewModel
     }
     private Task ScanDuplicates() => RunDiscoveryAsync(ActivityArea.DuplicateReview, "Reviewing duplicate-file contents", async token =>
     {
+        InvalidateDuplicatePairSnapshot();
         DuplicateRows.Clear(); DuplicateIssues.Clear(); SelectedDuplicateEntry = null;
         DuplicateAttempt = DateTimeOffset.Now.ToString("g"); DuplicateMessage = "Reading bounded selected-scope content and comparing stable file observations…";
         DuplicateCoverage = "In progress; no completed duplicate report is claimed.";
@@ -128,9 +131,15 @@ public sealed partial class MainViewModel
             foreach (var issue in report.Issues) DuplicateIssues.Add(issue);
             DuplicateCoverage = $"Visited {report.VisitedFiles}; skipped {report.SkippedFiles}; limited {report.Truncated}. {report.Coverage}";
         }
+        duplicatePairSnapshot = result;
         DuplicateMessage = Stamp(result.State, result.Message); SelectedDuplicateEntry = DuplicateRows.FirstOrDefault();
+        CommandManager.InvalidateRequerySuggested();
         return result.State;
-    }, error => { DuplicateMessage = error; DuplicateCoverage = "No completed report from this attempt; absence of rows does not prove no duplicates."; });
+    }, error =>
+    {
+        InvalidateDuplicatePairSnapshot(); DuplicateRows.Clear(); DuplicateIssues.Clear(); SelectedDuplicateEntry = null;
+        DuplicateMessage = error; DuplicateCoverage = "No completed report from this attempt; absence of rows does not prove no duplicates.";
+    });
     private Task ScanShortcuts() => RunDiscoveryAsync(ActivityArea.ShortcutReview, "Inspecting shortcut metadata", async token =>
     {
         ShortcutRows.Clear(); ShortcutIssues.Clear(); SelectedShortcutObservation = null;

@@ -159,6 +159,32 @@ internal static partial class UiCapture
                     }
                     if (link.Page == 8) Capture(window, output, "tool-19.png", report);
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
+                    if (link.Page == 12)
+                    {
+                        var retained = Descendants<ListBox>(window).Single(list => AutomationProperties.GetName(list) == "Duplicate snapshot copy to retain");
+                        var candidate = Descendants<ListBox>(window).Single(list => AutomationProperties.GetName(list) == "Duplicate snapshot candidate to review");
+                        var preview = Descendants<Button>(window).Single(button => Equals(button.Content, "Preview selected pair"));
+                        var clearPair = Descendants<Button>(window).Single(button => Equals(button.Content, "Clear pair selection"));
+                        var pairDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Duplicate snapshot pair preview and limits");
+                        if (!ReferenceEquals(retained.ItemsSource, model.DuplicateRows) || !ReferenceEquals(candidate.ItemsSource, model.DuplicateRows) ||
+                            retained.Items.Count != 0 || candidate.Items.Count != 0 || retained.SelectedItem != null || candidate.SelectedItem != null ||
+                            !ReferenceEquals(preview.Command, model.PreviewDuplicatePairCommand) || !ReferenceEquals(clearPair.Command, model.ClearDuplicatePairCommand) ||
+                            preview.IsEnabled || clearPair.IsEnabled || !pairDetails.IsReadOnly || pairDetails.Text != model.DuplicatePairDetails)
+                            throw new SmokeAssertionException("ui-duplicate-pair-initial-bindings");
+                        pairDetails.BringIntoView();
+                        await Idle(window);
+                        if (window.Content is not FrameworkElement client) throw new SmokeAssertionException("ui-duplicate-pair-client");
+                        foreach (FrameworkElement control in new FrameworkElement[] { retained, candidate, pairDetails })
+                        {
+                            Point position = control.TranslatePoint(new Point(), client);
+                            if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||
+                                position.X < -1 || position.Y < -1 || position.X + control.ActualWidth > client.ActualWidth + 1 ||
+                                position.Y + control.ActualHeight > client.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-duplicate-pair-controls-bounds");
+                        }
+                        AssertNoInventory(model);
+                        Capture(window, output, "tool-22.png", report);
+                    }
                     AssertNoInventory(model);
                 }
                 report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation.");
@@ -304,6 +330,11 @@ internal static partial class UiCapture
             model.SelectedPackagedApplication != null || !model.PackagedApplicationsMessage.StartsWith("Not checked", StringComparison.Ordinal) ||
             !model.PackagedApplicationsAttempt.StartsWith("Not checked", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-packaged-applications-unchecked");
+        if (model.DuplicateRows.Count != 0 || model.DuplicateCandidate != null || model.DuplicateRetainedEntry != null ||
+            model.PreviewDuplicatePairCommand == null || model.ClearDuplicatePairCommand == null ||
+            model.PreviewDuplicatePairCommand.CanExecute(null) || model.ClearDuplicatePairCommand.CanExecute(null) ||
+            !model.DuplicatePairMessage.StartsWith("Not prepared", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-duplicate-pair-unprepared");
     }
 
     private static void AssertSectionTitleContrast(MainWindow window)

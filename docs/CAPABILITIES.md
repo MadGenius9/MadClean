@@ -18,3 +18,5 @@ The current foundation is preserved and extended with read-only discovery. The p
 | Defender and updates | Existing read-only status/history, app/Windows/driver offers, and user-controlled MadClean release status/reminder. | User-initiated scans and individually selected installs after an explicit operation/source/permission preview. No new antivirus-engine claim, bulk driver replacement, silent self-install or forced restart. |
 
 This queue is also visible in the app. It records capability scope and review conditions, not a schedule or implemented action. No external issue, reminder, scheduled task or client-PC action was created.
+
+F2a now adds a read-only [retained-copy/candidate snapshot worksheet](DUPLICATE-PAIR-REVIEW.md), with both choices explicit and no removal implementation. Typed comparison/link/time evidence and exact current snapshot membership gate the preview; it cannot verify current files, protect a keeper or authorize an action. The [current execution ledger](ROADMAP-STATUS.md) is authoritative for source-specific runtime results and remaining gates; historical rows above are not new validation claims.

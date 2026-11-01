@@ -70,6 +70,8 @@ The supplied concept is implemented as a native navy/blue WPF workspace: horizon
 
 Under **More tools**, **Duplicate review** reads bounded selected-folder contents, confirms matches by full byte comparison and distinguishes hard-link aliases using actual Windows file identity. Protected/application/credential/save locations, links, unknown streams and active/unverifiable files are skipped; no item is removed and no reclaimable-space promise is made.
 
+Its [snapshot pair worksheet](docs/DUPLICATE-PAIR-REVIEW.md) lets you explicitly choose a copy to retain and a different candidate from the same byte-compared group, then inspect their exact paths and evidence. Choices start empty and reset on rescans; aliases, uncertain evidence and expired observations cannot produce a pair preview. The worksheet uses only the loaded snapshot. It does not establish current safety, protect a keeper, authorize removal or change files.
+
 **Shortcut review** inspects stored `.lnk` metadata without Resolve, execution, tracking, saving, icon retrieval or installer activation. A missing supported local target is evidence for review; offline/network/access/reparse/unsupported cases remain unknown. No shortcut is removed.
 
 **Windows Diagnostics** reads existing minimized Application/System event metadata for an explicitly chosen 1/7/30-day window, grouping event records with source, time, coverage, uncertainty and impact. No records does not mean healthy; no event message/dump content, DISM/SFC or repair command is read/run. D1b/D2/D3 remain separate gated work.

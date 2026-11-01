@@ -1,0 +1,15 @@
+# Duplicate snapshot pair worksheet
+
+This is the first read-only review step toward F2. It does **not** implement removal, recovery, an action token, or a protected keeper. Ordinary inspection still never reads duplicate-file contents; the existing explicit selected-folder content scan remains separate.
+
+After that scan, choose both a **copy to retain** and a **candidate to review** yourself. Neither is preselected. Preparing the pair reads the existing in-memory snapshot only: no file, registry, network or provider operation runs, and no selection, path, file identity or content fingerprint is persisted or logged. Exact paths, logical lengths, observed identities, evidence kind and UTC observations appear in a selectable preview.
+
+The portable builder requires exact entry references from one bounded Available/Partial source report. Equal-looking entries from an old scan, different groups, the same path/object, differing lengths, unknown evidence, malformed group relationships and invalid/expired observation times cannot produce a preview. Typed evidence comes from the existing content engine's completed byte comparisons and identity observations; display text is never parsed to establish proof. Candidate link count must be exactly one, and the retained object must have a known positive link count and a distinct identity. A hard-link alias or alias-only anchor is never an independently byte-compared retained copy. Known contradictory alias observations block the pair.
+
+Observations must be UTC, not in the future and no older than ten minutes when preparing a preview. This is a product bound on reviewing a snapshot, **not** proof that a file remains unchanged for ten minutes. Available/Partial source coverage is preserved; the worksheet cannot establish complete discovery, current file contents/identity, ownership, inactive use, recoverable bytes or safe removal. The engine has already released its content handles. Even a Preview result has `ExecutionSupported == false` with no runtime override.
+
+Changing either choice invalidates the displayed preview. Starting a rescan, changing scope or failing/cancelling discovery clears both choices and the source binding. Clear pair selection affects only these choices; it does not rerun discovery or change files. A preview remains documentary snapshot evidence, never authorization for a future action.
+
+F2 removal remains absent. It still needs fresh selected-object/content verification, protection of a verified independent retained copy through every change, protected-data and active-use checks, an exact selected-action confirmation, supported recovery semantics and real per-item outcomes/cancellation. Restore points do not recover deleted files. No selection here weakens those gates.
+
+Portable tests and a separate owned Windows fixture verify only this worksheet's input/identity/alias/cancellation rules. Genuine initial WPF rendering and native-fixture results require their own source-bound evidence. Development fixtures never enter the production UI, and no personal file is removed.
