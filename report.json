@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "198bc524015178fe5d0040387853e62703e69c54",
-  "runId": "41332627241",
+  "sourceCommit": "1881d5566341a59488f0fe81288f4d161dcb3303",
+  "runId": "41333563729",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T17:43:52.3547942+00:00",
-  "completedUtc": "2026-11-01T17:44:12.6583669+00:00",
+  "startedUtc": "2026-11-01T17:54:10.1909333+00:00",
+  "completedUtc": "2026-11-01T17:54:24.9163285+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -96,7 +96,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -166,12 +166,12 @@
     {
       "name": "system-tool-embedded-version-fixture",
       "state": "inconclusive",
-      "detail": "fixedMetadataMatchCount=0; noCommands=true; cryptoTrustProof=false; DismCheckHealth:state=Malformed/resources=1/originalNames=0/streamRestored=True; SfcVerifyOnly:state=Malformed/resources=1/originalNames=0/streamRestored=True. Only guarded held-stream parsing of the two fixed OS files was requested, without path loaders/MUI, arbitrary files or servicing. This is embedded VERSIONINFO parser evidence, not a signature, publisher, executable identity, Windows integrity or action-eligibility verdict. No paths, original names, versions, hashes or certificate values exported."
+      "detail": "fixedMetadataMatchCount=0; noCommands=true; cryptoTrustProof=false; DismCheckHealth:state=Malformed/resources=1/originalNames=0/streamRestored=True/sourceSite=207; SfcVerifyOnly:state=Malformed/resources=1/originalNames=0/streamRestored=True/sourceSite=207. Only guarded held-stream parsing of the two fixed OS files was requested, without path loaders/MUI, arbitrary files or servicing. This is embedded VERSIONINFO parser evidence, not a signature, publisher, executable identity, Windows integrity or action-eligibility verdict. No paths, original names, versions, hashes or certificate values exported."
     },
     {
       "name": "system-tool-identity-contract",
       "state": "inconclusive",
-      "detail": "preCancellationObserved=true; fixedIdentityCount=0; blockedGenuineRequestCount=0; productionExecutionEnabled=false; DismCheckHealth:state=Unknown/trust=Unknown/policyState=Unknown/identityObserved=unknown/stage=VersionMetadata/reason=IdentityBoundsOrPath/nativeResult=0x00000000/embedded=Malformed/resources=1/originalNames=0; SfcVerifyOnly:state=Unavailable/trust=Unknown/policyState=Unavailable/identityObserved=unknown/stage=Signature/reason=NativeTrustNotEstablished/nativeResult=0x800B0100/embedded=Unknown/resources=unknown/originalNames=unknown. Both genuine identities were not established. Certificate/revocation/catalog or pending-provider gaps remain unverified; no bypass, forced closure or servicing command occurred. No paths, hashes, versions, certificate values or provider messages exported."
+      "detail": "preCancellationObserved=true; fixedIdentityCount=0; blockedGenuineRequestCount=0; productionExecutionEnabled=false; DismCheckHealth:state=Unknown/trust=Unknown/policyState=Unknown/identityObserved=unknown/stage=VersionMetadata/reason=IdentityBoundsOrPath/nativeResult=0x00000000/embedded=Malformed/resources=1/originalNames=0/sourceSite=207; SfcVerifyOnly:state=Unavailable/trust=Unknown/policyState=Unavailable/identityObserved=unknown/stage=Signature/reason=NativeTrustNotEstablished/nativeResult=0x800B0100/embedded=Unknown/resources=unknown/originalNames=unknown/sourceSite=none. Both genuine identities were not established. Certificate/revocation/catalog or pending-provider gaps remain unverified; no bypass, forced closure or servicing command occurred. No paths, hashes, versions, certificate values or provider messages exported."
     },
     {
       "name": "system-tool-execution-gate",
