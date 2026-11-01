@@ -29,8 +29,8 @@
   "unrecognizedCounterAttributeCount": 0,
   "resultRecordCount": 911,
   "resultOutcomeTally": {
-    "NotExecuted": 10,
-    "Passed": 901
+    "Passed": 901,
+    "NotExecuted": 10
   },
   "accountingNote": "Counts reconciled against every result record. VSTest may leave the raw notExecuted counter zero; per-record NotExecuted means not executed, not necessarily an intentional skip or pass.",
   "countsConsistent": true,
