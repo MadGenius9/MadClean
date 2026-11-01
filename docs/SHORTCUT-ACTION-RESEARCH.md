@@ -1,6 +1,6 @@
 # Selected shortcut action research
 
-S2 production actions remain unavailable. The separate owned native NT primitive test has passed; Win32 controls and the mapped-write witness remain inconclusive. Selected file/target evidence and optional aggregate DACL observations are implemented read-only, with new DACL runtime proof pending. No App action, production Windows executor or client-file move is enabled. This document does not certify immutable bytes, effective access, ownership, privacy or durable recovery, and does not change source-bound evidence in the execution ledger.
+S2 production actions remain unavailable. The separate owned native NT primitive test has passed; Win32 controls and the mapped-write witness remain inconclusive. Selected file/target evidence and optional aggregate DACL observations are implemented read-only, with owned Windows file/DACL fixtures and initial panel proof recorded in the execution ledger. No App action, production Windows executor or client-file move is enabled. This document does not certify immutable bytes, effective access, ownership, privacy or durable recovery.
 
 ## Supported rename primitive and limits
 
