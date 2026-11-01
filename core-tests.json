@@ -1,17 +1,17 @@
 {
   "scope": "Development portable tests on Windows; not production inventory or GUI/provider proof.",
   "counts": {
-    "total": 960,
-    "executed": 950,
-    "passed": 950,
+    "total": 975,
+    "executed": 965,
+    "passed": 965,
     "failed": 0,
     "notExecuted": 0
   },
   "failures": [],
   "counterAttributes": {
-    "total": 960,
-    "executed": 950,
-    "passed": 950,
+    "total": 975,
+    "executed": 965,
+    "passed": 965,
     "failed": 0,
     "error": 0,
     "timeout": 0,
@@ -27,9 +27,9 @@
     "pending": 0
   },
   "unrecognizedCounterAttributeCount": 0,
-  "resultRecordCount": 960,
+  "resultRecordCount": 975,
   "resultOutcomeTally": {
-    "Passed": 950,
+    "Passed": 965,
     "NotExecuted": 10
   },
   "accountingNote": "Counts reconciled against every result record. VSTest may leave the raw notExecuted counter zero; per-record NotExecuted means not executed, not necessarily an intentional skip or pass.",
