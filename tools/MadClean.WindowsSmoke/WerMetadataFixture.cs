@@ -36,11 +36,12 @@ internal static partial class NativeFixtures
 
     private static void WerMetadata(SmokeReport report, CancellationToken token)
     {
-        const string layoutCheck = "wer-v1-managed-layout", readCheck = "wer-store-read-contract";
+        const string layoutCheck = "wer-v1-managed-layout", readCheck = "wer-store-read-contract", countCheck = "wer-store-count-contract";
         if (!Environment.Is64BitProcess)
         {
             report.Unknown(layoutCheck, "Only the documented supported 64-bit V1 layout is checked; this process is not 64-bit.");
             report.Unknown(readCheck, "The supported 64-bit WER ABI prerequisite is unavailable; no store read was started.");
+            report.Unknown(countCheck, "The supported 64-bit WER prerequisite is unavailable; no report-count observation was obtained.");
             return;
         }
         bool layout = Marshal.SizeOf<WerParameterLayout>() == 778 && Marshal.SizeOf<WerSignatureLayout>() == 7910 &&
@@ -53,9 +54,11 @@ internal static partial class NativeFixtures
         {
             report.Fail(layoutCheck, "The independent marshalled V1 declaration contradicts documented 64-bit size/offset constants; no native store read was started.");
             report.Unknown(readCheck, "Managed layout prerequisite failed; native WER behavior remains unverified.");
+            report.Unknown(countCheck, "Native prerequisite failed; no report-count observation was obtained.");
             return;
         }
         report.Pass(layoutCheck, "Independent CLR sequential declarations match documented 64-bit V1 size=7960, reportIdOffset=7928 and creationTimeOffset=7944. This is not a native installed-SDK sizeof/offsetof assertion or populated-buffer proof.");
+        bool countReported = false;
         try
         {
             // Explicit existing-store read on the disposable CI host only. Never create reports,
@@ -63,6 +66,8 @@ internal static partial class NativeFixtures
             var before = DateTimeOffset.UtcNow;
             var result = Query(ct => new WindowsWerMetadataInventory().ReadAsync(30, ct), token);
             var after = DateTimeOffset.UtcNow;
+            CheckWerStoreCounts(result, before, after, report);
+            countReported = true;
             string sourceStatus = "";
             if (result.Items.Count == 1)
             {
@@ -116,6 +121,50 @@ internal static partial class NativeFixtures
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or ExternalException)
         {
             report.Unknown(readCheck, $"Native WER metadata read did not complete (code 0x{ex.HResult:X8}); populatedMetadataVerified=false. No provider content or report identifiers are exported.");
+            if (!countReported) report.Unknown(countCheck, "The same native metadata query did not complete a report-count observation; no extra query or empty-store conclusion substituted.");
         }
+    }
+
+    private static void CheckWerStoreCounts(CheckResult<WerMetadataReport> result, DateTimeOffset before,
+        DateTimeOffset after, SmokeReport report)
+    {
+        const string check = "wer-store-count-contract";
+        if (result.Items.Count == 0)
+        {
+            report.Unknown(check, $"Native queryState={result.State}; validCountObservations=0. No per-store count report returned; availability and zero/nonzero store counts remain unverified.");
+            return;
+        }
+        if (result.Items.Count != 1 || result.Items[0].StoreStatuses.Count != 2 ||
+            result.Items[0].StoreStatuses.Any(status => status == null || !Enum.IsDefined(status.Store)) ||
+            result.Items[0].StoreStatuses.Select(status => status.Store).Distinct().Count() != 2)
+        {
+            report.Fail(check, "The count report contradicted the exact two-fixed-source contract; no times, keys or metadata contents exported.");
+            return;
+        }
+        int valid = 0;
+        var details = new List<string>();
+        foreach (var status in result.Items[0].StoreStatuses)
+        {
+            var observation = status.CountObservation;
+            if (observation == null)
+            {
+                details.Add($"{status.Store}:count=unknown/nativeResult=none/observationPresent=false");
+                continue;
+            }
+            if (observation.CheckedUtc == default || observation.CheckedUtc.Offset != TimeSpan.Zero ||
+                observation.CheckedUtc < before || observation.CheckedUtc > after ||
+                observation.NativeResult != 0 && observation.ReportCount.HasValue)
+            {
+                report.Fail(check, "Count observation violated fixed query-time bounds or claimed an undefined count from a failed native call. No actual times or provider payload exported.");
+                return;
+            }
+            bool observed = observation.NativeResult == 0 && observation.ReportCount.HasValue;
+            if (observed) valid++;
+            details.Add($"{status.Store}:count={(observed ? observation.ReportCount!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unknown")}/nativeResult=0x{unchecked((uint)observation.NativeResult):X8}/observationPresent=true/countObserved={observed}");
+        }
+        string detail = $"queryState={result.State}; validCountObservations={valid}; " + string.Join("; ", details) +
+            ". Counts are non-atomic all-retained-store observations, not the selected creation-time interval, unique crash counts, health or enumeration-completeness proof. A zero count never promotes S_OK/null-key enumeration; positive counts do not verify populated metadata parsing. No count is summed across stores; no times, report keys or contents exported. Same inventory query reused; no extra native query or mutation.";
+        if (valid == 2) report.Pass(check, detail);
+        else report.Unknown(check, detail);
     }
 }

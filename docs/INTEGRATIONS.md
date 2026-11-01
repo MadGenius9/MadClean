@@ -134,3 +134,11 @@ The separate Windows worker enumerates only that bounded fixed-local root with R
 ## Bounded installed-registration waiting
 
 The read-only ARP adapter now keeps exactly one native worker across instances, with a20-second cooperative budget and30-second cancellable caller wait. Only that worker owns/disposes registry handles; caller interruption never force-closes them or permits overlapping workers. Interrupted/expired reads return empty Unknown/Cancelled results, never complete baselines or absence evidence. The UI retains the pending-read/retry caveat. The subsequent [bounded metadata reader](REGISTRY-METADATA-BOUNDS.md) removes the former whole-array/value allocation path: RegEnumKeyExW uses256 characters, and RegQueryValueExW probes type/size before reading only fixed whitelisted metadata caps. It never grows a buffer on MORE_DATA or a type/size race. Uninstall names use NULL-data queries only; strict malformed metadata remains unknown/partial. This bound does not make synchronous native calls forcibly cancellable. The actual Windows metadata fixture tests returned source/provenance structure and pre-cancellation without writing ARP or reading uninstall commands.
+
+## Independent WER store counts
+
+[WER store counts](WER-STORE-COUNTS.md) use one optional WerStoreGetReportCount call on each same already-open fixed machine store. Actual HRESULT/count/time are independent of report enumeration and the selected time interval. Missing/failing support remains unknown; zero never establishes health or promotes S_OK/null-key enumeration. Worker ownership, bounded waiting, no payloads and no report actions remain unchanged.
+
+## Isolated catalog verification research implementation
+
+The development-only [catalog observation contract](SYSTEM-TOOL-CATALOG-OBSERVATION.md) uses fixed OS files, a guarded first installed catalog, actual member tags, exact subject/SHA256 matching and final native trust with the existing Microsoft signer policy. It neither feeds production identity acceptance nor invokes a command. Missing/limited/unverified observations remain distinct from trust; native runtime evidence is still required.

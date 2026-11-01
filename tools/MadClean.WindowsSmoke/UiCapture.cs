@@ -175,6 +175,23 @@ internal static partial class UiCapture
                             throw new SmokeAssertionException("ui-system-tool-identity-summary-bounds");
                         AssertNoInventory(model);
                     }
+                    if (link.Page == 14)
+                    {
+                        var counts = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "WER current-store counts and uncertainty");
+                        counts.BringIntoView();
+                        await Idle(window);
+                        if (!counts.IsVisible || !ValidSize(counts) || counts.Text != model.WerCountSummary ||
+                            counts.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.WerCountSummary) ||
+                            !counts.Text.Contains("not checked", StringComparison.OrdinalIgnoreCase) ||
+                            model.WerRows.Count != 0 || model.WerCoverage.Count != 0)
+                            throw new SmokeAssertionException("ui-wer-count-summary-binding");
+                        if (window.Content is not FrameworkElement client) throw new SmokeAssertionException("ui-wer-count-client");
+                        Point position = counts.TranslatePoint(new Point(), client);
+                        if (!double.IsFinite(position.X) || !double.IsFinite(position.Y) || position.X < -1 || position.Y < -1 ||
+                            position.X + counts.ActualWidth > client.ActualWidth + 1 || position.Y + counts.ActualHeight > client.ActualHeight + 1)
+                            throw new SmokeAssertionException("ui-wer-count-summary-bounds");
+                        AssertNoInventory(model);
+                    }
                     if (link.Page >= 11) Capture(window, output, $"tool-{link.Page:D2}.png", report);
                     if (link.Page == 12)
                     {

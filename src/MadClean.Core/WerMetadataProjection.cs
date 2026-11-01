@@ -10,6 +10,7 @@ public static class WerMetadataProjection
         IReadOnlyList<WerMetadataStoreSnapshot> snapshots, CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
+        var validationNowUtc = DateTimeOffset.UtcNow;
         if (startUtc.Offset != TimeSpan.Zero || endUtc.Offset != TimeSpan.Zero ||
             !new[] { TimeSpan.FromDays(1), TimeSpan.FromDays(7), TimeSpan.FromDays(30) }.Contains(endUtc - startUtc) ||
             snapshots == null || snapshots.Count > 4)
@@ -50,8 +51,22 @@ public static class WerMetadataProjection
                     WerMetadataStoreReason.InvalidSourceResponse));
                 continue;
             }
+            var count = source.CountObservation;
+            if (count != null && (count.CheckedUtc == default || count.CheckedUtc.Offset != TimeSpan.Zero || count.CheckedUtc > validationNowUtc ||
+                (count.NativeResult == 0) != count.ReportCount.HasValue))
+            {
+                partial = true;
+                coverage.Add($"{name}: invalid report-count observation omitted; count coverage is unknown. Existing enumeration metadata remains independently qualified.");
+                count = null;
+            }
+            else if (count != null)
+            {
+                coverage.Add($"{name}: WerStoreGetReportCount observed {(count.ReportCount.HasValue ? count.ReportCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unknown")} reports at {count.CheckedUtc:O}; native result 0x{unchecked((uint)count.NativeResult):X8}. This is an entire-store, all-times count, not filtered by the selected creation-time interval. Count and enumeration are non-atomic observations; count does not establish enumeration completeness, distinct crashes, absence of incidents or system health.");
+            }
+            else coverage.Add($"{name}: optional entire-store report count was not observed; count coverage is unknown.");
             WerMetadataStoreStatus Status(int projected = 0) => new(store, source.State, source.InspectedKeys, source.Records.Count,
-                projected, source.MetadataFailures, source.Truncated, source.LastNativeResult ?? source.NativeError, source.Reason);
+                projected, source.MetadataFailures, source.Truncated, source.LastNativeResult ?? source.NativeError, source.Reason)
+                { CountObservation = count };
             string code = source.NativeError.HasValue ? $" Native code 0x{unchecked((uint)source.NativeError.Value):X8}." : "";
             if (source.State is not (CheckState.Available or CheckState.Partial))
             {

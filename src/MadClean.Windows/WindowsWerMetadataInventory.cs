@@ -30,14 +30,14 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
             try
             {
                 token.ThrowIfCancellationRequested();
-                if (!Native.Available()) return CheckResult<WerMetadataReport>.Empty(CheckState.Unsupported,
+                if (!Native.Available(out bool countAvailable)) return CheckResult<WerMetadataReport>.Empty(CheckState.Unsupported,
                     "Required documented WER store exports are unavailable. No report-folder or dump-file fallback was used.");
                 var clock = Stopwatch.StartNew();
                 var snapshots = new List<WerMetadataStoreSnapshot>();
                 foreach (var store in new[] { WerMetadataStore.MachineQueue, WerMetadataStore.MachineArchive })
                 {
                     token.ThrowIfCancellationRequested();
-                    snapshots.Add(ReadStore(store, clock, token));
+                    snapshots.Add(ReadStore(store, countAvailable, clock, token));
                 }
                 token.ThrowIfCancellationRequested();
                 return WerMetadataProjection.Create(start, end, snapshots, token);
@@ -52,14 +52,16 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
         return WerMetadataWait.AwaitAsync(worker, CallerWaitLimit, token);
     }
 
-    private static WerMetadataStoreSnapshot ReadStore(WerMetadataStore store, Stopwatch clock, CancellationToken token)
+    private static WerMetadataStoreSnapshot ReadStore(WerMetadataStore store, bool countAvailable, Stopwatch clock, CancellationToken token)
     {
         List<WerMetadataRecord> rows = [];
         int inspected = 0, failures = 0; int? lastError = null, lastResult = null;
+        WerMetadataCountObservation? countObservation = null;
         IntPtr handle = IntPtr.Zero, buffer = IntPtr.Zero;
         WerMetadataStoreSnapshot Result(CheckState state, bool limited = false, int? code = null,
             WerMetadataStoreReason reason = WerMetadataStoreReason.Unspecified) =>
-            new(store, state, rows.ToArray(), inspected, limited, failures, code ?? lastError, reason, lastResult);
+            new(store, state, rows.ToArray(), inspected, limited, failures, code ?? lastError, reason, lastResult)
+                { CountObservation = countObservation };
         bool Expired() => clock.Elapsed >= CooperativeBudget;
         try
         {
@@ -70,6 +72,25 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
             token.ThrowIfCancellationRequested();
             if (opened != 0) { handle = IntPtr.Zero; return Result(Classify(opened), code: opened, reason: WerMetadataStoreReason.StoreOpenFailed); }
             if (handle == IntPtr.Zero) return Result(CheckState.Unknown, reason: WerMetadataStoreReason.SuccessfulOpenReturnedNullHandle);
+            token.ThrowIfCancellationRequested();
+            if (Expired()) return Result(CheckState.Unknown, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
+            if (countAvailable)
+            {
+                try
+                {
+                    // Independent all-times count on this same open store. Never substitute its result
+                    // for enumeration's result or use zero as proof of an empty/healthy history.
+                    int countResult = Native.WerStoreGetReportCount(handle, out uint reportCount);
+                    var checkedUtc = DateTimeOffset.UtcNow;
+                    countObservation = new(countResult == 0 ? reportCount : null, checkedUtc, countResult);
+                }
+                catch (EntryPointNotFoundException)
+                {
+                    // Optional capability only: preserve the established metadata reader.
+                }
+                token.ThrowIfCancellationRequested();
+                if (Expired()) return Result(CheckState.Unknown, limited: true, reason: WerMetadataStoreReason.BudgetExpired);
+            }
             bool first = true;
             while (true)
             {
@@ -133,11 +154,13 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
         internal const int MetadataBytes = 7960, ReportIdOffset = 7928, CreationTimeOffset = 7944;
         private static readonly byte[] Zeros = new byte[MetadataBytes];
         internal static void Zero(IntPtr buffer) => Marshal.Copy(Zeros, 0, buffer, MetadataBytes);
-        internal static bool Available()
+        internal static bool Available(out bool countAvailable)
         {
+            countAvailable = false;
             if (!NativeLibrary.TryLoad("Wer.dll", typeof(WindowsWerMetadataInventory).Assembly, DllImportSearchPath.System32, out var library)) return false;
             try
             {
+                countAvailable = NativeLibrary.TryGetExport(library, "WerStoreGetReportCount", out _);
                 return new[] { "WerStoreOpen", "WerStoreClose", "WerStoreGetFirstReportKey", "WerStoreGetNextReportKey", "WerStoreQueryReportMetadataV1", "WerFreeString" }
                     .All(name => NativeLibrary.TryGetExport(library, name, out _));
             }
@@ -149,6 +172,9 @@ public sealed class WindowsWerMetadataInventory : IWerMetadataInventory
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("Wer.dll", ExactSpelling = true)]
         internal static extern void WerStoreClose(IntPtr store);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("Wer.dll", ExactSpelling = true)]
+        internal static extern int WerStoreGetReportCount(IntPtr store, out uint reportCount);
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("Wer.dll", ExactSpelling = true)]
         internal static extern int WerStoreGetFirstReportKey(IntPtr store, ref IntPtr key);

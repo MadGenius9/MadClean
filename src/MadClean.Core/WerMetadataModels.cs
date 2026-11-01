@@ -9,7 +9,11 @@ public enum WerMetadataStoreReason
 }
 public sealed record WerMetadataStoreStatus(WerMetadataStore Store, CheckState State,
     int InspectedKeys, int MetadataRecords, int ProjectedReferences, int MetadataFailures,
-    bool Truncated, int? LastNativeResult, WerMetadataStoreReason Reason);
+    bool Truncated, int? LastNativeResult, WerMetadataStoreReason Reason)
+{
+    public WerMetadataCountObservation? CountObservation { get; init; }
+}
+public sealed record WerMetadataCountObservation(uint? ReportCount, DateTimeOffset CheckedUtc, int NativeResult);
 public sealed record WerMetadataObservation(string Store, Guid ReportId, DateTimeOffset CreatedUtc, string Category, string Source);
 public sealed record WerMetadataReport(DateTimeOffset StartUtc, DateTimeOffset EndUtc,
     IReadOnlyList<WerMetadataObservation> Observations, IReadOnlyList<string> Coverage)
@@ -26,4 +30,7 @@ public interface IWerMetadataInventory
 public sealed record WerMetadataRecord(Guid ReportId, long CreationFileTimeUtc);
 public sealed record WerMetadataStoreSnapshot(WerMetadataStore Store, CheckState State,
     IReadOnlyList<WerMetadataRecord> Records, int InspectedKeys, bool Truncated, int MetadataFailures, int? NativeError = null,
-    WerMetadataStoreReason Reason = WerMetadataStoreReason.Unspecified, int? LastNativeResult = null);
+    WerMetadataStoreReason Reason = WerMetadataStoreReason.Unspecified, int? LastNativeResult = null)
+{
+    public WerMetadataCountObservation? CountObservation { get; init; }
+}

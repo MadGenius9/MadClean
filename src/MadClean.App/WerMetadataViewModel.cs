@@ -12,11 +12,13 @@ public sealed partial class MainViewModel
     private WerMetadataObservation? selectedWerObservation;
     private string werMessage = "Not checked. WER store metadata is a separate explicit read; no report or dump contents are opened.";
     private string werWindow = "No WER store window queried.";
+    private string werCountSummary = "Store counts: not checked. Counts cover all currently stored reports, separately from the selected creation-time window.";
     public ObservableCollection<WerMetadataObservation> WerRows { get; } = [];
     public ObservableCollection<string> WerCoverage { get; } = [];
     public ICommand ReadWerMetadataCommand { get; private set; } = null!;
     public string WerMessage { get => werMessage; private set => Set(ref werMessage, value); }
     public string WerWindow { get => werWindow; private set => Set(ref werWindow, value); }
+    public string WerCountSummary { get => werCountSummary; private set => Set(ref werCountSummary, value); }
     public WerMetadataObservation? SelectedWerObservation
     {
         get => selectedWerObservation;
@@ -48,19 +50,27 @@ public sealed partial class MainViewModel
         WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
         WerMessage = "Time range changed. Choose Read WER metadata for the selected range.";
         WerWindow = "Not checked for the new time range.";
+        WerCountSummary = "Store counts: not checked for this attempt. Counts are independent of the selected creation-time window.";
     }
     private Task ReadWerMetadata() => RunDiscoveryAsync(ActivityArea.WerMetadata, "Reading supported WER store metadata", async token =>
     {
         WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
         WerMessage = "Reading bounded machine queue/archive references and creation times only…";
         WerWindow = "In progress; no completed WER metadata window is claimed.";
+        WerCountSummary = "Store counts: checking separately; no result yet.";
         var result = await werMetadata.ReadAsync(SelectedDiagnosticRange.Days, token); token.ThrowIfCancellationRequested();
         WerWindow = "No completed WER store window was returned; review the source status and coverage.";
+        WerCountSummary = "Store counts: unavailable or not observed. No empty-store conclusion is valid.";
         foreach (var report in result.Items)
         {
             foreach (var item in report.Observations) WerRows.Add(item);
             foreach (var item in report.Coverage) WerCoverage.Add(item);
             foreach (var source in report.StoreStatuses) WerCoverage.Add(WerStoreStatusText(source));
+            WerCountSummary = "Current-store counts (all creation times): " + string.Join("; ", report.StoreStatuses.Select(source =>
+                WerMetadataProjection.Label(source.Store) + (source.CountObservation is { NativeResult: 0, ReportCount: { } count } observation
+                    ? $" reported {count} at {observation.CheckedUtc:u}"
+                    : " count unknown"))) +
+                ". Separate non-atomic observations; not a count of unique crashes or reports in the selected time range. Zero does not mean healthy. Enumeration status remains separate.";
             WerWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
         }
         WerMessage = Stamp(result.State, result.Message);
@@ -70,5 +80,6 @@ public sealed partial class MainViewModel
         WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
         WerMessage = error + " Existing synchronous Windows calls may still finish; no forced cancellation or healthy verdict is claimed.";
         WerWindow = "No completed WER report from this attempt.";
+        WerCountSummary = "Store counts: this attempt did not return a completed observation. No empty-store conclusion is valid.";
     });
 }

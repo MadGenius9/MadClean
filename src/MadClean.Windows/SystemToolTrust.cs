@@ -213,20 +213,7 @@ internal static class SystemToolTrustNative
                     new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.NativeTrustNotEstablished, status));
             }
             nativeTrustEstablished = true;
-            nint provider = WTHelperProvDataFromStateData(data.StateData);
-            nint signer = provider == 0 ? 0 : WTHelperGetProvSignerFromChain(provider, 0, false, 0);
-            nint certificate = signer == 0 ? 0 : WTHelperGetProvCertFromChain(signer, 0);
-            if (certificate == 0) throw SignerUnknown();
-            var prefix = Marshal.PtrToStructure<ProviderCertificatePrefix>(certificate);
-            if (prefix.Size < Marshal.SizeOf<ProviderCertificatePrefix>() || prefix.Certificate == 0) throw SignerUnknown();
-            var context = Marshal.PtrToStructure<CertificateContextPrefix>(prefix.Certificate);
-            if (context.Encoded == 0 || context.EncodedLength is 0 or > 1_048_576) throw SignerUnknown();
-            byte[] bytes = new byte[context.EncodedLength]; Marshal.Copy(context.Encoded, bytes, 0, bytes.Length);
-            using var cert = X509CertificateLoader.LoadCertificate(bytes);
-            var names = ReadSubject(cert.SubjectName.RawData);
-            if (names.Organization != "Microsoft Corporation" || names.CommonName is not ("Microsoft Windows" or "Microsoft Windows Publisher" or "Microsoft Corporation"))
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A trusted signature was present but its exact Microsoft publisher identity was not established; no launch is allowed.",
-                    new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerNotQualified, 0));
+            InspectMicrosoftSigner(data.StateData);
             return "Windows Authenticode policy accepted the signature with whole-chain revocation requested; signer organization and common name identify Microsoft. This does not verify servicing runtime behavior or enable execution.";
         }
         catch (Exception ex) when (nativeTrustEstablished && (ex is CryptographicException or AsnContentException or InvalidOperationException))
@@ -254,6 +241,24 @@ internal static class SystemToolTrustNative
                 if (fileReferenceHeld) file.DangerousRelease();
             }
         }
+    }
+    // Call only after the owning WinVerifyTrust invocation returned zero, while its state is live.
+    internal static void InspectMicrosoftSigner(nint stateData)
+    {
+        nint provider = WTHelperProvDataFromStateData(stateData);
+        nint signer = provider == 0 ? 0 : WTHelperGetProvSignerFromChain(provider, 0, false, 0);
+        nint certificate = signer == 0 ? 0 : WTHelperGetProvCertFromChain(signer, 0);
+        if (certificate == 0) throw SignerUnknown();
+        var prefix = Marshal.PtrToStructure<ProviderCertificatePrefix>(certificate);
+        if (prefix.Size < Marshal.SizeOf<ProviderCertificatePrefix>() || prefix.Certificate == 0) throw SignerUnknown();
+        var context = Marshal.PtrToStructure<CertificateContextPrefix>(prefix.Certificate);
+        if (context.Encoded == 0 || context.EncodedLength is 0 or > 1_048_576) throw SignerUnknown();
+        byte[] bytes = new byte[context.EncodedLength]; Marshal.Copy(context.Encoded, bytes, 0, bytes.Length);
+        using var cert = X509CertificateLoader.LoadCertificate(bytes);
+        var names = ReadSubject(cert.SubjectName.RawData);
+        if (names.Organization != "Microsoft Corporation" || names.CommonName is not ("Microsoft Windows" or "Microsoft Windows Publisher" or "Microsoft Corporation"))
+            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A trusted signature was present but its exact Microsoft publisher identity was not established; no launch is allowed.",
+                new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerNotQualified, 0));
     }
     private static SystemToolTrustFailure SignerUnknown() => new(CheckState.Unknown, SystemToolTrustState.Unknown, "The bounded Authenticode signer certificate could not be inspected; no publisher identity was guessed.",
         new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerInspectionUnavailable, 0));

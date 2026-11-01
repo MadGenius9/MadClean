@@ -55,6 +55,8 @@ Shortcut review also offers [Recheck selected shortcut](docs/SHORTCUT-RECHECK.md
 
 In Hardware Upgrades, a separate online action can verify narrow official Surface Laptop 6 for Business family service observations after a complete supported PC identity is read. It requests three fixed public Microsoft articles without sending device identifiers. It does not establish RAM/CPU/BIOS limits, exact replacement-part fit or upgrade advice; other models and missing evidence remain Unknown/Unsupported. See [source scope and validation](docs/SURFACE-SERVICE-FACTS.md).
 
+Diagnostics also shows [independent WER store counts](docs/WER-STORE-COUNTS.md) when the supported optional API returns them. These cover all currently stored reports, separately from the selected report window; enumeration can remain Unknown and zero is not a health verdict.
+
 ## Interface
 
 The supplied concept is implemented as a native navy/blue WPF workspace: horizontal Overview/Cleanup/Security/Startup/Updates navigation, an Inspect this PC hero, four inspection rows, a per-drive storage ring, Before you start guidance and an Activity footer. More tools retains every additional module. Inspect this PC runs local inventory only; online update discovery remains explicit. The ring uses real returned capacity or a neutral unchecked/unknown state, never the concept’s sample numbers. [UI structure and visual validation](docs/UI.md) records the inspected reference and remaining Windows rendering, keyboard/DPI and visual-comparison checks. Linux compilation does not verify visual fidelity.

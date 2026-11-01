@@ -176,8 +176,99 @@ public sealed class WerMetadataTests
         Assert.Equal(denied, status.LastNativeResult); Assert.Equal(CheckState.Unavailable, status.State);
         Assert.Equal(WerMetadataStoreReason.StoreOpenFailed, status.Reason);
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(status));
-        Assert.Equal(new[] { "Store", "State", "InspectedKeys", "MetadataRecords", "ProjectedReferences", "MetadataFailures", "Truncated", "LastNativeResult", "Reason" },
+        Assert.Equal(new[] { "Store", "State", "InspectedKeys", "MetadataRecords", "ProjectedReferences", "MetadataFailures", "Truncated", "LastNativeResult", "Reason", "CountObservation" },
             json.RootElement.EnumerateObject().Select(field => field.Name));
+    }
+
+    [Theory]
+    [InlineData(0U)]
+    [InlineData(19U)]
+    [InlineData(uint.MaxValue)]
+    public void WholeStoreCountCannotPromoteSuccessfulNullKeyEnumeration(uint count)
+    {
+        var observation = new WerMetadataCountObservation(count, End.AddSeconds(2), 0);
+        var queue = Source(WerMetadataStore.MachineQueue) with
+        {
+            State = CheckState.Unknown, Reason = WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey,
+            LastNativeResult = 0, CountObservation = observation
+        };
+        var result = Read(queue, EmptyArchive with { State = CheckState.Unknown });
+        Assert.Equal(CheckState.Unknown, result.State);
+        Assert.Empty(Report(result).Observations);
+        var status = Report(result).StoreStatuses.Single(item => item.Store == WerMetadataStore.MachineQueue);
+        Assert.Equal(observation, status.CountObservation);
+        Assert.Equal(CheckState.Unknown, status.State);
+        Assert.Equal(WerMetadataStoreReason.SuccessfulEnumerationReturnedNullKey, status.Reason);
+        Assert.Equal(0, status.LastNativeResult);
+        Assert.Contains(Report(result).Coverage, line => line.Contains("all-times", StringComparison.Ordinal) &&
+            line.Contains("non-atomic", StringComparison.Ordinal) && line.Contains("system health", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FailedCountHasNoNumericCountAndDoesNotReplaceEnumerationDiagnostics()
+    {
+        int denied = unchecked((int)0x80070005);
+        var queue = Source(WerMetadataStore.MachineQueue) with
+        {
+            Reason = WerMetadataStoreReason.EnumerationComplete, LastNativeResult = 18,
+            CountObservation = new(null, End.AddSeconds(1), denied)
+        };
+        var result = Read(queue, EmptyArchive);
+        var status = Report(result).StoreStatuses.Single(item => item.Store == WerMetadataStore.MachineQueue);
+        Assert.Null(status.CountObservation!.ReportCount);
+        Assert.Equal(denied, status.CountObservation.NativeResult);
+        Assert.Equal(18, status.LastNativeResult);
+        Assert.Equal(WerMetadataStoreReason.EnumerationComplete, status.Reason);
+        Assert.Contains(Report(result).Coverage, line => line.Contains("unknown reports", StringComparison.Ordinal) &&
+            line.Contains("80070005", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ContradictoryCountOrTimestampIsOmittedWithoutDiscardingValidMetadata()
+    {
+        WerMetadataCountObservation[] invalid =
+        [
+            new(null, End, 0), new(12, End, unchecked((int)0x80070005)),
+            new(12, default, 0), new(12, End.ToOffset(TimeSpan.FromHours(1)), 0),
+            new(12, DateTimeOffset.UtcNow.AddDays(1), 0)
+        ];
+        foreach (var count in invalid)
+        {
+            var id = Guid.NewGuid();
+            var queue = Source(WerMetadataStore.MachineQueue, Row(id)) with { CountObservation = count };
+            var result = Read(queue, EmptyArchive);
+            Assert.Equal(CheckState.Partial, result.State);
+            Assert.Equal(id, Assert.Single(Report(result).Observations).ReportId);
+            var status = Report(result).StoreStatuses.Single(item => item.Store == WerMetadataStore.MachineQueue);
+            Assert.Null(status.CountObservation);
+            Assert.Equal(CheckState.Available, status.State);
+            Assert.Equal(queue.Reason, status.Reason);
+            Assert.Contains(Report(result).Coverage, line => line.Contains("invalid report-count", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void AllTimesCountIsNotClippedToSelectedCreationTimeIntervalOrProjectedRows()
+    {
+        var queue = Source(WerMetadataStore.MachineQueue, Row(Guid.NewGuid(), Start.AddDays(-1))) with
+        { CountObservation = new(300, Start.AddYears(-1), 0) };
+        var result = Read(queue, EmptyArchive);
+        Assert.Empty(Report(result).Observations);
+        var status = Report(result).StoreStatuses.Single(item => item.Store == WerMetadataStore.MachineQueue);
+        Assert.Equal(300U, status.CountObservation!.ReportCount);
+        Assert.Equal(Start.AddYears(-1), status.CountObservation.CheckedUtc);
+        Assert.Equal(0, status.ProjectedReferences);
+        Assert.Contains(Report(result).Coverage, line => line.Contains("not filtered by the selected creation-time interval", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CountObservationDoesNotBypassCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var queue = Source(WerMetadataStore.MachineQueue) with { CountObservation = new(0, End, 0) };
+        Assert.ThrowsAny<OperationCanceledException>(() => WerMetadataProjection.Create(Start, End,
+            [queue, EmptyArchive], cancellation.Token));
     }
 
     [Fact]

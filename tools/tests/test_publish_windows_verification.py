@@ -136,6 +136,29 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_selected_msi_native_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-registration-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_independent_wer_count_proof(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_isolated_catalog_observation(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-catalog-observation']
+        self.save(); self.rejected()
+    def test_catalog_no_candidate_remains_inconclusive_despite_other_passing_checks(self):
+        catalog=next(check for check in self.report['checks'] if check['name']=='system-tool-catalog-observation')
+        catalog.update(state='inconclusive',detail='TEST-ONLY no first catalog observed; no native lookup performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='system-tool-catalog-observation')['state'])
+    def test_valid_store_count_does_not_promote_inconclusive_wer_enumeration(self):
+        read=next(check for check in self.report['checks'] if check['name']=='wer-store-read-contract')
+        read.update(state='inconclusive',detail='TEST-ONLY null enumeration key; independent count success is not enumeration proof')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('passed',next(check for check in published['checks'] if check['name']=='wer-store-count-contract')['state'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='wer-store-read-contract')['state'])
     def test_passing_report_cannot_omit_actual_installed_app_search_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-installed-app-search']
         self.save(); self.rejected()
