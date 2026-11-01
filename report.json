@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "61a52198eafaa6e0eb768146fc6666b776a39873",
-  "runId": "41352655765",
+  "sourceCommit": "92e67a5956bb1e3f4516633a962058e21e490a9d",
+  "runId": "41353562641",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T21:37:52.3168636+00:00",
-  "completedUtc": "2026-11-01T21:38:09.9633221+00:00",
+  "startedUtc": "2026-11-01T21:48:22.4753546+00:00",
+  "completedUtc": "2026-11-01T21:48:37.1121911+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -27,6 +27,11 @@
       "name": "ui-primary-navigation",
       "state": "passed",
       "detail": "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions. The resolved Update center title wraps and exceeds4.5:1 against every actual root gradient stop; this is a scoped style check, not an accessibility audit."
+    },
+    {
+      "name": "ui-shortcut-file-evidence",
+      "state": "passed",
+      "detail": "Actual unchecked selected-file evidence panel, disabled command binding and readable in-view controls verified without inventory or sample data. Populated selection/cancellation lifecycle is not asserted by this initial panel check."
     },
     {
       "name": "ui-tool-navigation",
@@ -99,9 +104,14 @@
       "detail": "Source coverage=Available; firstReadState=Available; secondReadState=Available; selectedReadCount=2; preCancellationObserved=true; missingThenExistsVerified=true; historicalSnapshotUnchanged=true; shortcutBytesUnchanged=true; ownedTargetPreserved=true; queryTimeBoundsVerified=true. The same exact selected scope was reused after a developer-owned CreateNew target restore simulation. No folder rescan, target launch/resolution, network lookup or removal occurred. No paths, identities, timestamps, link bytes or provider messages exported; availability observations do not establish identity continuity, obsolescence or removal safety."
     },
     {
+      "name": "shortcut-file-evidence-fixture",
+      "state": "passed",
+      "detail": "sourceState=Available; firstPreviewState=Available; restoredState=Unavailable; full128IdentityMatched=true; nativeSizeMatched=true; sha256Matched=true; missingPreview=true; restoredTargetBlocked=true; hardLinkNonPreview=true; preCancel=true; linkAndSentinelBytesUnchanged=true; CanMove=false; DaclAssessment=NotChecked. Only owned fixture targets were deliberately created by the harness; no provider move, target launch, privacy or recovery claim is made."
+    },
+    {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -300,16 +310,22 @@
       "sha256": "0e2df8725500f64a3614921435b5fc30e66dedd8519c57b4ef4412aefb1716fe"
     },
     {
+      "file": "tool-26.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
+    },
+    {
       "file": "tool-13.png",
       "width": 1404,
       "height": 961,
-      "sha256": "5fc2c007d804bc9e4bd5fd0a11c7f9d3e2ce91d845330de38fa07d58f481331b"
+      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
     },
     {
       "file": "tool-23.png",
       "width": 1404,
       "height": 961,
-      "sha256": "3429e937e7ac1e74cf2c937d01a5b79d3b25da5c64e9b35a516f3bc74eec829f"
+      "sha256": "7db720b2da1557514268fe83f952a2bf2ae66415f1a1c12cef72f75fce27a561"
     },
     {
       "file": "tool-25.png",
