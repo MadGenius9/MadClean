@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "92e67a5956bb1e3f4516633a962058e21e490a9d",
-  "runId": "41353562641",
+  "sourceCommit": "fa074f669121ce811427b7b588e58026b75e7875",
+  "runId": "41354122993",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T21:48:22.4753546+00:00",
-  "completedUtc": "2026-11-01T21:48:37.1121911+00:00",
+  "startedUtc": "2026-11-01T21:55:02.1468635+00:00",
+  "completedUtc": "2026-11-01T21:55:11.1013303+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -111,7 +111,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=19; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
