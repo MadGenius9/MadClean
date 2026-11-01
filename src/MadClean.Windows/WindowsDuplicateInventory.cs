@@ -67,6 +67,18 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
         private readonly List<string> protectedRoots = [];
         private int entries;
         private string selectedRoot = "";
+        private DuplicatePairReadStage firstStage = DuplicatePairReadStage.NotStarted;
+        private DuplicatePairReadReason firstReason = DuplicatePairReadReason.None;
+        private int? firstRegistryResult;
+        private int knownFoldersChecked, registrationKeysVisited, registeredLocationsAccepted, exclusionIssues;
+        public DuplicatePairReadDiagnostic PreparationDiagnostic => new(firstStage, firstReason, firstRegistryResult,
+            knownFoldersChecked, registrationKeysVisited, registeredLocationsAccepted, exclusionIssues);
+        private void PreparationIssue(DuplicatePairReadStage stage, DuplicatePairReadReason reason, int? registryResult = null)
+        {
+            exclusionIssues++;
+            if (firstReason != DuplicatePairReadReason.None) return;
+            firstStage = stage; firstReason = reason; firstRegistryResult = registryResult;
+        }
         private static readonly HashSet<string> ProtectedNames = new(StringComparer.OrdinalIgnoreCase)
         {
             "Windows", "Program Files", "Program Files (x86)", "ProgramData", "AppData", "WindowsApps",
@@ -98,14 +110,27 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
         public bool PrepareScope(string root, CancellationToken token, bool requireCompleteExclusions)
         {
             token.ThrowIfCancellationRequested();
-            selectedRoot = NormalizeLocalRoot(root);
             protectedRoots.Clear(); entries = 0;
-            bool incomplete = AddKnownRoots(requireCompleteExclusions);
+            firstStage = DuplicatePairReadStage.NotStarted; firstReason = DuplicatePairReadReason.None; firstRegistryResult = null;
+            knownFoldersChecked = registrationKeysVisited = registeredLocationsAccepted = exclusionIssues = 0;
+            try { selectedRoot = NormalizeLocalRoot(root); }
+            catch (Exception exception) when (ReadError(exception))
+            {
+                PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.ScopeUnsupported);
+                throw new DuplicateReadException("The selected scope is not an available supported fixed-local folder; no selected file contents were read.");
+            }
+            bool incomplete = AddKnownRoots(requireCompleteExclusions, token);
             if (Protected(selectedRoot))
+            {
+                PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.SelectedRootProtected);
                 throw new DuplicateReadException("The selected root is a protected/system/application/cache/credential location; select a different local data folder.");
+            }
             incomplete |= AddRegisteredRoots(token);
             if (Protected(selectedRoot))
+            {
+                PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.SelectedRootProtected);
                 throw new DuplicateReadException("The selected root is within a known registered application installation; excluded without traversal.");
+            }
             if (incomplete && requireCompleteExclusions)
                 throw new DuplicateReadException("Required known-folder or registered application exclusions could not be refreshed completely; no selected file contents were read. Retry when that metadata is available.");
             return incomplete;
@@ -173,7 +198,7 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
                 throw new ArgumentException();
             return full;
         }
-        private bool AddKnownRoots(bool requireLocalRoots)
+        private bool AddKnownRoots(bool requireLocalRoots, CancellationToken token)
         {
             bool incomplete = false;
             foreach (var folder in new[] { Environment.SpecialFolder.Windows, Environment.SpecialFolder.ProgramFiles,
@@ -181,19 +206,30 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
                 Environment.SpecialFolder.CommonProgramFilesX86, Environment.SpecialFolder.CommonApplicationData,
                 Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolder.ApplicationData })
             {
+                token.ThrowIfCancellationRequested();
+                knownFoldersChecked++;
                 try
                 {
                     var path = Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify);
-                    if (!Path.IsPathFullyQualified(path)) { incomplete = true; continue; }
+                    if (!Path.IsPathFullyQualified(path))
+                    {
+                        incomplete = true;
+                        PreparationIssue(DuplicatePairReadStage.KnownFolderExclusions, DuplicatePairReadReason.KnownFolderMissing);
+                        continue;
+                    }
                     protectedRoots.Add(requireLocalRoots ? NormalizeLocalRoot(path) : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)));
                 }
-                catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
+                catch (Exception ex) when (ReadError(ex))
+                {
+                    incomplete = true;
+                    PreparationIssue(DuplicatePairReadStage.KnownFolderExclusions, DuplicatePairReadReason.KnownFolderUnsupported);
+                }
             }
             return incomplete;
         }
         private bool AddRegisteredRoots(CancellationToken token)
         {
-            bool incomplete = false; int visited = 0;
+            bool incomplete = false;
             foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
             foreach (var view in hive == RegistryHive.CurrentUser ? new[] { RegistryView.Default } : new[] { RegistryView.Registry64, RegistryView.Registry32 })
             {
@@ -208,25 +244,57 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
                         token.ThrowIfCancellationRequested();
                         var key = BoundedRegistrationMetadata.EnumerateKey(registrations.Handle, index, token.ThrowIfCancellationRequested);
                         if (key.End) break;
-                        if (++visited > 10_000 || protectedRoots.Count >= 2048) return true;
-                        if (key.Name == null) { incomplete = true; continue; }
+                        registrationKeysVisited++;
+                        if (registrationKeysVisited > 10_000 || protectedRoots.Count >= 2048)
+                        {
+                            PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.ExclusionLimit);
+                            return true;
+                        }
+                        if (key.Name == null)
+                        {
+                            incomplete = true;
+                            PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationEnumerationInvalid, key.NativeError);
+                            continue;
+                        }
                         try
                         {
                             using var registration = registrations.OpenSubKey(key.Name, false);
-                            if (registration == null) { incomplete = true; continue; }
+                            if (registration == null)
+                            {
+                                incomplete = true;
+                                PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationEntryUnavailable);
+                                continue;
+                            }
                             var raw = BoundedRegistrationMetadata.ReadText(registration.Handle, "InstallLocation", token.ThrowIfCancellationRequested, token);
                             if (raw.State == RegistrationMetadataState.Missing) continue;
                             if (raw.State != RegistrationMetadataState.Valid || raw.Value is not string location)
-                            { incomplete = true; continue; }
+                            {
+                                incomplete = true;
+                                PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationLocationInvalid, raw.NativeError);
+                                continue;
+                            }
                             if (string.IsNullOrWhiteSpace(location)) continue;
                             string? normalized = NormalizeRegisteredRoot(location);
-                            if (normalized == null) { incomplete = true; continue; }
-                            protectedRoots.Add(normalized);
+                            if (normalized == null)
+                            {
+                                incomplete = true;
+                                PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationLocationUnsupported);
+                                continue;
+                            }
+                            protectedRoots.Add(normalized); registeredLocationsAccepted++;
                         }
-                        catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
+                        catch (Exception ex) when (ReadError(ex))
+                        {
+                            incomplete = true;
+                            PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationEntryUnavailable);
+                        }
                     }
                 }
-                catch (Exception ex) when (ReadError(ex)) { incomplete = true; }
+                catch (Exception ex) when (ReadError(ex))
+                {
+                    incomplete = true;
+                    PreparationIssue(DuplicatePairReadStage.RegistrationExclusions, DuplicatePairReadReason.RegistrationSourceUnavailable);
+                }
             }
             return incomplete;
         }

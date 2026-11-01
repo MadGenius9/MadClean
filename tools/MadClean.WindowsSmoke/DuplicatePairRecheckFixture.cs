@@ -144,8 +144,12 @@ internal static partial class NativeFixtures
         if (result.Items.Count != 1)
         { report.Unknown("duplicate-pair-recheck-fixture", $"Current state={result.State}; complete exclusions/access or one completed selected-pair report were unavailable. No historical equality was substituted."); return null; }
         var data = result.Items[0];
+        var diagnostic = DuplicatePairReadDiagnosticPolicy.Normalize(data.Diagnostic);
+        string Number(int? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unobserved";
+        string code = diagnostic.RegistryNativeResult is int native ? $"0x{unchecked((uint)native):X8}" : "unobserved";
+        string details = $"stage={diagnostic.Stage}; reason={diagnostic.Reason}; registryNativeResult={code}; knownFoldersChecked={Number(diagnostic.KnownFoldersChecked)}; registrationKeysVisited={Number(diagnostic.RegistrationKeysVisited)}; locationsAccepted={Number(diagnostic.RegisteredLocationsAccepted)}; exclusionIssues={Number(diagnostic.ExclusionIssues)}; comparedBytes={data.ComparedBytes}. ";
         if (data.State is DuplicatePairRecheckState.Unknown or DuplicatePairRecheckState.Changed)
-        { report.Unknown("duplicate-pair-recheck-fixture", $"Current state={data.State}; no complete {expected} observation was established. The result remains inconclusive rather than action eligibility."); return null; }
+        { report.Unknown("duplicate-pair-recheck-fixture", details + $"Current state={data.State}; no complete {expected} observation was established. The result remains inconclusive rather than action eligibility."); return null; }
         if (data.State != expected || result.State is not (CheckState.Available or CheckState.Partial))
             throw new SmokeAssertionException("duplicate-recheck-current-result-state");
         return data;

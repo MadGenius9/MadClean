@@ -62,6 +62,7 @@ public sealed partial class MainViewModel
                 return result.State;
             }
             var report = result.Items[0];
+            var diagnostic = DuplicatePairReadDiagnosticPolicy.Normalize(report.Diagnostic);
             if (report.CanRemove || !Enum.IsDefined(report.State) || report.Candidate != scope.Candidate ||
                 report.RetainedEntry != scope.RetainedEntry || report.SourceCoverageState != scope.SourceCoverageState ||
                 report.StartedUtc.Offset != TimeSpan.Zero || report.StartedUtc < scope.ValidatedUtc ||
@@ -79,7 +80,8 @@ public sealed partial class MainViewModel
                 $"{role}\nExact path: {original.Path}\nHistorical logical bytes: {original.Bytes:N0}; observed UTC: {original.ObservedUtc:u}\n" +
                 (current == null ? "No accepted current file stamp."
                     : $"Current observed logical bytes: {current.Bytes:N0}; reported links: {current.LinkCount}\nCurrent identity value matches historical observation: {string.Equals(original.Identity, current.Identity, StringComparison.OrdinalIgnoreCase)}");
-            DuplicatePairRecheckDetails = $"Current comparison: {report.State}\n{observation}\nReason: {report.Reason}\nRead interval UTC: {report.StartedUtc:u} — {report.CompletedUtc:u}\nTotal content bytes read across both files: {report.ComparedBytes:N0}\nOriginal source coverage: {report.SourceCoverageState}\n\n" +
+            string registryResult = diagnostic.RegistryNativeResult is int native ? $"0x{unchecked((uint)native):X8}" : "Not observed";
+            DuplicatePairRecheckDetails = $"Current comparison: {report.State}\n{observation}\nReason: {report.Reason}\nCheck interval UTC: {report.StartedUtc:u} — {report.CompletedUtc:u}\nTotal content bytes read across both files: {report.ComparedBytes:N0}\nOriginal source coverage: {report.SourceCoverageState}\nPreparation diagnostic: {diagnostic.Stage} / {diagnostic.Reason}\nFirst blocker registry result: {registryResult}\n\n" +
                 Describe("Copy you chose to retain", report.RetainedEntry, report.RetainedStamp) + "\n\n" +
                 Describe("Candidate you chose to review", report.Candidate, report.CandidateStamp) +
                 $"\n\nCoverage: {report.Coverage}\n\n{DuplicatePairRecheckLimits}";

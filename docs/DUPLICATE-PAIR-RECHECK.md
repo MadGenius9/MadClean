@@ -19,3 +19,13 @@ The owned Windows fixture uses a real source scan and two independent test files
 Windows runtime and initial rendering for this increment remain pending. No deletion, protected retained copy or current removal eligibility is claimed.
 
 Local validation: full solution build passed with zero warnings/errors and all1,051 portable tests passed. Python124 total,123 passed/one Windows-only skip. Independent combined review corrected the shared worker's post-read/post-await cancellation checks; unexpected worker errors remain Failed. The actual native fixture, changed-current-content result and genuine initial tool27 panel need the next source-qualified Windows run. Portable stream adapters are test-only and never supply production data.
+
+## Initial Windows result and follow-up diagnostics
+
+[Run 41362606733](https://github.com/MadGenius9/MadClean/actions/runs/41362606733), source `ef2dd94`, immutable evidence `728a281e923492f7bfab5c080b96b8b6efa2a72d`, returned Unknown for the production current-pair fixture. No fresh equality, Equal-to-Different transition, hard-link or handle-release proof is claimed from that run. The first result did not identify whether preparation or current-file evidence blocked completion; its cause remains unverified.
+
+The genuine initial tool27 check passed bindings, disabled-without-selection behavior, in-client bounds and no-query assertions. The coordinator inspected its 1404×961 capture, SHA-256 `b3d565b9688415450409197e0f8b05b5bdfb3b1976a66b1f7cc99dd587a11404`; the new card is legible with unchecked text, no sample rows and no queried data. This is not populated UI lifecycle proof. Windows Core1,041 Passed/10 NotExecuted reconcile1,051;49 scoped passes/no failures/seven inconclusive; build/SDK passed and packaging was skipped.
+
+The follow-up adds only typed preparation diagnostics: first observed scope/known-folder/registry/content issue, its actual optional registry result and bounded counts. Managed/path-validation failures supply no guessed Win32 code. A successful native query returning zero can still have invalid metadata; zero never becomes protection or comparison permission. Missing/invalid diagnostics have Unknown stage and null unobserved counters, distinct from actual zero work. Preparation failures retain scoped Unknown, null current stamps and zero compared content bytes. The complete-exclusion gate is unchanged. New Windows evidence must establish the actual blocker before a policy or implementation change is justified.
+
+Typed-diagnostic local validation: zero-warning/error full build;1,056 portable tests passed; Python124 total,123 passed/one Windows-only skip. Independent review found no material blocker. New cause evidence remains pending.

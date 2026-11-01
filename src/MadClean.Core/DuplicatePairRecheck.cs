@@ -9,6 +9,7 @@ public sealed record DuplicatePairRecheckReport(DuplicatePairRecheckState State,
     long ComparedBytes, CheckState SourceCoverageState, string Coverage)
 {
     public bool CanRemove => false;
+    public DuplicatePairReadDiagnostic? Diagnostic { get; init; }
 }
 public interface IDuplicatePairRecheck
 {
