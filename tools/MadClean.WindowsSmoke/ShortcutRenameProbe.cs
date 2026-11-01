@@ -21,6 +21,8 @@ internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObse
     internal bool? ScalarDiagRootDirValid { get; init; }
     internal bool? ScalarDiagSameVolume { get; init; }
     internal ShortcutRenameProbeFileSystem FileSystem { get; init; }
+    internal bool MappingReadOnlyOpenRequested { get; init; }
+    internal int? MappedNativeErrorCode { get; init; }
 }
 
 // Development-only object-rename proof. It is not a quarantine implementation, action
@@ -95,6 +97,8 @@ internal static class ShortcutRenameProbe
         private int? diagnosticBufferBytes, diagnosticNameBytes;
         private bool? diagnosticRoot, diagnosticVolume;
         private ShortcutRenameProbeFileSystem fileSystem;
+        private bool mappingReadOnlyOpenRequested;
+        private int? mappedNativeError;
 
         internal ShortcutRenameProbeResult Run()
         {
@@ -204,7 +208,8 @@ internal static class ShortcutRenameProbe
         {
             Backend = backend, ControlApiCalls = controlCalls, ScalarDiagBufferBytes = diagnosticBufferBytes,
             ScalarDiagNameBytes = diagnosticNameBytes, ScalarDiagRootDirValid = diagnosticRoot,
-            ScalarDiagSameVolume = diagnosticVolume, FileSystem = fileSystem
+            ScalarDiagSameVolume = diagnosticVolume, FileSystem = fileSystem,
+            MappingReadOnlyOpenRequested = mappingReadOnlyOpenRequested, MappedNativeErrorCode = mappedNativeError
         };
         private void Check() => token.ThrowIfCancellationRequested();
         private void ValidateOwner()
@@ -353,29 +358,36 @@ internal static class ShortcutRenameProbe
         }
         private void MappedWitness()
         {
-            Check(); WriteNew(mapped, [17, 0, 0, 0, 0, 0, 0, 0]);
+            Check();
             nint view = 0; SafeFileHandle? mapping = null;
             try
             {
+                WriteNew(mapped, [17, 0, 0, 0, 0, 0, 0, 0]);
                 using (var original = Open(mapped, GenericRead | GenericWrite, 7))
                 {
                     mapping = CreateFileMappingW(original, 0, 4, 0, 0, null);
-                    if (mapping.IsInvalid) { nativeError = Marshal.GetLastWin32Error(); return; }
+                    if (mapping.IsInvalid) { mappedNativeError = Marshal.GetLastWin32Error(); return; }
                     view = MapViewOfFile(mapping, 6, 0, 0, 8);
-                    if (view == 0) { nativeError = Marshal.GetLastWin32Error(); return; }
+                    if (view == 0) { mappedNativeError = Marshal.GetLastWin32Error(); return; }
                 }
                 mapping.Dispose(); mapping = null; Check();
-                using var exclusive = CreateFileW(mapped, GenericRead | Delete, 0, 0, 3, OpenReparse | NoRecall, 0);
-                if (exclusive.IsInvalid) { exclusiveMapping = false; nativeError = Marshal.GetLastWin32Error(); return; }
+                // This is the cleanup reader's read-only sharing pattern, not DELETE
+                // access and not a test of whether a rename would be eligible.
+                mappingReadOnlyOpenRequested = true;
+                using var exclusive = CreateFileW(mapped, GenericRead, 0, 0, 3, OpenReparse | NoRecall, 0);
+                if (exclusive.IsInvalid) { exclusiveMapping = false; mappedNativeError = Marshal.GetLastWin32Error(); return; }
                 exclusiveMapping = true;
                 Marshal.WriteByte(view, 42);
-                if (!FlushViewOfFile(view, 8)) { nativeError = Marshal.GetLastWin32Error(); return; }
+                if (!FlushViewOfFile(view, 8)) { mappedNativeError = Marshal.GetLastWin32Error(); return; }
                 mappedWrite = ReadBytes(exclusive, 64)[0] == 42 && Marshal.ReadByte(view) == 42;
             }
+            catch (Win32Exception exception) { mappedNativeError = exception.NativeErrorCode; }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+            { /* Unsupported/unverified witness remains nullable; no native code is invented. */ }
             finally
             {
                 if (view != 0 && !UnmapViewOfFile(view))
-                { nativeError = Marshal.GetLastWin32Error(); uncertain = true; }
+                { mappedNativeError = Marshal.GetLastWin32Error(); uncertain = true; }
                 mapping?.Dispose();
             }
         }

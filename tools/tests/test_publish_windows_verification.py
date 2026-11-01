@@ -139,6 +139,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_mapping_witness_cannot_promote_unverified_rename_backends(self):
+        for name in ('shortcut-rename-handle-probe','shortcut-rename-cpp-control'):
+            proof=next(check for check in self.report['checks'] if check['name']==name)
+            proof.update(state='inconclusive',detail='TEST-ONLY native rename not established; no native operation performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('passed',next(check for check in published['checks'] if check['name']=='shortcut-mapped-write-witness')['state'])
+        for name in ('shortcut-rename-handle-probe','shortcut-rename-cpp-control'):
+            self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']==name)['state'])
     def test_passing_report_cannot_omit_independent_cpp_shortcut_control(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-rename-cpp-control']
         self.save(); self.rejected()

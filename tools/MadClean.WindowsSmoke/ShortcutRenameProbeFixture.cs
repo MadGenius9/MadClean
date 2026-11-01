@@ -49,13 +49,14 @@ internal static partial class NativeFixtures
             else report.Unknown(rename, detail + "The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred.");
 
             if (cppControl) return result.TeardownCompleted && !pending;
-            string witness = $"exclusiveWithLiveMapping={NullableFlag(result.ExclusiveWithLiveMapping)}; mappedWriteObserved={NullableFlag(result.MappedWriteObserved)}; teardown={result.TeardownCompleted}; pendingWorker={pending}; nativeCode={code}; reason={result.Reason}. ";
-            if (result.MappedWriteObserved == true && result.ExclusiveWithLiveMapping != true)
+            string mappedCode = result.MappedNativeErrorCode is int mappedError ? "0x" + unchecked((uint)mappedError).ToString("X8") : "none";
+            string witness = $"mappingReadOnlyOpenRequested={result.MappingReadOnlyOpenRequested}; exclusiveWithLiveMapping={NullableFlag(result.ExclusiveWithLiveMapping)}; mappedWriteObserved={NullableFlag(result.MappedWriteObserved)}; teardown={result.TeardownCompleted}; pendingWorker={pending}; mappedNativeCode={mappedCode}; reason={result.Reason}. ";
+            if (result.MappedWriteObserved == true && (!result.MappingReadOnlyOpenRequested || result.ExclusiveWithLiveMapping != true))
                 report.Fail(mapped, witness + "A mapped write claim contradicted its exclusive-open precondition.");
             else if (result.State == CheckState.Failed)
                 report.Unknown(mapped, witness + "Other owned fixture invariants failed; no positive mapped witness is promoted.");
-            else if (result.ExclusiveWithLiveMapping == true && result.MappedWriteObserved == true && result.TeardownCompleted && !pending)
-                report.Pass(mapped, witness + "A live owned mapped view could write while an exclusive handle was held: exclusivity is not inactivity. This is a negative safety witness, never permission to mutate personal files or infer active use absent.");
+            else if (result.MappingReadOnlyOpenRequested && result.ExclusiveWithLiveMapping == true && result.MappedWriteObserved == true && result.TeardownCompleted && !pending)
+                report.Pass(mapped, witness + "A writable owned view wrote while a READ-ONLY exclusive handle was held: exclusivity is not inactivity. This is not native move proof or permission to mutate personal files or infer active use absent.");
             else report.Unknown(mapped, witness + "The owned live-mapping witness was not established; no inactivity or safe-mutation inference.");
             return result.TeardownCompleted && !pending;
         }
