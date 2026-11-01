@@ -29,13 +29,16 @@ internal sealed class SystemToolTrustedLease : IDisposable
     internal string ToolVersion { get; }
     internal string Sha256 { get; }
     internal string SignatureDetail { get; }
+    internal SystemToolIdentityDiagnostic SignatureDiagnostic { get; }
     internal SystemToolEmbeddedVersion EmbeddedVersionObservation { get; }
     private SystemToolTrustedLease(List<SafeFileHandle> directories, FileStream file, string systemDirectory,
-        string toolPath, string version, string hash, string signatureDetail, SystemToolEmbeddedVersion embeddedVersion)
+        string toolPath, string version, string hash, string signatureDetail, SystemToolEmbeddedVersion embeddedVersion,
+        SystemToolIdentityDiagnostic signatureDiagnostic)
     {
         this.directories = directories; this.file = file; SystemDirectory = systemDirectory;
         ToolPath = toolPath; ToolVersion = version; Sha256 = hash; SignatureDetail = signatureDetail;
         EmbeddedVersionObservation = embeddedVersion;
+        SignatureDiagnostic = signatureDiagnostic;
     }
     internal static SystemToolTrustedLease Open(SystemToolActionDefinition definition, CancellationToken token)
     {
@@ -62,14 +65,65 @@ internal sealed class SystemToolTrustedLease : IDisposable
             if (stream.Length is <= 0 or > 33_554_432)
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool has an unsupported length; bounded identity verification was not completed.",
                     new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
-            string signature = SystemToolTrustNative.VerifyMicrosoftSignature(path, stream.SafeFileHandle);
+            string signature;
+            SystemToolIdentityDiagnostic signatureDiagnostic;
+            try
+            {
+                signature = SystemToolTrustNative.VerifyMicrosoftSignature(path, stream.SafeFileHandle);
+                signatureDiagnostic = new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.Observed, 0)
+                { TrustRoute = SystemToolTrustRoute.File, FileNativeTrustResult = 0 };
+            }
+            catch (SystemToolTrustFailure failure) when (
+                failure.Diagnostic.Stage == SystemToolIdentityStage.Signature &&
+                failure.Diagnostic.Reason == SystemToolIdentityReason.NativeTrustNotEstablished &&
+                failure.Diagnostic.NativeTrustResult == unchecked((int)0x800B0100))
+            {
+                // The direct file verifier has already closed its own native trust state.
+                // Only this exact no-file-signature result permits the separately qualified
+                // catalog route, using the same leased executable bytes throughout.
+                var catalog = SystemToolCatalogObservation.ReadHeld(definition.Operation, stream, system, token);
+                signatureDiagnostic = new(SystemToolIdentityStage.Signature,
+                    catalog.Reason == SystemToolCatalogReason.SignerNotQualified
+                        ? SystemToolIdentityReason.SignerNotQualified
+                        : catalog.NativeTrustResult.HasValue && catalog.NativeTrustResult != 0
+                            ? SystemToolIdentityReason.NativeTrustNotEstablished : SystemToolIdentityReason.OtherUnavailable,
+                    catalog.NativeTrustResult ?? failure.Diagnostic.NativeTrustResult)
+                {
+                    TrustRoute = SystemToolTrustRoute.Catalog,
+                    FileNativeTrustResult = failure.Diagnostic.NativeTrustResult,
+                    CatalogNativeTrustResult = catalog.NativeTrustResult
+                };
+                if (catalog.State != CheckState.Available || catalog.Stage != SystemToolCatalogStage.Completed ||
+                    catalog.Reason != SystemToolCatalogReason.Observed || catalog.CatalogCount != 1 ||
+                    catalog.MatchingMemberCount != 1 || catalog.NativeTrustResult != 0 || !catalog.Limited)
+                {
+                    var state = catalog.State is CheckState.Unknown or CheckState.Unsupported or CheckState.Unavailable or
+                        CheckState.Failed or CheckState.Cancelled ? catalog.State : CheckState.Unknown;
+                    string catalogCode = catalog.NativeTrustResult.HasValue
+                        ? $"0x{unchecked((uint)catalog.NativeTrustResult.Value):X8}" : "not observed";
+                    throw new SystemToolTrustFailure(state, SystemToolTrustState.Unknown,
+                        $"Direct file verification returned 0x800B0100. The limited held-file catalog route did not establish qualified Microsoft trust (stage {catalog.Stage}, reason {catalog.Reason}, catalog trust result {catalogCode}). No identity or launch permission was accepted.",
+                        signatureDiagnostic);
+                }
+                signatureDiagnostic = signatureDiagnostic with { Reason = SystemToolIdentityReason.Observed };
+                signature = "The limited installed-catalog route accepted one matching held-file SHA256 member with Windows Authenticode policy and whole-chain revocation requested; the signer organization and common name identify Microsoft. Direct file verification reported no signature. This is not exhaustive catalog coverage, servicing runtime validation or execution permission.";
+            }
+            catch (SystemToolTrustFailure failure) when (failure.Diagnostic.Stage == SystemToolIdentityStage.Signature)
+            {
+                throw new SystemToolTrustFailure(failure.State, failure.Trust, failure.Message,
+                    failure.Diagnostic with
+                    {
+                        TrustRoute = SystemToolTrustRoute.File,
+                        FileNativeTrustResult = failure.Diagnostic.NativeTrustResult
+                    });
+            }
             token.ThrowIfCancellationRequested();
             // Native trust verification may use the file cursor. Reset the SAME held stream
             // explicitly before fingerprinting; never hash from an assumed current position.
             if (stream.Seek(0, SeekOrigin.Begin) != 0 || stream.Position != 0)
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
                     "The held tool stream could not be positioned for a bounded complete fingerprint.",
-                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
+                    signatureDiagnostic with { Stage = SystemToolIdentityStage.Fingerprint, Reason = SystemToolIdentityReason.IdentityBoundsOrPath });
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             byte[] buffer = new byte[65_536]; long readTotal = 0;
             while (true)
@@ -79,26 +133,27 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 if (count == 0) break;
                 readTotal += count;
                 if (readTotal > 33_554_432) throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "Tool identity read exceeded its bound.",
-                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
+                    signatureDiagnostic with { Stage = SystemToolIdentityStage.Fingerprint, Reason = SystemToolIdentityReason.IdentityBoundsOrPath });
                 digest.AppendData(buffer, 0, count);
             }
             if (readTotal != stream.Length)
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool changed or could not be read consistently; no identity was accepted.",
-                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
+                    signatureDiagnostic with { Stage = SystemToolIdentityStage.Fingerprint, Reason = SystemToolIdentityReason.IdentityBoundsOrPath });
             string hash = Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
             // Read VERSIONINFO only from these exact already-held and signature-qualified EXE
             // bytes. Windows path-based version APIs can merge strings from an unleased MUI.
             if (stream.Seek(0, SeekOrigin.Begin) != 0 || stream.Position != 0)
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
                     "The held tool stream could not be positioned for embedded version metadata.",
-                    new(SystemToolIdentityStage.VersionMetadata, SystemToolIdentityReason.IdentityBoundsOrPath, 0));
+                    signatureDiagnostic with { Stage = SystemToolIdentityStage.VersionMetadata, Reason = SystemToolIdentityReason.IdentityBoundsOrPath });
             var embedded = SystemToolEmbeddedVersionReader.Read(stream, definition.FileName, token);
             if (embedded.State != SystemToolEmbeddedVersionState.Matched)
             {
-                var diagnostic = new SystemToolIdentityDiagnostic(SystemToolIdentityStage.VersionMetadata,
-                    embedded.State == SystemToolEmbeddedVersionState.Mismatched
-                        ? SystemToolIdentityReason.OriginalFilenameMismatch : SystemToolIdentityReason.IdentityBoundsOrPath, 0)
+                var diagnostic = signatureDiagnostic with
                 {
+                    Stage = SystemToolIdentityStage.VersionMetadata,
+                    Reason = embedded.State == SystemToolEmbeddedVersionState.Mismatched
+                        ? SystemToolIdentityReason.OriginalFilenameMismatch : SystemToolIdentityReason.IdentityBoundsOrPath,
                     EmbeddedVersionState = embedded.State,
                     EmbeddedVersionResourceCount = embedded.ResourceCount,
                     EmbeddedOriginalNameCount = embedded.OriginalFilenameCount,
@@ -114,7 +169,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
             if (string.IsNullOrWhiteSpace(version) || version.Length > 128 || version.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format))
                 version = "Unknown";
             token.ThrowIfCancellationRequested();
-            return new(leases, stream, system, path, version, hash, signature, embedded);
+            return new(leases, stream, system, path, version, hash, signature, embedded, signatureDiagnostic);
         }
         catch
         {
@@ -132,6 +187,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
 
 internal static class SystemToolTrustNative
 {
+    private static int directTrustCleanupUncertain;
     private const uint ReadAttributes = 0x80, ListDirectory = 1, ShareRead = 1, OpenExisting = 3;
     private const uint OpenReparsePoint = 0x00200000, BackupSemantics = 0x02000000, OpenNoRecall = 0x00100000;
     private const uint InvalidAttributes = 0x400 | 0x1000 | 0x4000 | 0x40000 | 0x400000;
@@ -185,6 +241,37 @@ internal static class SystemToolTrustNative
     }
     internal static string VerifyMicrosoftSignature(string path, SafeFileHandle file)
     {
+        if (Volatile.Read(ref directTrustCleanupUncertain) != 0)
+            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
+                "An earlier direct signature trust-state cleanup was not confirmed. Further direct verification is blocked for this process; no fallback or tool launch was attempted.",
+                new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.TrustCleanupUnavailable, null)
+                { TrustRoute = SystemToolTrustRoute.File });
+        int? verifyResult = null, closeResult = null;
+        bool closeAttempted = false;
+        string? detail = null;
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+        try { detail = VerifyMicrosoftSignatureCore(path, file, ref verifyResult, ref closeResult, ref closeAttempted); }
+        catch (Exception exception) { failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception); }
+        // The inner finally has completed native and managed cleanup before any result is accepted.
+        // Closing trust state has its own LONG; it must never impersonate a verification result.
+        if (closeAttempted && closeResult != 0)
+        {
+            Volatile.Write(ref directTrustCleanupUncertain, 1);
+            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
+                "Direct signature trust-state cleanup was not confirmed. Identity acceptance and further direct verification are blocked for this process; no catalog fallback or tool launch is allowed.",
+                new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.TrustCleanupUnavailable, verifyResult)
+                {
+                    TrustRoute = SystemToolTrustRoute.File,
+                    FileNativeTrustResult = verifyResult,
+                    TrustCleanupNativeResult = closeResult
+                });
+        }
+        failure?.Throw();
+        return detail!;
+    }
+    private static string VerifyMicrosoftSignatureCore(string path, SafeFileHandle file,
+        ref int? verifyResult, ref int? closeResult, ref bool closeAttempted)
+    {
         nint pathMemory = 0, fileMemory = 0;
         bool fileReferenceHeld = false;
         bool nativeTrustEstablished = false;
@@ -204,6 +291,7 @@ internal static class SystemToolTrustNative
             };
             Guid action = GenericVerifyV2;
             int status = WinVerifyTrust(new nint(-1), ref action, ref data);
+            verifyResult = status;
             if (status != 0)
             {
                 bool unavailable = unchecked((uint)status) is 0x800B0100 or 0x800B010E or 0x80092013;
@@ -231,7 +319,12 @@ internal static class SystemToolTrustNative
                 if (data.StateData != 0)
                 {
                     data.StateAction = 2; Guid action = GenericVerifyV2;
-                    _ = WinVerifyTrust(new nint(-1), ref action, ref data);
+                    closeAttempted = true;
+                    try { closeResult = WinVerifyTrust(new nint(-1), ref action, ref data); }
+                    finally
+                    {
+                        if (closeResult != 0) Volatile.Write(ref directTrustCleanupUncertain, 1);
+                    }
                 }
             }
             finally

@@ -132,3 +132,7 @@ DISM's separate actual identity preview is Available with MicrosoftSignatureVeri
 ## Independent count/catalog increment
 
 Full solution Release build:zero warnings/errors;986 portable .NET tests passed. Python evidence suite:99 total,98 passed/one Windows-only skip. Independent review found no material blocker across count/projection/UI, catalog binding/cleanup, worker waits and publisher omission/inconclusive rules. New Windows runtime/SDK and initial WER-summary capture remain pending a source-bound run; this local evidence does not establish native API success. Production identity policy and disabled execution remain unchanged; distribution publishing remains off.
+
+## Held-stream identity integration
+
+Full solution build:zero warnings/errors;986 portable .NET tests passed; Python101 total,100 passed/one Windows-only skip. Independent review resolved direct-trust cleanup and source-state reporting findings, with no remaining material blocker. New held-stream/provider runtime checks are pending. Actual733af5b/run41340826576 independently passed WER counts and both standalone catalog observations (37 scoped passes/two inconclusive), SDK assertions and initial query-free count-summary rendering;976 core Passed/10 NotExecuted. It does not establish newer production route/cursor behavior, forced revocation/cleanup failures or D2/D3 execution readiness. No commands/elevation, publish skipped.

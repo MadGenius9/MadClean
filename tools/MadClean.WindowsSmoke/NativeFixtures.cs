@@ -34,6 +34,7 @@ internal static partial class NativeFixtures
             SystemToolEmbeddedVersions(report, token);
             SystemToolIdentities(report, token);
             SystemToolCatalogs(report, token);
+            SystemToolHeldCatalogs(report, token);
             SystemToolGate(report, token);
             // The isolated transaction worker alone owns its registry/transaction cleanup.
             // Never remove its filesystem ownership marker while its outcome is uncertain.

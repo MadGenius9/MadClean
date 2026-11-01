@@ -139,6 +139,17 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_held_catalog_observation(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-held-catalog-observation']
+        self.save(); self.rejected()
+    def test_unverified_held_catalog_preserves_inconclusive_result(self):
+        held=next(check for check in self.report['checks'] if check['name']=='system-tool-held-catalog-observation')
+        held.update(state='inconclusive',detail='TEST-ONLY held catalog native wait pending; no query performed')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='system-tool-held-catalog-observation')['state'])
     def test_passing_report_cannot_omit_isolated_catalog_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-catalog-observation']
         self.save(); self.rejected()

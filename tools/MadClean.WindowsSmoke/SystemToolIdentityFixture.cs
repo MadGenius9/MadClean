@@ -65,6 +65,10 @@ internal static partial class NativeFixtures
                 string reason = diagnostic != null && Enum.IsDefined(diagnostic.Reason) ? diagnostic.Reason.ToString() : "Unknown";
                 string nativeResult = diagnostic?.NativeTrustResult is int observedNativeResult
                     ? "0x" + unchecked((uint)observedNativeResult).ToString("X8") : "none";
+                string route = diagnostic != null && Enum.IsDefined(diagnostic.TrustRoute) ? diagnostic.TrustRoute.ToString() : "Unknown";
+                string fileNative = diagnostic?.FileNativeTrustResult is int fileResult ? "0x" + unchecked((uint)fileResult).ToString("X8") : "none";
+                string catalogNative = diagnostic?.CatalogNativeTrustResult is int catalogResult ? "0x" + unchecked((uint)catalogResult).ToString("X8") : "none";
+                string cleanupNative = diagnostic?.TrustCleanupNativeResult is int cleanupResult ? "0x" + unchecked((uint)cleanupResult).ToString("X8") : "none";
                 string embedded = diagnostic?.EmbeddedVersionState is { } embeddedState && Enum.IsDefined(embeddedState)
                     ? embeddedState.ToString() : "Unknown";
                 string resources = diagnostic?.EmbeddedVersionResourceCount is int resourceCount && resourceCount is >= 0 and <= 8
@@ -78,7 +82,7 @@ internal static partial class NativeFixtures
                 string zeroTail = diagnostic?.RootTrailingBytesZero is bool zero ? zero ? "true" : "false" : "unknown";
                 // Returned fixed enum/code metadata only. Never derive a cause or trust from a
                 // diagnostic, parse Message/TrustDetail, or change positive identity requirements.
-                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/embedded={embedded}/resources={resources}/originalNames={originals}/sourceSite={sourceSite}/rootLength={rootLength}/blobLength={blobLength}/zeroTail={zeroTail}");
+                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}/route={route}/fileNative={fileNative}/catalogNative={catalogNative}/cleanupResult={cleanupNative}/embedded={embedded}/resources={resources}/originalNames={originals}/sourceSite={sourceSite}/rootLength={rootLength}/blobLength={blobLength}/zeroTail={zeroTail}");
                 if (result.State is not (CheckState.Available or CheckState.Partial) || trust != SystemToolTrustState.MicrosoftSignatureVerified || assessed.IdentityObserved != true)
                     continue;
                 var definition = SystemToolActionsCatalog.Find(operation)!;
@@ -88,6 +92,17 @@ internal static partial class NativeFixtures
                     return;
                 }
                 var preview = result.Items[0];
+                bool validRoute = diagnostic?.NativeTrustResult == 0 && (diagnostic.TrustRoute switch
+                {
+                    SystemToolTrustRoute.File => diagnostic.FileNativeTrustResult == 0 && diagnostic.CatalogNativeTrustResult == null,
+                    SystemToolTrustRoute.Catalog => diagnostic.FileNativeTrustResult == unchecked((int)0x800B0100) && diagnostic.CatalogNativeTrustResult == 0,
+                    _ => false
+                });
+                if (!validRoute)
+                {
+                    report.Fail(check, "A genuine accepted identity contradicted its exact File/Catalog route and actual native trust-result contract; no launch request called.");
+                    return;
+                }
                 bool unknownVersion = preview.ToolVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
                 if (!SameToolDefinition(preview.Definition, definition) || preview.PreviewId == Guid.Empty ||
                     !string.Equals(preview.SystemDirectory, system, StringComparison.OrdinalIgnoreCase) ||

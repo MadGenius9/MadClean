@@ -1,4 +1,6 @@
-# Open executable-identity source gates
+# Executable-identity source research
+
+Current implementation status: [held-file catalog verification](SYSTEM-TOOL-CATALOG-OBSERVATION.md) follows positive isolated Windows evidence from source733af5b. The same-stream production integration is implemented with strict NOSIGNATURE-only entry, distinct actual results and cleanup/cursor guards; its own runtime proof is pending. Historical research below records earlier limits and does not supersede this contract. Execution remains disabled.
 
 Actual diagnostic run [41306474471](https://github.com/MadGenius9/MadClean/actions/runs/41306474471), source787fbf6, returned:
 

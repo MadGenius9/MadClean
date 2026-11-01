@@ -3,16 +3,22 @@ namespace MadClean.Core;
 public enum SystemToolOperation { DismCheckHealth, DismScanHealth, DismRestoreHealth, SfcVerifyOnly, SfcScanNow }
 public enum SystemToolActionKind { NonRepairCheck, Repair }
 public enum SystemToolTrustState { Unknown, MicrosoftSignatureVerified, Unavailable, Failed }
+public enum SystemToolTrustRoute { Unknown, File, Catalog }
 public enum SystemToolRunState { NotStarted, Unavailable, ConsentDenied, Launched, ClientExited, MonitoringLost }
 public enum SystemToolIdentityStage { Unknown, SystemDirectory, FileLease, Signature, Fingerprint, VersionMetadata, Completed }
 public enum SystemToolIdentityReason
 {
     Unspecified, Observed, NativeTrustNotEstablished, SignerInspectionUnavailable, SignerNotQualified,
-    OriginalFilenameMismatch, IdentityBoundsOrPath, OtherUnavailable, WaitExpired, PendingWorker, UnsupportedPlatform
+    OriginalFilenameMismatch, IdentityBoundsOrPath, OtherUnavailable, WaitExpired, PendingWorker, UnsupportedPlatform,
+    TrustCleanupUnavailable
 }
 public sealed record SystemToolIdentityDiagnostic(SystemToolIdentityStage Stage, SystemToolIdentityReason Reason,
     int? NativeTrustResult)
 {
+    public SystemToolTrustRoute TrustRoute { get; init; }
+    public int? FileNativeTrustResult { get; init; }
+    public int? CatalogNativeTrustResult { get; init; }
+    public int? TrustCleanupNativeResult { get; init; }
     // Bounded parser observations only; none of these diagnostics grants trust or launch permission.
     public SystemToolEmbeddedVersionState? EmbeddedVersionState { get; init; }
     public int? EmbeddedVersionResourceCount { get; init; }

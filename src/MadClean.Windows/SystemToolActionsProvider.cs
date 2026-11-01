@@ -39,8 +39,10 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
                     now, now.AddMinutes(2), ProductionExecutionValidated && identity.ToolVersion != "Unknown",
                     "Production execution is disabled pending separate disposable-Windows and manual validation. Checking a signature does not run DISM/SFC or establish system health.")
                 {
-                    Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0)
+                    Diagnostic = identity.SignatureDiagnostic with
                     {
+                        Stage = SystemToolIdentityStage.Completed,
+                        Reason = SystemToolIdentityReason.Observed,
                         EmbeddedVersionState = identity.EmbeddedVersionObservation.State,
                         EmbeddedVersionResourceCount = identity.EmbeddedVersionObservation.ResourceCount,
                         EmbeddedOriginalNameCount = identity.EmbeddedVersionObservation.OriginalFilenameCount,

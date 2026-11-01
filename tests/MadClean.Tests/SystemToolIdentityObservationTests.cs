@@ -24,6 +24,7 @@ public sealed class SystemToolIdentityObservationTests
         {
             TrustState = SystemToolTrustState.Unknown,
             Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0)
+            { TrustRoute = SystemToolTrustRoute.Catalog, FileNativeTrustResult = unchecked((int)0x800B0100), CatalogNativeTrustResult = 0 }
         };
         AssertUnknown(Evaluate(preview));
         foreach (var source in new[] { CheckState.Unknown, CheckState.Unavailable, CheckState.Failed })

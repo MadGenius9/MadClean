@@ -20,8 +20,8 @@ internal sealed record SystemToolCatalogObservationResult(CheckState State, Syst
     int? NativeErrorCode, int? NativeTrustResult, bool Limited);
 
 /// <summary>
-/// Isolated, existential observation of the first SHA256 catalog candidate for a fixed OS tool.
-/// Never used by production identity acceptance. The calling metadata worker owns its entire native wait.
+/// Bounded existential observation of the first SHA256 catalog candidate for a fixed OS tool.
+/// ReadHeld is internal to the known read-leased identity path; its caller owns the entire native wait.
 /// </summary>
 internal static class SystemToolCatalogObservation
 {
@@ -29,19 +29,50 @@ internal static class SystemToolCatalogObservation
     private const long MaximumCatalogBytes = 16_777_216;
     private const string Sha256Oid = "2.16.840.1.101.3.4.2.1";
     private static readonly SemaphoreSlim Worker = new(1, 1);
+    private static volatile bool cleanupUncertain;
     private static readonly Guid GenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
 
     internal static SystemToolCatalogObservationResult Read(SystemToolOperation operation, CancellationToken token = default)
+        => ReadShared(operation, null, null, false, token);
+
+    // Internal precondition: the caller owns a no-write/no-delete executable lease
+    // for this exact stream for the full call. This never accepts a path as identity.
+    internal static SystemToolCatalogObservationResult ReadHeld(SystemToolOperation operation, FileStream stream,
+        string expectedOSsystemdir, CancellationToken token = default)
+        => ReadShared(operation, stream, expectedOSsystemdir, true, token);
+
+    private static SystemToolCatalogObservationResult ReadShared(SystemToolOperation operation, FileStream? stream,
+        string? expectedOSsystemdir, bool borrowed, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         var observation = new Observation();
         if (!OperatingSystem.IsWindows()) return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnsupportedPlatform);
         if (!Environment.Is64BitProcess) return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnsupportedPlatform);
         if (!LayoutSupported()) return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
+        if (cleanupUncertain) return observation.Result(CheckState.Unavailable, SystemToolCatalogReason.CleanupUnavailable);
         if (!Worker.Wait(0)) return observation.Result(CheckState.Unavailable, SystemToolCatalogReason.PendingWorker);
         var resources = new NativeResources();
+        SafeFileHandle? borrowedHandle = null;
+        bool referenceHeld = false, positionSaved = false, restoreFailed = false;
+        long originalPosition = 0;
         SystemToolCatalogObservationResult result;
-        try { result = ReadCore(operation, observation, resources, token); }
+        try
+        {
+            if (cleanupUncertain) throw new CatalogWorkerUncertain();
+            if (borrowed)
+            {
+                if (stream == null || !stream.CanRead || !stream.CanSeek)
+                    throw new InvalidOperationException("A readable seekable held stream is required.");
+                originalPosition = stream.Position; positionSaved = true;
+                borrowedHandle = stream.SafeFileHandle;
+                if (borrowedHandle.IsClosed || borrowedHandle.IsInvalid)
+                    throw new InvalidOperationException("The held executable handle is unavailable.");
+                borrowedHandle.DangerousAddRef(ref referenceHeld);
+            }
+            result = ReadCore(operation, observation, resources, stream, expectedOSsystemdir, borrowed, token);
+        }
+        catch (CatalogWorkerUncertain)
+        { result = observation.Result(CheckState.Unavailable, SystemToolCatalogReason.CleanupUnavailable); }
         catch (SystemToolTrustFailure)
         {
             result = observation.Result(CheckState.Unknown, observation.TrustResult == 0
@@ -57,15 +88,36 @@ internal static class SystemToolCatalogObservation
         { result = observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope); }
         finally
         {
-            try { resources.Dispose(); }
-            finally { Worker.Release(); }
+            try
+            {
+                resources.Dispose();
+                if (positionSaved)
+                {
+                    try
+                    {
+                        var caller = stream!;
+                        if (caller.Seek(originalPosition, SeekOrigin.Begin) != originalPosition || caller.Position != originalPosition)
+                            restoreFailed = true;
+                    }
+                    catch (Exception exception) when (exception is IOException or NotSupportedException or ObjectDisposedException or ArgumentException)
+                    { restoreFailed = true; }
+                }
+            }
+            finally
+            {
+                try { if (referenceHeld) borrowedHandle!.DangerousRelease(); }
+                catch { resources.CleanupFailed = true; }
+                if (resources.CleanupFailed) cleanupUncertain = true;
+                Worker.Release();
+            }
         }
         token.ThrowIfCancellationRequested();
-        return resources.CleanupFailed ? result with { State = CheckState.Unknown, Reason = SystemToolCatalogReason.CleanupUnavailable } : result;
+        return resources.CleanupFailed ? result with { State = CheckState.Unknown, Reason = SystemToolCatalogReason.CleanupUnavailable } :
+            restoreFailed ? result with { State = CheckState.Unknown, Reason = SystemToolCatalogReason.UnqualifiedScope } : result;
     }
 
     private static SystemToolCatalogObservationResult ReadCore(SystemToolOperation operation, Observation observation,
-        NativeResources resources, CancellationToken token)
+        NativeResources resources, FileStream? suppliedStream, string? expectedOSsystemdir, bool borrowed, CancellationToken token)
     {
         var definition = SystemToolActionsCatalog.Find(operation);
         if (definition == null) return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnqualifiedScope);
@@ -74,13 +126,22 @@ internal static class SystemToolCatalogObservation
         if (!Path.IsPathFullyQualified(system) || system.Length is < 4 or > 1024 || !char.IsAsciiLetter(system[0]) || system[1] != ':' || system[2] != '\\')
             return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
+        if (borrowed && !string.Equals(system, expectedOSsystemdir, StringComparison.OrdinalIgnoreCase))
+            return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
         string toolPath = Path.Combine(system, definition.FileName);
         var toolDirectories = SystemToolTrustNative.LockDirectoryChain(system);
+        FileStream? ownedStream = null;
         try
         {
-            using var toolHandle = SystemToolTrustNative.OpenFile(toolPath);
+            if (!borrowed)
+            {
+                var handle = SystemToolTrustNative.OpenFile(toolPath);
+                try { ownedStream = new FileStream(handle, FileAccess.Read, 65_536, false); }
+                catch { handle.Dispose(); throw; }
+            }
+            var tool = borrowed ? suppliedStream! : ownedStream!;
+            var toolHandle = tool.SafeFileHandle;
             SystemToolTrustNative.ValidateAttributes(toolHandle, false); SystemToolTrustNative.ValidateFinalPath(toolHandle, toolPath);
-            using var tool = new FileStream(toolHandle, FileAccess.Read, 65_536, false);
             try
             {
                 if (tool.Length is <= 0 or > 33_554_432) return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
@@ -175,7 +236,11 @@ internal static class SystemToolCatalogObservation
             }
             finally { resources.Dispose(); }
         }
-        finally { foreach (var directory in toolDirectories.AsEnumerable().Reverse()) directory.Dispose(); }
+        finally
+        {
+            ownedStream?.Dispose();
+            foreach (var directory in toolDirectories.AsEnumerable().Reverse()) directory.Dispose();
+        }
     }
 
     private static void VerifyCatalog(string toolPath, SafeFileHandle tool, string catalogPath, string tag, byte[] hash,
@@ -229,6 +294,7 @@ internal static class SystemToolCatalogObservation
     }
 
     private sealed class CatalogTrustFailure : Exception { }
+    private sealed class CatalogWorkerUncertain : Exception { }
     private sealed class Observation
     {
         internal SystemToolCatalogStage Stage;
@@ -248,10 +314,16 @@ internal static class SystemToolCatalogObservation
             nint catalog = Catalog, catalogInfo = CatalogInfo, admin = Admin;
             Catalog = 0; CatalogInfo = 0; Admin = 0;
             try { if (catalog != 0 && catalog != new nint(-1) && !CryptCATClose(catalog)) CleanupFailed = true; }
+            catch { CleanupFailed = true; }
             finally
             {
                 try { if (catalogInfo != 0 && !CryptCATAdminReleaseCatalogContext(admin, catalogInfo, 0)) CleanupFailed = true; }
-                finally { if (admin != 0 && !CryptCATAdminReleaseContext(admin, 0)) CleanupFailed = true; }
+                catch { CleanupFailed = true; }
+                finally
+                {
+                    try { if (admin != 0 && !CryptCATAdminReleaseContext(admin, 0)) CleanupFailed = true; }
+                    catch { CleanupFailed = true; }
+                }
             }
         }
     }
