@@ -19,6 +19,7 @@ public sealed partial class MainViewModel
     private void InvalidateShortcutRecheckSelection()
     {
         shortcutRecheckGeneration++;
+        InvalidateShortcutFileEvidence();
         ShortcutRecheckMessage = "Not checked for this selection. Any earlier result is invalidated; an in-flight native read may still finish.";
         ShortcutRecheckDetails = "Select one current inventory entry and choose Recheck selected shortcut. No folder rescan, target activation, network lookup or removal is requested. The original row remains a historical observation.";
         CommandManager.InvalidateRequerySuggested();

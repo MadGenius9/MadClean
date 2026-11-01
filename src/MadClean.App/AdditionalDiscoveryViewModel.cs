@@ -104,6 +104,7 @@ public sealed partial class MainViewModel
         InitializeDiagnosticRecurrence();
         InitializeDuplicatePairReview();
         InitializeShortcutRecheck();
+        InitializeShortcutFileEvidence();
     }
     private void ChooseDuplicateFolder()
     {

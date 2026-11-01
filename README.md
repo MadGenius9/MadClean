@@ -53,6 +53,8 @@ Tool version metadata is read from [the same held executable bytes](docs/SYSTEM-
 
 Shortcut review also offers [Recheck selected shortcut](docs/SHORTCUT-RECHECK.md): a fresh read of one selected `.lnk` and supported local target metadata, with prior/current evidence shown separately. It does not rescan siblings or overwrite the historical inventory. Missing/inaccessible/network/offline contexts remain unverified where appropriate; no shortcut is resolved, launched, saved or removed.
 
+Its separate [selected file evidence](docs/SHORTCUT-FILE-EVIDENCE.md) action reads bounded shortcut contents, current native identity and target metadata after protected-folder checks. Repeated observations do not prove inactivity, immutable contents, ownership or safe removal. Moving remains disabled.
+
 In Hardware Upgrades, a separate online action can verify narrow official Surface Laptop 6 for Business family service observations after a complete supported PC identity is read. It requests three fixed public Microsoft articles without sending device identifiers. It does not establish RAM/CPU/BIOS limits, exact replacement-part fit or upgrade advice; other models and missing evidence remain Unknown/Unsupported. See [source scope and validation](docs/SURFACE-SERVICE-FACTS.md).
 
 Diagnostics also shows [independent WER store counts](docs/WER-STORE-COUNTS.md) when the supported optional API returns them. These cover all currently stored reports, separately from the selected report window; enumeration can remain Unknown and zero is not a health verdict.

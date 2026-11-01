@@ -23,6 +23,13 @@ internal static partial class NativeFixtures
             DiskIdentity(fixture, report, token);
             LeftoverContent(fixture, report, token);
             Shortcuts(fixture, report, token);
+            if (WindowsShortcutInventory.HasPendingMetadataRead)
+            {
+                report.Unknown("shortcut-file-evidence-fixture", "Prior shortcut metadata is still worker-owned; no new file evidence fixture or later fixture started. Ownership tree retained.");
+                return;
+            }
+            ShortcutFileEvidenceFixture(fixture, report, token);
+            if (WindowsShortcutInventory.HasPendingMetadataRead) return;
             Diagnostics(report, token);
             StorageInspectionEvidence(report, token);
             DefenderStatus(report, token);
@@ -75,7 +82,7 @@ internal static partial class NativeFixtures
         }
         finally
         {
-            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted)
+            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead)
             {
                 report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }

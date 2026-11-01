@@ -24,6 +24,13 @@
                 <TextBlock Text="{Binding ShortcutRecheckMessage}" Style="{StaticResource Caption}"/>
                 <TextBox Text="{Binding ShortcutRecheckDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected shortcut recheck evidence and limits"/>
             </StackPanel></Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"><StackPanel>
+                <TextBlock Text="Selected shortcut file evidence" FontSize="20"/>
+                <TextBlock Text="Read this shortcut's contents (up to 1 MiB), file identity and current supported target metadata. Protected and Startup folders are excluded. This is evidence for review; moving and removal remain unavailable." Style="{StaticResource Caption}"/>
+                <Button Content="Inspect selected file evidence" Command="{Binding InspectShortcutFileEvidenceCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding ShortcutFileEvidenceMessage}" Style="{StaticResource Caption}"/>
+                <TextBox Text="{Binding ShortcutFileEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="340" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected shortcut file identity, target and uncertainty"/>
+            </StackPanel></Border>
             <Expander Header="Skipped entries and incomplete coverage"><DataGrid ItemsSource="{Binding ShortcutIssues}" Height="180"><DataGrid.Columns><DataGridTextColumn Header="PATH / SCOPE" Binding="{Binding Path}" Width="2*"/><DataGridTextColumn Header="REASON" Binding="{Binding Reason}" Width="3*"/></DataGrid.Columns></DataGrid></Expander>
             <TextBlock Text="Network, offline/removable, inaccessible, reparse/cloud and unsupported contexts are not confirmed broken. A local target missing at observation time does not prove the shortcut obsolete. Cancellation may leave one native metadata call finishing; no new worker is started while it remains pending." Style="{StaticResource Caption}"/>
         </StackPanel>

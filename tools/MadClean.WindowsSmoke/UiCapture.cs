@@ -158,6 +158,29 @@ internal static partial class UiCapture
                         if (sources.SelectedIndex != 0) throw new SmokeAssertionException("ui-package-source-restore");
                     }
                     if (link.Page == 8) Capture(window, output, "tool-19.png", report);
+                    if (link.Page == 13)
+                    {
+                        var evidenceButton = Descendants<Button>(window).Single(button => Equals(button.Content, "Inspect selected file evidence"));
+                        var evidenceDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Selected shortcut file identity, target and uncertainty");
+                        evidenceDetails.BringIntoView();
+                        await Idle(window);
+                        if (!ReferenceEquals(evidenceButton.Command, model.InspectShortcutFileEvidenceCommand) || evidenceButton.IsEnabled ||
+                            !evidenceDetails.IsReadOnly || evidenceDetails.Text != model.ShortcutFileEvidenceDetails ||
+                            evidenceDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.ShortcutFileEvidenceDetails) ||
+                            !model.ShortcutFileEvidenceMessage.StartsWith("Not checked", StringComparison.Ordinal))
+                            throw new SmokeAssertionException("ui-shortcut-file-evidence-binding");
+                        if (window.Content is not FrameworkElement shortcutClient) throw new SmokeAssertionException("ui-shortcut-file-evidence-client");
+                        foreach (var element in new FrameworkElement[] { evidenceButton, evidenceDetails })
+                        {
+                            Point point = element.TranslatePoint(new Point(), shortcutClient);
+                            if (!element.IsVisible || !ValidSize(element) || !double.IsFinite(point.X) || !double.IsFinite(point.Y) || point.X < -1 || point.Y < -1 ||
+                                point.X + element.ActualWidth > shortcutClient.ActualWidth + 1 || point.Y + element.ActualHeight > shortcutClient.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-shortcut-file-evidence-bounds");
+                        }
+                        AssertNoInventory(model);
+                        Capture(window, output, "tool-26.png", report);
+                        report.Pass("ui-shortcut-file-evidence", "Actual unchecked selected-file evidence panel, disabled command binding and readable in-view controls verified without inventory or sample data. Populated selection/cancellation lifecycle is not asserted by this initial panel check.");
+                    }
                     if (link.Page == 16)
                     {
                         var identitySummary = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "Microsoft tool identity observation summary");
@@ -417,6 +440,9 @@ internal static partial class UiCapture
         if (model.ShortcutRows.Count != 0 || model.SelectedShortcutObservation != null || model.RecheckSelectedShortcutCommand == null ||
             model.RecheckSelectedShortcutCommand.CanExecute(null) || !model.ShortcutRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
             throw new SmokeAssertionException("ui-shortcut-recheck-unchecked");
+        if (model.InspectShortcutFileEvidenceCommand == null || model.InspectShortcutFileEvidenceCommand.CanExecute(null) ||
+            !model.ShortcutFileEvidenceMessage.StartsWith("Not checked", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-shortcut-file-evidence-unchecked");
         if (!model.SystemToolIdentitySummary.Contains("not checked", StringComparison.OrdinalIgnoreCase))
             throw new SmokeAssertionException("ui-system-tool-identity-unchecked");
     }

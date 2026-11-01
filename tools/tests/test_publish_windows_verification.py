@@ -142,6 +142,15 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_native_nt_control(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-rename-nt-control']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_selected_shortcut_file_evidence(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-file-evidence-fixture']
+        self.save(); self.rejected()
+    def test_passing_report_cannot_omit_shortcut_evidence_panel_or_image(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-shortcut-file-evidence']
+        self.save(); self.rejected()
+    def test_shortcut_evidence_initial_image_is_required(self):
+        (self.download/'tool-26.png').unlink()
+        self.rejected()
     def test_pending_native_nt_control_cannot_be_promoted_by_other_proofs(self):
         proof=next(check for check in self.report['checks'] if check['name']=='shortcut-rename-nt-control')
         proof.update(state='inconclusive',detail='TEST-ONLY native terminal outcome unverified; no native operation')

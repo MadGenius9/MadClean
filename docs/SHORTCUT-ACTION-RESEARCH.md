@@ -79,3 +79,9 @@ The experiment keeps the existing source rights, bounded relative leaf, no-overw
 A positive experiment requires three actual NT calls, two terminal-success operations with verified move/restore readback, an observed negative collision refusal, all prior identity/bytes/target invariants and safe teardown. Source review and compilation alone cannot establish these observations. Actual Windows results for this increment remain pending.
 
 The frozen combined solution builds with zero warnings/errors on Linux. Python tooling checks:115 total,114 passed and one Windows-only skip, including omitted/pending NT proof and independent Win32-status preservation. Portable Core code is unchanged from the preceding1005 passing tests. These checks do not execute the native export or validate Windows completion behavior.
+
+## Actual separate native result
+
+Actual [run 41352655765](https://github.com/MadGenius9/MadClean/actions/runs/41352655765), source `61a5219`, evidence `8a425e76c1766828f0d46f95c68d169111e65ba0`, passed the separate owned NT experiment: three actual calls, two successful move/restore operations with identity and byte readback, and final collision refusal `0xC0000035`. Target preservation, anchor handoff and safe teardown were observed. The final call returned immediately; no completion status or pending I/O path was observed. Pending lifetime handling remains source-reviewed and unexercised.
+
+Both independent Win32 backends still returned `0x57`, and the mapping case still returned `0x20` without an exclusive read-only open. Their results were not promoted. There were 43 scoped passes, no failed checks and four inconclusive checks; the overall report remains inconclusive. Core results reconcile 995 Passed plus 10 NotExecuted to 1,005 records. SDK/control compilation and build passed; application packaging was skipped. This is no production fallback, private-storage, durable-recovery, inactivity or client-action proof.
