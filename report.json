@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "6209215ca31bcd28503d231db031f2458ecbc976",
-  "runId": "41359970620",
+  "sourceCommit": "ef2dd94105d9769af91f49637c2af8fce37fccbb",
+  "runId": "41362606733",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T23:05:14.840499+00:00",
-  "completedUtc": "2026-11-01T23:05:29.0607885+00:00",
+  "startedUtc": "2026-11-01T23:36:28.4635353+00:00",
+  "completedUtc": "2026-11-01T23:36:39.8759669+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -27,6 +27,11 @@
       "name": "ui-primary-navigation",
       "state": "passed",
       "detail": "All five primary sections select their preserved pages through the ListBox binding. The actual BIOS/Firmware subtab exposes bound, initially disabled history/release-note commands with empty unchecked data; its scrolled client view is captured without queries or browser actions. The resolved Update center title wraps and exceeds4.5:1 against every actual root gradient stop; this is a scoped style check, not an accessibility audit."
+    },
+    {
+      "name": "ui-duplicate-pair-recheck",
+      "state": "passed",
+      "detail": "Actual initial fresh-pair command/details bindings, disabled-without-selection state and in-client bounds verified without content reads or sample data. Populated pair-selection/cancellation lifecycle remains unverified."
     },
     {
       "name": "ui-shortcut-file-evidence",
@@ -72,6 +77,11 @@
       "name": "duplicate-pair-review-fixture",
       "state": "passed",
       "detail": "Native sourceState=Partial; reusedSnapshot=true; exactPairPreviewVerified=true; realAliasBlocked=true; sameIdentityBlocked=true; clonedSelectionBlocked=true; expiredObservationBlocked=true; preCancellationObserved=true; executionSupported=false. The earlier owned full-byte comparison supplied typed independent/alias/link/time evidence; this worksheet performed no additional file read, scan or change. Partial coverage remains incomplete. No paths, identities, timestamps, contents or provider messages exported; current-file freshness, retained-copy protection, ownership, removal eligibility and reclaimable space remain unverified."
+    },
+    {
+      "name": "duplicate-pair-recheck-fixture",
+      "state": "inconclusive",
+      "detail": "Current state=Unknown; complete exclusions/access or one completed selected-pair report were unavailable. No historical equality was substituted."
     },
     {
       "name": "disk-identity-fixture",
@@ -259,6 +269,11 @@
       "detail": "state=Partial; backend=NativeNt; guardProfile=FixtureAncestorShareRead; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Independent backend/profile; no retry/fallback or promotion of other checks. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
     },
     {
+      "name": "shortcut-directory-sharing-observation",
+      "state": "passed",
+      "detail": "controlRename=True; controlWrite=True; controlAttributes=True; guardedRenameRefused=True; guardedRenameCode=32; guardedWriteRefused=True; guardedWriteCode=32; preopenedWriterGuardRefused=True; preopenedWriterGuardCode=32; preopenedMetadataCoexisted=True; newMetadataCoexisted=True; ownedRestorationConfirmed=True. Metadata-only Hidden modification remained possible with the share-read guard. This is an owned sharing observation, not namespace/reparse protection, inactivity, privacy, recovery or action readiness proof."
+    },
+    {
       "name": "startup-transaction-handle-probe",
       "state": "passed",
       "detail": "Isolated transaction state=Passed; rollbackObserved=True; commitObserved=True; teardownCompleted=True; pendingWorker=False; stage=rollback-and-commit-observed; nativeCode=none. Two sequential inert DWORD transactions verified handle-based enlistment rollback and commit only inside an ownership-marked development HKCU subtree. No actual startup registrations, SIDs, links, rename/concurrency cases, DPAPI recovery or production action gate exercised; durability and safe startup mutations remain unverified."
@@ -321,13 +336,19 @@
       "file": "tool-12.png",
       "width": 1404,
       "height": 961,
-      "sha256": "149729de5afa794bedcc8cb0fe37fecbe5562673a47f567da5793ff06f48d9b1"
+      "sha256": "d1d97666940bec7b8d2a76ba489faa88c1dedf7fe6a454f6fb1adf698ebe9644"
     },
     {
       "file": "tool-22.png",
       "width": 1404,
       "height": 961,
-      "sha256": "0e2df8725500f64a3614921435b5fc30e66dedd8519c57b4ef4412aefb1716fe"
+      "sha256": "e745b5811c8e48c3572b1886fb473986d415c405c0893d3f2d51fa5b42cd9b4c"
+    },
+    {
+      "file": "tool-27.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "b3d565b9688415450409197e0f8b05b5bdfb3b1976a66b1f7cc99dd587a11404"
     },
     {
       "file": "tool-26.png",
