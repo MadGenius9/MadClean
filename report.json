@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "65c897c5ffd530af42cae3dc15570fdaabcbda5c",
-  "runId": "41347695107",
+  "sourceCommit": "538e6afb611aa37b14535c7ba8c4af28c4b7db5f",
+  "runId": "41349713186",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T20:40:00.1790475+00:00",
-  "completedUtc": "2026-11-01T20:40:14.965437+00:00",
+  "startedUtc": "2026-11-01T21:04:36.2929131+00:00",
+  "completedUtc": "2026-11-01T21:04:51.0181208+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -211,12 +211,17 @@
     {
       "name": "shortcut-rename-handle-probe",
       "state": "inconclusive",
-      "detail": "state=Unavailable; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+      "detail": "state=Unavailable; backend=ManagedWin32; controlApiCalls=0; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
     },
     {
       "name": "shortcut-mapped-write-witness",
       "state": "inconclusive",
-      "detail": "exclusiveWithLiveMapping=unknown; mappedWriteObserved=unknown; teardown=True; pendingWorker=False; nativeCode=0x00000057; reason=move-owned-link. The owned live-mapping witness was not established; no inactivity or safe-mutation inference."
+      "detail": "exclusiveWithLiveMapping=false; mappedWriteObserved=unknown; teardown=True; pendingWorker=False; nativeCode=0x00000057; reason=move-owned-link. The owned live-mapping witness was not established; no inactivity or safe-mutation inference."
+    },
+    {
+      "name": "shortcut-rename-cpp-control",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=CppWin32; controlApiCalls=1; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
     },
     {
       "name": "startup-transaction-handle-probe",
