@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "67dcbd6fc55b7d0172d563abc4f390e5412b7021",
-  "runId": "41264088913",
+  "sourceCommit": "47157035e4ae96e339bce8813fef9a2c2003a665",
+  "runId": "41305464254",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T02:13:33.8701279+00:00",
-  "completedUtc": "2026-11-01T02:13:48.2192297+00:00",
+  "startedUtc": "2026-11-01T12:17:40.3501069+00:00",
+  "completedUtc": "2026-11-01T12:17:52.3187739+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -96,7 +96,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "defender-status-contract",
@@ -162,6 +162,11 @@
       "name": "startup-fixture-teardown",
       "state": "passed",
       "detail": "Only the ownership-marked disposable HKCU fixture subtree was removed; actual startup sources were never modified."
+    },
+    {
+      "name": "system-tool-identity-contract",
+      "state": "inconclusive",
+      "detail": "preCancellationObserved=true; fixedIdentityCount=0; blockedGenuineRequestCount=0; productionExecutionEnabled=false; DismCheckHealth:state=Unknown/trust=Unknown/policyState=Unknown/identityObserved=unknown; SfcVerifyOnly:state=Unavailable/trust=Unknown/policyState=Unavailable/identityObserved=unknown. Both genuine identities were not established. Certificate/revocation/catalog or pending-provider gaps remain unverified; no bypass, forced closure or servicing command occurred. No paths, hashes, versions, certificate values or provider messages exported."
     },
     {
       "name": "system-tool-execution-gate",
@@ -267,7 +272,7 @@
       "file": "tool-16.png",
       "width": 1404,
       "height": 961,
-      "sha256": "3c592f2d3380a4e3ef6a8bee4e1ac99c2160cc79e085fcb1367d2540f433f393"
+      "sha256": "1f9b7b280224090c43d3a42c60304d886effdf8594458c14c0bfe160780a06ae"
     },
     {
       "file": "tool-17.png",
