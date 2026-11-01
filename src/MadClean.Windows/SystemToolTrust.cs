@@ -11,10 +11,13 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.Windows;
 
-internal sealed class SystemToolTrustFailure(CheckState state, SystemToolTrustState trust, string message) : Exception(message)
+internal sealed class SystemToolTrustFailure(CheckState state, SystemToolTrustState trust, string message,
+    SystemToolIdentityDiagnostic? diagnostic = null) : Exception(message)
 {
     internal CheckState State { get; } = state;
     internal SystemToolTrustState Trust { get; } = trust;
+    internal SystemToolIdentityDiagnostic Diagnostic { get; } = diagnostic ??
+        new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.Unspecified, null);
 }
 
 /// <summary>Holds genuine fixed-path executable and ancestor read leases throughout verification/launch preparation.</summary>
@@ -36,10 +39,12 @@ internal sealed class SystemToolTrustedLease : IDisposable
     internal static SystemToolTrustedLease Open(SystemToolActionDefinition definition, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!OperatingSystem.IsWindows()) throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable, "Windows system tools cannot be verified on this platform.");
+        if (!OperatingSystem.IsWindows()) throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable, "Windows system tools cannot be verified on this platform.",
+            new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.UnsupportedPlatform, null));
         string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
         if (!Path.IsPathFullyQualified(system) || system.Length < 4 || !char.IsAsciiLetter(system[0]) || system[1] != ':' || system[2] != '\\')
-            throw new SystemToolTrustFailure(CheckState.Unavailable, SystemToolTrustState.Unavailable, "The genuine local Windows system directory could not be established.");
+            throw new SystemToolTrustFailure(CheckState.Unavailable, SystemToolTrustState.Unavailable, "The genuine local Windows system directory could not be established.",
+                new(SystemToolIdentityStage.SystemDirectory, SystemToolIdentityReason.IdentityBoundsOrPath, null));
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
         string path = Path.Combine(system, definition.FileName);
         var leases = SystemToolTrustNative.LockDirectoryChain(system);
@@ -54,7 +59,8 @@ internal sealed class SystemToolTrustedLease : IDisposable
             stream = new FileStream(handle, FileAccess.Read, 65_536, isAsync: false);
             handle = null; // FileStream now owns this SafeFileHandle.
             if (stream.Length is <= 0 or > 33_554_432)
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool has an unsupported length; bounded identity verification was not completed.");
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool has an unsupported length; bounded identity verification was not completed.",
+                    new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             string signature = SystemToolTrustNative.VerifyMicrosoftSignature(path, stream.SafeFileHandle);
             token.ThrowIfCancellationRequested();
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -65,15 +71,18 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 int count = stream.Read(buffer);
                 if (count == 0) break;
                 readTotal += count;
-                if (readTotal > 33_554_432) throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "Tool identity read exceeded its bound.");
+                if (readTotal > 33_554_432) throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "Tool identity read exceeded its bound.",
+                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
                 digest.AppendData(buffer, 0, count);
             }
             if (readTotal != stream.Length)
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool changed or could not be read consistently; no identity was accepted.");
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The tool changed or could not be read consistently; no identity was accepted.",
+                    new(SystemToolIdentityStage.Fingerprint, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             string hash = Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
             var versionInfo = FileVersionInfo.GetVersionInfo(path);
             if (!string.Equals(versionInfo.OriginalFilename, definition.FileName, StringComparison.OrdinalIgnoreCase))
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The signed original executable filename does not match the selected fixed system tool; no identity was accepted.");
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The signed original executable filename does not match the selected fixed system tool; no identity was accepted.",
+                    new(SystemToolIdentityStage.VersionMetadata, SystemToolIdentityReason.OriginalFilenameMismatch, 0));
             string? version = versionInfo.FileVersion;
             if (string.IsNullOrWhiteSpace(version) || version.Length > 128 || version.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format))
                 version = "Unknown";
@@ -106,7 +115,8 @@ internal static class SystemToolTrustNative
         try
         {
             string root = Path.GetPathRoot(directory)!;
-            if (GetDriveType(root) != 3) throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable, "System-tool verification requires an available fixed local volume.");
+            if (GetDriveType(root) != 3) throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable, "System-tool verification requires an available fixed local volume.",
+                new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
             var ancestors = new Stack<string>();
             for (string? current = directory; current != null; current = Path.GetDirectoryName(current)) ancestors.Push(current);
             foreach (string ancestor in ancestors)
@@ -131,22 +141,26 @@ internal static class SystemToolTrustNative
         if (!GetFileInformationByHandleEx(handle, 9, out AttributeTag attributes, (uint)Marshal.SizeOf<AttributeTag>()))
             throw new Win32Exception(Marshal.GetLastWin32Error());
         if ((attributes.Attributes & InvalidAttributes) != 0 || ((attributes.Attributes & 0x10) != 0) != directory)
-            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A tool or ancestor has reparse, offline, encrypted, recall or unexpected object attributes; no identity was accepted.");
+            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A tool or ancestor has reparse, offline, encrypted, recall or unexpected object attributes; no identity was accepted.",
+                new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
     }
     internal static void ValidateFinalPath(SafeFileHandle handle, string expected)
     {
         var buffer = new StringBuilder(2048);
         uint length = GetFinalPathNameByHandle(handle, buffer, (uint)buffer.Capacity, 0);
-        if (length == 0 || length >= buffer.Capacity) throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The bounded final system-tool path could not be verified.");
+        if (length == 0 || length >= buffer.Capacity) throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The bounded final system-tool path could not be verified.",
+            new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
         string actual = buffer.ToString();
         if (actual.StartsWith(@"\\?\", StringComparison.Ordinal)) actual = actual[4..];
         if (!string.Equals(Path.TrimEndingDirectorySeparator(actual), Path.TrimEndingDirectorySeparator(expected), StringComparison.OrdinalIgnoreCase))
-            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The open system-tool object does not match the fixed requested path.");
+            throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "The open system-tool object does not match the fixed requested path.",
+                new(SystemToolIdentityStage.FileLease, SystemToolIdentityReason.IdentityBoundsOrPath, null));
     }
     internal static string VerifyMicrosoftSignature(string path, SafeFileHandle file)
     {
         nint pathMemory = 0, fileMemory = 0;
         bool fileReferenceHeld = false;
+        bool nativeTrustEstablished = false;
         var data = new WinTrustData();
         try
         {
@@ -168,8 +182,10 @@ internal static class SystemToolTrustNative
                 bool unavailable = unchecked((uint)status) is 0x800B0100 or 0x800B010E or 0x80092013;
                 throw new SystemToolTrustFailure(unavailable ? CheckState.Unavailable : CheckState.Failed,
                     unavailable ? SystemToolTrustState.Unknown : SystemToolTrustState.Failed,
-                    $"Windows Authenticode trust was not established (code 0x{status:X8}). Catalog-only signatures or unavailable revocation evidence are not bypassed; no launch is allowed.");
+                    $"Windows Authenticode trust was not established (code 0x{status:X8}). Catalog-only signatures or unavailable revocation evidence are not bypassed; no launch is allowed.",
+                    new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.NativeTrustNotEstablished, status));
             }
+            nativeTrustEstablished = true;
             nint provider = WTHelperProvDataFromStateData(data.StateData);
             nint signer = provider == 0 ? 0 : WTHelperGetProvSignerFromChain(provider, 0, false, 0);
             nint certificate = signer == 0 ? 0 : WTHelperGetProvCertFromChain(signer, 0);
@@ -182,8 +198,17 @@ internal static class SystemToolTrustNative
             using var cert = X509CertificateLoader.LoadCertificate(bytes);
             var names = ReadSubject(cert.SubjectName.RawData);
             if (names.Organization != "Microsoft Corporation" || names.CommonName is not ("Microsoft Windows" or "Microsoft Windows Publisher" or "Microsoft Corporation"))
-                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A trusted signature was present but its exact Microsoft publisher identity was not established; no launch is allowed.");
+                throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown, "A trusted signature was present but its exact Microsoft publisher identity was not established; no launch is allowed.",
+                    new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerNotQualified, 0));
             return "Windows Authenticode policy accepted the signature with whole-chain revocation requested; signer organization and common name identify Microsoft. This does not verify servicing runtime behavior or enable execution.";
+        }
+        catch (Exception ex) when (nativeTrustEstablished && (ex is CryptographicException or AsnContentException or InvalidOperationException))
+        {
+            // Preserve the former generic Unavailable/Unknown result while identifying the
+            // known signer-inspection stage. Zero is the actual preceding WinVerifyTrust result.
+            throw new SystemToolTrustFailure(CheckState.Unavailable, SystemToolTrustState.Unknown,
+                $"System-tool identity could not be established (code 0x{ex.HResult:X8}). No validation was bypassed and no tool was launched.",
+                new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerInspectionUnavailable, 0));
         }
         finally
         {
@@ -203,7 +228,8 @@ internal static class SystemToolTrustNative
             }
         }
     }
-    private static SystemToolTrustFailure SignerUnknown() => new(CheckState.Unknown, SystemToolTrustState.Unknown, "The bounded Authenticode signer certificate could not be inspected; no publisher identity was guessed.");
+    private static SystemToolTrustFailure SignerUnknown() => new(CheckState.Unknown, SystemToolTrustState.Unknown, "The bounded Authenticode signer certificate could not be inspected; no publisher identity was guessed.",
+        new(SystemToolIdentityStage.Signature, SystemToolIdentityReason.SignerInspectionUnavailable, 0));
     private static (string Organization, string CommonName) ReadSubject(byte[] name)
     {
         var reader = new AsnReader(name, AsnEncodingRules.DER); var sequence = reader.ReadSequence();

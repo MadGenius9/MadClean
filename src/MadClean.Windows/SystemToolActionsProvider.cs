@@ -22,9 +22,11 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
         var definition = SystemToolActionsCatalog.Find(operation);
         if (definition == null) return CheckResult<SystemToolActionPreview>.Empty(CheckState.Unsupported, "This system-tool operation is not in the fixed catalogue.");
         if (!OperatingSystem.IsWindows()) return PreviewFailure(definition, CheckState.Unsupported, SystemToolTrustState.Unavailable,
-            "Windows identity checks were not attempted on this platform. Execution remains disabled.");
+            "Windows identity checks were not attempted on this platform. Execution remains disabled.",
+            new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.UnsupportedPlatform, null));
         if (!IdentityWorker.Wait(0)) return PreviewFailure(definition, CheckState.Unavailable, SystemToolTrustState.Unknown,
-            "A previous native signature check is still finishing. No additional identity worker or tool process was started; retry after it returns.");
+            "A previous native signature check is still finishing. No additional identity worker or tool process was started; retry after it returns.",
+            new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.PendingWorker, null));
         var work = Task.Run(() =>
         {
             try
@@ -35,16 +37,18 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
                 var preview = new SystemToolActionPreview(Guid.NewGuid(), definition, identity.SystemDirectory, identity.ToolPath,
                     identity.ToolVersion, identity.Sha256, SystemToolTrustState.MicrosoftSignatureVerified, identity.SignatureDetail,
                     now, now.AddMinutes(2), ProductionExecutionValidated && identity.ToolVersion != "Unknown",
-                    "Production execution is disabled pending separate disposable-Windows and manual validation. Checking a signature does not run DISM/SFC or establish system health.");
+                    "Production execution is disabled pending separate disposable-Windows and manual validation. Checking a signature does not run DISM/SFC or establish system health.")
+                { Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0) };
                 return new CheckResult<SystemToolActionPreview>(identity.ToolVersion == "Unknown" ? CheckState.Partial : CheckState.Available,
                     "Read-only tool identity preview obtained. No servicing command, elevation, repair or restart was requested.", [preview]);
             }
-            catch (SystemToolTrustFailure failure) { return PreviewFailure(definition, failure.State, failure.Trust, failure.Message); }
+            catch (SystemToolTrustFailure failure) { return PreviewFailure(definition, failure.State, failure.Trust, failure.Message, failure.Diagnostic); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or
                 System.Security.SecurityException or System.Security.Cryptography.CryptographicException or System.Formats.Asn1.AsnContentException)
             {
                 return PreviewFailure(definition, CheckState.Unavailable, SystemToolTrustState.Unknown,
-                    $"System-tool identity could not be established (code 0x{ex.HResult:X8}). No validation was bypassed and no tool was launched.");
+                    $"System-tool identity could not be established (code 0x{ex.HResult:X8}). No validation was bypassed and no tool was launched.",
+                    new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.OtherUnavailable, null));
             }
             finally { IdentityWorker.Release(); }
         }, CancellationToken.None);
@@ -57,7 +61,8 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
         catch (TimeoutException)
         {
             return PreviewFailure(definition, CheckState.Unavailable, SystemToolTrustState.Unknown,
-                "The identity-check wait timed out. A native signature/revocation check may still finish; its leases and singleton worker remain owned until it returns. No servicing tool was started.");
+                "The identity-check wait timed out. A native signature/revocation check may still finish; its leases and singleton worker remain owned until it returns. No servicing tool was started.",
+                new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.WaitExpired, null));
         }
         token.ThrowIfCancellationRequested();
         foreach (var pair in previews.Where(pair => pair.Value.ExpiresUtc <= DateTimeOffset.UtcNow)) previews.TryRemove(pair.Key, out _);
@@ -162,11 +167,12 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
         }
     }
     private static CheckResult<SystemToolActionPreview> PreviewFailure(SystemToolActionDefinition definition, CheckState state,
-        SystemToolTrustState trust, string reason)
+        SystemToolTrustState trust, string reason, SystemToolIdentityDiagnostic? diagnostic = null)
     {
         var now = DateTimeOffset.UtcNow;
         return new(state, reason, [new(Guid.NewGuid(), definition, "Unknown", "Unknown", "Unknown", "", trust,
-            reason, now, now.AddMinutes(2), false, "Execution remains disabled; an unchecked or failed identity is never permission to run a system tool.")]);
+            reason, now, now.AddMinutes(2), false, "Execution remains disabled; an unchecked or failed identity is never permission to run a system tool.")
+            { Diagnostic = diagnostic ?? new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.Unspecified, null) }]);
     }
     private static SystemToolRunRecord NotStarted(SystemToolOperation operation, string reason) => new(Guid.NewGuid(), operation,
         SystemToolRunState.Unavailable, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, null, false, false, reason,

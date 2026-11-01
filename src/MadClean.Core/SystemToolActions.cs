@@ -4,12 +4,26 @@ public enum SystemToolOperation { DismCheckHealth, DismScanHealth, DismRestoreHe
 public enum SystemToolActionKind { NonRepairCheck, Repair }
 public enum SystemToolTrustState { Unknown, MicrosoftSignatureVerified, Unavailable, Failed }
 public enum SystemToolRunState { NotStarted, Unavailable, ConsentDenied, Launched, ClientExited, MonitoringLost }
+public enum SystemToolIdentityStage { Unknown, SystemDirectory, FileLease, Signature, Fingerprint, VersionMetadata, Completed }
+public enum SystemToolIdentityReason
+{
+    Unspecified, Observed, NativeTrustNotEstablished, SignerInspectionUnavailable, SignerNotQualified,
+    OriginalFilenameMismatch, IdentityBoundsOrPath, OtherUnavailable, WaitExpired, PendingWorker, UnsupportedPlatform
+}
+public sealed record SystemToolIdentityDiagnostic(SystemToolIdentityStage Stage, SystemToolIdentityReason Reason,
+    int? NativeTrustResult);
 public sealed record SystemToolActionDefinition(SystemToolOperation Operation, string Title, string FileName,
     IReadOnlyList<string> Arguments, SystemToolActionKind Kind, string Effect, string Elevation,
     string Network, string Cancellation, string Reboot, string WindowsLogReference);
 public sealed record SystemToolActionPreview(Guid PreviewId, SystemToolActionDefinition Definition,
     string SystemDirectory, string ToolPath, string ToolVersion, string Sha256, SystemToolTrustState TrustState,
-    string TrustDetail, DateTimeOffset CheckedUtc, DateTimeOffset ExpiresUtc, bool CanLaunch, string Blocker);
+    string TrustDetail, DateTimeOffset CheckedUtc, DateTimeOffset ExpiresUtc, bool CanLaunch, string Blocker)
+{
+    // Diagnostic metadata is never a trust/permission input. NativeTrustResult, when
+    // supplied by Windows, is only an actual WinVerifyTrust LONG, not an HRESULT.
+    public SystemToolIdentityDiagnostic Diagnostic { get; init; } =
+        new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.Unspecified, null);
+}
 public sealed record SystemToolLaunchRequest(Guid PreviewId, SystemToolOperation Operation, string PreviewSha256,
     bool UserSelectedOperation, bool EffectsAndElevationAcknowledged);
 public sealed record SystemToolRunRecord(Guid ExecutionId, SystemToolOperation Operation, SystemToolRunState State,

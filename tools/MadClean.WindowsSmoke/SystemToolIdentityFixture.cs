@@ -60,7 +60,14 @@ internal static partial class NativeFixtures
                 var after = DateTimeOffset.UtcNow;
                 var assessed = SystemToolIdentityObservationPolicy.Evaluate(operation, result, system, after, token);
                 var trust = result.Items.Count == 1 ? result.Items[0].TrustState : SystemToolTrustState.Unknown;
-                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}");
+                var diagnostic = result.Items.Count == 1 ? result.Items[0].Diagnostic : null;
+                string stage = diagnostic != null && Enum.IsDefined(diagnostic.Stage) ? diagnostic.Stage.ToString() : "Unknown";
+                string reason = diagnostic != null && Enum.IsDefined(diagnostic.Reason) ? diagnostic.Reason.ToString() : "Unknown";
+                string nativeResult = diagnostic?.NativeTrustResult is int observedNativeResult
+                    ? "0x" + unchecked((uint)observedNativeResult).ToString("X8") : "none";
+                // Returned fixed enum/code metadata only. Never derive a cause or trust from a
+                // diagnostic, parse Message/TrustDetail, or change positive identity requirements.
+                outcomes.Add($"{operation}:state={result.State}/trust={trust}/policyState={assessed.State}/identityObserved={(assessed.IdentityObserved == true ? "true" : "unknown")}/stage={stage}/reason={reason}/nativeResult={nativeResult}");
                 if (result.State is not (CheckState.Available or CheckState.Partial) || trust != SystemToolTrustState.MicrosoftSignatureVerified || assessed.IdentityObserved != true)
                     continue;
                 var definition = SystemToolActionsCatalog.Find(operation)!;

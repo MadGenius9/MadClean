@@ -17,6 +17,23 @@ public sealed class SystemToolIdentityObservationTests
     private static SystemToolIdentityObservation Evaluate(SystemToolActionPreview preview, CheckState state = CheckState.Available) =>
         SystemToolIdentityObservationPolicy.Evaluate(preview.Definition.Operation, new(state, "PRIVATE native output", [preview]), SystemDirectory, Now);
 
+    [Fact]
+    public void DiagnosticSuccessCodeCannotReplaceTrustedIdentityEvidence()
+    {
+        var preview = Preview() with
+        {
+            TrustState = SystemToolTrustState.Unknown,
+            Diagnostic = new(SystemToolIdentityStage.Completed, SystemToolIdentityReason.Observed, 0)
+        };
+        AssertUnknown(Evaluate(preview));
+        foreach (var source in new[] { CheckState.Unknown, CheckState.Unavailable, CheckState.Failed })
+        {
+            var observed = Evaluate(preview with { TrustState = SystemToolTrustState.MicrosoftSignatureVerified }, source);
+            Assert.Equal(source, observed.State);
+            Assert.Null(observed.IdentityObserved);
+        }
+    }
+
     [Theory]
     [InlineData(SystemToolOperation.DismCheckHealth)][InlineData(SystemToolOperation.DismScanHealth)]
     [InlineData(SystemToolOperation.DismRestoreHealth)][InlineData(SystemToolOperation.SfcVerifyOnly)][InlineData(SystemToolOperation.SfcScanNow)]
