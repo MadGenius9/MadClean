@@ -91,6 +91,31 @@ public sealed class SystemToolEmbeddedVersionTests
         Assert.Equal(SystemToolEmbeddedVersionState.Matched, valid.State); Assert.Equal(2, valid.ResourceCount); Assert.Equal(3, valid.OriginalFilenameCount);
         Assert.Equal(SystemToolEmbeddedVersionState.Ambiguous, Read(Pe(false, Version(), Version(ls: 0x00010003))).State);
     }
+    [Fact]
+    public void RootLengthMayExcludeOnlyItsMinimalDwordZeroAlignmentTail()
+    {
+        byte[] fixedInfo = Version().AsSpan(40, 52).ToArray();
+        byte[] table = Block("040904B0", 1, [], 0, StringField("OriginalFilename", "Dism.exe"));
+        byte[] strings = Block("StringFileInfo", 1, [], 0, table);
+        byte[] root = Block("VS_VERSION_INFO", 0, fixedInfo, 52, strings);
+        Assert.Equal(2, root.Length % 4);
+        byte[] padded = [.. root, 0, 0];
+        var accepted = Read(Pe(false, padded));
+        Assert.Equal(SystemToolEmbeddedVersionState.Matched, accepted.State);
+        Assert.Equal("10.0.1.2", accepted.FileVersion);
+        Assert.Equal(1, accepted.ResourceCount); Assert.Equal(1, accepted.OriginalFilenameCount);
+        Assert.Null(accepted.FailureSite);
+        Assert.Equal(SystemToolEmbeddedVersionState.Matched, Read(Pe(false, root)).State);
+        foreach (byte[] invalid in new byte[][]
+        {
+            [.. root, 1, 0], [.. root, 0], [.. root, 0, 0, 0], [.. root, 0, 0, 0, 0],
+            [.. root, 0, 0, 0, 0, 0, 0], [.. Version(), 0, 0, 0, 0], [.. Version(), 0]
+        }) Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, invalid)).State);
+        var wrongKey = (byte[])padded.Clone(); Word(wrongKey, 6, 'X');
+        Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, wrongKey)).State);
+        var wrongType = (byte[])padded.Clone(); Word(wrongType, 4, 1);
+        Assert.Equal(SystemToolEmbeddedVersionState.Malformed, Read(Pe(false, wrongType)).State);
+    }
     [Theory]
     [InlineData("Dism.exe.mui")][InlineData("Other.exe")][InlineData("Dism.exe ")][InlineData("Dism.exe\0Other.exe")]
     public void FilenameAliasesSuffixesAndEmbeddedNullsCannotMatch(string original)

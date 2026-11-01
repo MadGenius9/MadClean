@@ -204,7 +204,13 @@ public static class SystemToolEmbeddedVersionReader
         {
             stringFields = 0;
             var root = ReadBlock(bytes, 0, bytes.Length);
-            Require(root.Key == "VS_VERSION_INFO" && root.Type == 0 && root.End == bytes.Length);
+            Require(root.Key == "VS_VERSION_INFO");
+            Require(root.Type == 0);
+            // VS_VERSIONINFO.wLength excludes alignment padding after the root.
+            // Accept only its minimal DWORD zero tail, never additional content.
+            Require(root.End == bytes.Length || bytes.Length == Align(root.End));
+            Require(bytes.Length - root.End <= 3);
+            ZeroPadding(bytes, root.End, bytes.Length);
             if (root.ValueLength == 0) throw new Rejected(SystemToolEmbeddedVersionState.Missing);
             Require(root.ValueLength == 52 && U32(bytes, root.Value) == 0xFEEF04BD && U32(bytes, root.Value + 4) == 0x00010000);
             uint ms = U32(bytes, root.Value + 8), ls = U32(bytes, root.Value + 12);
