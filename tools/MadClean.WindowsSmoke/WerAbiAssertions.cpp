@@ -6,6 +6,7 @@
 #include <mssip.h>
 #include <mscat.h>
 #include <wintrust.h>
+#include <winternl.h>
 #include <cstddef>
 #include <type_traits>
 
@@ -35,3 +36,9 @@ static_assert(offsetof(SIP_INDIRECT_DATA, Digest) == 48, "SIP digest offset diff
 static_assert(offsetof(FILE_RENAME_INFO, RootDirectory) == 8, "Handle rename root offset differs.");
 static_assert(offsetof(FILE_RENAME_INFO, FileNameLength) == 16, "Handle rename length offset differs.");
 static_assert(offsetof(FILE_RENAME_INFO, FileName) == 20, "Handle rename name offset differs.");
+// Current public SDK winternl.h declares these ABI types, not NtSetInformationFile.
+// The dynamic native function signature requires separate official-document/source review.
+static_assert(sizeof(NTSTATUS) == 4 && sizeof(ULONG) == 4, "Native status/length widths differ.");
+static_assert(sizeof(IO_STATUS_BLOCK) == 16, "Native IO status block layout differs.");
+static_assert(offsetof(IO_STATUS_BLOCK, Status) == 0, "Native IO status offset differs.");
+static_assert(offsetof(IO_STATUS_BLOCK, Information) == 8, "Native IO information offset differs.");

@@ -53,6 +53,8 @@ Compiler discovery/configuration/exit failures fail closed. This separately reco
 
 ## Evidence and exit states
 
+The [owned shortcut rename experiments](../docs/SHORTCUT-ACTION-RESEARCH.md) have independent required checks: managed Win32, SDK C++ Win32, and an explicitly selected native NT control on separate fresh owned children. They never retry/promote one another or enable production actions. The native control uses ABI2 and reports immediate/completion NTSTATUS separately from Win32 setup failures. A pending request retains native memory, module and handles beyond the bounded caller wait; uncertain teardown retains the entire fixture and skips subsequent transaction probes. The compile-only SDK check proves the available native type layouts, not an SDK declaration of the dynamically resolved native function. The mapping witness is separate and cannot establish inactivity or safe deletion.
+
 Outputs are fixed beneath `artifacts/windows-validation`:
 
 - `report.json`: `formatVersion:1`, validated `sourceCommit` from `GITHUB_SHA` (or `Unknown`), timestamps, overall `passed`/`state`, individually named checks, and a screenshot filename/dimension/SHA-256 manifest. Details are bounded and contain no raw provider payload, user paths or unique machine/file identifiers.

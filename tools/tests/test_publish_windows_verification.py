@@ -139,6 +139,27 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_cannot_omit_independent_wer_count_proof(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='wer-store-count-contract']
         self.save(); self.rejected()
+    def test_passing_report_cannot_omit_independent_native_nt_control(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='shortcut-rename-nt-control']
+        self.save(); self.rejected()
+    def test_pending_native_nt_control_cannot_be_promoted_by_other_proofs(self):
+        proof=next(check for check in self.report['checks'] if check['name']=='shortcut-rename-nt-control')
+        proof.update(state='inconclusive',detail='TEST-ONLY native terminal outcome unverified; no native operation')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='shortcut-rename-nt-control')['state'])
+    def test_native_nt_control_cannot_promote_unknown_public_win32_backends(self):
+        for name in ('shortcut-rename-handle-probe','shortcut-rename-cpp-control'):
+            next(check for check in self.report['checks'] if check['name']==name).update(state='inconclusive',detail='TEST-ONLY public Win32 result unverified; no native operation')
+        self.report.update(passed=False,state='inconclusive'); self.save()
+        _, summary, files=self.prepare()
+        self.assertFalse(summary['passed'])
+        published=json.loads(files['report.json'])
+        self.assertEqual('passed',next(check for check in published['checks'] if check['name']=='shortcut-rename-nt-control')['state'])
+        for name in ('shortcut-rename-handle-probe','shortcut-rename-cpp-control'):
+            self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']==name)['state'])
     def test_mapping_witness_cannot_promote_unverified_rename_backends(self):
         for name in ('shortcut-rename-handle-probe','shortcut-rename-cpp-control'):
             proof=next(check for check in self.report['checks'] if check['name']==name)

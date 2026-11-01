@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.WindowsSmoke;
 
-internal enum ShortcutRenameProbeBackend { ManagedWin32, CppWin32 }
+internal enum ShortcutRenameProbeBackend { ManagedWin32, CppWin32, NativeNt }
 internal enum ShortcutRenameProbeFileSystem { Unknown, Ntfs, Refs }
 internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObserved, bool RestoreObserved,
     bool CollisionRefused, bool IdentityPreserved, bool BytesPreserved, bool TargetUnchanged,
@@ -23,6 +23,17 @@ internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObse
     internal ShortcutRenameProbeFileSystem FileSystem { get; init; }
     internal bool MappingReadOnlyOpenRequested { get; init; }
     internal int? MappedNativeErrorCode { get; init; }
+    internal int NtApiCalls { get; init; }
+    internal int NtSuccessfulRenameCalls { get; init; }
+    // Status/observed flags describe the last returned NT operation, not an aggregate
+    // assertion that none of the earlier operations was pending.
+    internal int? ImmediateNtStatus { get; init; }
+    internal int? CompletionNtStatus { get; init; }
+    internal bool CompletionNtStatusObserved { get; init; }
+    internal bool PendingNtObserved { get; init; }
+    internal bool TerminalNtObserved { get; init; }
+    internal int? NtSetupWin32Error { get; init; }
+    internal int? NtCollisionStatus { get; init; }
 }
 
 // Development-only object-rename proof. It is not a quarantine implementation, action
@@ -41,6 +52,10 @@ internal static class ShortcutRenameProbe
     internal static Task<ShortcutRenameProbeResult> RunCppControlAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, CancellationToken token)
         => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.CppWin32, token);
+
+    internal static Task<ShortcutRenameProbeResult> RunNtControlAsync(string ownedFixtureRoot, string ownerMarker,
+        Action<string, string> createOwnedShortcut, CancellationToken token)
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.NativeNt, token);
 
     private static async Task<ShortcutRenameProbeResult> StartAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, ShortcutRenameProbeBackend backend, CancellationToken token)
@@ -93,12 +108,16 @@ internal static class ShortcutRenameProbe
         private nint controlModule;
         private SafeFileHandle? controlFile;
         private RelativeRenameControl? controlRename;
+        private RelativeRenameNtControl? ntRename;
         private int controlCalls;
         private int? diagnosticBufferBytes, diagnosticNameBytes;
         private bool? diagnosticRoot, diagnosticVolume;
         private ShortcutRenameProbeFileSystem fileSystem;
         private bool mappingReadOnlyOpenRequested;
         private int? mappedNativeError;
+        private int ntCalls, ntSuccessfulRenames;
+        private int? immediateNtStatus, completionNtStatus, ntSetupError, ntCollisionStatus;
+        private bool completionObserved, pendingObserved, terminalObserved;
 
         internal ShortcutRenameProbeResult Run()
         {
@@ -111,7 +130,7 @@ internal static class ShortcutRenameProbe
                 int initialized = CoInitializeEx(0, 2);
                 if (initialized < 0) { reason = "com-initialization-unavailable"; return Result(); }
                 com = true; Check();
-                if (backend == ShortcutRenameProbeBackend.CppWin32) LoadControl();
+                if (backend != ShortcutRenameProbeBackend.ManagedWin32) LoadControl();
                 child = Path.Combine(root, "shortcut-rename-probe-" + Guid.NewGuid().ToString("N"));
                 reason = "create-owned-child";
                 if (!CreateDirectoryW(child, 0)) throw Native();
@@ -158,7 +177,15 @@ internal static class ShortcutRenameProbe
                     bool originalPreserved = FinalPath(action) == source && Same(prior, Identity(action)) && original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576));
                     bool destinationPreserved = Same(collisionBefore, Identity(collisionHandle)) && collisionBytes.AsSpan().SequenceEqual(ReadBytes(collisionHandle, 1_048_576));
                     if (!originalPreserved || !destinationPreserved) throw new InvalidDataException();
-                    uncertain = false; collisionRefused = true; nativeError = collisionError;
+                    uncertain = false;
+                    if (backend == ShortcutRenameProbeBackend.NativeNt)
+                    {
+                        int? collisionStatus = completionObserved ? completionNtStatus : immediateNtStatus;
+                        if (collisionStatus is not < 0) throw new NtRenameFailure();
+                        ntCollisionStatus = collisionStatus;
+                    }
+                    else nativeError = collisionError;
+                    collisionRefused = true;
                     identity = Same(prior, Identity(action)); bytes = originalPreserved;
                 }
                 targetUnchanged = Same(targetBefore, Identity(targetHandle)) && targetBytes.AsSpan().SequenceEqual(ReadBytes(targetHandle, 64));
@@ -168,6 +195,8 @@ internal static class ShortcutRenameProbe
                 reason = state == CheckState.Available ? "owned-primitives-and-mapped-witness-observed" : "owned-primitives-observed-mapping-unverified";
             }
             catch (OperationCanceledException) { state = CheckState.Cancelled; reason = "worker-cancelled-before-or-after-observed-operation"; }
+            catch (NtRenameFailure) { state = CheckState.Unavailable; }
+            catch (NtControlSetupFailure) { state = CheckState.Unavailable; }
             catch (Win32Exception exception) { nativeError = exception.NativeErrorCode; state = CheckState.Unavailable; }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or
                 InvalidOperationException or NotSupportedException or System.Security.SecurityException or COMException)
@@ -178,7 +207,7 @@ internal static class ShortcutRenameProbe
                 // leases would prevent fixture deletion. Root ancestry stays held below.
                 foreach (var parent in parents.Where(item => item.Path == child || item.Path == vault).Reverse()) parent.Handle.Dispose();
                 parents.RemoveAll(item => item.Path == child || item.Path == vault);
-                controlRename = null;
+                controlRename = null; ntRename = null;
                 if (controlModule != 0 && !FreeLibrary(controlModule)) uncertain = true;
                 controlModule = 0; controlFile?.Dispose(); controlFile = null;
                 if (com) CoUninitialize();
@@ -209,7 +238,11 @@ internal static class ShortcutRenameProbe
             Backend = backend, ControlApiCalls = controlCalls, ScalarDiagBufferBytes = diagnosticBufferBytes,
             ScalarDiagNameBytes = diagnosticNameBytes, ScalarDiagRootDirValid = diagnosticRoot,
             ScalarDiagSameVolume = diagnosticVolume, FileSystem = fileSystem,
-            MappingReadOnlyOpenRequested = mappingReadOnlyOpenRequested, MappedNativeErrorCode = mappedNativeError
+            MappingReadOnlyOpenRequested = mappingReadOnlyOpenRequested, MappedNativeErrorCode = mappedNativeError,
+            NtApiCalls = ntCalls, NtSuccessfulRenameCalls = ntSuccessfulRenames, ImmediateNtStatus = immediateNtStatus,
+            CompletionNtStatus = completionNtStatus, CompletionNtStatusObserved = completionObserved,
+            PendingNtObserved = pendingObserved, TerminalNtObserved = terminalObserved,
+            NtSetupWin32Error = ntSetupError, NtCollisionStatus = ntCollisionStatus
         };
         private void Check() => token.ThrowIfCancellationRequested();
         private void ValidateOwner()
@@ -286,13 +319,14 @@ internal static class ShortcutRenameProbe
             RevalidateParents(); Check(); uncertain = true;
             if (!Rename(action, directory, leaf, out int renameError))
             {
-                var error = new Win32Exception(renameError);
                 if (Same(prior, Identity(action)) && original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576))) uncertain = false;
-                throw error;
+                if (backend == ShortcutRenameProbeBackend.NativeNt) throw new NtRenameFailure();
+                throw new Win32Exception(renameError);
             }
             // Once dispatched, verify the actual outcome before honoring cancellation.
             if (FinalPath(action) != expected || !Same(prior, Identity(action)) || !original.AsSpan().SequenceEqual(ReadBytes(action, 1_048_576))) throw new InvalidDataException();
             RevalidateParents(); uncertain = false;
+            if (backend == ShortcutRenameProbeBackend.NativeNt) ntSuccessfulRenames++;
         }
         private bool Rename(SafeFileHandle sourceHandle, SafeFileHandle directory, string leaf, out int nativeError)
         {
@@ -308,6 +342,33 @@ internal static class ShortcutRenameProbe
             var fs = new StringBuilder(32);
             if (GetVolumeInformationByHandleW(directory, null, 0, out _, out _, out _, fs, 32))
                 fileSystem = fs.ToString() switch { "NTFS" => ShortcutRenameProbeFileSystem.Ntfs, "ReFS" => ShortcutRenameProbeFileSystem.Refs, _ => ShortcutRenameProbeFileSystem.Unknown };
+            if (backend == ShortcutRenameProbeBackend.NativeNt)
+            {
+                nativeError = 0; // Not an NTSTATUS-to-Win32 conversion; this output is unused by this backend.
+                if (ntRename == null) throw new InvalidOperationException();
+                bool result = ntRename(sourceHandle, directory, leaf, (uint)leaf.Length, out bool called,
+                    out int immediate, out int completion, out bool observedCompletion, out bool observedPending,
+                    out bool observedTerminal, out uint setupError);
+                ntSetupError = setupError == 0 ? null : unchecked((int)setupError);
+                if (!called)
+                {
+                    reason = "nt-control-setup-unavailable"; uncertain = false;
+                    throw new NtControlSetupFailure();
+                }
+                ntCalls++; immediateNtStatus = immediate;
+                completionObserved = observedCompletion; completionNtStatus = observedCompletion ? completion : null;
+                pendingObserved = observedPending; terminalObserved = observedTerminal;
+                if (!observedTerminal || immediate == 0x103 && !observedCompletion || observedCompletion && completion == 0x103)
+                {
+                    // Defensive ABI boundary: never release handles if the helper returns
+                    // without confirming completion. The outer caller still expires at45s.
+                    uncertain = true;
+                    for (;;) Thread.Sleep(Timeout.Infinite);
+                }
+                int terminal = observedCompletion ? completion : immediate;
+                if (result != (terminal == 0) || setupError != 0) throw new NtControlSetupFailure();
+                return result;
+            }
             if (backend == ShortcutRenameProbeBackend.CppWin32)
             {
                 if (controlRename == null) throw new InvalidOperationException();
@@ -350,10 +411,13 @@ internal static class ShortcutRenameProbe
             nint versionPointer = GetProcAddress(controlModule, "ShortcutRenameControlAbiVersion");
             if (versionPointer == 0) throw Native();
             var version = Marshal.GetDelegateForFunctionPointer<ControlAbiVersion>(versionPointer);
-            if (version() != 1) throw new InvalidDataException();
-            nint renamePointer = GetProcAddress(controlModule, "RelativeRename");
+            if (version() != 2) throw new InvalidDataException();
+            string export = backend == ShortcutRenameProbeBackend.NativeNt ? "RelativeRenameNt" : "RelativeRename";
+            nint renamePointer = GetProcAddress(controlModule, export);
             if (renamePointer == 0) throw Native();
-            controlRename = Marshal.GetDelegateForFunctionPointer<RelativeRenameControl>(renamePointer);
+            if (backend == ShortcutRenameProbeBackend.NativeNt)
+                ntRename = Marshal.GetDelegateForFunctionPointer<RelativeRenameNtControl>(renamePointer);
+            else controlRename = Marshal.GetDelegateForFunctionPointer<RelativeRenameControl>(renamePointer);
             Check();
         }
         private void MappedWitness()
@@ -436,6 +500,8 @@ internal static class ShortcutRenameProbe
     }
 
     [StructLayout(LayoutKind.Sequential)] private struct TagInfo { internal uint Attributes, ReparseTag; }
+    private sealed class NtRenameFailure : Exception { }
+    private sealed class NtControlSetupFailure : Exception { }
     [StructLayout(LayoutKind.Sequential)] private struct RenameInfo { internal uint Flags; internal nint Root; internal uint NameLength; internal ushort Name; }
     [StructLayout(LayoutKind.Sequential)] private struct IdInfo { internal ulong Volume; internal Guid Id; }
     [StructLayout(LayoutKind.Sequential)] private struct StandardInfo
@@ -444,6 +510,11 @@ internal static class ShortcutRenameProbe
     [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)] private delegate bool RelativeRenameControl(SafeFileHandle source, SafeFileHandle directory,
         [MarshalAs(UnmanagedType.LPWStr)] string leaf, uint characters, out uint error, [MarshalAs(UnmanagedType.Bool)] out bool apiCalled);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)] private delegate bool RelativeRenameNtControl(SafeFileHandle source, SafeFileHandle directory,
+        [MarshalAs(UnmanagedType.LPWStr)] string leaf, uint characters, [MarshalAs(UnmanagedType.Bool)] out bool apiCalled,
+        out int immediate, out int completion, [MarshalAs(UnmanagedType.Bool)] out bool completionObserved,
+        [MarshalAs(UnmanagedType.Bool)] out bool pendingObserved, [MarshalAs(UnmanagedType.Bool)] out bool terminalObserved, out uint setupWin32Error);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern nint LoadLibraryExW(string path, nint file, uint flags);
     [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true, ExactSpelling = true)]
