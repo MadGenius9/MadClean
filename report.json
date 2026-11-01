@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "60d6c94af6259998d50cb05634aa855788bd48d1",
-  "runId": "41358835384",
+  "sourceCommit": "6209215ca31bcd28503d231db031f2458ecbc976",
+  "runId": "41359970620",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T22:51:04.2321112+00:00",
-  "completedUtc": "2026-11-01T22:51:21.8045668+00:00",
+  "startedUtc": "2026-11-01T23:05:14.840499+00:00",
+  "completedUtc": "2026-11-01T23:05:29.0607885+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -116,7 +116,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -241,7 +241,22 @@
     {
       "name": "shortcut-rename-nt-control",
       "state": "passed",
-      "detail": "state=Partial; backend=NativeNt; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Explicit independent backend; no retry/fallback or promotion of the other backend. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
+      "detail": "state=Partial; backend=NativeNt; guardProfile=Baseline; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Independent backend/profile; no retry/fallback or promotion of other checks. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
+    },
+    {
+      "name": "shortcut-rename-source-guard",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=NativeNt; guardProfile=SourceParentShareRead; ntCalls=2; successfulRenames=1; immediateNtStatus=0xC0000043; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=none; setupWin32Error=none; move=True; restore=False; collisionRefused=False; identity=False; bytes=False; targetUnchanged=False; anchorHandoff=True; teardown=True; pendingWorker=False; reason=restore-owned-link. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-rename-destination-guard",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=NativeNt; guardProfile=DestinationParentShareRead; ntCalls=1; successfulRenames=0; immediateNtStatus=0xC0000043; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=none; setupWin32Error=none; move=False; restore=False; collisionRefused=False; identity=False; bytes=False; targetUnchanged=False; anchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-rename-ancestor-guard",
+      "state": "passed",
+      "detail": "state=Partial; backend=NativeNt; guardProfile=FixtureAncestorShareRead; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Independent backend/profile; no retry/fallback or promotion of other checks. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
     },
     {
       "name": "startup-transaction-handle-probe",
