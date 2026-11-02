@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "dc063ec403bf4c59b4093a0d82fe98d0a0058a3f",
-  "runId": "41480062150",
+  "sourceCommit": "4223e448780203688f34e6112f3507c632a51d16",
+  "runId": "41482324417",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T16:22:55.5225827+00:00",
-  "completedUtc": "2026-11-02T16:23:30.8680141+00:00",
+  "startedUtc": "2026-11-02T16:36:49.4033589+00:00",
+  "completedUtc": "2026-11-02T16:37:23.2640882+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -161,12 +161,12 @@
     {
       "name": "shortcut-dacl-fixture",
       "state": "passed",
-      "detail": "providerState=Available; daclState=Available; present=True; nullDacl=False; protected=False; defaulted=False; aceCount=3; aclBytes=76; revision=2; descriptorReleased=true; nativeFactsMatched=true; meaningfulDaclBytesUnchanged=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Only one genuine owned file's current facts were observed; no ACL was set and no effective-access, ownership, privacy or recovery conclusion is made. Synthetic malformed/null/empty cases are not certified by this check."
+      "detail": "providerState=Available; daclState=Available; present=True; nullDacl=False; protected=False; defaulted=False; aceCount=4; aclBytes=96; revision=2; descriptorReleased=true; nativeFactsMatched=true; meaningfulDaclBytesUnchanged=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Only one genuine owned file's current facts were observed; no ACL was set and no effective-access, ownership, privacy or recovery conclusion is made. Synthetic malformed/null/empty cases are not certified by this check."
     },
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -401,7 +401,7 @@
     {
       "name": "published-executable-startup",
       "state": "inconclusive",
-      "detail": "state=Inconclusive; descriptor=True; leased=True; started=True; ownedWindow=True; neutralOverview=False; noDataOverview=False; ownedBundledRuntime=False; closeRequested=True; exitObserved=True; exitCode=0; cleanup=True; stage=neutral-Inspect-missing; nativeError=. Scoped own-process startup only; no inventory actions or captures, and no distribution upload."
+      "detail": "state=Inconclusive; descriptor=True; leased=True; started=True; ownedWindow=True; neutralOverview=False; noDataOverview=False; ownedBundledRuntime=False; closeRequested=True; exitObserved=True; exitCode=0; cleanup=True; stage=own-bundled-runtime-unobserved; nativeError=. Scoped own-process startup only; no inventory actions or captures, and no distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
