@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "82852d2fe7e540cbac15e94da64563e629a7bcfd",
-  "runId": "41366965988",
+  "sourceCommit": "eff185be5b623cf34a9ad3d7600c008cbbde0807",
+  "runId": "41368130671",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T00:28:19.0330566+00:00",
-  "completedUtc": "2026-11-02T00:28:31.9224494+00:00",
+  "startedUtc": "2026-11-02T00:41:48.0946332+00:00",
+  "completedUtc": "2026-11-02T00:42:01.4105386+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -126,7 +126,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -242,6 +242,11 @@
       "name": "system-tool-journal-store-fixture",
       "state": "passed",
       "detail": "explicitOwnerAndProtectedDaclMatched=true; newFixedIntentFlushedAndReadBack=true; sameProcessExclusiveOpenRefused=true; existingIntentReadWithoutReplacement=true; wrongAclRefused=true; reparseRefused=true; oversizedLengthUnchanged=true; cleanupConfirmed=true. These are facts about one owned development store only, not a real operation journal, authorship, crash/power-loss recovery, cross-instance/user coordination or production readiness."
+    },
+    {
+      "name": "system-tool-journal-cross-instance-fixture",
+      "state": "passed",
+      "detail": "actualChildren=2; contentionChildExit0=true; exactStoreBusyNative32Branch=true; parentReleasedBeforeReadChild=true; existingReadChildExit0=true; existingObjectIdentityAndLengthMatched=true; fixedParentReadbackUnchanged=true; childAndNativeCleanupConfirmed=true. The fixed factory still attempts CREATE_NEW before OPEN_EXISTING; the read child required an existing anchored object and CreatedIntentFile=false. No payload repair/reset, crash recovery, durability, production store, UAC, servicing or installation is established."
     },
     {
       "name": "shortcut-rename-handle-probe",
