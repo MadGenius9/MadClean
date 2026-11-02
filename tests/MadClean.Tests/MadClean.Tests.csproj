@@ -14,5 +14,7 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="../../src/MadClean.Core/MadClean.Core.csproj"/>
+        <!-- Exercise the same fixture-only portable reader without referencing WPF or shipping it in Core. -->
+        <Compile Include="../../tools/MadClean.WindowsSmoke/SingleFileStaticHostMetadata.cs" Link="FixtureMetadata/SingleFileStaticHostMetadata.cs"/>
     </ItemGroup>
 </Project>

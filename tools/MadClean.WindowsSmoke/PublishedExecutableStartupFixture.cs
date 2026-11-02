@@ -15,6 +15,22 @@ internal sealed record PublishedExecutableStartupReport(PublishedExecutableStart
     bool OverviewNoDataObserved, bool OwnedBundledRuntimeObserved, bool CloseRequested, bool? ExitObserved,
     int? ExitCode, bool CleanupConfirmed, string Stage, int? NativeError)
 {
+    public string RuntimeRoute { get; init; } = "Unobserved";
+    public bool? StaticHostMetadataObserved { get; init; }
+    public string StaticHostMetadataStage { get; init; } = "not-attempted";
+    public bool? OwnedAppHostModuleObserved { get; init; }
+    public string RuntimeStage { get; init; } = "not-attempted";
+    public int? RuntimeNativeError { get; init; }
+    public string OverviewStage { get; init; } = "not-attempted";
+    public int? OverviewNativeError { get; init; }
+    public int? RuntimeNeededModuleCount { get; init; }
+    public bool? RuntimeSnapshotComplete { get; init; }
+    public bool? RuntimePathsComplete { get; init; }
+    public bool? RuntimeHostFxrObserved { get; init; }
+    public bool? RuntimeHostPolicyObserved { get; init; }
+    public bool? RuntimeCoreClrObserved { get; init; }
+    public bool? RuntimeClrJitObserved { get; init; }
+    public bool? RuntimeWpfNativeObserved { get; init; }
     public int InventoryInvocations => 0;
     public int Captures => 0;
 }
@@ -67,7 +83,8 @@ internal static class PublishedExecutableStartupFixture
         private readonly List<OwnedHandle> handles = [];
         private readonly List<Guard> guards = [];
         private string descriptorPath = "", scope = "", publish = "", cache = "", exe = "", markerPath = "", marker = "", stage = "validate-repository";
-        private OwnedHandle? descriptor;
+        private OwnedHandle? descriptor, executable;
+        private Stamp? executableStamp;
         private byte[]? descriptorBytes;
         private Stamp? rootStamp;
         private Process? process;
@@ -75,6 +92,12 @@ internal static class PublishedExecutableStartupFixture
         private bool descriptorValid, executableLeased, launchAttempted, started, ownedWindow, neutral, noData, bundled, closeRequested, cleaned;
         private bool? exited;
         private int? exitCode, nativeError;
+        private string runtimeStage = "not-attempted", overviewStage = "not-attempted";
+        private int? runtimeNativeError, overviewNativeError, runtimeNeededModuleCount;
+        private bool? runtimeSnapshotComplete, runtimePathsComplete;
+        private bool hostFxrSeen, hostPolicySeen, coreClrSeen, clrJitSeen, wpfNativeSeen, appHostSeen;
+        private string runtimeRoute = "Unobserved", staticHostMetadataStage = "not-attempted";
+        private bool? staticHostMetadataObserved;
 
         internal PublishedExecutableStartupReport Run()
         {
@@ -111,7 +134,24 @@ internal static class PublishedExecutableStartupFixture
             var state = failed ? PublishedExecutableStartupState.Failed : descriptorValid && executableLeased && started && ownedWindow && neutral && noData && bundled &&
                 closeRequested && exited == true && exitCode == 0 && cleaned && !RequiresRetention ? PublishedExecutableStartupState.Observed : PublishedExecutableStartupState.Inconclusive;
             return new(state, descriptorValid, executableLeased, started, ownedWindow, neutral, noData, bundled,
-                closeRequested, exited, exitCode, cleaned && !RequiresRetention, stage, nativeError);
+                closeRequested, exited, exitCode, cleaned && !RequiresRetention, stage, nativeError)
+            {
+                RuntimeRoute = runtimeRoute, StaticHostMetadataObserved = staticHostMetadataObserved,
+                StaticHostMetadataStage = staticHostMetadataStage, OwnedAppHostModuleObserved = RuntimeFlag(appHostSeen),
+                RuntimeStage = runtimeStage, RuntimeNativeError = runtimeNativeError,
+                OverviewStage = overviewStage, OverviewNativeError = overviewNativeError,
+                RuntimeNeededModuleCount = runtimeNeededModuleCount, RuntimeSnapshotComplete = runtimeSnapshotComplete, RuntimePathsComplete = runtimePathsComplete,
+                RuntimeHostFxrObserved = RuntimeFlag(hostFxrSeen), RuntimeHostPolicyObserved = RuntimeFlag(hostPolicySeen),
+                RuntimeCoreClrObserved = RuntimeFlag(coreClrSeen), RuntimeClrJitObserved = RuntimeFlag(clrJitSeen), RuntimeWpfNativeObserved = RuntimeFlag(wpfNativeSeen)
+            };
+        }
+        private bool? RuntimeFlag(bool seen) => seen ? true : runtimePathsComplete == true ? false : null;
+        private void RequireSettledObservationOwnership()
+        {
+            Check();
+            if (RequiresRetention) throw new Unavailable("independent-observation-ownership-unsettled", null);
+            if (process == null || process.HasExited) throw new Invariant("published-process-exited-during-startup-observation");
+            if (!OwnsWindow(window)) throw new Unavailable("original-owned-window-association-unconfirmed", null);
         }
         private void Execute()
         {
@@ -141,9 +181,9 @@ internal static class PublishedExecutableStartupFixture
             RequireMarker(); GuardChain(publish); GuardChain(cache);
             if (Directory.EnumerateFileSystemEntries(cache).Any()) throw new Unavailable("bundle-cache-not-fresh", null);
             descriptorValid = true;
-            var executable = Open(exe, 0x80000000 | ReadAttributes, 1);
-            var stamp = Observe(executable, exe, false);
-            if (stamp.Bytes is < 1 or > 536_870_912) throw new Unavailable("published-executable-size-unsupported", null);
+            executable = Open(exe, 0x80000000 | ReadAttributes, 1);
+            executableStamp = Observe(executable, exe, false);
+            if (executableStamp.Bytes is < 1 or > 536_870_912) throw new Unavailable("published-executable-size-unsupported", null);
             executableLeased = true; RecheckGuards();
             stage = "start-published-apphost";
             var start = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = publish };
@@ -170,11 +210,20 @@ internal static class PublishedExecutableStartupFixture
             if (window == 0 || !OwnsWindow(window)) throw new Unavailable("owned-window-unobserved", null);
             ownedWindow = true;
             stage = "observe-owned-bundled-runtime";
-            ObserveBundledRuntime(); bundled = true;
+            runtimeStage = "attempting-runtime-observation";
+            try { ObserveBundledRuntime(); bundled = true; runtimeStage = "observed"; }
+            catch (Unavailable failure) { runtimeStage = failure.Stage; runtimeNativeError = failure.Code; }
+            RequireSettledObservationOwnership();
             stage = "observe-neutral-overview";
-            ObserveNeutralOverview(); Thread.Sleep(250); Check(); ObserveNeutralOverview();
-            neutral = true; noData = true;
-            stage = "published-neutral-startup-observed";
+            overviewStage = "attempting-overview-observation";
+            try
+            {
+                ObserveNeutralOverview(); Thread.Sleep(250); Check(); ObserveNeutralOverview();
+                neutral = true; noData = true; overviewStage = "observed";
+            }
+            catch (Unavailable failure) { overviewStage = failure.Stage; overviewNativeError = failure.Code; }
+            RequireSettledObservationOwnership();
+            stage = bundled && neutral && noData ? "published-neutral-startup-observed" : "independent-startup-observations-incomplete";
         }
         private void ObserveNeutralOverview()
         {
@@ -212,8 +261,11 @@ internal static class PublishedExecutableStartupFixture
             Check(); var modules = new nint[256]; uint capacity = checked((uint)(modules.Length * IntPtr.Size));
             try
             {
+                runtimeSnapshotComplete = false;
                 if (!K32EnumProcessModulesEx(process!.SafeHandle, modules, capacity, out uint needed, 3)) throw new Unavailable("own-module-snapshot-unavailable", Marshal.GetLastWin32Error());
+                if (needed % IntPtr.Size == 0) runtimeNeededModuleCount = checked((int)(needed / IntPtr.Size));
                 if (needed == 0 || needed > capacity || needed % IntPtr.Size != 0) throw new Unavailable("own-module-snapshot-bound", null);
+                runtimeSnapshotComplete = true; runtimePathsComplete = false;
                 bool found = false;
                 for (int index = 0; index < needed / IntPtr.Size; index++)
                 {
@@ -222,14 +274,81 @@ internal static class PublishedExecutableStartupFixture
                     if (length == 0) throw new Unavailable("own-module-path-unavailable", Marshal.GetLastWin32Error());
                     if (length >= buffer.Capacity - 1) throw new Unavailable("own-module-path-truncated", null);
                     string path = buffer.ToString();
-                    if (!string.Equals(Path.GetFileName(path), "coreclr.dll", StringComparison.OrdinalIgnoreCase)) continue;
+                    string name = Path.GetFileName(path);
+                    appHostSeen |= PathEquals(path, exe) && PathEquals(path, Path.GetFullPath(path));
+                    hostFxrSeen |= string.Equals(name, "hostfxr.dll", StringComparison.OrdinalIgnoreCase);
+                    hostPolicySeen |= string.Equals(name, "hostpolicy.dll", StringComparison.OrdinalIgnoreCase);
+                    coreClrSeen |= string.Equals(name, "coreclr.dll", StringComparison.OrdinalIgnoreCase);
+                    clrJitSeen |= string.Equals(name, "clrjit.dll", StringComparison.OrdinalIgnoreCase);
+                    wpfNativeSeen |= name.Equals("PresentationNative_cor3.dll", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("wpfgfx_cor3.dll", StringComparison.OrdinalIgnoreCase) || name.Equals("PenImc_cor3.dll", StringComparison.OrdinalIgnoreCase);
+                    if (!string.Equals(name, "coreclr.dll", StringComparison.OrdinalIgnoreCase)) continue;
                     if (!path.StartsWith(cache + "\\", StringComparison.OrdinalIgnoreCase) || !PathEquals(path, Path.GetFullPath(path))) throw new Unavailable("runtime-not-observed-in-owned-cache", null);
                     GuardChain(Path.GetDirectoryName(path)!); var file = Open(path, 0x80000000 | ReadAttributes, 1); _ = Observe(file, path, false); found = true;
                 }
-                if (!found) throw new Unavailable("own-bundled-runtime-unobserved", null);
+                runtimePathsComplete = true;
+                if (found) runtimeRoute = "DynamicOwnedCache";
+                else
+                {
+                    // .NET 10 may statically link CoreCLR into its single-file apphost.
+                    // This is a separately bound observation route, never a missing-DLL fallback.
+                    if (coreClrSeen || !appHostSeen) throw new Unavailable("own-bundled-runtime-unobserved", null);
+                    ObserveStaticHostMetadata(); runtimeRoute = "StaticSingleFileHost";
+                }
             }
             finally { Array.Clear(modules); }
         }
+        private void ObserveStaticHostMetadata()
+        {
+            Check();
+            if (runtimeSnapshotComplete != true || runtimePathsComplete != true || coreClrSeen || !appHostSeen ||
+                executable == null || executableStamp == null || executable.IsInvalid || executable.IsClosed)
+                throw new Unavailable("static-host-binding-unestablished", null);
+            if (Observe(executable, exe, false) != executableStamp) throw new Unavailable("static-host-original-image-changed", null);
+            staticHostMetadataStage = "attempting-static-host-metadata";
+            bool reference = false;
+            bool cursorSaved = false;
+            long cursor = 0;
+            SingleFileStaticHostMetadataResult metadata;
+            try
+            {
+                executable.DangerousAddRef(ref reference);
+                if (!SetFilePointerEx(executable, 0, out cursor, 1)) throw new Unavailable("static-host-cursor-unavailable", Marshal.GetLastWin32Error());
+                cursorSaved = true;
+                if (cursor < 0) throw new Unavailable("static-host-cursor-invalid", null);
+                using (var borrowed = new SafeFileHandle(executable.DangerousGetHandle(), ownsHandle: false))
+                using (var stream = new FileStream(borrowed, FileAccess.Read, 4096, isAsync: false))
+                {
+                    long streamPosition = stream.Position;
+                    metadata = SingleFileStaticHostMetadata.Read(stream, token);
+                    if (stream.Position != streamPosition) throw new Unavailable("static-host-stream-position-changed", null);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (cursorSaved)
+                    {
+                        if (!SetFilePointerEx(executable, cursor, out long restored, 0))
+                        { int error = Marshal.GetLastWin32Error(); Retain(); throw new Unavailable("static-host-cursor-restore-unconfirmed", error); }
+                        if (restored != cursor) { Retain(); throw new Unavailable("static-host-cursor-restore-unconfirmed", null); }
+                        if (!SetFilePointerEx(executable, 0, out long current, 1))
+                        { int error = Marshal.GetLastWin32Error(); Retain(); throw new Unavailable("static-host-cursor-readback-unconfirmed", error); }
+                        if (current != cursor) { Retain(); throw new Unavailable("static-host-cursor-readback-unconfirmed", null); }
+                        if (!SetFilePointerEx(executable, 0, out long verified, 1))
+                        { int error = Marshal.GetLastWin32Error(); Retain(); throw new Unavailable("static-host-cursor-verify-unconfirmed", error); }
+                        if (verified != cursor) { Retain(); throw new Unavailable("static-host-cursor-restore-unconfirmed", null); }
+                    }
+                }
+                finally { if (reference) executable.DangerousRelease(); }
+            }
+            if (Observe(executable, exe, false) != executableStamp) throw new Unavailable("static-host-image-bookend-changed", null);
+            staticHostMetadataObserved = metadata.StaticHostMetadataObserved;
+            staticHostMetadataStage = metadata.State + "-" + metadata.Reason;
+            if (!metadata.StaticHostMetadataObserved) throw new Unavailable("static-host-metadata-unestablished", null);
+        }
+
         private bool OwnsWindow(nint candidate)
         {
             if (candidate == 0 || process == null || process.HasExited) return false;
