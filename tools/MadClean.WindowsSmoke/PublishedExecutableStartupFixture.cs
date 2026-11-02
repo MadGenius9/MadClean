@@ -185,7 +185,7 @@ internal static class PublishedExecutableStartupFixture
             AutomationElement Find(string id)
             {
                 var found = root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, id));
-                if (found.Count != 1 || found[0].Current.ProcessId != process.Id) throw new Unavailable("neutral-element-not-unique", null);
+                if (found.Count != 1 || found[0].Current.ProcessId != process.Id) throw new Unavailable("neutral-" + id[(id.LastIndexOf('.') + 1)..] + "-not-unique", null);
                 return found[0];
             }
             var inspect = Find("MadClean.Overview.Inspect");
@@ -195,7 +195,10 @@ internal static class PublishedExecutableStartupFixture
                 ("MadClean.Overview.StorageCapacity", "No confirmed capacity reading"), ("MadClean.Footer.Status", "Waiting for first inspection. Nothing has been checked.") })
             {
                 var element = Find(expected.Item1);
-                if (element.Current.Name != expected.Item2) throw new Invariant("published-startup-not-neutral-overview");
+                bool summary = expected.Item1 is "MadClean.Overview.CleanupStatus" or "MadClean.Overview.StartupStatus" or "MadClean.Overview.SecurityStatus" or "MadClean.Overview.UpdateStatus";
+                if (summary && element.Current.ControlType != ControlType.Button) throw new Invariant("published-summary-control-type-unexpected");
+                string observed = summary ? element.Current.ItemStatus : element.Current.Name;
+                if (observed != expected.Item2) throw new Invariant("published-startup-not-neutral-overview");
             }
             var drive = Find("MadClean.Overview.Drive");
             if (!drive.TryGetCurrentPattern(SelectionPattern.Pattern, out var selection) || ((SelectionPattern)selection).Current.GetSelection().Length != 0)

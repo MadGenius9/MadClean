@@ -210,3 +210,8 @@ The next source adds only a bounded fresh child-error sample to the independent 
 ## Standalone startup validation increment
 
 The existing app now has a separate owned self-contained publish/startup fixture and required source-bound evidence check; see [scope and limits](PUBLISHED-STARTUP-VALIDATION.md). Local build succeeds with zero warnings/errors; Python151 total,150 passed/one Windows-only skip. Actual Windows publication, neutral UI Automation, owned bundled-runtime observation, graceful exit and teardown are pending CI. No distribution ZIP or executable upload is prepared, and no roadmap action gate is promoted.
+
+
+## Owned relative directory baseline result
+
+Actual source d021866/run41475252091, immutable evidence abe9f2fd59aec978e2e425e4cc20750481bc61df:78 scoped checks,69 passed,9 inconclusive,0 failed. The new relative directory control observed parent/create and I/O status0, full identities/bookends, the explicit structural descriptor, collision0xC0000035 without overwrite, held-handle disposition acceptance, checked native close/descriptor release and child absence; complete parent teardown127/127/512 passed. This does not qualify production parent effective access, reparse interference, namespace security, historical ownership or journal durability. SDK/control compilation and full build passed; Windows core1,185 Passed/10 NotExecuted reconcile1,195. Distribution publishing was skipped. The independent DISM import remains Unknown: its fresh typed missing command has SimpleCmdlet lexical shape but no identified allowlisted identity or proven cause. Standalone startup is absent from this earlier source and must be evaluated separately.
