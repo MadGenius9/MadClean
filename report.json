@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "38ec883f580f22e67122ccd367637e809604ebc5",
-  "runId": "41369687422",
+  "sourceCommit": "b975b7c66cc23afbaa4fc64855b9038620be8b78",
+  "runId": "41373299979",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T00:59:29.051053+00:00",
-  "completedUtc": "2026-11-02T00:59:46.2004727+00:00",
+  "startedUtc": "2026-11-02T01:39:19.784433+00:00",
+  "completedUtc": "2026-11-02T01:39:35.7156788+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -22,6 +22,11 @@
       "name": "ui-compact-layout",
       "state": "passed",
       "detail": "The actual shown window reaches 980x650 within one DIP; main navigation and inspection action have finite visible bounds. Scrolling/DPI/fidelity still require manual checks."
+    },
+    {
+      "name": "ui-cleanup-file-evidence",
+      "state": "passed",
+      "detail": "Actual initial selected-file command/status/details bindings, disabled-without-selection and in-client bounds passed without file queries or sample data. Populated selection/cancellation and external-setting races remain unverified."
     },
     {
       "name": "ui-primary-navigation",
@@ -62,6 +67,11 @@
       "name": "ui-inspection-evidence",
       "state": "passed",
       "detail": "initialPositiveSourceCount=2; selectedActualRows=2; selectionStartsNoQuery=true; resetPendingObserved=True; cancellationRequested=True; completedBeforeCancelCount=1; preservationExercised=True; terminalRowCount=2; terminalStates=Storage:Available,Defender:Cancelled; noPendingOrPriorAttemptRows=true. Two explicit local production inspections only. Completed-source preservation is proved only when exercised before a live cancellation. No captures after data loading; no flags, capacities, provider messages, dates or source values exported. Available is source evidence, not health or action permission."
+    },
+    {
+      "name": "cleanup-file-evidence-fixture",
+      "state": "passed",
+      "detail": "source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState=Available; activeUse=Unknown; preCancel=true; createdReparseCount=1; reparseBlocked=True; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim."
     },
     {
       "name": "duplicate-content-fixtures",
@@ -126,7 +136,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -256,7 +266,7 @@
     {
       "name": "dism-powershell-capability-contract",
       "state": "inconclusive",
-      "detail": "metadataState=Unavailable; hostPathQualified=True; manifestPathQualified=True; importedModuleBound=False; commandBound=False; outputTypeResolved=False; outputAssemblyPathQualified=False; healthPropertyReadable=False; healthPropertyEnum=False; enumShapeMatched=False; sharedParameterSetMatched=False; switchParametersMatched=False; nonTargetMandatoryAbsent=False; outputTypeCount=unobserved; publicPropertyCount=unobserved; enumMemberCount=unobserved; parameterSetCount=unobserved; sharedParameterSetCount=unobserved; publisherTrustVerified=false; healthCheckInvoked=false. The complete source-bound candidate metadata contract was not established. Missing, blocked, unresolved or changed metadata remains Unknown; no health or servicing evidence is claimed."
+      "detail": "The bounded fixed-module metadata query did not complete with recognized evidence. No raw provider/exception text, paths or host identity is exported; no health check, repair, UAC or ADK payload was requested."
     },
     {
       "name": "shortcut-rename-handle-probe",
@@ -331,6 +341,12 @@
       "width": 964,
       "height": 611,
       "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
+    },
+    {
+      "file": "tool-28.png",
+      "width": 1404,
+      "height": 961,
+      "sha256": "4f1460b146ab5d751e0ec9ea8f8adbfb044de8e049b9c9661db9d6df6f182eb3"
     },
     {
       "file": "tool-18.png",
