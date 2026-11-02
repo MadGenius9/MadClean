@@ -8,6 +8,8 @@
 #include <wintrust.h>
 #include <winternl.h>
 #include <aclapi.h>
+#include <setupapi.h>
+#include <devpropdef.h>
 #include <cstddef>
 #include <type_traits>
 
@@ -49,3 +51,19 @@ static_assert(sizeof(ACL) == 8 && sizeof(ACL_SIZE_INFORMATION) == 12 && sizeof(A
     "Aggregate ACL metadata layouts differ.");
 using DaclQuery = DWORD (WINAPI*)(HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION, PSID*, PSID*, PACL*, PACL*, PSECURITY_DESCRIPTOR*);
 static_assert(std::is_same<decltype(&GetSecurityInfo), DaclQuery>::value, "DACL query signature differs.");
+
+// Present-device property reader: compile-only checks against the actual SDK,
+// independent of managed declarations. No device enumeration or property read.
+static_assert(sizeof(SP_DEVINFO_DATA) == 32, "Device information layout differs.");
+static_assert(offsetof(SP_DEVINFO_DATA, ClassGuid) == 4, "Device class offset differs.");
+static_assert(offsetof(SP_DEVINFO_DATA, DevInst) == 20, "Device instance offset differs.");
+static_assert(offsetof(SP_DEVINFO_DATA, Reserved) == 24, "Device reserved offset differs.");
+static_assert(sizeof(DEVPROPKEY) == 20 && offsetof(DEVPROPKEY, pid) == 16,
+    "Device property key layout differs.");
+static_assert(sizeof(DEVPROPTYPE) == 4 && DEVPROP_TYPE_STRING == 0x12 && DEVPROP_TYPE_FILETIME == 0x10,
+    "Device property type width or constants differ.");
+static_assert(DIGCF_PRESENT == 2 && DIGCF_ALLCLASSES == 4, "Present/all-class flags differ.");
+using DevicePropertyQuery = BOOL (WINAPI*)(HDEVINFO, PSP_DEVINFO_DATA, const DEVPROPKEY*,
+    DEVPROPTYPE*, PBYTE, DWORD, PDWORD, DWORD);
+static_assert(std::is_same<decltype(&SetupDiGetDevicePropertyW), DevicePropertyQuery>::value,
+    "Device property query signature differs.");

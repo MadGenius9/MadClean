@@ -155,6 +155,10 @@ class PublisherTests(unittest.TestCase):
                 self.report['checks']=[check for check in original if check['name']!=name]
                 self.save(); self.rejected()
                 self.report['checks']=original
+    def test_device_driver_properties_contract_cannot_be_omitted(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'device-driver-properties-contract']
+        self.save(); self.rejected()
+
     def test_cleanup_selection_review_interaction_cannot_be_omitted(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'ui-cleanup-selection-review-interaction']
         self.save(); self.rejected()

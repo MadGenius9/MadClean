@@ -168,3 +168,6 @@ The selected cleanup recheck now separately qualifies [stream metadata](CLEANUP-
 
 
 Read-only WUA offer metadata now includes independent declared installation behavior and optional driver names under [this bounded contract](WUA-OFFER-METADATA.md). The same search projects at most 256 offers with explicit Partial truncation. Neither successful discovery nor declared reboot/network behavior establishes installation readiness or exact-device/BIOS compatibility. No installation or extra query is performed.
+
+
+The separate [present-device driver properties](DEVICE-DRIVERS.md) integration uses fixed read-only SetupAPI functions and five documented DEVPROPKEY values, with no hardware/instance IDs or binary paths projected. Its owning worker retains pending native calls and checks SetupDiDestroyDeviceInfoList explicitly. DriverVer version/date and INF provider are metadata, not loaded binary, signature, version ordering or WUA applicability evidence. Access denial never requests elevation.

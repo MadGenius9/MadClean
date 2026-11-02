@@ -1,0 +1,24 @@
+<UserControl x:Class="MadClean.App.Views.DeviceDriverInventoryView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <Expander Header="Present-device driver metadata · separate local read" IsExpanded="False" Foreground="#ECF1FB" AutomationProperties.Name="Present-device driver metadata panel">
+            <StackPanel>
+                <TextBlock Text="Reported local metadata, separate from offered Windows updates. This list does not match names/dates to offers, identify unique physical hardware, or determine whether a driver needs an update." Style="{StaticResource Caption}"/>
+                <Button Content="Read present-device driver metadata" Command="{Binding ReadDeviceDriversCommand}" HorizontalAlignment="Left" Margin="0,6,0,8" AutomationProperties.Name="Read actual present-device driver metadata"/>
+                <TextBlock Text="{Binding DeviceDriverMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Present-device driver metadata status" AutomationProperties.LiveSetting="Polite"/>
+                <TextBox Text="{Binding DeviceDriverQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="70" MaxHeight="145" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Present-device metadata attempt and source coverage"/>
+                <DataGrid ItemsSource="{Binding DeviceDriverRows}" SelectedItem="{Binding SelectedDeviceDriver, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" Height="225" Margin="0,10,0,0" AutomationProperties.Name="Actual present-device driver observations">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="OBSERVATION" Binding="{Binding ObservationNumber}" Width="105"/>
+                        <DataGridTextColumn Header="FRIENDLY NAME" Binding="{Binding Name.Value, TargetNullValue=Unknown}" Width="2*" MinWidth="160"/>
+                        <DataGridTextColumn Header="NAME STATE" Binding="{Binding Name.State}" Width="110"/>
+                        <DataGridTextColumn Header="DESCRIPTION (REPORTED)" Binding="{Binding Description.Value, TargetNullValue=Unknown}" Width="2*" MinWidth="170"/>
+                        <DataGridTextColumn Header="PROVIDER (REPORTED)" Binding="{Binding Provider.Value, TargetNullValue=Unknown}" Width="*" MinWidth="145"/>
+                        <DataGridTextColumn Header="INF VERSION (REPORTED)" Binding="{Binding InstalledVersion.Value, TargetNullValue=Unknown}" Width="*" MinWidth="160"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBox Text="{Binding DeviceDriverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="270" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0" AutomationProperties.Name="Selected device driver reported fields, states and limitations"/>
+                <TextBlock Text="Missing/unknown/denied fields remain uncertain. The reported INF driver date is not installation time; version text is not a vendor ordering or loaded-binary check. No download, replacement, hardware-ID collection or install action is available." Style="{StaticResource Caption}"/>
+            </StackPanel>
+        </Expander>
+    </Border>
+</UserControl>

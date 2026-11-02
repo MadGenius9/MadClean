@@ -35,6 +35,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeMadCleanUpdates();
         InitializeDiscovery();
         InitializeFirmwareDiscovery();
+        InitializeDeviceDriverInventory();
         InitializeHardwareDiscovery();
         InitializeOverview();
         InitializeAdditionalDiscovery();

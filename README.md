@@ -147,3 +147,6 @@ Selected Windows Update driver and firmware offers now show [provider-reported d
 
 
 Cleanup now includes a [selected metadata worksheet](docs/CLEANUP-SELECTION-REVIEW.md) for up to eight explicitly added actual candidates. Fresh per-file observations retain exclusions, stream coverage and blockers; cancellation leaves unprocessed rows Not checked. No deletion, persisted selection or reclaimable-byte claim is introduced.
+
+
+The Drivers page also offers a separate explicit [present-device driver-property inventory](docs/DEVICE-DRIVERS.md). It reports Windows device-property versions, INF dates and providers with independent missing/denied/invalid states. It never matches those rows to update offers or establishes loaded-binary versions, signatures or update eligibility.
