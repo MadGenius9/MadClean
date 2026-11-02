@@ -161,6 +161,18 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_owned_confirmation_protocol_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='cleanup-confirmation-owned-protocol']
+        self.save()
+        self.rejected()
+    def test_scan_history_and_selected_msi_ui_cannot_be_omitted(self):
+        original = self.report['checks']
+        for name in ('defender-scan-history-contract', 'ui-msi-action-binding-interaction'):
+            with self.subTest(name=name):
+                self.report['checks']=[check for check in original if check['name']!=name]
+                self.save()
+                self.rejected()
+        self.report['checks']=original
     def test_msi_action_binding_contract_cannot_be_omitted(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-action-binding-contract']
         self.save()

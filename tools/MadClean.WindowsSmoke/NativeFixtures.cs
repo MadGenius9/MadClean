@@ -10,6 +10,11 @@ internal static partial class NativeFixtures
 {
     public static void Run(string repository, SmokeReport report, CancellationToken token)
     {
+        if (!UiCapture.MsiActionBindingInteractionSettled || new WindowsMsiActionBindingInventory().HasPendingNativeRead)
+        {
+            report.Unknown("fixture-teardown", "A prior selected MSI or ARP query remains unsettled. No native fixture tree or later provider query was started.");
+            return;
+        }
         if (!UiCapture.DiagnosticChannelInteractionSettled)
         {
             report.Unknown("fixture-teardown", "The prior passive Diagnostics UI query has not settled. No subsequent provider query or owned native fixture scope was started.");
@@ -25,6 +30,7 @@ internal static partial class NativeFixtures
         Directory.CreateDirectory(fixture);
         File.WriteAllText(Path.Combine(fixture, ".madclean-fixture-owner"), marker);
         bool cleanupMappedOwnershipConfirmed = true;
+        bool cleanupConfirmationOwnershipConfirmed = true;
         bool cleanupDispositionOwnershipConfirmed = true;
         bool transactionProbeTeardownCompleted = true;
         bool namespaceProbeTeardownCompleted = true;
@@ -89,6 +95,9 @@ internal static partial class NativeFixtures
             cleanupMappedOwnershipConfirmed = false;
             cleanupMappedOwnershipConfirmed = CleanupMappedDispositionObservation(fixture, marker, report, token);
             if (!cleanupMappedOwnershipConfirmed) return;
+            cleanupConfirmationOwnershipConfirmed = false;
+            cleanupConfirmationOwnershipConfirmed = CleanupConfirmationProtocolFixture(fixture, marker, report, token);
+            if (!cleanupConfirmationOwnershipConfirmed) return;
             shortcutProbeTeardownCompleted = false;
             shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token);
             if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
@@ -157,7 +166,7 @@ internal static partial class NativeFixtures
         }
         finally
         {
-            if (!MsiActionBindingQuerySettled || new WindowsMsiActionBindingInventory().HasPendingNativeRead || OwnedCleanupMappedDispositionProbe.HasPendingNativeProbe || OwnedCleanupMappedDispositionProbe.RequiresRetention || !cleanupMappedOwnershipConfirmed || OwnedCleanupDispositionProbe.HasPendingNativeProbe || OwnedCleanupDispositionProbe.RequiresRetention || !cleanupDispositionOwnershipConfirmed || WindowsCleanupFileEvidence.HasPendingMetadataRead || !CleanupFileEvidenceCleanupConfirmed || StartupTransactionNamespaceProbe.HasPendingNativeProbe || StartupTransactionNamespaceProbe.RequiresFixtureRetention || !namespaceProbeTeardownCompleted || StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed || !SystemToolJournalStoreCleanupConfirmed || !SystemToolJournalCrossInstanceCleanupConfirmed || !SystemToolJournalLifecycleCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup)
+            if (OwnedCleanupConfirmationProtocol.HasPendingNativeProtocol || OwnedCleanupConfirmationProtocol.RequiresRetention || !cleanupConfirmationOwnershipConfirmed || !MsiActionBindingQuerySettled || new WindowsMsiActionBindingInventory().HasPendingNativeRead || OwnedCleanupMappedDispositionProbe.HasPendingNativeProbe || OwnedCleanupMappedDispositionProbe.RequiresRetention || !cleanupMappedOwnershipConfirmed || OwnedCleanupDispositionProbe.HasPendingNativeProbe || OwnedCleanupDispositionProbe.RequiresRetention || !cleanupDispositionOwnershipConfirmed || WindowsCleanupFileEvidence.HasPendingMetadataRead || !CleanupFileEvidenceCleanupConfirmed || StartupTransactionNamespaceProbe.HasPendingNativeProbe || StartupTransactionNamespaceProbe.RequiresFixtureRetention || !namespaceProbeTeardownCompleted || StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed || !SystemToolJournalStoreCleanupConfirmed || !SystemToolJournalCrossInstanceCleanupConfirmed || !SystemToolJournalLifecycleCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup)
             {
                 report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }

@@ -10,7 +10,7 @@ internal static partial class NativeFixtures
     private static void DefenderStatus(SmokeReport report, CancellationToken token)
     {
         const string check = "defender-status-contract";
-        bool evidenceReported = false;
+        bool evidenceReported = false, scanHistoryReported = false;
         try
         {
             // Explicit disposable-host read only. The existing production adapter uses fixed
@@ -55,6 +55,8 @@ internal static partial class NativeFixtures
                 report.Fail(check, "The real Defender status/history completeness contradicts its Available/Partial classification. No actual flag/history values are exported.");
                 return;
             }
+            DefenderScanHistoryFixture(data, before, after, report);
+            scanHistoryReported = true;
             if (knownFlags == 0)
             {
                 report.Unknown(check, $"Defender state={result.State}; projectedSchemaValid=true; parsedActualResult=false; knownStatusFlagCount=0; findingCount={data.Findings.Count}. A structured response supplied no known status flags, so live status coverage remains unverified.");
@@ -67,6 +69,11 @@ internal static partial class NativeFixtures
         {
             report.Unknown(check, $"The bounded Defender read did not complete (code 0x{ex.HResult:X8}); parsedActualResult=false. No live status verification, protection verdict or raw security/provider data is exported.");
             if (!evidenceReported) report.Unknown("defender-inspection-evidence-contract", "The shared actual Defender read/projection did not complete; no second query or security-value export, no protection/health proof.");
+        }
+        finally
+        {
+            if (!scanHistoryReported)
+                report.Unknown("defender-scan-history-contract", "The shared actual Defender read did not return a uniquely qualified status/history projection. Native scan-timestamp compatibility remains unverified; no second query, scan, timestamp export or health inference.");
         }
     }
 }

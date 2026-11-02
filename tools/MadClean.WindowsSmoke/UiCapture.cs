@@ -364,6 +364,10 @@ internal static partial class UiCapture
                     await CheckDiagnosticChannelCoverageInteraction(window, model, report);
                 else
                     report.Unknown("ui-diagnostic-channel-coverage-interaction", "A prior GUI failure or pending query prevents a separate Event Log interaction; no channel coverage proof claimed.");
+                if (!report.Failed && !model.IsBusy && DiagnosticChannelInteractionSettled)
+                    await CheckMsiActionBindingInteraction(window, model, report);
+                else
+                    report.Unknown("ui-msi-action-binding-interaction", "A previous GUI query or invariant is unsettled; no selected MSI interaction started.");
                 completed = true;
             }
             catch (SmokeAssertionException ex)

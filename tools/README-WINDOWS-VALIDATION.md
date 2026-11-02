@@ -108,3 +108,6 @@ The required `cleanup-mapped-disposition-owned-probe` is described in [the mappe
 
 
 `ui-diagnostic-channel-coverage-interaction` runs after every image and earlier query interaction. It invokes one actual production passive Event Log read through the bound button, inspects channel selection/details/status and range invalidation, and exports fixed states/counts only. It never injects rows or captures populated controls. Missing genuine coverage stays Unknown; timeout requests existing cancellation without claiming provider completion. No WER, servicing, repair or elevation runs.
+
+
+The required `cleanup-confirmation-owned-protocol` exercises private developer preview/decision/replay semantics on exact owned files only; see [protocol limits](../docs/CLEANUP-CONFIRMATION-PROTOTYPE.md). It is not production cleanup or real UI consent. `ui-msi-action-binding-interaction` uses one previously loaded real selection and the bound preflight button, then proves selection invalidation without a second query. Unsettled ARP/MSI work blocks native scope creation. `defender-scan-history-contract` reuses the existing single status read and needs at least one genuine timestamp to pass; all-unknown timestamps remain inconclusive. None starts an installer, scan, elevation or repair.
