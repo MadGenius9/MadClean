@@ -68,6 +68,8 @@ internal static partial class NativeFixtures
             SystemToolJournalLifecycleFixture(fixture, marker, report, token);
             if (!SystemToolJournalLifecycleCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup) return;
             DismPowerShellCapability(report, token);
+            // Independent fresh-process control, never a retry or promotion of the preceding result.
+            DismBuiltinImportControl(report, token);
             cleanupDispositionOwnershipConfirmed = false;
             cleanupDispositionOwnershipConfirmed = CleanupDispositionObservation(fixture, marker, report, token);
             if (!cleanupDispositionOwnershipConfirmed) return;
@@ -347,7 +349,10 @@ internal static partial class NativeFixtures
 
     private static bool PathEquals(string first, string second) => string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), StringComparison.OrdinalIgnoreCase);
 
-    private const int FixtureTreeLimit = 100;
+    // Source278069c observed entry101 after the owned fixture suite grew. This
+    // fixed developer-tree bound permits that reviewed scope while remaining finite;
+    // every encountered entry still requires an attribute/no-reparse check.
+    private const int FixtureTreeLimit = 512;
     private enum FixtureTreeState { Clear, ReparsePointObserved, EntryLimitReached }
     private sealed record FixtureTreeObservation(FixtureTreeState State, int Encountered, int Inspected);
     private static FixtureTreeObservation InspectFixtureTree(string root)

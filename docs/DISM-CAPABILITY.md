@@ -35,3 +35,10 @@ The next diagnostic-only Schema3 compares nullable qualified/unqualified import-
 
 
 Sourcec575b6e/run41377870124/evidence6b5029dcc939a8438cd4ce8168c68efc018f5530 completed transport(exit0,848 output characters) and observed both qualified/unqualified import-command metadata lookups true. Actual import remained Unavailable/category13/PowerShellStop HRESULT80131501, now with fixed CommandNotFound classification. These observations do not establish that the qualified import command itself is absent, or identify the missing command/dependency. Trust/health invocation stayed false and all later capability counts unobserved. No route or acceptance rule was relaxed.
+
+
+## Independent captured-built-in import control
+
+A separate always-run fresh-process check tests a documented [PS5 command-object invocation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_command_precedence?view=powershell-5.1) route. It does not retry or promote the original qualified-command result. The fixed Desktop5.1 host captures an actual Import-Module CmdletInfo before any DISM import, requiring exact Core snap-in metadata and implementation in the same already-loaded PSObject assembly. Autoload remains disabled; the call operator receives only this qualified object and the same fixed validated inbox manifest. No alternate path, module, output getter, health/repair command or execution-policy change occurs.
+
+The projection distinguishes import attempted, returned module and actual binding. It preserves nullable numeric exception observations and labels an allowlisted actual typed missing command separately from invocation context; context alone is not a proven missing-command cause. Raw messages, names and paths are withheld. Short fixed encoded input has the same complete-command bound and independent report/export validation. Static review found no material blocker. Runtime remains pending; success could establish only this import route, not publisher trust, health-result schema, elevation or servicing readiness.

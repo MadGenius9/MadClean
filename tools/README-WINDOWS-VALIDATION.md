@@ -99,3 +99,6 @@ After every initial capture and existing inspection interaction, the populated c
 
 
 `cleanup-disposition-owned-probe` creates only fixed marked artifact files, never production Temp files. It separately records classic class4 acceptance, optional pending flag, checked target close and actual error2 name absence, plus six no-disposition refusal controls. Namespace/open errors and unobserved closes remain distinct. Caller stop/uncertain closure retains ownership/tree and skips later probes. Parent fixture cleanup is never a primitive fallback. [Contract and limits](../docs/CLEANUP-DISPOSITION-PROBE.md).
+
+
+`dism-builtin-import-control-contract` always starts its own fresh fixed Desktop5.1 metadata process. It captures and qualifies the Core Import-Module CmdletInfo, invokes it only with the existing fixed inbox manifest and keeps autoload disabled. It is independent of the original qualified-command check and never retries/promotes that result. Actual typed missing-command metadata is distinguished from mere invocation context; no arbitrary strings or health commands are exported/executed. Complete-command/output bounds and nullable observations remain mandatory.
