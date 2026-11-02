@@ -330,21 +330,7 @@
                                 </Style>
                             </TabControl.Resources>
                             <TabItem Header="Apps">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel>
-                                        <TextBlock Text="Matched installed-app updates" FontSize="20"/>
-                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding AppsMessage}" Style="{StaticResource Caption}"/>
-                                        </ScrollViewer>
-                                        <TextBlock Text="WinGet matched packages only. Unknown installed/available versions, missing source coverage and failed checks remain unknown." Style="{StaticResource Caption}"/>
-                                        <ContentControl Content="{Binding AppRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="230"/>
-                                        <TextBlock Text="Windows software / unclassified offers" FontSize="18" Margin="0,18,0,0"/>
-                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding WindowsSoftwareMessage}" Style="{StaticResource Caption}"/>
-                                        </ScrollViewer>
-                                        <ContentControl Content="{Binding WindowsSoftwareRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="170"/>
-                                    </StackPanel>
-                                </ScrollViewer>
+                                <views:AppUpdateOffersView/>
                             </TabItem>
                             <TabItem Header="Drivers">
                                 <views:DriverOffersView/>

@@ -1,0 +1,28 @@
+<UserControl x:Class="MadClean.App.Views.AppUpdateOffersView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <TextBlock Text="Matched installed-app updates" FontSize="20"/>
+            <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding AppsMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="WinGet matched package source status" AutomationProperties.LiveSetting="Polite"/>
+            </ScrollViewer>
+            <TextBlock Text="WinGet matched packages only. A successful listing does not mean every application was checked. Per-package Unknown is never an up-to-date claim; reported source labels do not verify publishers or package authenticity." Style="{StaticResource Caption}"/>
+            <TextBox Text="{Binding AppUpdateOfferQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="88" MaxHeight="145" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10" AutomationProperties.Name="WinGet offer source and query attempt times"/>
+            <DataGrid ItemsSource="{Binding AppUpdateOffers}" SelectedItem="{Binding SelectedAppUpdateOffer, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False" Height="230" AutomationProperties.Name="Actual WinGet matched package observations">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="MATCHED PACKAGE" Binding="{Binding Name}" Width="2*" MinWidth="170"/>
+                    <DataGridTextColumn Header="INSTALLED (REPORTED)" Binding="{Binding InstalledVersion}" Width="*" MinWidth="135"/>
+                    <DataGridTextColumn Header="AVAILABLE (REPORTED)" Binding="{Binding AvailableVersion}" Width="*" MinWidth="135"/>
+                    <DataGridTextColumn Header="PACKAGE STATUS" Binding="{Binding Status}" Width="*" MinWidth="115"/>
+                    <DataGridTextColumn Header="SOURCE LABEL" Binding="{Binding Source}" Width="*" MinWidth="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="Selected package · evidence and unknowns" FontSize="18" Margin="0,16,0,8"/>
+            <TextBox Text="{Binding AppUpdateOfferDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="235" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected WinGet package versions, source and unknown prerequisites"/>
+            <TextBlock Text="Windows software / unclassified offers" FontSize="18" Margin="0,18,0,0"/>
+            <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding WindowsSoftwareMessage}" Style="{StaticResource Caption}"/>
+            </ScrollViewer>
+            <ContentControl Content="{Binding WindowsSoftwareRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="170"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -85,12 +85,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         if (IsBusy) return;
         using var source = new CancellationTokenSource(); cancellation = source; IsBusy = true;
-        Status = online ? "Checking trusted update providers…" : "Reading local inventory…";
+        Status = online ? "Checking configured update providers…" : "Reading local inventory…";
         Event(ActivityArea.Session, ActivityOutcome.Started);
         try
         {
             if (online)
             {
+                BeginAppUpdateOffersQuery(DateTimeOffset.UtcNow);
                 AppRows.Clear(); SystemRows.Clear(); ResetUpdateCategoryResults(); UpdateSummary = "Checking…";
                 AppsMessage = SystemMessage = "Checking…";
                 await Task.WhenAll(LoadApps(source.Token), LoadSystem(source.Token));
@@ -176,9 +177,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task LoadApps(CancellationToken token) => await Guard(ActivityArea.Apps, async () =>
     {
         var result = await inventory.AppsAsync(token); token.ThrowIfCancellationRequested();
+        PublishAppUpdateOffersQuery(result, DateTimeOffset.UtcNow);
         foreach (var a in result.Items) AppRows.Add(new(a.Name, $"{a.Id} · {a.InstalledVersion} → {a.AvailableVersion}", $"{a.Status} · {a.Source}"));
         AppsMessage = Stamp(result.State, result.Message); Event(ActivityArea.Apps, Outcome(result.State));
-    }, text => AppsMessage = text);
+    }, text => { InterruptAppUpdateOffersQuery(DateTimeOffset.UtcNow); AppsMessage = text; });
     private async Task LoadSystem(CancellationToken token) => await Guard(ActivityArea.SystemUpdates, async () =>
     {
         var result = await inventory.SystemUpdatesAsync(token); token.ThrowIfCancellationRequested();
