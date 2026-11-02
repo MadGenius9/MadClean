@@ -221,17 +221,29 @@
                                 </WrapPanel>
                             </StackPanel>
                             <ItemsControl Grid.Row="1" ItemsSource="{Binding CleanupCategories}" Margin="0,0,0,10"/>
-                            <DataGrid Grid.Row="2" ItemsSource="{Binding CleanupRows}" SelectedItem="{Binding SelectedCleanupRow, Mode=TwoWay}">
+                            <DataGrid Grid.Row="2" AutomationProperties.Name="Cleanup preview candidates" ItemsSource="{Binding CleanupRows}" SelectedItem="{Binding SelectedCleanupRow, Mode=TwoWay}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="EXACT PATH" Binding="{Binding Name}" Width="3*" MinWidth="220"/>
                                     <DataGridTextColumn Header="SIZE / OBSERVATION" Binding="{Binding Detail}" Width="2*" MinWidth="190"/>
                                     <DataGridTextColumn Header="CATEGORY / RESULT" Binding="{Binding State}" Width="2*" MinWidth="160"/>
                                 </DataGrid.Columns>
                             </DataGrid>
+                            <StackPanel Grid.Row="3">
+                                <TextBox Text="{Binding SelectedCleanupDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Full selected cleanup preview path and observation"/>
+                                <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Recheck the selected file" FontSize="20" Foreground="#ECF1FB"/>
+                                        <TextBlock Text="Read current file information after refreshing temporary roots and saved exclusions. This reads no contents, scans no siblings and enables no deletion." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                        <Button Content="Recheck selected file" Command="{Binding RecheckCleanupFileCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" AutomationProperties.Name="Recheck selected cleanup file metadata"/>
+                                        <TextBlock Text="{Binding CleanupFileEvidenceMessage}" Style="{StaticResource Caption}" Margin="0,8,0,0" AutomationProperties.Name="Current cleanup file metadata status"/>
+                                        <TextBox Text="{Binding CleanupFileEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="126" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Current cleanup file metadata and uncertainty"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                             <Expander Grid.Row="4" Header="Persistent exclusions" Foreground="#ECF1FB" Margin="0,12,0,0">
                                 <StackPanel>
                                     <TextBlock Text="{Binding ExclusionsMessage}" Style="{StaticResource Caption}"/>
-                                    <ListBox ItemsSource="{Binding CleanupExclusions}" SelectedItem="{Binding SelectedCleanupExclusion, Mode=TwoWay}" Height="95" Background="#171C27" Foreground="#ECF1FB" BorderThickness="0">
+                                    <ListBox AutomationProperties.Name="Saved cleanup exclusions" ItemsSource="{Binding CleanupExclusions}" SelectedItem="{Binding SelectedCleanupExclusion, Mode=TwoWay}" Height="95" Background="#171C27" Foreground="#ECF1FB" BorderThickness="0">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Margin="6">
@@ -255,18 +267,6 @@
                                     <Button Content="Remove selected exclusion" Command="{Binding RemoveCleanupExclusionCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Background="#343E52" Foreground="White"/>
                                 </StackPanel>
                             </Expander>
-                            <StackPanel Grid.Row="3">
-                                <TextBox Text="{Binding SelectedCleanupDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Full selected cleanup preview path and observation"/>
-                                <Border Style="{StaticResource Card}" Margin="0,14,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="Recheck the selected file" FontSize="20" Foreground="#ECF1FB"/>
-                                        <TextBlock Text="Read current file information after refreshing temporary roots and saved exclusions. This reads no contents, scans no siblings and enables no deletion." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
-                                        <Button Content="Recheck selected file" Command="{Binding RecheckCleanupFileCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" AutomationProperties.Name="Recheck selected cleanup file metadata"/>
-                                        <TextBlock Text="{Binding CleanupFileEvidenceMessage}" Style="{StaticResource Caption}" Margin="0,8,0,0" AutomationProperties.Name="Current cleanup file metadata status"/>
-                                        <TextBox Text="{Binding CleanupFileEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="126" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Current cleanup file metadata and uncertainty"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>
@@ -347,16 +347,7 @@
                                 </ScrollViewer>
                             </TabItem>
                             <TabItem Header="Drivers">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel>
-                                        <TextBlock Text="Driver discovery" FontSize="20"/>
-                                        <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding DriverOffersMessage}" Style="{StaticResource Caption}"/>
-                                        </ScrollViewer>
-                                        <TextBlock Text="Source: configured Windows Update service. Use Check updates to query. Manufacturer driver catalogs are Unsupported in this increment; no installation or bulk replacement is performed." Style="{StaticResource Caption}"/>
-                                        <ContentControl Content="{Binding DriverOfferRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="300"/>
-                                    </StackPanel>
-                                </ScrollViewer>
+                                <views:DriverOffersView/>
                             </TabItem>
                             <TabItem Header="BIOS / Firmware">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">

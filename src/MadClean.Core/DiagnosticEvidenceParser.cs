@@ -35,6 +35,7 @@ public static class DiagnosticEvidenceParser
                 $"Requested local Application and System only, fixed UTC interval [{start:O}, {end:O}). Filter: Windows-reported levels 1/2/3 plus Application / Windows Error Reporting / event 1001. At most {EventLimit} records per channel and {GroupLimit} grouped findings.",
                 "Counts are event records, not guessed distinct crashes. No matching records is not a health verdict. Logs can be cleared, overwritten or unavailable; this query cannot recreate missing history. Event messages, payload properties, user identities, application names, paths and dump contents were not collected."
             };
+            var channelCoverage = new List<DiagnosticChannelCoverage>(2);
             bool partial = false;
             int successful = 0, failed = 0, queryFailures = 0;
             var rows = new List<Row>();
@@ -52,10 +53,18 @@ public static class DiagnosticEvidenceParser
                 token.ThrowIfCancellationRequested();
                 var matches = inputs[name];
                 if (matches.Count != 1)
-                { partial = true; coverage.Add($"{name}: {(matches.Count == 0 ? "missing channel response" : "duplicate/ambiguous channel responses")}; no records trusted."); continue; }
+                {
+                    partial = true; coverage.Add($"{name}: {(matches.Count == 0 ? "missing channel response" : "duplicate/ambiguous channel responses")}; no records trusted.");
+                    channelCoverage.Add(Unobserved(name, CheckState.Unknown, matches.Count == 0
+                        ? DiagnosticChannelCoverageReason.MissingResponse : DiagnosticChannelCoverageReason.AmbiguousResponse, coverage[^1]));
+                    continue;
+                }
                 var source = matches[0];
                 if (!Shape(source, ChannelFields) || source.GetProperty("Status").ValueKind != JsonValueKind.String)
-                { partial = true; coverage.Add($"{name}: malformed channel response; coverage unknown."); continue; }
+                {
+                    partial = true; coverage.Add($"{name}: malformed channel response; coverage unknown.");
+                    channelCoverage.Add(Unobserved(name, CheckState.Unknown, DiagnosticChannelCoverageReason.MalformedResponse, coverage[^1])); continue;
+                }
                 string? status = source.GetProperty("Status").GetString();
                 if (status != "Available")
                 {
@@ -70,29 +79,46 @@ public static class DiagnosticEvidenceParser
                         "Failed" => "query failed; check Windows Event Log service and local access before retrying.",
                         _ => "unrecognized query status; no records trusted."
                     }));
+                    channelCoverage.Add(Unobserved(name, status switch
+                    {
+                        "Denied" or "Unavailable" or "Disabled" => CheckState.Unavailable,
+                        "Failed" => CheckState.Failed,
+                        _ => CheckState.Unknown
+                    }, status switch
+                    {
+                        "Denied" => DiagnosticChannelCoverageReason.AccessDenied,
+                        "Unavailable" => DiagnosticChannelCoverageReason.Unavailable,
+                        "Disabled" => DiagnosticChannelCoverageReason.Disabled,
+                        "Failed" => DiagnosticChannelCoverageReason.Failed,
+                        _ => DiagnosticChannelCoverageReason.UnknownStatus
+                    }, coverage[^1]));
                     continue;
                 }
+                bool channelPartial = false;
                 successful++;
                 if (source.GetProperty("Truncated").ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
                     source.GetProperty("Records").ValueKind != JsonValueKind.Array)
-                { partial = true; coverage.Add($"{name}: malformed count-limit/record metadata; no records trusted."); continue; }
+                {
+                    partial = true; coverage.Add($"{name}: malformed count-limit/record metadata; no records trusted.");
+                    channelCoverage.Add(Unobserved(name, CheckState.Unknown, DiagnosticChannelCoverageReason.MalformedResponse, coverage[^1])); continue;
+                }
                 var records = source.GetProperty("Records");
                 bool limited = source.GetProperty("Truncated").GetBoolean() || records.GetArrayLength() > EventLimit;
-                if (limited) partial = true;
+                if (limited) partial = channelPartial = true;
                 long? count = NullablePositiveLong(source.GetProperty("RecordCount"), allowZero: true);
                 long? oldestId = NullablePositiveLong(source.GetProperty("OldestRecordId"), allowZero: false);
                 string? bounds = source.GetProperty("BoundsStatus").ValueKind == JsonValueKind.String ? source.GetProperty("BoundsStatus").GetString() : null;
                 bool oldestKnown = Date(source.GetProperty("OldestUtc"), out var oldest);
                 bool newestKnown = Date(source.GetProperty("NewestUtc"), out var newest);
-                if (bounds == "Available" && (!oldestKnown || !newestKnown || oldest > newest || oldestId == null)) { bounds = "Unknown"; partial = true; }
-                if (bounds is not ("Available" or "Empty")) { bounds = "Unknown"; partial = true; }
-                if (bounds == "Empty" && (count != 0 || oldestKnown || newestKnown)) { bounds = "Unknown"; partial = true; }
-                if (count == null) partial = true;
+                if (bounds == "Available" && (!oldestKnown || !newestKnown || oldest > newest || oldestId == null)) { bounds = "Unknown"; partial = channelPartial = true; }
+                if (bounds is not ("Available" or "Empty")) { bounds = "Unknown"; partial = channelPartial = true; }
+                if (bounds == "Empty" && (count != 0 || oldestKnown || newestKnown)) { bounds = "Unknown"; partial = channelPartial = true; }
+                if (count == null) partial = channelPartial = true;
                 string retention = bounds == "Available"
                     ? $"oldest/newest currently retained event times {oldest:O} / {newest:O} (whole-log probes, not matching-event or continuous-coverage proof)"
                     : bounds == "Empty" ? "whole-log metadata/probes indicated an empty log" : "oldest/newest retention bounds unknown or failed";
                 if (bounds == "Available" && oldest > start)
-                { partial = true; retention += "; oldest retained event is later than requested start: earlier history may be absent or overwritten"; }
+                { partial = channelPartial = true; retention += "; oldest retained event is later than requested start: earlier history may be absent or overwritten"; }
 
                 int invalid = 0, duplicates = 0;
                 var accepted = new Dictionary<long, Row>();
@@ -100,19 +126,19 @@ public static class DiagnosticEvidenceParser
                 foreach (var item in records.EnumerateArray().Take(EventLimit))
                 {
                     token.ThrowIfCancellationRequested();
-                    if (!TryRow(item, name, start, end, out var row)) { invalid++; partial = true; continue; }
+                    if (!TryRow(item, name, start, end, out var row)) { invalid++; partial = channelPartial = true; continue; }
                     var valid = row!;
                     if (ambiguous.Contains(valid.RecordId)) { duplicates++; continue; }
                     if (accepted.TryGetValue(valid.RecordId, out var previous))
                     {
-                        duplicates++; partial = true;
+                        duplicates++; partial = channelPartial = true;
                         if (previous != valid) { accepted.Remove(valid.RecordId); ambiguous.Add(valid.RecordId); }
                         continue;
                     }
                     accepted.Add(valid.RecordId, valid);
                 }
                 if (count.HasValue && count.Value < accepted.Count || oldestId.HasValue && accepted.Keys.Any(id => id < oldestId.Value))
-                { partial = true; retention += "; log metadata and selected records changed or conflict; snapshot is not atomic"; }
+                { partial = channelPartial = true; retention += "; log metadata and selected records changed or conflict; snapshot is not atomic"; }
                 rows.AddRange(accepted.Values);
                 string observed = accepted.Count == 0 ? "no matching usable records returned; not a healthy-system determination"
                     : $"{accepted.Count} usable matching event records; matching times {accepted.Values.Min(row => row.Time):O} / {accepted.Values.Max(row => row.Time):O}";
@@ -120,6 +146,11 @@ public static class DiagnosticEvidenceParser
                     (limited ? "; TRUNCATED: count limit reached, older matching records may be missing" : "") +
                     (invalid > 0 ? $"; {invalid} records rejected for missing/invalid/private fields, channel/filter/time mismatch" : "") +
                     (duplicates > 0 ? $"; {duplicates} duplicate/ambiguous record references omitted; counts do not double-count identical references" : "") + ".");
+                channelCoverage.Add(new(name, channelPartial ? CheckState.Partial : CheckState.Available,
+                    DiagnosticChannelCoverageReason.Queried, accepted.Count, limited, invalid, duplicates, count,
+                    bounds == "Available" ? DiagnosticRetentionState.Available : bounds == "Empty" ? DiagnosticRetentionState.Empty : DiagnosticRetentionState.Unknown,
+                    bounds == "Available" ? oldest : null, bounds == "Available" ? newest : null,
+                    coverage[^1] + " Usable source counts are before the finding-group limit; they are not unique incidents or continuous history coverage."));
             }
             var grouped = rows.GroupBy(row => new GroupKey(row.Channel, row.Provider, row.EventId, row.Version))
                 .OrderByDescending(group => group.Max(row => row.Time)).ToArray();
@@ -137,7 +168,7 @@ public static class DiagnosticEvidenceParser
                     annotation.Observation, annotation.Uncertainty + $" Schema version {key.Version} is preserved; event payloads were not inspected.", annotation.Impact, annotation.NextStep));
             }
             token.ThrowIfCancellationRequested();
-            var report = new DiagnosticReport(start, end, findings, coverage);
+            var report = new DiagnosticReport(start, end, findings, coverage) { ChannelCoverage = channelCoverage.AsReadOnly() };
             var state = successful == 0
                 ? queryFailures > 0 ? CheckState.Failed : failed == 2 ? CheckState.Unavailable : CheckState.Unknown
                 : partial ? CheckState.Partial : CheckState.Available;
@@ -147,6 +178,10 @@ public static class DiagnosticEvidenceParser
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or OverflowException or ArgumentException)
         { return Invalid(token); }
     }
+
+    private static DiagnosticChannelCoverage Unobserved(string channel, CheckState state, DiagnosticChannelCoverageReason reason, string explanation)
+        => new(channel, state, reason, null, null, null, null, null, DiagnosticRetentionState.Unknown, null, null,
+            explanation + " No usable matching-record count or retained-history bounds were established for this source.");
 
     private static bool TryRow(JsonElement item, string channel, DateTimeOffset start, DateTimeOffset end, out Row? row)
     {

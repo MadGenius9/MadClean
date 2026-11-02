@@ -25,6 +25,19 @@
             <TextBlock Text="{Binding DiagnosticsMessage}" Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsWindow}" Style="{StaticResource Caption}"/>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
+                <TextBlock Text="Event source coverage" FontSize="20"/>
+                <TextBlock Text="Each channel keeps its own status. Usable matching records are counted before the finding-group limit. Whole-log counts and retention probes are separate observations, not unique crashes or complete history. Unknown is never zero." Style="{StaticResource Caption}"/>
+                <DataGrid ItemsSource="{Binding DiagnosticChannelRows}" SelectedItem="{Binding SelectedDiagnosticChannel, Mode=TwoWay}" IsReadOnly="True" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" Height="115" AutomationProperties.Name="Application and System event query coverage"><DataGrid.Columns>
+                    <DataGridTextColumn Header="CHANNEL" Binding="{Binding Channel}" Width="110"/>
+                    <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="110"/>
+                    <DataGridTextColumn Header="USABLE MATCHING" Binding="{Binding UsableMatchingRecords, TargetNullValue=Unknown}" Width="*" MinWidth="145"/>
+                    <DataGridTextColumn Header="LIMIT REACHED" Binding="{Binding Truncated, TargetNullValue=Unknown}" Width="135"/>
+                    <DataGridTextColumn Header="WHOLE-LOG COUNT" Binding="{Binding WholeLogRecordCount, TargetNullValue=Unknown}" Width="160"/>
+                    <DataGridTextColumn Header="RETENTION PROBE" Binding="{Binding RetentionState}" Width="150"/>
+                </DataGrid.Columns></DataGrid>
+                <TextBox Text="{Binding DiagnosticChannelDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="145" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" AutomationProperties.Name="Selected event channel status, limits and retention uncertainty"/>
+            </StackPanel></Border>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
                 <TextBlock Text="Observed recurrence" FontSize="20"/>
                 <TextBlock Text="{Binding DiagnosticRecurrence}" Style="{StaticResource Caption}"/>
                 <CheckBox IsChecked="{Binding RepeatedDiagnosticsOnly, Mode=TwoWay}" Foreground="#ECF1FB" AutomationProperties.Name="Filter existing event observations to repeated groups">

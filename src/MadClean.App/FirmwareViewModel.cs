@@ -106,11 +106,13 @@ public sealed partial class MainViewModel
     }
     private void ResetUpdateCategoryResults()
     {
+        BeginDriverOffersQuery(DateTimeOffset.UtcNow);
         WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
         DriverOffersMessage = FirmwareOffersMessage = WindowsSoftwareMessage = "Checking the configured Windows Update service…";
     }
     private void PublishUpdateCategories(CheckResult<SystemUpdate> result)
     {
+        PublishDriverOffersQuery(result, DateTimeOffset.UtcNow);
         WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear();
         foreach (var offer in result.Items)
         {
@@ -127,6 +129,7 @@ public sealed partial class MainViewModel
     }
     private void MarkUpdateCategoryFailure(string error)
     {
+        InterruptDriverOffersQuery(DateTimeOffset.UtcNow);
         FirmwareOfferTime = DateTimeOffset.Now.ToString("g");
         DriverOffersMessage = WindowsSoftwareMessage = error;
         FirmwareOffersMessage = error + " BIOS update coverage and available version remain Unknown.";

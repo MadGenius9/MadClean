@@ -60,6 +60,7 @@ public sealed partial class MainViewModel
             DiagnosticsWindow = "Not checked for the new selection.";
             DiagnosticsAttempt = "Not checked for the new selection";
             ResetDiagnosticRecurrence("Time range changed. Read event evidence for the new selection.");
+            ResetDiagnosticChannels("Time range changed. No channel coverage is available for the new selection until event evidence is read.");
         }
     }
     public DuplicateEntry? SelectedDuplicateEntry
@@ -180,6 +181,7 @@ public sealed partial class MainViewModel
         DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
         DiagnosticsWindow = "In progress; no completed time window is claimed.";
         ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
+        ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.");
         var result = await diagnosticsInventory.ReadAsync(SelectedDiagnosticRange.Days, token); token.ThrowIfCancellationRequested();
         DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
         foreach (var report in result.Items)
@@ -189,6 +191,7 @@ public sealed partial class MainViewModel
             DiagnosticsWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
         }
         PublishDiagnosticRecurrence(result, token);
+        PublishDiagnosticChannels(result);
         DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault();
         return result.State;
     }, error =>
@@ -196,5 +199,6 @@ public sealed partial class MainViewModel
         DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
         DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.";
         ResetDiagnosticRecurrence(error);
+        ResetDiagnosticChannels("This attempt did not complete. No channel count, empty-log or successful-read conclusion is available.");
     });
 }

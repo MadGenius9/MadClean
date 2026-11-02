@@ -1,0 +1,21 @@
+<UserControl x:Class="MadClean.App.Views.DriverOffersView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <TextBlock Text="Driver discovery" FontSize="20"/>
+            <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding DriverOffersMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Windows Update driver offer status" AutomationProperties.LiveSetting="Polite"/>
+            </ScrollViewer>
+            <TextBlock Text="Use Check updates for the configured Windows Update service. Manufacturer driver catalogs are Unsupported; missing offers never establish up-to-date status. No installation or bulk replacement runs here." Style="{StaticResource Caption}"/>
+            <TextBox Text="{Binding DriverOfferQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="88" MaxHeight="145" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10" AutomationProperties.Name="Driver offer source and query attempt times"/>
+            <DataGrid ItemsSource="{Binding DriverOffers}" SelectedItem="{Binding SelectedDriverOffer, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False" Height="230" AutomationProperties.Name="Actual Windows Update driver offers">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="OFFER" Binding="{Binding Title}" Width="3*" MinWidth="180"/>
+                    <DataGridTextColumn Header="PROVIDER CLASS" Binding="{Binding DriverClass}" Width="*" MinWidth="100"/>
+                    <DataGridTextColumn Header="PACKAGE DATE" Binding="{Binding PackageDate}" Width="*" MinWidth="110"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="Selected offer · source and limitations" FontSize="18" Margin="0,16,0,8"/>
+            <TextBox Text="{Binding DriverOfferDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="255" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected driver offer description and unknown prerequisites"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
