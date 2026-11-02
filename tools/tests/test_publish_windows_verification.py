@@ -155,6 +155,10 @@ class PublisherTests(unittest.TestCase):
                 self.report['checks']=[check for check in original if check['name']!=name]
                 self.save(); self.rejected()
                 self.report['checks']=original
+    def test_wua_offer_metadata_contract_cannot_be_omitted(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'wua-offer-metadata-contract']
+        self.save(); self.rejected()
+
     def test_update_discovery_provider_contract_cannot_be_omitted(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'update-discovery-provider-contract']
         self.save(); self.rejected()

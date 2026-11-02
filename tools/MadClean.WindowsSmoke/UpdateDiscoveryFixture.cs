@@ -10,7 +10,7 @@ namespace MadClean.WindowsSmoke;
 internal static class UpdateDiscoveryFixture
 {
     private const string DirectoryName = "update-discovery-validation";
-    private const int MaximumReportBytes = 8192, MaximumApps = 20000, MaximumUpdates = 2048;
+    private const int MaximumReportBytes = 8192, MaximumApps = 20000, MaximumUpdates = 256;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow };
     private static Owner? rootedOwner;
@@ -37,9 +37,13 @@ internal static class UpdateDiscoveryFixture
     private sealed record Provider(string TaskOutcome, string? ResultState, bool SchemaAccepted, int? ItemCount,
         int? KnownPackageOffers, int? UnknownPackageDeterminations, int? SoftwareOffers, int? DriverOffers,
         int? FirmwareOffers, int? UnclassifiedOffers);
+    private sealed record MetadataCoverage(bool Accepted, int? AvailableRows, int? PartialRows, int? UnknownRows);
     private sealed record Observation(int FormatVersion, string SourceCommit, string RunId, int RunAttempt,
         string StartedUtc, string CompletedUtc, bool ObservationWaitExpired, bool WindowsServiceCompletionVerified,
-        Provider Apps, Provider SystemUpdates);
+        Provider Apps, Provider SystemUpdates)
+    {
+        public MetadataCoverage? OfferMetadata { get; init; }
+    }
 
     internal static async Task<int> RunAsync(string repository, CancellationToken token)
     {
@@ -69,8 +73,8 @@ internal static class UpdateDiscoveryFixture
             catch (Exception) { /* Both tasks are complete; typed fault outcome below. */ }
             var apps = ObserveApps(owner.Apps); var updates = ObserveUpdates(owner.Updates);
             if (!Valid(apps, true) || !Valid(updates, false)) return 1;
-            var observed = new Observation(1, context.SourceCommit, context.RunId, context.RunAttempt,
-                Stamp(started), Stamp(DateTimeOffset.UtcNow), expired, false, apps, updates);
+            var observed = new Observation(2, context.SourceCommit, context.RunId, context.RunAttempt,
+                Stamp(started), Stamp(DateTimeOffset.UtcNow), expired, false, apps, updates) { OfferMetadata = ObserveMetadata(owner.Updates, updates) };
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(observed, JsonOptions);
             if (bytes.Length > MaximumReportBytes) return 1;
             CheckAncestry(output, allowMissing: false);
@@ -90,6 +94,7 @@ internal static class UpdateDiscoveryFixture
     internal static void ReadIntoReport(string repository, string expectedSourceCommit, SmokeReport report)
     {
         const string check = "update-discovery-provider-contract";
+        const string metadataCheck = "wua-offer-metadata-contract";
         try
         {
             if (!OperatingSystem.IsWindows()) throw new InvalidDataException();
@@ -111,26 +116,34 @@ internal static class UpdateDiscoveryFixture
             using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 4 });
             var root = document.RootElement;
             if (!Fields(root, ["formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc",
-                "observationWaitExpired", "windowsServiceCompletionVerified", "apps", "systemUpdates"])) throw new InvalidDataException();
+                "observationWaitExpired", "windowsServiceCompletionVerified", "apps", "systemUpdates", "offerMetadata"])) throw new InvalidDataException();
             string[] providerFields = ["taskOutcome", "resultState", "schemaAccepted", "itemCount", "knownPackageOffers", "unknownPackageDeterminations",
                 "softwareOffers", "driverOffers", "firmwareOffers", "unclassifiedOffers"];
             if (!Fields(root.GetProperty("apps"), providerFields) || !Fields(root.GetProperty("systemUpdates"), providerFields)) throw new InvalidDataException();
+            var metadataJson = root.GetProperty("offerMetadata");
+            if (metadataJson.ValueKind != JsonValueKind.Null && !Fields(metadataJson, ["accepted", "availableRows", "partialRows", "unknownRows"])) throw new InvalidDataException();
             var data = JsonSerializer.Deserialize<Observation>(bytes, JsonOptions) ?? throw new InvalidDataException();
-            if (data.FormatVersion != 1 || data.SourceCommit != expected.SourceCommit || data.RunId != expected.RunId || data.RunAttempt != expected.RunAttempt ||
+            if (data.FormatVersion != 2 || data.SourceCommit != expected.SourceCommit || data.RunId != expected.RunId || data.RunAttempt != expected.RunAttempt ||
                 data.WindowsServiceCompletionVerified || !Date(data.StartedUtc, out var start) || !Date(data.CompletedUtc, out var end) || start > end ||
                 end > DateTimeOffset.UtcNow || end - start > TimeSpan.FromMinutes(4) || DateTimeOffset.UtcNow - end > TimeSpan.FromMinutes(10) ||
-                !Valid(data.Apps, true) || !Valid(data.SystemUpdates, false)) throw new InvalidDataException();
+                !Valid(data.Apps, true) || !Valid(data.SystemUpdates, false) || !ValidMetadata(data.OfferMetadata, data.SystemUpdates)) throw new InvalidDataException();
             string detail = $"WinGet task={data.Apps.TaskOutcome}/state={data.Apps.ResultState ?? "not returned"}/schema={data.Apps.SchemaAccepted}/rows={Count(data.Apps.ItemCount)}/knownOfferFields={Count(data.Apps.KnownPackageOffers)}/unknownDeterminations={Count(data.Apps.UnknownPackageDeterminations)}; " +
                 $"WUA task={data.SystemUpdates.TaskOutcome}/state={data.SystemUpdates.ResultState ?? "not returned"}/schema={data.SystemUpdates.SchemaAccepted}/rows={Count(data.SystemUpdates.ItemCount)}/software={Count(data.SystemUpdates.SoftwareOffers)}/drivers={Count(data.SystemUpdates.DriverOffers)}/firmware={Count(data.SystemUpdates.FirmwareOffers)}/unclassified={Count(data.SystemUpdates.UnclassifiedOffers)}; waitExpired={data.ObservationWaitExpired}. " +
                 "Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported.";
             if (Positive(data.Apps) && Positive(data.SystemUpdates) && !data.ObservationWaitExpired) report.Pass(check, detail);
             else report.Unknown(check, detail);
+            string metadataDetail = $"WUA source={data.SystemUpdates.ResultState ?? "not returned"}; accepted={data.OfferMetadata?.Accepted}; availableRows={Count(data.OfferMetadata?.AvailableRows)}; partialRows={Count(data.OfferMetadata?.PartialRows)}; unknownRows={Count(data.OfferMetadata?.UnknownRows)}. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission.";
+            if (Positive(data.SystemUpdates) && data.OfferMetadata is { Accepted: true, AvailableRows: > 0 } && !data.ObservationWaitExpired) report.Pass(metadataCheck, metadataDetail);
+            else report.Unknown(metadataCheck, metadataDetail);
             }
             finally { foreach (var guard in guards.AsEnumerable().Reverse()) guard.Dispose(); }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or
             JsonException or FormatException or System.Security.SecurityException or SystemToolTrustFailure)
-        { report.Unknown(check, "Separate online source evidence is absent, stale, malformed, pending or mismatched to this source/run/attempt. No online query, report reset, synthetic offer or successful check was substituted."); }
+        {
+            report.Unknown(check, "Separate online source evidence is absent, stale, malformed, pending or mismatched to this source/run/attempt. No online query, report reset, synthetic offer or successful check was substituted.");
+            report.Unknown(metadataCheck, "No accepted source-bound optional WUA metadata observation is available; no query or synthetic metadata was substituted.");
+        }
     }
 
     private static Provider ObserveApps(Task<CheckResult<AppUpdate>> task)
@@ -168,6 +181,34 @@ internal static class UpdateDiscoveryFixture
         return new("Returned", state ? result.State.ToString() : "Unknown", schema, result.Items.Count, null, null,
             schema ? software : null, schema ? driver : null, schema ? firmware : null, schema ? unclassified : null);
     }
+    private static MetadataCoverage? ObserveMetadata(Task<CheckResult<SystemUpdate>> task, Provider provider)
+    {
+        if (!task.IsCompletedSuccessfully || provider.TaskOutcome != "Returned" || !provider.SchemaAccepted) return null;
+        int available = 0, partial = 0, unknown = 0;
+        foreach (var row in task.Result.Items)
+        {
+            if (row.OfferMetadata == null) { unknown++; continue; }
+            int type = row.Kind is "Driver" or "Firmware" ? 2 : row.Kind == "Software" ? 1 : 0;
+            if (!WindowsUpdateOfferMetadataParser.IsConsistent(row.OfferMetadata, type)) return new(false, null, null, null);
+            switch (row.OfferMetadata.State)
+            {
+                case CheckState.Available: available++; break;
+                case CheckState.Partial: partial++; break;
+                case CheckState.Unknown: unknown++; break;
+                default: return new(false, null, null, null);
+            }
+        }
+        return new(true, available, partial, unknown);
+    }
+    private static bool ValidMetadata(MetadataCoverage? metadata, Provider provider)
+    {
+        if (provider.TaskOutcome != "Returned" || !provider.SchemaAccepted) return metadata == null;
+        if (metadata == null) return false;
+        int?[] counts = [metadata.AvailableRows, metadata.PartialRows, metadata.UnknownRows];
+        if (!metadata.Accepted) return counts.All(value => value == null);
+        return counts.All(value => value is >= 0 and <= 256) && metadata.AvailableRows + metadata.PartialRows + metadata.UnknownRows == provider.ItemCount;
+    }
+
     private static Provider Unreturned(Task task) => new(task.IsCanceled ? "Cancelled" : task.IsFaulted ? "Faulted" : "Pending",
         null, false, null, null, null, null, null, null, null);
     private static bool Positive(Provider value) => value.TaskOutcome == "Returned" && value.SchemaAccepted && (value.ResultState is "Available" or "Partial");

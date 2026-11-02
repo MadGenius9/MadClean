@@ -165,3 +165,6 @@ The [selected cleanup recheck](CLEANUP-FILE-EVIDENCE.md) independently refreshes
 
 
 The selected cleanup recheck now separately qualifies [stream metadata](CLEANUP-STREAM-SCOPE.md). The selected MSI review now has a separate [full current-user/machine context preflight](MSI-ACTION-BINDING.md); it invokes no installer. Defender's existing status query optionally projects [scan-history timestamps](DEFENDER-SCAN-HISTORY.md), independently from protection/history state. All remain read-only and preserve pending worker ownership; no action gate is enabled.
+
+
+Read-only WUA offer metadata now includes independent declared installation behavior and optional driver names under [this bounded contract](WUA-OFFER-METADATA.md). The same search projects at most 256 offers with explicit Partial truncation. Neither successful discovery nor declared reboot/network behavior establishes installation readiness or exact-device/BIOS compatibility. No installation or extra query is performed.

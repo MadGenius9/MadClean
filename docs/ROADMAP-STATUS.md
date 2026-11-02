@@ -251,3 +251,8 @@ Source `fc009f1`, [run 41487160030](https://github.com/MadGenius9/MadClean/actio
 The coordinator inspected the genuine wide dashboard capture. Its SHA256 `f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf` is identical to the prior dc063ec capture, preserving the observed rendered layout while verifying neutral Overview UI Automation traversal. This covers those two client renders, not every DPI/native frame or physical assistive-technology workflow.
 
 The full roadmap remains unfinished. Reviewed client mutations, source-specific operation/recovery gates, manufacturer-verified compatibility/coverage and broader Windows release validation remain open. The preserved Automatic Maintenance entry is planning only; no schedule or action has been enabled.
+
+
+## Read-only Windows Update offer characteristics
+
+The existing configured-source search now projects bounded optional driver manufacturer/provider/intended-model names and declared interaction, network, impact and reboot behavior. Driver/Firmware detail panels show these with independent coverage and retain Unknown exact-device/version/elevation/OEM prerequisites. No new query, URL action, download, install or restart is added. Local build passes with zero warnings/errors; all 1,247 portable tests pass, and Python reports 153 total / 152 passed / one Windows-only skip. Independent review found no static blocker. Actual new provider metadata observations and populated driver/firmware selection remain pending Windows evidence; see [contract](WUA-OFFER-METADATA.md).

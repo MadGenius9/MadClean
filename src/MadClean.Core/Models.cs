@@ -23,7 +23,10 @@ public sealed record DefenderInfo(bool? AntivirusEnabled, bool? RealTimeEnabled,
 public sealed record DefenderFinding(string ThreatId, string ActionSuccess, string LastStatusChange);
 public sealed record AppUpdate(string Name, string Id, string InstalledVersion, string AvailableVersion, string Source, CheckState Status);
 public sealed record SystemUpdate(string Title, string Kind, string Identity, bool RebootRequired,
-    string DriverClass = "Unknown", string PackageDate = "Unknown", string Description = "Unknown");
+    string DriverClass = "Unknown", string PackageDate = "Unknown", string Description = "Unknown")
+{
+    public WindowsUpdateOfferMetadata? OfferMetadata { get; init; }
+}
 
 public interface IComputerInventory
 {

@@ -34,6 +34,7 @@ public sealed partial class MainViewModel
             $"Provider driver class: {offer.DriverClass}\nProvider driver package date: {offer.PackageDate} (not a verified release date or installed-driver date)\n" +
             $"Provider RebootRequired flag: {offer.RebootRequired} (an observed flag, not permission or a restart request)\n" +
             "Installed driver version: Unknown. Offered driver/package version: Unknown.\nExact device/OEM model and revision match: Unverified.\nOfficial release notes: Unknown; the description below is not verified manufacturer release notes.\nInstallation prerequisites: Unknown; verify the exact OEM/device instructions before considering a future installation.\n\n" +
+            WindowsUpdateOfferDetails.Describe(offer) + "\n\n" +
             $"Windows Update provider description (untrusted plain text):\n{offer.Description}\n\n" +
             "This read-only offer is not a compatibility, signature or installation-readiness verdict. No install, driver replacement, firmware asset download or restart is requested. Manufacturer driver catalog coverage is Unsupported in this increment.";
 

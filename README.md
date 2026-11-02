@@ -141,3 +141,6 @@ See the explicit [capability queue](docs/CAPABILITIES.md), including the later [
 
 
 Development CI separately prepares an owned self-contained build to validate standalone startup, without a distribution ZIP or executable upload. [The startup check](docs/PUBLISHED-STARTUP-VALIDATION.md) distinguishes publication, neutral UI observation, loaded bundled runtime, actual exit and owned teardown; compilation alone is not a tested executable. The [roadmap ledger](docs/ROADMAP-STATUS.md) records outstanding action, manufacturer-source and release gates.
+
+
+Selected Windows Update driver and firmware offers now show [provider-reported driver names and declared installation characteristics](docs/WUA-OFFER-METADATA.md), with independent unknown/failed field coverage. These declarations do not verify versions, compatibility, elevation or complete OEM prerequisites; no installation or restart is performed.

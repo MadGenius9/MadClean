@@ -62,7 +62,7 @@ public sealed partial class MainViewModel
     }
     public string FirmwareOfferDetails => selectedFirmwareOffer == null
         ? "No firmware-class offer selected. No returned offer does not mean the BIOS is up to date. Other driver offers may have missing class metadata."
-        : $"{selectedFirmwareOffer.Title}\nSource: configured Windows Update service · update ID: {selectedFirmwareOffer.Identity}\nDriver class: {selectedFirmwareOffer.DriverClass}; package date: {selectedFirmwareOffer.PackageDate} (not installed BIOS date).\nAvailable BIOS/package version: Unknown. Exact model/revision and BIOS-versus-device role: Unknown.\nProvider description (not verified model-specific BIOS release notes): {selectedFirmwareOffer.Description}\nOfficial BIOS release notes/prerequisites: Unknown until checked on the exact OEM support source. No install/flash or restart is authorized.";
+        : $"{selectedFirmwareOffer.Title}\nSource: configured Windows Update service · update ID: {selectedFirmwareOffer.Identity}\nDriver class: {selectedFirmwareOffer.DriverClass}; package date: {selectedFirmwareOffer.PackageDate} (not installed BIOS date).\nAvailable BIOS/package version: Unknown. Exact model/revision and BIOS-versus-device role: Unknown.\nProvider description (not verified model-specific BIOS release notes): {selectedFirmwareOffer.Description}\nOfficial BIOS release notes/prerequisites: Unknown until checked on the exact OEM support source. No install/flash or restart is authorized.\n\n" + WindowsUpdateOfferDetails.Describe(selectedFirmwareOffer);
     private void InitializeFirmwareDiscovery()
     {
         InitializeFirmwareHistory();

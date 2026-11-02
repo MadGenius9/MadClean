@@ -13,7 +13,7 @@ There is one call each to the existing `WindowsInventory.AppsAsync` and `SystemU
 
 Windows and WinGet can contact configured servers and refresh normal provider metadata/cache state. This is not an offline or zero-write operation. The fixture introduces no custom package/identity upload and does not claim that provider-controlled traffic transmits no inventory metadata. Microsoft/provider behavior remains separate from MadClean's minimized evidence output.
 
-The existing query runner bounds each captured stdout/stderr stream to 4,194,304 characters. It captures output privately for parsing and never forwards it into this report. The new projection inspects at most 20,000 package rows or 2,048 WUA rows; excess or inconsistent typed results are not accepted as source coverage. The existing WUA producer is not claimed to have a new per-record native allocation cap; this fixture does not change that producer or its supported interfaces.
+The existing query runner bounds each captured stdout/stderr stream to 4,194,304 characters. It captures output privately for parsing and never forwards it into this report. The new projection inspects at most 20,000 package rows or 256 WUA rows; excess or inconsistent typed results are not accepted as source coverage. The existing WUA producer is not claimed to have a new per-record native allocation cap; this fixture does not change that producer or its supported interfaces.
 
 ## Pending ownership and cancellation
 
@@ -37,3 +37,6 @@ Return codes are 0 for observed positive source contracts, 2 for inconclusive/pe
 
 
 Actual source39d5fad/run41478096814, evidenceab9e7627efca51919a997f04d0878ba0b5be852c: WinGet returned Unknown with accepted schema and zero rows; WUA returned Available with three software offers and zero driver/firmware/unclassified rows. The observation wait did not expire. The combined provider check remains inconclusive because both sources were not positive. Stage exit2 and no raw output were observed. No offer names/identities, installation, source agreement, populated UI selection or Windows-service completion proof is exported or inferred. Driver/firmware zero is only this configured search result, never Up to date.
+
+
+Version2 evidence adds optional-metadata coverage counts with exact source/run/attempt binding and a separate required wua-offer-metadata-contract result. Actual field values stay private. Both the existing source check and optional metadata check retain independent outcomes; software rows do not validate driver-only getters or populated driver/firmware UI. [Field semantics and current limits](WUA-OFFER-METADATA.md). New runtime observations are pending.

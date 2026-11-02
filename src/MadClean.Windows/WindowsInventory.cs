@@ -201,25 +201,90 @@ public sealed class WindowsInventory : IComputerInventory
         $env:PSModulePath = [System.IO.Path]::Combine($PSHOME, 'Modules')
         $ErrorActionPreference = 'Stop'
         [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        function Offer-Field([string]$state,$value) { return [pscustomobject]@{State=$state;Value=$value} }
+        function Read-OfferField($object,[string]$name,[string]$kind) {
+          try {
+            $value=$object.$name
+            if ($null -eq $value) { return (Offer-Field 'Unknown' $null) }
+            if ($kind -ceq 'String') {
+              if ($value -isnot [string] -or $value.Length -gt 512 -or [string]::IsNullOrWhiteSpace($value)) { return (Offer-Field 'Unknown' $null) }
+              for ($n=0;$n -lt $value.Length;$n++) {
+                $c=$value[$n]
+                if ([char]::IsHighSurrogate($c)) {
+                  if ($n+1 -ge $value.Length -or -not [char]::IsLowSurrogate($value[$n+1])) { return (Offer-Field 'Unknown' $null) }
+                  $category=[Globalization.CharUnicodeInfo]::GetUnicodeCategory($value,$n);$n++
+                } elseif ([char]::IsLowSurrogate($c)) { return (Offer-Field 'Unknown' $null) }
+                else { $category=[char]::GetUnicodeCategory($c) }
+                if ($category -eq [Globalization.UnicodeCategory]::Control -or $category -eq [Globalization.UnicodeCategory]::Format -or
+                    $category -eq [Globalization.UnicodeCategory]::LineSeparator -or $category -eq [Globalization.UnicodeCategory]::ParagraphSeparator) { return (Offer-Field 'Unknown' $null) }
+              }
+              return (Offer-Field 'Available' $value)
+            }
+            if ($kind -ceq 'Bool') {
+              if ($value -is [bool]) { return (Offer-Field 'Available' $value) }
+              return (Offer-Field 'Unknown' $null)
+            }
+            if ($kind -ceq 'Enum') {
+              $integer=$value -is [sbyte] -or $value -is [byte] -or $value -is [int16] -or $value -is [uint16] -or
+                  $value -is [int32] -or $value -is [uint32] -or $value -is [int64] -or $value -is [uint64]
+              if ($integer -and $value -ge 0 -and $value -le 2) { return (Offer-Field 'Available' ([int]$value)) }
+            }
+            return (Offer-Field 'Unknown' $null)
+          } catch { return (Offer-Field 'Failed' $null) }
+        }
         try {
           $session = New-Object -ComObject Microsoft.Update.Session
           $session.ClientApplicationID = 'MadClean read-only inventory'
           $searcher = $session.CreateUpdateSearcher()
           $result = $searcher.Search("IsInstalled=0 and IsHidden=0")
           $updates = @()
-          for ($i=0; $i -lt $result.Updates.Count; $i++) {
+          $count=$result.Updates.Count
+          if ($count -isnot [int] -or $count -lt 0) { throw [InvalidOperationException]::new('Windows Update offer count unavailable.') }
+          $truncated=$count -gt 256
+          for ($i=0; $i -lt $count -and $i -lt 256; $i++) {
             $u=$result.Updates.Item($i)
+            $type=[int]$u.Type
             $class = $null
             $date = $null
-            if ([int]$u.Type -eq 2) {
+            if ($type -eq 2) {
               try { $class = [string]$u.DriverClass } catch { }
               try { $date = $u.DriverVerDate.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture) } catch { }
             }
+            $metadata=[pscustomobject]@{
+              Version=1
+              Manufacturer=(Offer-Field 'Unknown' $null);Provider=(Offer-Field 'Unknown' $null);Model=(Offer-Field 'Unknown' $null)
+              CanRequestUserInput=(Offer-Field 'Unknown' $null);RequiresNetworkConnectivity=(Offer-Field 'Unknown' $null)
+              Impact=(Offer-Field 'Unknown' $null);RebootBehavior=(Offer-Field 'Unknown' $null)
+            }
+            if ($type -eq 1) {
+              $metadata.Manufacturer=Offer-Field 'Unsupported' $null
+              $metadata.Provider=Offer-Field 'Unsupported' $null
+              $metadata.Model=Offer-Field 'Unsupported' $null
+            } elseif ($type -eq 2) {
+              $metadata.Manufacturer=Read-OfferField $u 'DriverManufacturer' 'String'
+              $metadata.Provider=Read-OfferField $u 'DriverProvider' 'String'
+              $metadata.Model=Read-OfferField $u 'DriverModel' 'String'
+            }
+            $behavior=$null;$behaviorFailed=$false
+            try { $behavior=$u.InstallationBehavior } catch { $behaviorFailed=$true }
+            if ($behaviorFailed) {
+              $metadata.CanRequestUserInput=Offer-Field 'Failed' $null
+              $metadata.RequiresNetworkConnectivity=Offer-Field 'Failed' $null
+              $metadata.Impact=Offer-Field 'Failed' $null
+              $metadata.RebootBehavior=Offer-Field 'Failed' $null
+            } elseif ($null -ne $behavior) {
+              $metadata.CanRequestUserInput=Read-OfferField $behavior 'CanRequestUserInput' 'Bool'
+              $metadata.RequiresNetworkConnectivity=Read-OfferField $behavior 'RequiresNetworkConnectivity' 'Bool'
+              $metadata.Impact=Read-OfferField $behavior 'Impact' 'Enum'
+              $metadata.RebootBehavior=Read-OfferField $behavior 'RebootBehavior' 'Enum'
+            }
+            $reboot=$u.RebootRequired
+            if ($reboot -isnot [bool]) { throw [InvalidOperationException]::new('Windows Update required reboot metadata unavailable.') }
             $description = [string]$u.Description
             if ($description.Length -gt 2048) { $description = $description.Substring(0, 2048) + ' [truncated]' }
-            $updates += [pscustomobject]@{Title=$u.Title; Type=[int]$u.Type; Id=$u.Identity.UpdateID; RebootRequired=[bool]$u.RebootRequired; DriverClass=$class; DriverVerDate=$date; Description=$description}
+            $updates += [pscustomobject]@{Title=$u.Title; Type=$type; Id=$u.Identity.UpdateID; RebootRequired=$reboot; DriverClass=$class; DriverVerDate=$date; Description=$description; OfferMetadata=$metadata}
           }
-          [pscustomobject]@{ResultCode=[int]$result.ResultCode; Updates=@($updates)} | ConvertTo-Json -Depth 5 -Compress
+          [pscustomobject]@{ResultCode=[int]$result.ResultCode; Truncated=$truncated; Updates=@($updates)} | ConvertTo-Json -Depth 8 -Compress
         } catch { exit 1 }
         """;
 }
