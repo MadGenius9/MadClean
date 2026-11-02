@@ -89,3 +89,6 @@ The native popup check now also requires each generated More tools container's r
 
 
 Actual source95a72c8/run41454355527/evidence580c6aaa39c5afcbb3d000b4edeb6f886b74d48c passed the live generated-item automation-peer name assertion. No physical keyboard/screen-reader or broader accessibility certification is inferred.
+
+
+Source `fc009f1` / run 41487160030 passed the actual standalone neutral Overview UI Automation check through the headerless native PageHost pane peer. It reads the real Inspect button, summary ItemStatus, storage text and drive-selection controls without invoking commands. The actual wide client capture was inspected and is byte-identical to dc063ec (`f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf`), so this observed layout is preserved. Physical keyboard, screen-reader and DPI validation remains separate. See [published startup evidence](PUBLISHED-STARTUP-VALIDATION.md).
