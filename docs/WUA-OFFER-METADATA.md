@@ -15,3 +15,10 @@ Official Microsoft references were checked on2026-11-02 from their current Micro
 - [InstallationImpact](https://learn.microsoft.com/windows/win32/api/wuapi/ne-wuapi-installationimpact) and [InstallationRebootBehavior](https://learn.microsoft.com/windows/win32/api/wuapi/ne-wuapi-installationrebootbehavior).
 
 The separate disposable-CI update mode reports only counts of Available/Partial/Unknown optional-metadata rows in a strict source/run/attempt-bound version2 envelope. No field values, driver names, package identities or raw errors are uploaded. Its independent required check can pass only for genuine returned offers with at least one fully Available optional-metadata row. Software rows may qualify the shared four-field behavior projection; this does not validate driver-only getters or populated driver/firmware UI. Missing offers, source access failures and incomplete metadata remain inconclusive. No sample offers are injected into production.
+
+
+## Actual Windows observation
+
+Source `4e8f91ef1e7cf457ffc8b98c6595ce61c4e2b6a7`, [run 41495966220](https://github.com/MadGenius9/MadClean/actions/runs/41495966220), immutable evidence `2f2f53f70a01ed31e5d295b2262b0d5292fa3fee`: the new metadata contract passed with three actual software offers, all three carrying Available optional metadata, zero Partial and zero Unknown rows. This qualifies the shared four-field installation-behavior projection on that runner. No driver/firmware offers were returned, so driver-name getters, exact device matching and populated driver/firmware UI selection remain unverified. Raw values were not exported; source counts are not an installation-readiness verdict. WinGet remained Unknown, independently of the Available WUA search.
+
+The same source passed published executable startup, static runtime profile, neutral Overview, actual exit0 and owned cleanup. Windows core results reconcile 1,237 Passed plus10 NotExecuted to1,247;81 scoped checks report71 passed,10 inconclusive and0 failed. Distribution packaging stayed off; no installation or restart action was invoked.
