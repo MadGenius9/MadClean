@@ -40,22 +40,23 @@ internal static partial class NativeFixtures
             var root = document.RootElement;
             string[] flags = ["HostQualified", "ManifestQualified", "BuiltinCoreBound", "CoreAssemblyBound", "ImportAttempted", "ImportReturned", "ModuleBound", "PublisherTrustVerified", "HealthCheckInvoked"];
             string[] numeric = ["ErrorCategory", "OuterHResult", "HResult"];
-            string[] texts = ["Status", "Stage", "OuterKind", "Kind", "MissingCommand", "InvocationContext", "ContextSource"];
+            string[] texts = ["Status", "Stage", "OuterKind", "Kind", "MissingCommand", "InvocationContext", "ContextSource", "ErrorTargetContext", "ErrorTargetSource"];
             string[] kinds = ["None", "PowerShell", "PowerShellStop", "PowerShellInvocation", "CommandNotFound", "FileLoad", "FileNotFound", "TypeLoad", "Security", "IO", "Unknown"];
-            string[] commandNames = ["Unobserved", "Unknown", "ImportModule", "GetCommand", "JoinPath", "SplitPath", "TestPath", "GetItem", "GetChildItem", "NewObject", "WhereObject", "OutNull", "SelectObject", "UpdateFormatData", "AddType", "ExportModuleMember"];
+            string[] commandNames = ["Unobserved", "Unknown", "ImportModule", "GetCommand", "JoinPath", "SplitPath", "TestPath", "GetItem", "GetChildItem", "NewObject", "WhereObject", "OutNull", "SelectObject", "UpdateFormatData", "AddType", "ExportModuleMember", "ImportLocalizedData", "WriteVerbose", "ConvertFromStringData", "UpdateTypeData", "SetStrictMode"];
             bool Fixed(string name, params string[] values) => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
                 value.GetString() is { } text && values.Contains(text, StringComparer.Ordinal);
             var names = root.ValueKind == JsonValueKind.Object ? root.EnumerateObject().Select(property => property.Name).ToArray() : [];
             transport = "Projection";
             if (names.Length != 1 + flags.Length + numeric.Length + texts.Length || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
                 names.Any(name => name != "Schema" && !flags.Contains(name, StringComparer.Ordinal) && !numeric.Contains(name, StringComparer.Ordinal) && !texts.Contains(name, StringComparer.Ordinal)) ||
-                !root.TryGetProperty("Schema", out var schema) || !schema.TryGetInt32(out int version) || version != 1 ||
+                !root.TryGetProperty("Schema", out var schema) || !schema.TryGetInt32(out int version) || version != 2 ||
                 flags.Any(name => !root.TryGetProperty(name, out var value) || value.ValueKind is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null) ||
                     value.ValueKind == JsonValueKind.Null && name is not ("ImportReturned" or "ModuleBound")) ||
                 numeric.Any(name => !root.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Null && (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out _))) ||
                 !Fixed("Status", "Available", "Unknown", "Unavailable") || !Fixed("Stage", "Host", "Manifest", "BuiltinMetadata", "Import", "ModuleBinding", "Completed") ||
                 !Fixed("OuterKind", kinds) || !Fixed("Kind", kinds) || !Fixed("MissingCommand", commandNames) || !Fixed("InvocationContext", commandNames) ||
-                !Fixed("ContextSource", "None", "OuterInvocationName", "OuterMyCommand", "NestedInvocationName", "NestedMyCommand"))
+                !Fixed("ContextSource", "None", "OuterInvocationName", "OuterMyCommand", "NestedInvocationName", "NestedMyCommand") ||
+                !Fixed("ErrorTargetContext", commandNames) || !Fixed("ErrorTargetSource", "None", "OuterTargetObject", "OuterCategoryTarget", "NestedTargetObject", "NestedCategoryTarget"))
             { report.Unknown(check, Transport() + "The independent control projection was unrecognized; no route, cause or health result was inferred."); return; }
             string Text(string name) => root.GetProperty(name).GetString()!;
             bool? Flag(string name) => root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : root.GetProperty(name).GetBoolean();
@@ -66,10 +67,10 @@ internal static partial class NativeFixtures
             { report.Fail(check, Transport() + "The independent control contradicted its metadata-only/no-publisher-verification invariant; no payload or host data is exported."); return; }
             bool complete = Text("Status") == "Available" && Text("Stage") == "Completed" && flags.Take(7).All(name => Flag(name) == true);
             transport = "Completed";
-            string detail = Transport() + $"control={Text("Status")}/{Text("Stage")}; host={FlagText("HostQualified")}; manifest={FlagText("ManifestQualified")}; builtinCore={FlagText("BuiltinCoreBound")}; coreAssembly={FlagText("CoreAssemblyBound")}; attempted={FlagText("ImportAttempted")}; returned={FlagText("ImportReturned")}; moduleBound={FlagText("ModuleBound")}; category={Number("ErrorCategory")}; outer={Text("OuterKind")}/{Number("OuterHResult", true)}; exception={Text("Kind")}/{Number("HResult", true)}; typedMissing={Text("MissingCommand")}; invocation={Text("InvocationContext")}/{Text("ContextSource")}. ";
+            string detail = Transport() + $"control={Text("Status")}/{Text("Stage")}; host={FlagText("HostQualified")}; manifest={FlagText("ManifestQualified")}; builtinCore={FlagText("BuiltinCoreBound")}; coreAssembly={FlagText("CoreAssemblyBound")}; attempted={FlagText("ImportAttempted")}; returned={FlagText("ImportReturned")}; moduleBound={FlagText("ModuleBound")}; category={Number("ErrorCategory")}; outer={Text("OuterKind")}/{Number("OuterHResult", true)}; exception={Text("Kind")}/{Number("HResult", true)}; typedMissing={Text("MissingCommand")}; invocation={Text("InvocationContext")}/{Text("ContextSource")}; targetContext={Text("ErrorTargetContext")}/{Text("ErrorTargetSource")}. ";
             string message = detail + (complete
                 ? "Independent captured-builtin import observed only; original capability result unchanged. No health/output-getter invocation, publisher trust, stable health schema, elevation suitability or production gate established."
-                : "Independent route remains Unknown. Invocation context is not proof of a missing command or cause. Original capability result unchanged; no fallback, health command, publisher trust or production gate.");
+                : "Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate.");
             if (message.Length > 1000)
             { report.Unknown(check, Transport() + "The bounded independent summary could not retain its full caveats. No health command, publisher verification or production gate."); return; }
             if (complete) report.Pass(check, message); else report.Unknown(check, message);
@@ -85,7 +86,7 @@ internal static partial class NativeFixtures
         $VerbosePreference='SilentlyContinue'; $DebugPreference='SilentlyContinue'; $PSModuleAutoLoadingPreference='None'
         [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
         $f=[ordered]@{HostQualified=$false;ManifestQualified=$false;BuiltinCoreBound=$false;CoreAssemblyBound=$false;ImportAttempted=$false;ImportReturned=$null;ModuleBound=$null;PublisherTrustVerified=$false;HealthCheckInvoked=$false}
-        $d=[ordered]@{Status='Unknown';Stage='Host';OuterKind='None';Kind='None';MissingCommand='Unobserved';InvocationContext='Unobserved';ContextSource='None';ErrorCategory=$null;OuterHResult=$null;HResult=$null}
+        $d=[ordered]@{Status='Unknown';Stage='Host';OuterKind='None';Kind='None';MissingCommand='Unobserved';InvocationContext='Unobserved';ContextSource='None';ErrorTargetContext='Unobserved';ErrorTargetSource='None';ErrorCategory=$null;OuterHResult=$null;HResult=$null}
         function Test-ControlFile([string]$p) {
           if ([string]::IsNullOrEmpty($p) -or $p.Length -gt 1024) { return $false }
           $v=[IO.Path]::GetFullPath($p)
@@ -105,7 +106,31 @@ internal static partial class NativeFixtures
             'Split-Path' { return 'SplitPath' }; 'Test-Path' { return 'TestPath' }; 'Get-Item' { return 'GetItem' }
             'Get-ChildItem' { return 'GetChildItem' }; 'New-Object' { return 'NewObject' }; 'Where-Object' { return 'WhereObject' }
             'Out-Null' { return 'OutNull' }; 'Select-Object' { return 'SelectObject' }; 'Update-FormatData' { return 'UpdateFormatData' }
-            'Add-Type' { return 'AddType' }; 'Export-ModuleMember' { return 'ExportModuleMember' }; default { return 'Unknown' }
+            'Add-Type' { return 'AddType' }; 'Export-ModuleMember' { return 'ExportModuleMember' }
+            'Import-LocalizedData' { return 'ImportLocalizedData' }; 'Microsoft.PowerShell.Utility\Import-LocalizedData' { return 'ImportLocalizedData' }
+            'Write-Verbose' { return 'WriteVerbose' }; 'Microsoft.PowerShell.Utility\Write-Verbose' { return 'WriteVerbose' }
+            'ConvertFrom-StringData' { return 'ConvertFromStringData' }; 'Microsoft.PowerShell.Utility\ConvertFrom-StringData' { return 'ConvertFromStringData' }
+            'Update-TypeData' { return 'UpdateTypeData' }; 'Microsoft.PowerShell.Utility\Update-TypeData' { return 'UpdateTypeData' }
+            'Microsoft.PowerShell.Utility\Update-FormatData' { return 'UpdateFormatData' }
+            'Microsoft.PowerShell.Utility\Add-Type' { return 'AddType' }
+            'Set-StrictMode' { return 'SetStrictMode' }; 'Microsoft.PowerShell.Core\Set-StrictMode' { return 'SetStrictMode' }
+            default { return 'Unknown' }
+          }
+        }
+        function Save-ControlTarget($r,[bool]$nested) {
+          # Preserve the actual fields as objects; never enumerate/stringify a TargetObject collection.
+          $targets=@($null,$null);$targets[0]=$r.TargetObject
+          if ($null -ne $r.CategoryInfo) { $targets[1]=$r.CategoryInfo.TargetName }
+          for ($i=0;$i -lt 2;$i++) {
+            $v=$targets[$i]
+            if ($v -isnot [string]) { continue }
+            $context=Get-ControlCommand $v
+            if ($d.ErrorTargetSource -ceq 'None' -or $context -cne 'Unknown') {
+              $d.ErrorTargetContext=$context
+              if ($nested) { if ($i -eq 0) { $d.ErrorTargetSource='NestedTargetObject' } else { $d.ErrorTargetSource='NestedCategoryTarget' } }
+              else { if ($i -eq 0) { $d.ErrorTargetSource='OuterTargetObject' } else { $d.ErrorTargetSource='OuterCategoryTarget' } }
+            }
+            if ($context -cne 'Unknown') { return }
           }
         }
         function Get-ControlKind([Exception]$x) {
@@ -133,6 +158,7 @@ internal static partial class NativeFixtures
           if ($d.OuterKind -cne 'None') { return }
           if ($null -ne $r.CategoryInfo) { $d.ErrorCategory=[int]$r.CategoryInfo.Category }
           Save-ControlContext $r $false
+          Save-ControlTarget $r $false
           $x=$r.Exception
           if ($null -eq $x) { $d.OuterKind='Unknown';$d.Kind='Unknown';return }
           $d.OuterKind=Get-ControlKind $x; $d.Kind=$d.OuterKind; $d.OuterHResult=[int]$x.HResult;$d.HResult=$d.OuterHResult
@@ -147,7 +173,7 @@ internal static partial class NativeFixtures
             $next=$x.InnerException
             if ($kind -ceq 'PowerShellStop') {
               $r2=$x.ErrorRecord
-              if ($null -ne $r2) { Save-ControlContext $r2 $true; if ($null -ne $r2.Exception) { $next=$r2.Exception } }
+              if ($null -ne $r2) { Save-ControlContext $r2 $true; Save-ControlTarget $r2 $true; if ($null -ne $r2.Exception) { $next=$r2.Exception } }
             }
             $x=$next
           }
@@ -179,12 +205,12 @@ internal static partial class NativeFixtures
             $d.Status='Available';$d.Stage='Completed'
           } while ($false)
         } catch { Save-ControlError $_ }
-        $json=[Text.StringBuilder]::new();[void]$json.Append('{"Schema":1')
+        $json=[Text.StringBuilder]::new();[void]$json.Append('{"Schema":2')
         foreach ($e in $f.GetEnumerator()) {
           [void]$json.Append(',"').Append($e.Key).Append('":')
           if ($null -eq $e.Value) { [void]$json.Append('null') } else { [void]$json.Append(([bool]$e.Value).ToString().ToLowerInvariant()) }
         }
-        foreach ($key in @('Status','Stage','OuterKind','Kind','MissingCommand','InvocationContext','ContextSource')) { [void]$json.Append(',"').Append($key).Append('":"').Append($d[$key]).Append('"') }
+        foreach ($key in @('Status','Stage','OuterKind','Kind','MissingCommand','InvocationContext','ContextSource','ErrorTargetContext','ErrorTargetSource')) { [void]$json.Append(',"').Append($key).Append('":"').Append($d[$key]).Append('"') }
         foreach ($key in @('ErrorCategory','OuterHResult','HResult')) {
           [void]$json.Append(',"').Append($key).Append('":')
           if ($null -eq $d[$key]) { [void]$json.Append('null') } else { [void]$json.Append(([int]$d[$key]).ToString([Globalization.CultureInfo]::InvariantCulture)) }

@@ -102,3 +102,6 @@ After every initial capture and existing inspection interaction, the populated c
 
 
 `dism-builtin-import-control-contract` always starts its own fresh fixed Desktop5.1 metadata process. It captures and qualifies the Core Import-Module CmdletInfo, invokes it only with the existing fixed inbox manifest and keeps autoload disabled. It is independent of the original qualified-command check and never retries/promotes that result. Actual typed missing-command metadata is distinguished from mere invocation context; no arbitrary strings or health commands are exported/executed. Complete-command/output bounds and nullable observations remain mandatory.
+
+
+The required `cleanup-mapped-disposition-owned-probe` is described in [the mapped-file experiment](../docs/CLEANUP-MAPPED-DISPOSITION.md). It uses this process’s own non-executable view and fixed marked files only, exports distinct request/view/name/release observations, retains uncertain resources, and grants no production deletion permission.
