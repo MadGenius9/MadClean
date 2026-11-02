@@ -179,3 +179,11 @@ The Apps update category now exposes selectable, copyable real WinGet package me
 
 
 Source218460e/run41447715297/evidencea1f92c57f9860143bde14b30f0fc31d488798c76:72 scoped checks,64 passed/8 Unknown/0 failed. The new actual Diagnostics interaction passed with2 queried/positive channels,2 selected rows, real grid/details/status bindings and no-query selection/range invalidation. Exactly one passive Event Log read ran; no raw records were exported. Core1,150 records reconciled1,140 Passed+10 NotExecuted; SDK/build/tooling stages succeeded, parent teardown114/114/512 passed and publishing was skipped. This verifies the observed interaction only, not every log policy, physical keyboard/accessibility or system health.
+
+
+Source8deb0ac/run41448092045/evidenceefcea8b60c969e90fa617fd0ca9b8e30d22d673f retained72 checks:64 passed/8 Unknown/0 failed. Real Diagnostics interaction passed again. Windows Core reconciled1,140 Passed+10 NotExecuted=1,150; all main build stages succeeded and publishing stayed skipped. Apps details still lack specific populated interaction proof.
+
+The next coordinated increment closes concrete read-only prerequisites: [same-handle stream-scope metadata](CLEANUP-STREAM-SCOPE.md), [selected MSI full-context binding](MSI-ACTION-BINDING.md), independent [Defender scan history](DEFENDER-SCAN-HISTORY.md), and explicit per-release published Surface prerequisites. Cleanup/installer/scan execution remains disabled; metadata, context uniqueness and source text grant no action or compatibility permission. Local Core1,190 tests passed; Python136 total135 passed/one Windows-only skip. Windows runtime evidence for the new stream/MSI/history paths remains pending.
+
+
+Combined final validation: full solution build passed with zero warnings/errors. Independent review found and corrected the populated cleanup UI assertion after clarifying the unnamed-stream size label; no remaining material static blocker was reported. The new MSI fixture also compiles after its missing namespace import was corrected. Pending MSI or ARP workers block later fixture/provider queries and parent teardown; no installer process or production operation journal is used. New Windows results remain pending.

@@ -384,6 +384,8 @@
                                                 <DataGridTextColumn Header="PUBLISHED UEFI (IF STATED)" Binding="{Binding PublishedUefiVersion}" Width="220"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
+                                        <TextBlock Text="Published prerequisites · not checked against this PC" FontSize="16" Margin="0,10,0,6"/>
+                                        <TextBox Text="{Binding SelectedFirmwarePrerequisites, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="58" MaxHeight="135" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Official release prerequisites, applicability not checked against this PC"/>
                                         <TextBox Text="{Binding FirmwareHistoryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="240" MinHeight="85" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
                                         <ItemsControl ItemsSource="{Binding FirmwareHistoryCoverage}" Margin="0,8,0,8">
                                             <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Caption}"/></DataTemplate></ItemsControl.ItemTemplate>

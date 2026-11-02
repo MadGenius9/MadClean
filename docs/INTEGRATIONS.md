@@ -162,3 +162,6 @@ The [versioned journal prototype](SYSTEM-TOOL-JOURNAL-RECORDS.md) uses a fixed o
 ## Selected cleanup-file metadata
 
 The [selected cleanup recheck](CLEANUP-FILE-EVIDENCE.md) independently refreshes actual supported temp roots, current persisted exclusions and protected known-folder redirects. Its one-file READ_ATTRIBUTES query observes guarded native identities/stamps without target contents, sibling enumeration, DELETE/write rights or elevation. Scope/source generations preserve original inventory and discard stale UI results. Active/application ownership remain Unknown and CanDelete stays false. Pending native workers retain their own handles and the exact owned fixture tree; production UI rejects the separate development-source projection.
+
+
+The selected cleanup recheck now separately qualifies [stream metadata](CLEANUP-STREAM-SCOPE.md). The selected MSI review now has a separate [full current-user/machine context preflight](MSI-ACTION-BINDING.md); it invokes no installer. Defender's existing status query optionally projects [scan-history timestamps](DEFENDER-SCAN-HISTORY.md), independently from protection/history state. All remain read-only and preserve pending worker ownership; no action gate is enabled.

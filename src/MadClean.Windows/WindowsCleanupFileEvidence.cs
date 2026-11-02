@@ -118,6 +118,7 @@ public sealed class WindowsCleanupFileEvidence : ICleanupFileEvidence
             var started = DateTimeOffset.UtcNow;
             CleanupFileEvidenceNative.Snapshot before;
             string rootIdentity;
+            CleanupStreamScopeObservation streamScope;
             using (var directories = CleanupFileEvidenceNative.OpenDirectories(Path.GetDirectoryName(path)!, token))
             using (var file = CleanupFileEvidenceNative.OpenFile(path))
             {
@@ -127,9 +128,15 @@ public sealed class WindowsCleanupFileEvidence : ICleanupFileEvidence
                 var written = Time(before.Written);
                 if (written > started || started - written < CleanupFileEvidenceScope.MinimumAge)
                     throw new CleanupEvidenceUnavailable(CleanupEvidenceUnavailableReason.TooRecent);
+                var firstStreams = CleanupFileEvidenceNative.ObserveStreams(file, before.Bytes, token);
                 token.ThrowIfCancellationRequested();
                 RequireExclusions(settings, scope, token);
                 directories.Recheck(token); fixtureLease?.Recheck(token);
+                var secondStreams = CleanupFileEvidenceNative.ObserveStreams(file, before.Bytes, token);
+                streamScope = CleanupStreamScope.Compare(firstStreams.Snapshot, secondStreams.Snapshot,
+                    firstStreams.NativeError, secondStreams.NativeError, token);
+                if (!CleanupStreamScope.IsConsistent(streamScope, before.Bytes))
+                    throw new CleanupEvidenceUnavailable(CleanupEvidenceUnavailableReason.UnsafeMetadata);
                 if (before != CleanupFileEvidenceNative.Observe(file, path, false))
                     throw new CleanupEvidenceUnavailable(CleanupEvidenceUnavailableReason.ChangedDuringRead);
             }
@@ -141,19 +148,28 @@ public sealed class WindowsCleanupFileEvidence : ICleanupFileEvidence
             bool pathMatches = string.Equals(path, scope.Candidate.Path, StringComparison.OrdinalIgnoreCase);
             bool sizeMatches = before.Bytes == scope.Candidate.Bytes;
             bool modifiedMatches = modified.UtcDateTime == scope.Candidate.ModifiedUtc;
-            var state = scope.SourceCoverageState == CheckState.Partial || !pathMatches || !sizeMatches || !modifiedMatches
+            var state = scope.SourceCoverageState == CheckState.Partial || !pathMatches || !sizeMatches || !modifiedMatches ||
+                streamScope.State != CleanupStreamScopeState.UnnamedDataOnly
                 ? CheckState.Partial : CheckState.Available;
             var report = new CleanupFileEvidenceReport(scope.Candidate with { }, scope.RootKind, source,
                 new(path, before.Identity, before.Bytes, before.Links, created, modified, changed, before.Attributes),
                 root, rootIdentity, started, completed, pathMatches, sizeMatches, modifiedMatches,
                 CheckState.Available, scope.SourceCoverageState,
-                ["One selected file's native metadata only; no file contents, hashing, enumeration or deletion.",
+                ["One selected file's native metadata and at most two same-handle bounded stream metadata queries; no file contents, hashing, sibling enumeration or deletion.",
+                 "Alternate or unknown stream scope blocks whole-file cleanup review. Counted stream names remain private and are never exported; zero gaps/tail are a conservative parser policy, not a Windows padding guarantee.",
                  "Actual temporary root, captured/current exclusion sets and configured protected-folder redirects were checked; unsupported evidence blocks the query.",
                  "The identity is a first fresh observation. Historical path/size/time comparisons do not establish uninterrupted object identity or unchanged contents.",
                  "Metadata bookend equality is not immutability or inactivity. READ_ATTRIBUTES is not an exclusive content-use reservation.",
                  "Installed-application ownership and arbitrary browser/data ownership are Unknown; no ARP ownership check ran. No deletion eligibility or recoverable-byte claim is made.",
-                 "No native handle survives publication. Captured cleanup discovery coverage is independent of the current exclusion check."]);
-            return new(state, "Fresh selected cleanup metadata observed. Active use, ownership, continuity and deletion safety remain unknown; CanDelete is false.", [report]);
+                 "No native handle survives publication. Captured cleanup discovery coverage is independent of the current exclusion check."])
+                { StreamScope = streamScope };
+            string message = streamScope.State switch
+            {
+                CleanupStreamScopeState.AlternateStreamsObserved => "Fresh metadata observed, but alternate data streams block whole-file cleanup review. No stream contents were read; CanDelete is false.",
+                CleanupStreamScopeState.Unknown => "Fresh metadata observed, but stream scope could not be established and blocks whole-file cleanup review. No stream contents were read; CanDelete is false.",
+                _ => "Fresh selected cleanup metadata and unnamed-only stream scope observed. Active use, ownership, continuity and deletion safety remain unknown; CanDelete is false."
+            };
+            return new(state, message, [report]);
         }
         finally { fixtureLease?.Dispose(); }
     }

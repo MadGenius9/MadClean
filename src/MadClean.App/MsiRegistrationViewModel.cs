@@ -18,10 +18,15 @@ public sealed partial class MainViewModel
     public string MsiRegistrationMessage { get => msiRegistrationMessage; private set => Set(ref msiRegistrationMessage, value); }
     public string MsiRegistrationDetails { get => msiRegistrationDetails; private set => Set(ref msiRegistrationDetails, value); }
     public string MsiRegistrationAttempt { get => msiRegistrationAttempt; private set => Set(ref msiRegistrationAttempt, value); }
-    private void InitializeMsiRegistration() => VerifyMsiRegistrationCommand = new AsyncCommand(VerifyMsiRegistration,
-        () => !IsBusy && latestInstalledSnapshot != null && selectedApplication?.RegistrationEvidence?.WindowsInstaller == true);
+    private void InitializeMsiRegistration()
+    {
+        InitializeMsiActionBinding();
+        VerifyMsiRegistrationCommand = new AsyncCommand(VerifyMsiRegistration,
+            () => !IsBusy && latestInstalledSnapshot != null && selectedApplication?.RegistrationEvidence?.WindowsInstaller == true);
+    }
     private void InvalidateMsiRegistration()
     {
+        InvalidateMsiActionBinding();
         msiRegistrationGeneration++;
         MsiRegistrationRows.Clear(); MsiRegistrationCoverage.Clear();
         MsiRegistrationMessage = "No current MSI verification. Select an MSI registration and choose Verify selected MSI metadata.";

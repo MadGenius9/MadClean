@@ -1,6 +1,6 @@
 namespace MadClean.Core;
 
-public sealed record SurfaceFirmwareReleaseObservation(DateOnly PublishedDate, string Heading, string Summary,
+public sealed record SurfaceFirmwareReleaseObservation(DateOnly PublishedDate, string Heading, string Summary, string PublishedPrerequisites,
     string? PublishedUefiVersion, Uri SourceUri, string SourceSection, DateTimeOffset RetrievedUtc);
 public sealed record SurfaceFirmwareHistoryReport(string ProductLabel,
     IReadOnlyList<SurfaceFirmwareReleaseObservation> Releases, DateTimeOffset CheckedUtc, IReadOnlyList<string> Coverage);

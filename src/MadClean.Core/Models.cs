@@ -16,7 +16,10 @@ public sealed record CleanupReport(IReadOnlyList<CleanupCandidate> Candidates, I
 }
 public sealed record StartupEntry(string Name, string Source, string Publisher, string Detail);
 public sealed record DefenderInfo(bool? AntivirusEnabled, bool? RealTimeEnabled, bool? ServiceEnabled,
-    string Mode, string SignatureVersion, string SignatureUpdated, string FindingsState, IReadOnlyList<DefenderFinding> Findings);
+    string Mode, string SignatureVersion, string SignatureUpdated, string FindingsState, IReadOnlyList<DefenderFinding> Findings)
+{
+    public DefenderScanHistory? ScanHistory { get; init; }
+}
 public sealed record DefenderFinding(string ThreatId, string ActionSuccess, string LastStatusChange);
 public sealed record AppUpdate(string Name, string Id, string InstalledVersion, string AvailableVersion, string Source, CheckState Status);
 public sealed record SystemUpdate(string Title, string Kind, string Identity, bool RebootRequired,

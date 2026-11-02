@@ -23,10 +23,19 @@ public sealed partial class MainViewModel
     public SurfaceFirmwareReleaseObservation? SelectedFirmwareRelease
     {
         get => selectedFirmwareRelease;
-        set { Set(ref selectedFirmwareRelease, value); PropertyChanged?.Invoke(this, new(nameof(FirmwareHistoryDetails))); CommandManager.InvalidateRequerySuggested(); }
+        set
+        {
+            Set(ref selectedFirmwareRelease, value);
+            PropertyChanged?.Invoke(this, new(nameof(FirmwareHistoryDetails)));
+            PropertyChanged?.Invoke(this, new(nameof(SelectedFirmwarePrerequisites)));
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
+    public string SelectedFirmwarePrerequisites => selectedFirmwareRelease is { } release && !string.IsNullOrWhiteSpace(release.PublishedPrerequisites)
+        ? release.PublishedPrerequisites
+        : "Unknown — select a dated official release observation to read its published OS requirements.";
     public string FirmwareHistoryDetails => selectedFirmwareRelease is { } release
-        ? $"Published release: {release.PublishedDate}\n{release.Heading}\n\nPublished observations: {release.Summary}\nPublished UEFI version: {release.PublishedUefiVersion ?? "Unknown / no explicit UEFI version in this release"}\nSource section: {release.SourceSection}\nOfficial source: {release.SourceUri}\nRetrieved UTC: {release.RetrievedUtc:u}\n\nThese are official published release observations, not a verified update applicable to this device, latest BIOS determination or installed-version comparison. Verify exact device configuration and official prerequisites. No firmware file is fetched or installed."
+        ? $"Published release: {release.PublishedDate}\n{release.Heading}\n\nPublished OS requirements: {SelectedFirmwarePrerequisites}\nLocal prerequisites and applicability: Unknown — this check does not assess installed Windows version, device configuration, rollout eligibility, power or recovery-key readiness.\n\nPublished observations: {release.Summary}\nPublished UEFI version: {release.PublishedUefiVersion ?? "Unknown / no explicit UEFI version in this release"}\nSource section: {release.SourceSection}\nOfficial source: {release.SourceUri}\nRetrieved UTC: {release.RetrievedUtc:u}\n\nThese are official published release observations, not a verified update applicable to this device, latest BIOS determination or installed-version comparison. Verify exact device configuration and official prerequisites. No firmware file is fetched or installed."
         : "Select a dated official release observation. Driver releases do not establish a new BIOS; historical UEFI versions do not prove applicability or whether this PC needs an update.";
 
     private void InitializeFirmwareHistory()

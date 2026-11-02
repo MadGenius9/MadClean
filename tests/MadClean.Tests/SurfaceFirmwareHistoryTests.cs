@@ -17,9 +17,10 @@ public sealed class SurfaceFirmwareHistoryTests
         <tr><td>Surface Laptop 6 for Business 15-inch</td><td>Surface Laptop 6 for Business</td><td>Surface_Laptop_6_for_Business_2035</td></tr></table>
         </div></main>
         """;
-    private static string Release(string date = "October 22", string component = "Surface - System - 1.2.3.4", string device = "Surface Integration - System devices") => $$"""
+    private static string Release(string date = "October 22", string component = "Surface - System - 1.2.3.4", string device = "Surface Integration - System devices",
+        string prerequisite = "The following update is available for Surface Laptop 6 for Business devices running Windows 11, Version 23H2 or greater.") => $$"""
         <p><strong>{{date}} release</strong></p>
-        <p>The following update is available for Surface Laptop 6 for Business devices running Windows 11, Version 23H2 or greater.</p>
+        <p>{{prerequisite}}</p>
         <ul><li>Published reliability observation.</li></ul>
         <p>This release contains the following components. The specific components installed are based on your device’s configuration:</p>
         <table><tr><th>Windows Update Name</th><th>Device manager</th></tr><tr><td>{{component}}</td><td>{{device}}</td></tr></table>
@@ -59,6 +60,46 @@ public sealed class SurfaceFirmwareHistoryTests
     {
         var report = Assert.Single(Parse(HistoryHtml().Replace("Surface Driver Update (23.105.143.0)", "Surface - Firmware - 20.111.143.0")).Items);
         Assert.Equal("20.111.143.0", report.Releases[1].PublishedUefiVersion);
+    }
+    [Fact]
+    public void PublishedPrerequisitesStayBoundToTheirOwnDatedReleaseIncludingDriverOnlyReleases()
+    {
+        const string olderRequirement = "The following update is available for Surface Laptop 6 for Business running Windows 10, Version 22H2 or greater.";
+        string html = HistoryHtml().Replace(Release("August 6", "Surface Driver Update (23.105.143.0)", "Surface UEFI - Firmware"),
+            Release("August 6", "Surface Driver Update (23.105.143.0)", "Surface UEFI - Firmware", olderRequirement));
+        var report = Assert.Single(Parse(html).Items);
+        Assert.Equal("The following update is available for Surface Laptop 6 for Business devices running Windows 11, Version 23H2 or greater.", report.Releases[0].PublishedPrerequisites);
+        Assert.Null(report.Releases[0].PublishedUefiVersion);
+        Assert.Equal(olderRequirement, report.Releases[1].PublishedPrerequisites);
+        Assert.Equal(SurfaceFirmwareHistorySources.History, report.Releases[1].SourceUri);
+        Assert.Equal(Now, report.Releases[1].RetrievedUtc);
+        Assert.Contains("August 6 release", report.Releases[1].SourceSection);
+        Assert.Contains(report.Coverage, note => note.Contains("applicability have not been assessed", StringComparison.Ordinal));
+    }
+    [Fact]
+    public void PublishedPrerequisitesUseTheValidatedAuthoredTextRatherThanHtmlOrInstalledBios()
+    {
+        string html = HistoryHtml().Replace("Windows 11, Version", "Windows&nbsp;11,\nVersion");
+        var report = Assert.Single(Parse(html).Items);
+        Assert.All(report.Releases, release => Assert.Equal(
+            "The following update is available for Surface Laptop 6 for Business devices running Windows 11, Version 23H2 or greater.", release.PublishedPrerequisites));
+        var otherInstalledBios = SurfaceFirmwareHistoryParser.Parse(Identity() with { BiosVersion = "Unknown" }, Documents(html), Now);
+        Assert.Equal(report.Releases[0].PublishedPrerequisites, Assert.Single(otherInstalledBios.Items).Releases[0].PublishedPrerequisites);
+    }
+    [Theory]
+    [InlineData("changed")]
+    [InlineData("moved")]
+    public void AMatchingPrerequisiteElsewhereCannotQualifyMissingOrChangedReleaseRequirements(string mode)
+    {
+        const string valid = "The following update is available for Surface Laptop 6 for Business devices running Windows 11, Version 23H2 or greater.";
+        string firstRelease = Release();
+        string replacement = mode == "changed" ? firstRelease.Replace(valid, valid.Replace("23H2", "Enterprise"))
+            : firstRelease.Replace("<p>" + valid + "</p>", "");
+        // A valid sentence in notes is not the release's first requirement paragraph.
+        replacement = replacement.Replace("Published reliability observation.", "Published reliability observation. " + valid);
+        string html = HistoryHtml().Replace(firstRelease, replacement);
+        var result = Parse(html);
+        Assert.Equal(CheckState.Unknown, result.State); Assert.Empty(result.Items);
     }
     [Theory]
     [InlineData("Surface_Laptop_6_for_Business_2033", CheckState.Unknown)]

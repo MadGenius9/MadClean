@@ -17,14 +17,14 @@ internal static partial class NativeFixtures
         string repository = Path.GetFullPath(Environment.CurrentDirectory);
         string basePath = Path.Combine(fixture, "cleanup-file-evidence"), root = Path.Combine(basePath, "user-temp");
         string outside = Path.Combine(basePath, "outside-control"), selectedPath = Path.Combine(root, "selected.tmp");
-        string changedPath = Path.Combine(root, "changed.tmp"), multiPath = Path.Combine(root, "multi.tmp");
+        string changedPath = Path.Combine(root, "changed.tmp"), multiPath = Path.Combine(root, "multi.tmp"), streamsPath = Path.Combine(root, "streams.tmp");
         string originalDirectory = Path.Combine(root, "redirect-control"), movedDirectory = Path.Combine(root, "redirect-original");
         string redirectPath = Path.Combine(originalDirectory, "outside.tmp"), sentinel = Path.Combine(outside, "outside.tmp");
         var expected = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var links = new List<string>();
         bool previousUncertain = !CleanupFileEvidenceCleanupConfirmed || WindowsCleanupFileEvidence.HasPendingMetadataRead;
         bool created = false, completed = false, pending = false, reparseCreated = false, reparseBlocked = false;
-        bool changedObserved = false, exclusionBlocked = false, hardLinkBlocked = false, preCancel = false;
+        bool changedObserved = false, exclusionBlocked = false, hardLinkBlocked = false, preCancel = false, alternateStreamsBlocked = false;
         CheckState writerState = CheckState.Unknown;
         string stage = "initializing";
         try
@@ -35,7 +35,7 @@ internal static partial class NativeFixtures
             if (Directory.Exists(basePath)) throw new InertObservationUnavailable("cleanup-evidence-owned-root-already-exists");
             CleanupFileEvidenceCleanupConfirmed = false;
             Directory.CreateDirectory(root); Directory.CreateDirectory(outside); Directory.CreateDirectory(originalDirectory); created = true;
-            foreach (string path in new[] { selectedPath, changedPath, multiPath, redirectPath, sentinel })
+            foreach (string path in new[] { selectedPath, changedPath, multiPath, streamsPath, redirectPath, sentinel })
             {
                 byte[] bytes = Encoding.ASCII.GetBytes("Inert owned cleanup evidence bytes; no provider mutation.");
                 expected.Add(path, bytes);
@@ -58,7 +58,7 @@ internal static partial class NativeFixtures
                 return result.Items[0];
             }
             var selectedScope = Scope(selectedPath); var changedScope = Scope(changedPath);
-            var multiScope = Scope(multiPath); var redirectScope = Scope(redirectPath);
+            var multiScope = Scope(multiPath); var redirectScope = Scope(redirectPath); var streamsScope = Scope(streamsPath);
             var provider = new WindowsCleanupFileEvidence();
             var baseline = CleanupEvidenceNativeStamp(selectedPath, false);
             var rootBaseline = CleanupEvidenceNativeStamp(root, true);
@@ -66,6 +66,8 @@ internal static partial class NativeFixtures
             var first = Query(ct => provider.ReadOwnedFixtureAsync(selectedScope, fixture, marker, ct), token);
             if (CleanupEvidencePending(report)) { pending = true; return; }
             var evidence = CleanupEvidenceRequireReport(first);
+            if (evidence.StreamScope?.State != CleanupStreamScopeState.UnnamedDataOnly)
+                throw new InertObservationUnavailable("cleanup-evidence-unnamed-stream-scope-unavailable");
             CleanupEvidenceValidate(evidence, selectedScope, baseline, rootBaseline, root);
             if (!evidence.HistoricalPathMatches || !evidence.HistoricalSizeMatches || !evidence.HistoricalModifiedMatches)
                 throw new SmokeAssertionException("cleanup-evidence-history-fields");
@@ -141,6 +143,35 @@ internal static partial class NativeFixtures
             if (CleanupEvidencePending(report)) { pending = true; return; }
             if (!preCancel) throw new SmokeAssertionException("cleanup-evidence-precancel");
 
+            stage = "owned-alternate-stream";
+            // Only this fixed owned file receives a named stream. Production queries never
+            // construct or open a stream path and never read stream contents.
+            string adsPath = streamsPath + ":owned-fixture:$DATA";
+            byte[] adsBytes = [0x41, 0x42, 0x43, 0x44];
+            expected.Add(adsPath, adsBytes);
+            using (var adsHandle = ShortcutEvidenceCreateFileW(adsPath, 0x40000000, 0, IntPtr.Zero, 1,
+                0x00200000 | 0x00100000, IntPtr.Zero))
+            {
+                if (adsHandle.IsInvalid) throw new InertObservationUnavailable("cleanup-evidence-owned-stream-capability-unavailable");
+                using var adsFile = new FileStream(adsHandle, FileAccess.Write);
+                adsFile.Write(adsBytes); adsFile.Flush(true);
+            }
+            File.SetLastWriteTimeUtc(streamsPath, streamsScope.Candidate.ModifiedUtc);
+            var streamStamp = CleanupEvidenceNativeStamp(streamsPath, false);
+            var streamed = Query(ct => provider.ReadOwnedFixtureAsync(streamsScope, fixture, marker, ct), token);
+            if (CleanupEvidencePending(report)) { pending = true; return; }
+            var streamEvidence = CleanupEvidenceRequireReport(streamed);
+            CleanupEvidenceValidate(streamEvidence, streamsScope, streamStamp, rootBaseline, root);
+            if (streamEvidence.StreamScope?.State == CleanupStreamScopeState.Unknown)
+                throw new InertObservationUnavailable("cleanup-evidence-owned-stream-scope-unavailable");
+            if (streamed.State != CheckState.Partial || streamEvidence.StreamScope?.State != CleanupStreamScopeState.AlternateStreamsObserved ||
+                streamEvidence.StreamScope.Reason != CleanupStreamScopeReason.Observed || streamEvidence.StreamScope.StreamCount != 2 ||
+                streamEvidence.StreamScope.QueryCount != 2 || streamEvidence.StreamScope.BookendsMatch != true ||
+                streamEvidence.CanDelete || streamEvidence.ActiveUse != "Unknown" || !streamEvidence.HistoricalSizeMatches || !streamEvidence.HistoricalModifiedMatches)
+                throw new SmokeAssertionException("cleanup-evidence-alternate-stream-not-blocked");
+            alternateStreamsBlocked = true;
+            CleanupEvidenceAudit(expected);
+
             stage = "owned-reparse-escape";
             // Move only the exact owned directory, preserving its file; then put a symlink at
             // the historical path. Its target is another owned control, outside selected Temp.
@@ -191,10 +222,10 @@ internal static partial class NativeFixtures
             CleanupFileEvidenceCleanupConfirmed = safe;
             foreach (byte[] bytes in expected.Values) Array.Clear(bytes);
         }
-        if (completed && changedObserved && exclusionBlocked && hardLinkBlocked && preCancel && CleanupFileEvidenceCleanupConfirmed)
-            report.Pass(check, $"source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState={writerState}; activeUse=Unknown; preCancel=true; createdReparseCount={(reparseCreated ? 1 : 0)}; reparseBlocked={reparseBlocked}; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim.");
+        if (completed && changedObserved && exclusionBlocked && hardLinkBlocked && alternateStreamsBlocked && preCancel && CleanupFileEvidenceCleanupConfirmed)
+            report.Pass(check, $"source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; unnamedOnlyStreamScopeVerified=true; alternateStreamPartialBlocked=true; sameHandleStreamQueryCount=2; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState={writerState}; activeUse=Unknown; preCancel=true; createdReparseCount={(reparseCreated ? 1 : 0)}; reparseBlocked={reparseBlocked}; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim.");
         else if (stage != "fixed-invariant-failed")
-            report.Unknown(check, $"stage={stage}; pending={pending}; changedSizeObserved={changedObserved}; exclusionBlocked={exclusionBlocked}; hardlinkBlocked={hardLinkBlocked}; preCancel={preCancel}; cleanupConfirmed={CleanupFileEvidenceCleanupConfirmed}. No sample evidence or action eligibility was substituted; retain the full owned fixture tree on pending or uncertain cleanup.");
+            report.Unknown(check, $"stage={stage}; pending={pending}; changedSizeObserved={changedObserved}; alternateStreamsBlocked={alternateStreamsBlocked}; exclusionBlocked={exclusionBlocked}; hardlinkBlocked={hardLinkBlocked}; preCancel={preCancel}; cleanupConfirmed={CleanupFileEvidenceCleanupConfirmed}. No sample evidence or action eligibility was substituted; retain the full owned fixture tree on pending or uncertain cleanup.");
     }
 
     private static bool CleanupEvidencePending(SmokeReport report)
@@ -220,7 +251,7 @@ internal static partial class NativeFixtures
             data.File.CreationUtc != expected.Creation || data.File.LastWriteUtc != expected.Write || data.File.ChangeUtc != expected.Change ||
             data.QueryStartedUtc.Offset != TimeSpan.Zero || data.QueryCompletedUtc.Offset != TimeSpan.Zero ||
             data.QueryStartedUtc < scope.ValidatedUtc || data.QueryCompletedUtc < data.QueryStartedUtc || data.QueryCompletedUtc > DateTimeOffset.UtcNow ||
-            !data.HistoricalPathMatches || data.Coverage.Count == 0)
+            !data.HistoricalPathMatches || data.Coverage.Count == 0 || !CleanupStreamScope.IsConsistent(data.StreamScope, expected.Bytes) || data.StreamScope == null)
             throw new SmokeAssertionException("cleanup-evidence-native-report-contract");
     }
     private sealed record CleanupEvidenceAuditStamp(string Identity, long Bytes, uint Links, uint Attributes,

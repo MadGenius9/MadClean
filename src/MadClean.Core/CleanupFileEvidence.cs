@@ -12,6 +12,7 @@ public sealed record CleanupFileEvidenceReport(CleanupCandidate Prior, CleanupRo
     bool HistoricalSizeMatches, bool HistoricalModifiedMatches, CheckState ExclusionCoverageState,
     CheckState SourceCoverageState, IReadOnlyList<string> Coverage)
 {
+    public CleanupStreamScopeObservation? StreamScope { get; init; }
     public string ActiveUse => "Unknown";
     public bool CanDelete => false;
 }

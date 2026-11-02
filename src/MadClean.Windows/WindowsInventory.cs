@@ -160,6 +160,25 @@ public sealed class WindowsInventory : IComputerInventory
         try {
           Microsoft.PowerShell.Core\Import-Module -Name $modulePath -ErrorAction Stop
           $s = Defender\Get-MpComputerStatus
+          function Read-ScanTimestamp([string]$name) {
+            try {
+              $property = $s.PSObject.Properties[$name]
+              if ($null -eq $property -or $null -eq $property.Value) { return $null }
+              $value = $property.Value
+              if ($value -is [datetimeoffset]) {
+                if ($value.DateTime -eq [datetime]::MinValue -or $value.DateTime -eq [datetime]::MaxValue -or
+                    $value.DateTime -eq [datetime]::FromFileTimeUtc(0)) { return $null }
+                $utc = $value.ToUniversalTime()
+              } elseif ($value -is [datetime] -and ($value.Kind -eq [DateTimeKind]::Utc -or $value.Kind -eq [DateTimeKind]::Local)) {
+                if ($value -eq [datetime]::MaxValue -or $value -eq [datetime]::MinValue -or
+                    $value.Ticks -eq ([datetime]::FromFileTimeUtc(0)).Ticks) { return $null }
+                $utc = [datetimeoffset]$value.ToUniversalTime()
+              } else { return $null }
+              if ($utc -eq [datetimeoffset]::MinValue -or $utc -eq [datetimeoffset]::MaxValue -or
+                  $utc.UtcDateTime -eq [datetime]::FromFileTimeUtc(0)) { return $null }
+              return $utc.ToString('o', [System.Globalization.CultureInfo]::InvariantCulture)
+            } catch { return $null }
+          }
           $findingsState = 'Available'
           $f = @()
           try { $f = @(Defender\Get-MpThreatDetection | Select-Object ThreatID,ActionSuccess,@{n='LastThreatStatusChangeTime';e={ if ($_.LastThreatStatusChangeTime) {$_.LastThreatStatusChangeTime.ToUniversalTime().ToString('o')} else {$null} }}) }
@@ -170,6 +189,10 @@ public sealed class WindowsInventory : IComputerInventory
             AntivirusSignatureVersion=$s.AntivirusSignatureVersion
             SignatureUpdated=$(if ($s.AntivirusSignatureLastUpdated) {$s.AntivirusSignatureLastUpdated.ToUniversalTime().ToString('o')} else {$null})
             FindingsState=$findingsState; Findings=@($f)
+            QuickScanStartTime=$(Read-ScanTimestamp 'QuickScanStartTime')
+            QuickScanEndTime=$(Read-ScanTimestamp 'QuickScanEndTime')
+            FullScanStartTime=$(Read-ScanTimestamp 'FullScanStartTime')
+            FullScanEndTime=$(Read-ScanTimestamp 'FullScanEndTime')
           } | ConvertTo-Json -Depth 5 -Compress
         } catch { exit 1 }
         """;

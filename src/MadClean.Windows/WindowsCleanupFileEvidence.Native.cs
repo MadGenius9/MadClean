@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using MadClean.Core;
 
 namespace MadClean.Windows;
 
@@ -103,6 +104,37 @@ internal static class CleanupFileEvidenceNative
             throw new CleanupEvidenceUnavailable(CleanupEvidenceUnavailableReason.UnsafeMetadata);
         return new(id.Volume, id.Id, standard.Bytes, standard.Links, basic.Created, basic.Written, basic.Changed, basic.Attributes);
     }
+    internal static (CleanupStreamSnapshot? Snapshot, int? NativeError) ObserveStreams(SafeFileHandle handle,
+        long expectedUnnamedBytes, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        byte[] bytes = new byte[CleanupStreamScope.MaximumBufferBytes];
+        nint buffer = Marshal.AllocHGlobal(bytes.Length);
+        try
+        {
+            // FILE_STREAM_INFO requires an 8-byte aligned base, not merely an aligned offset.
+            if ((buffer.ToInt64() & 7) != 0) return (CleanupStreamScope.Decode([], expectedUnnamedBytes, token), null);
+            Marshal.Copy(bytes, 0, buffer, bytes.Length);
+            // .NET 10 DllImport(SetLastError=true) clears the native last-error before entry.
+            // Capture immediately, including the documented successful FileStreamInfo EOF38 case.
+            bool success = Streams(handle, 7, buffer, (uint)bytes.Length);
+            int code = Marshal.GetLastPInvokeError();
+            token.ThrowIfCancellationRequested();
+            if (!success) return (null, code);
+            if (code == 38) return (CleanupStreamScope.NoStreamsReturned(), null);
+            Marshal.Copy(buffer, bytes, 0, bytes.Length);
+            return (CleanupStreamScope.Decode(bytes, expectedUnnamedBytes, token), null);
+        }
+        finally
+        {
+            try { Array.Clear(bytes); Marshal.Copy(bytes, 0, buffer, bytes.Length); }
+            finally { Marshal.FreeHGlobal(buffer); }
+        }
+    }
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool Streams(SafeFileHandle handle, int kind, nint buffer, uint bytes);
+
     [StructLayout(LayoutKind.Sequential)] private struct IdentityInformation { internal ulong Volume; internal Guid Id; }
     [StructLayout(LayoutKind.Sequential)] private struct BasicInformation { internal long Created, Accessed, Written, Changed; internal uint Attributes; }
     [StructLayout(LayoutKind.Sequential)] private struct StandardInformation

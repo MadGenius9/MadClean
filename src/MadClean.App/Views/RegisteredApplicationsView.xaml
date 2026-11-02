@@ -14,6 +14,7 @@
                 <Button Content="Refresh registrations" Command="{Binding RefreshInstalledApplicationsCommand}"/>
                 <Button Content="Preview selected app review" Command="{Binding PreviewInstalledAppPlanCommand}" Background="#244B70"/>
                 <Button Content="Verify selected MSI metadata" Command="{Binding VerifyMsiRegistrationCommand}" Background="#244B70"/>
+                <Button Content="Recheck selected MSI context binding" Command="{Binding RecheckMsiActionBindingCommand}" Background="#244B70" AutomationProperties.Name="Recheck selected MSI current-user and machine binding"/>
                 <Button Content="Review Windows handoff" Command="{Binding ReviewInstalledAppHandoffCommand}" Background="#343E52" Foreground="White"/>
                 <Button Content="Capture baseline" Command="{Binding CaptureApplicationBaselineCommand}" Background="#244B70"/>
                 <Button Content="Leftover review" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
@@ -38,6 +39,12 @@
         <StackPanel Grid.Row="2" Margin="0,12,0,0">
             <TextBox Text="{Binding SelectedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
             <TextBox Text="{Binding InstalledAppPlanDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="230" MinHeight="65" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0"/>
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0"><StackPanel>
+                <TextBlock Text="Selected MSI context-binding review" FontSize="20"/>
+                <TextBlock Text="Fresh ARP evidence and all current-user/machine contexts for one exact product. Other users are outside scope; sequential checks do not grant dispatch permission or uninstall eligibility." Style="{StaticResource Caption}"/>
+                <TextBlock Text="{Binding MsiActionBindingMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Selected MSI context-binding status"/>
+                <TextBox Text="{Binding MsiActionBindingDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="90" MaxHeight="270" AutomationProperties.Name="Selected MSI fresh restrictions, contexts and binding limitations"/>
+            </StackPanel></Border>
             <Border Style="{StaticResource Card}" Margin="0,16,0,0"><StackPanel>
                 <TextBlock Text="Windows Installer registration evidence" FontSize="20"/>
                 <TextBlock Text="A separate, selected read-only check. Available metadata does not authorize uninstall, prove package trust or override removal restrictions." Style="{StaticResource Caption}"/>

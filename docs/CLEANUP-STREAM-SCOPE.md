@@ -1,0 +1,11 @@
+# Selected cleanup stream scope
+
+The existing selected-file metadata recheck now queries FileStreamInfo twice on the same READ_ATTRIBUTES handle, inside the existing identity/root/exclusion bookends. This reads stream metadata, not contents. Fixed64KiB zeroed aligned storage and at most32 entries bound each query; no buffer-growth retry or path-based stream enumeration is used. Unsupported/error/overflow/malformed/disagreeing observations remain Unknown. Actual native errors remain separate from decoder reasons.
+
+Only exactly one unnamed ::$DATA stream qualifies as UnnamedDataOnly. Alternate streams or unknown scope force a blocked Partial observation while preserving valid base metadata. Displayed File.Bytes remains unnamed-stream logical length, not total streams, allocation or reclaimable bytes. Stream names are private comparison data and never displayed, logged or exported. A consistent default-only observation is not inactivity, ownership or deletion permission; CanDelete remains false.
+
+The parser follows counted UTF16 byte lengths and eight-byte entry alignment; it does not require a NUL terminator. Zero padding/tail validation is a conservative acceptance policy, not a documented guarantee about padding. The API supplies no returned-byte count. A successful no-streams ERROR_HANDLE_EOF observation is separately Unknown, not an invented failed call. .NET SetLastError handling must preserve fresh errors, never stale values. Both native buffers are cleared and released under worker ownership; caller cancellation cannot close handles beneath the worker.
+
+Official references checked before implementation: [GetFileInformationByHandleEx](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getfileinformationbyhandleex), [FILE_INFO_BY_HANDLE_CLASS](https://learn.microsoft.com/windows/win32/api/minwinbase/ne-minwinbase-file_info_by_handle_class), [FILE_STREAM_INFO](https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_stream_info), and [File streams](https://learn.microsoft.com/windows/win32/fileio/file-streams).
+
+Portable malformed-buffer/projection tests and an exact owned named-stream fixture cover the new boundary. Windows runtime evidence is pending; owned ADS setup is confined to the existing marked artifact tree and never changes real temporary/client files.

@@ -6,6 +6,9 @@ namespace MadClean.Windows;
 public sealed class WindowsMsiRegistrationInventory : IMsiRegistrationInventory
 {
     private static int activeWorker;
+    internal static bool TryBeginRead() => Interlocked.CompareExchange(ref activeWorker, 1, 0) == 0;
+    internal static void EndRead() => Volatile.Write(ref activeWorker, 0);
+    internal static bool PendingRead => Volatile.Read(ref activeWorker) != 0;
     public bool HasPendingNativeRead => Volatile.Read(ref activeWorker) != 0;
     public async Task<CheckResult<MsiRegistrationReport>> VerifyAsync(MsiRegistrationScope scope, CancellationToken token)
     {
@@ -14,7 +17,7 @@ public sealed class WindowsMsiRegistrationInventory : IMsiRegistrationInventory
             return CheckResult<MsiRegistrationReport>.Empty(CheckState.Unsupported, "Selected MSI registration metadata is supported on Windows only; no query ran.");
         if (!Fresh(scope))
             return CheckResult<MsiRegistrationReport>.Empty(CheckState.Unknown, "The selected MSI registration scope is missing, stale or invalid. Refresh registrations and select it again; no query ran.");
-        if (Interlocked.CompareExchange(ref activeWorker, 1, 0) != 0)
+        if (!TryBeginRead())
             return CheckResult<MsiRegistrationReport>.Empty(CheckState.Unknown, "A previous native MSI metadata lookup is still pending. No new query started; wait before retrying.");
         // Keep all enumeration/property calls on one synchronous worker thread. Cancellation cannot
         // prevent this delegate's finally from running after native work actually returns.
@@ -32,7 +35,7 @@ public sealed class WindowsMsiRegistrationInventory : IMsiRegistrationInventory
             { return CheckResult<MsiRegistrationReport>.Empty(CheckState.Unknown, "The MSI metadata worker's cooperative 20-second budget elapsed; no completed verification is shown. Retry when the system is responsive."); }
             catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
             { return CheckResult<MsiRegistrationReport>.Empty(CheckState.Unsupported, "The required Windows Installer metadata entry points are unavailable; no completed verification is shown."); }
-            finally { Volatile.Write(ref activeWorker, 0); }
+            finally { EndRead(); }
         }, CancellationToken.None);
         _ = worker.ContinueWith(t => { _ = t.Exception; }, CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);

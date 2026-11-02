@@ -7,6 +7,8 @@ using MadClean.Core;
 namespace MadClean.Windows;
 
 internal sealed class WindowsMsiRegistrationBudgetException : Exception { }
+internal sealed record WindowsMsiRegistrationObservationSet(IReadOnlyList<MsiRegistrationObservation> Instances,
+    bool EnumerationComplete, IReadOnlyList<string> Issues, DateTimeOffset CheckedUtc);
 
 // Official MsiEnumProductsExW / MsiGetProductInfoExW contracts and current Msi.h verified.
 // ProductState's SDK literal is "State". No package, path, SID or action APIs are imported.
@@ -20,6 +22,12 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
 
     internal CheckResult<MsiRegistrationReport> Read()
     {
+        var raw = ReadObservations(scope.ExpectedContextMask);
+        return MsiRegistrationReview.Assess(scope, raw.Instances, raw.EnumerationComplete, raw.Issues, raw.CheckedUtc, token);
+    }
+    internal WindowsMsiRegistrationObservationSet ReadObservations(int contextMask)
+    {
+        if (contextMask is not (3 or 4 or 7)) throw new ArgumentOutOfRangeException(nameof(contextMask));
         Check();
         for (uint index = 0; index <= MsiRegistrationReview.MaxInstances; index++)
         {
@@ -29,7 +37,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
             {
                 // Both optional SID outputs are NULL: the API does not retrieve any SID value.
                 // A non-NULL exact ProductCode prevents an all-products enumeration.
-                uint code = MsiEnumProductsExW(scope.ProductCode, null, (uint)scope.ExpectedContextMask, index,
+                uint code = MsiEnumProductsExW(scope.ProductCode, null, (uint)contextMask, index,
                     product, out uint context, IntPtr.Zero, IntPtr.Zero);
                 Check();
                 if (code == 259) { enumerationComplete = true; break; }
@@ -40,7 +48,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
                 int end = Array.IndexOf(product, '\0');
                 if (end != 38 || !Guid.TryParseExact(new string(product, 0, end), "B", out var parsed) || parsed == Guid.Empty ||
                     !parsed.ToString("B").Equals(scope.ProductCode, StringComparison.OrdinalIgnoreCase) ||
-                    context is not (1 or 2 or 4) || (context & (uint)scope.ExpectedContextMask) != context)
+                    context is not (1 or 2 or 4) || (context & (uint)contextMask) != context)
                 { Issue("The returned product identity/context did not match the exact selected scope; enumeration coverage is unknown."); break; }
                 var typedContext = (MsiRegistrationContext)context;
                 if (!contexts.Add(typedContext))
@@ -72,7 +80,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
             finally { Array.Clear(product); }
         }
         Check();
-        return MsiRegistrationReview.Assess(scope, instances.ToArray(), enumerationComplete, issues.ToArray(), DateTimeOffset.UtcNow, token);
+        return new(Array.AsReadOnly(instances.ToArray()), enumerationComplete, Array.AsReadOnly(issues.ToArray()), DateTimeOffset.UtcNow);
     }
 
     private string Property(uint context, string property, int maximumCharacters)

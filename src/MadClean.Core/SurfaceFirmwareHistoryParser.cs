@@ -71,7 +71,9 @@ public static class SurfaceFirmwareHistoryParser
                     int end = index;
                     while (end < monthEnd && !IsReleaseHeading(section[end])) end++;
                     var release = section[index..end]; index = end;
-                    if (release.Length == 0 || release[0].Name != "p" || !SupportedApplicability(release[0].Text())) throw new FormatException();
+                    if (release.Length == 0 || release[0].Name != "p") throw new FormatException();
+                    string publishedPrerequisites = release[0].Text();
+                    if (!SupportedApplicability(publishedPrerequisites)) throw new FormatException();
                     var table = One(release.Where(element => element.Name == "table"));
                     var tableHeader = Rows(table).Select(Cells).FirstOrDefault();
                     if (tableHeader == null || !tableHeader.SequenceEqual(new[] { "Windows Update Name", "Device manager" }) &&
@@ -83,7 +85,7 @@ public static class SurfaceFirmwareHistoryParser
                     string? version = uefi.Length == 0 ? null : UefiVersion(uefi[0][0]);
                     string notes = string.Join(" ", release.Where(element => element.Name != "table").Select(element => element.Text()));
                     if (notes.Length is < 1 or > 4096 || releases.Count >= 64) throw new FormatException();
-                    releases.Add(new(date, monthHeading.Text() + " · " + label, notes, version, historyDocument.SourceUri,
+                    releases.Add(new(date, monthHeading.Text() + " · " + label, notes, publishedPrerequisites, version, historyDocument.SourceUri,
                         "Improvements and fixes in the updates · " + monthHeading.Text() + " · " + label, historyDocument.RetrievedUtc));
                     previous = date; any = true;
                 }

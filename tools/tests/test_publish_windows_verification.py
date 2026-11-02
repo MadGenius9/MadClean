@@ -161,6 +161,10 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_msi_action_binding_contract_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='msi-action-binding-contract']
+        self.save()
+        self.rejected()
     def test_diagnostic_channel_interaction_cannot_be_omitted(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='ui-diagnostic-channel-coverage-interaction']
         self.save()

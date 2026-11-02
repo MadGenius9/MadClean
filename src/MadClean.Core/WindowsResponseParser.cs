@@ -13,7 +13,8 @@ public static class WindowsResponseParser
         string history = Scalar(value, "FindingsState");
         if (history is not ("Available" or "Failed")) throw new JsonException();
         var info = new DefenderInfo(antivirus, realtime, service, Scalar(value, "AMRunningMode"),
-            Scalar(value, "AntivirusSignatureVersion"), Scalar(value, "SignatureUpdated"), history, findings);
+            Scalar(value, "AntivirusSignatureVersion"), Scalar(value, "SignatureUpdated"), history, findings)
+            { ScanHistory = DefenderScanHistoryParser.Read(value, DateTimeOffset.UtcNow) };
         bool partial = history == "Failed" || antivirus == null || realtime == null || service == null;
         return new CheckResult<DefenderInfo>(partial ? CheckState.Partial : CheckState.Available,
             "Provider status and recorded Defender detections only; no new malware scan was run. Empty history does not establish a clean PC." +

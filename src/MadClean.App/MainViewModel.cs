@@ -169,6 +169,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             SecurityRows.Add(new("Defender service", s.Mode, Flag(s.ServiceEnabled)));
             SecurityRows.Add(new("Signatures", s.SignatureVersion, s.SignatureUpdated));
             SecurityRows.Add(new("Detection history", $"{s.Findings.Count} recorded entries; not a new scan", s.FindingsState));
+            AppendDefenderScanHistory(s.ScanHistory);
             foreach (var f in s.Findings) SecurityRows.Add(new("Threat ID " + f.ThreatId, "Last status change: " + f.LastStatusChange, "Action success: " + f.ActionSuccess));
         }
         CompleteDefenderEvidence(result, token);

@@ -125,7 +125,7 @@ internal static partial class UiCapture
             if (!details.Text.StartsWith("Current path: " + selectedPath + "\n", StringComparison.Ordinal) ||
                 !(status.Text.StartsWith("Available", StringComparison.Ordinal) || status.Text.StartsWith("Partial", StringComparison.Ordinal)))
             { report.Unknown(check, "Actual selected-file lookup returned no accepted current metadata display; no fixture data or success was substituted."); return; }
-            if (!details.Text.Contains("Current logical bytes: " + payload.Length.ToString("N0", CultureInfo.CurrentCulture), StringComparison.Ordinal) ||
+            if (!details.Text.Contains("Current unnamed-stream logical bytes: " + payload.Length.ToString("N0", CultureInfo.CurrentCulture), StringComparison.Ordinal) ||
                 !details.Text.Contains("reported links: 1", StringComparison.Ordinal) || !details.Text.Contains("Nothing is deleted", StringComparison.Ordinal) ||
                 !details.Text.Contains("Active use and application ownership remain unknown", StringComparison.Ordinal) ||
                 !CleanupInteractionInterval(details.Text, before, after) || !HistoryUnchanged())

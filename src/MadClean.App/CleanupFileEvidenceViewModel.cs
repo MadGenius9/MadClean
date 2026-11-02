@@ -98,10 +98,16 @@ public sealed partial class MainViewModel
                 !data.HistoricalPathMatches || data.HistoricalSizeMatches != (data.File.Bytes == scope.Candidate.Bytes) ||
                 data.HistoricalModifiedMatches != (data.File.LastWriteUtc.UtcDateTime == scope.Candidate.ModifiedUtc))
                 throw new InvalidOperationException("Current cleanup metadata was inconsistent.");
+            if (!CleanupStreamScope.IsConsistent(data.StreamScope, data.File.Bytes) ||
+                result.State == CheckState.Available && data.StreamScope?.State != CleanupStreamScopeState.UnnamedDataOnly)
+                throw new InvalidOperationException("Current stream metadata was inconsistent.");
+            string streamSummary = data.StreamScope is { } streams
+                ? $"Stream scope: {streams.State}; reason: {streams.Reason}; observed stream count: {streams.StreamCount?.ToString() ?? "Unknown"}; matching bookends: {streams.BookendsMatch?.ToString() ?? "Unknown"}. No stream names or contents are read for display. Alternate or unknown streams block qualification for later cleanup. This does not establish inactive use or deletion permission."
+                : "Stream scope: Unknown (not checked). No stream eligibility or deletion permission is established.";
             string changed = data.HistoricalSizeMatches && data.HistoricalModifiedMatches
                 ? "The observed size and modification time match the earlier scan. This does not prove unchanged identity or uninterrupted history."
                 : "The file's size or modification time differs from the scan. Review the current observation and scan again.";
-            CleanupFileEvidenceDetails = $"Current path: {data.File.Path}\nSupported temporary root: {data.RootPath}\nCurrent logical bytes: {data.File.Bytes:N0}; reported links: {data.File.LinkCount}\nModified UTC: {data.File.LastWriteUtc:u}\nCreation UTC: {data.File.CreationUtc:u}; change UTC: {data.File.ChangeUtc:u}\nCheck interval UTC: {data.QueryStartedUtc:u} — {data.QueryCompletedUtc:u}\nHistorical scan coverage: {data.SourceCoverageState}; current exclusion coverage: {data.ExclusionCoverageState}\n\n{changed}\n\n{string.Join("\n", data.Coverage)}\n\n{CleanupFileEvidenceLimits}";
+            CleanupFileEvidenceDetails = $"Current path: {data.File.Path}\nSupported temporary root: {data.RootPath}\nCurrent unnamed-stream logical bytes: {data.File.Bytes:N0}; reported links: {data.File.LinkCount}\nModified UTC: {data.File.LastWriteUtc:u}\nCreation UTC: {data.File.CreationUtc:u}; change UTC: {data.File.ChangeUtc:u}\nCheck interval UTC: {data.QueryStartedUtc:u} — {data.QueryCompletedUtc:u}\nHistorical scan coverage: {data.SourceCoverageState}; current exclusion coverage: {data.ExclusionCoverageState}\n\n{changed}\n\n{streamSummary}\n\n{string.Join("\n", data.Coverage)}\n\n{CleanupFileEvidenceLimits}";
             return result.State;
         }, error =>
         {
