@@ -34,29 +34,43 @@ internal static partial class NativeFixtures
                 "OutputAssemblyPathQualified", "HealthPropertyReadable", "HealthPropertyEnum", "EnumShapeMatched", "SharedParameterSetMatched",
                 "SwitchParametersMatched", "NonTargetMandatoryAbsent", "PublisherTrustVerified", "HealthCheckInvoked"];
             string[] counts = ["OutputTypeCount", "PublicPropertyCount", "EnumMemberCount", "ParameterSetCount", "SharedParameterSetCount"];
+            string[] diagnostics = ["Stage", "OuterExceptionKind", "ExceptionKind", "ModuleError"];
+            string[] diagnosticNumbers = ["ErrorCategory", "OuterExceptionHResult", "ExceptionHResult"];
+            string[] stages = ["Host", "Manifest", "ModuleImport", "ModuleBinding", "CommandMetadata", "OutputMetadata", "PropertyMetadata", "EnumMetadata", "ParameterMetadata", "Completed", "Incomplete"];
+            string[] kinds = ["None", "PowerShell", "PowerShellInvocation", "PowerShellStop", "IO", "FileLoad", "FileNotFound", "TypeLoad", "BadImage", "Security", "AccessDenied", "Unknown", "Guard"];
+            string[] moduleErrors = ["None", "ModuleNotFound", "InvalidManifest", "ModuleLoadFailure", "Unknown"];
+            bool NullableInteger(string name) => root.TryGetProperty(name, out var value) &&
+                (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _));
+            bool FixedText(string name, string[] allowed) => root.TryGetProperty(name, out var value) &&
+                value.ValueKind == JsonValueKind.String && value.GetString() is { } text && allowed.Contains(text, StringComparer.Ordinal);
             var names = root.ValueKind == JsonValueKind.Object ? root.EnumerateObject().Select(property => property.Name).ToArray() : [];
-            if (names.Length != flags.Length + counts.Length + 2 || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
-                names.Any(name => name is not ("Schema" or "Status") && !flags.Contains(name, StringComparer.Ordinal) && !counts.Contains(name, StringComparer.Ordinal)) ||
-                !root.TryGetProperty("Schema", out var schema) || !schema.TryGetInt32(out int version) || version != 1 ||
+            if (names.Length != flags.Length + counts.Length + diagnostics.Length + diagnosticNumbers.Length + 2 || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
+                names.Any(name => name is not ("Schema" or "Status") && !flags.Contains(name, StringComparer.Ordinal) && !counts.Contains(name, StringComparer.Ordinal) &&
+                    !diagnostics.Contains(name, StringComparer.Ordinal) && !diagnosticNumbers.Contains(name, StringComparer.Ordinal)) ||
+                !root.TryGetProperty("Schema", out var schema) || !schema.TryGetInt32(out int version) || version != 2 ||
                 !root.TryGetProperty("Status", out var status) || status.ValueKind != JsonValueKind.String || status.GetString() is not ("Available" or "Unknown" or "Unavailable") ||
                 flags.Any(name => !root.TryGetProperty(name, out var value) || value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) ||
                 counts.Any(name => !root.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Null &&
-                    (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out int count) || count is < 0 or > 64)))
+                    (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out int count) || count is < 0 or > 64)) ||
+                diagnosticNumbers.Any(name => !NullableInteger(name)) || !FixedText("Stage", stages) || !FixedText("OuterExceptionKind", kinds) ||
+                !FixedText("ExceptionKind", kinds) || !FixedText("ModuleError", moduleErrors))
             { report.Unknown(check, "The metadata projection was unrecognized or ambiguous. No type/parameter capability, publisher trust or health result was inferred."); return; }
             bool Flag(string name) => root.GetProperty(name).GetBoolean();
             int? Count(string name) => root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : root.GetProperty(name).GetInt32();
             string CountText(string name) => Count(name)?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unobserved";
+            string Text(string name) => root.GetProperty(name).GetString()!;
+            string HResultText(string name) => Count(name) is { } code ? "0x" + unchecked((uint)code).ToString("X8") : "unobserved";
             if (Flag("PublisherTrustVerified") || Flag("HealthCheckInvoked"))
             { report.Fail(check, "The metadata-only projection contradicted its no-health-execution/no-publisher-verification invariant. No payload or host data is exported."); return; }
             bool qualified = flags.Where(name => name is not ("PublisherTrustVerified" or "HealthCheckInvoked")).All(Flag) &&
                 Count("OutputTypeCount") is >= 1 and <= 8 && Count("PublicPropertyCount") is >= 1 and <= 64 && Count("EnumMemberCount") == 3 &&
                 Count("ParameterSetCount") is >= 1 and <= 16 && Count("SharedParameterSetCount") is >= 1 and <= 16 &&
                 Count("SharedParameterSetCount") <= Count("ParameterSetCount");
-            string detail = $"metadataState={status.GetString()}; hostPathQualified={Flag("HostPathQualified")}; manifestPathQualified={Flag("ManifestPathQualified")}; importedModuleBound={Flag("ImportedModuleBound")}; commandBound={Flag("CommandBound")}; outputTypeResolved={Flag("OutputTypeResolved")}; outputAssemblyPathQualified={Flag("OutputAssemblyPathQualified")}; healthPropertyReadable={Flag("HealthPropertyReadable")}; healthPropertyEnum={Flag("HealthPropertyEnum")}; enumShapeMatched={Flag("EnumShapeMatched")}; sharedParameterSetMatched={Flag("SharedParameterSetMatched")}; switchParametersMatched={Flag("SwitchParametersMatched")}; nonTargetMandatoryAbsent={Flag("NonTargetMandatoryAbsent")}; outputTypeCount={CountText("OutputTypeCount")}; publicPropertyCount={CountText("PublicPropertyCount")}; enumMemberCount={CountText("EnumMemberCount")}; parameterSetCount={CountText("ParameterSetCount")}; sharedParameterSetCount={CountText("SharedParameterSetCount")}; publisherTrustVerified=false; healthCheckInvoked=false. ";
+            string detail = $"metadata={status.GetString()}; stage={Text("Stage")}; host={Flag("HostPathQualified")}; manifest={Flag("ManifestPathQualified")}; module={Flag("ImportedModuleBound")}; command={Flag("CommandBound")}; outputType={Flag("OutputTypeResolved")}; assemblyPath={Flag("OutputAssemblyPathQualified")}; propertyReadable={Flag("HealthPropertyReadable")}; propertyEnum={Flag("HealthPropertyEnum")}; enumShape={Flag("EnumShapeMatched")}; sharedSet={Flag("SharedParameterSetMatched")}; switches={Flag("SwitchParametersMatched")}; noOtherMandatory={Flag("NonTargetMandatoryAbsent")}; counts(output/property/enum/sets/shared)={CountText("OutputTypeCount")}/{CountText("PublicPropertyCount")}/{CountText("EnumMemberCount")}/{CountText("ParameterSetCount")}/{CountText("SharedParameterSetCount")}; errorCategory={CountText("ErrorCategory")}; outer={Text("OuterExceptionKind")}/{HResultText("OuterExceptionHResult")}; exception={Text("ExceptionKind")}/{HResultText("ExceptionHResult")}; moduleError={Text("ModuleError")}; publisherTrustVerified=false; healthCheckInvoked=false. ";
             bool complete = status.GetString() == "Available" && qualified;
             string message = detail + (complete
-                ? "The fixed imported module exposed the observed candidate public output/enum shape and shared switch metadata. No output instance was constructed, output getter invoked, or diagnostic/servicing command run. Metadata observations do not establish a stable documented result schema, publisher trust, elevation suitability, component health, ADK deployment or production execution readiness."
-                : "The complete source-bound candidate metadata contract was not established. Missing, blocked, unresolved or changed metadata remains Unknown; no health or servicing evidence is claimed.");
+                ? "Candidate metadata observed only. No output instance/getter or health/servicing command invoked. No stable result-schema, publisher, elevation, component-health or production-readiness proof."
+                : "Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement.");
             if (message.Length > 1000)
             { report.Unknown(check, "The bounded metadata summary could not preserve its complete qualification. No health check was invoked and no publisher trust or production servicing readiness is established."); return; }
             if (complete) report.Pass(check, message);
@@ -95,6 +109,65 @@ internal static partial class NativeFixtures
         }
         $counts = [ordered]@{OutputTypeCount=$null; PublicPropertyCount=$null; EnumMemberCount=$null; ParameterSetCount=$null; SharedParameterSetCount=$null}
         $status = 'Unknown'
+        $stage = 'Host'
+        $diagnostics = [ordered]@{Stage='Host'; OuterExceptionKind='None'; ExceptionKind='None'; ModuleError='None'; ErrorCategory=$null; OuterExceptionHResult=$null; ExceptionHResult=$null}
+        $captured = @{First=$false}
+        function Get-FixedExceptionKind([Exception]$exception) {
+          switch -CaseSensitive ($exception.GetType().FullName) {
+            'System.Management.Automation.RuntimeException' { return 'PowerShell' }
+            'System.Management.Automation.CmdletInvocationException' { return 'PowerShellInvocation' }
+            'System.Management.Automation.ActionPreferenceStopException' { return 'PowerShellStop' }
+            'System.Management.Automation.PSSecurityException' { return 'Security' }
+            'System.IO.IOException' { return 'IO' }
+            'System.IO.DirectoryNotFoundException' { return 'IO' }
+            'System.IO.FileLoadException' { return 'FileLoad' }
+            'System.IO.FileNotFoundException' { return 'FileNotFound' }
+            'System.TypeLoadException' { return 'TypeLoad' }
+            'System.Reflection.ReflectionTypeLoadException' { return 'TypeLoad' }
+            'System.BadImageFormatException' { return 'BadImage' }
+            'System.Security.SecurityException' { return 'Security' }
+            'System.UnauthorizedAccessException' { return 'AccessDenied' }
+            default { return 'Unknown' }
+          }
+        }
+        function Save-FirstMetadataError($record,[bool]$allowGuard) {
+          if ($captured.First) { return }
+          $captured.First = $true
+          $diagnostics.Stage = $stage
+          $guards = @('FixedMetadataHostUnavailable','FixedMetadataModuleUnavailable','AmbiguousImportedModule','ImportedModuleScopeUnknown','AmbiguousCommandMetadata','CommandModuleScopeUnknown','OutputMetadataBound','OutputMetadataUnknown','OutputMetadataUnresolved','OutputAssemblyScopeUnknown','PropertyMetadataBound','CandidatePropertyUnknown','CandidatePropertyShapeUnknown','EnumAssemblyScopeUnknown','EnumMetadataBound','ParameterSetMetadataBound','ParameterMetadataBound')
+          $id = $record.FullyQualifiedErrorId
+          if ($allowGuard -and $guards -ccontains $id) {
+            # Synthetic guards carry no reported provider category/HRESULT/native code.
+            $diagnostics.OuterExceptionKind='Guard'; $diagnostics.ExceptionKind='Guard'
+            return
+          }
+          $diagnostics.ModuleError='Unknown'
+          if (-not [string]::IsNullOrEmpty($id) -and $id.Length -le 512) {
+            $comma = $id.IndexOf(',')
+            $token = $id
+            if ($comma -ge 0) { $token=$id.Substring(0,$comma) }
+            switch -CaseSensitive ($token) {
+              'Modules_ModuleNotFound' { $diagnostics.ModuleError='ModuleNotFound' }
+              'Modules_InvalidManifest' { $diagnostics.ModuleError='InvalidManifest' }
+              'Modules_ManifestModuleLoadFailure' { $diagnostics.ModuleError='ModuleLoadFailure' }
+            }
+          }
+          if ($null -ne $record.CategoryInfo) { $diagnostics.ErrorCategory=[int]$record.CategoryInfo.Category }
+          $exception=$record.Exception
+          if ($null -eq $exception) { $diagnostics.OuterExceptionKind='Unknown'; $diagnostics.ExceptionKind='Unknown'; return }
+          $diagnostics.OuterExceptionKind=Get-FixedExceptionKind $exception
+          $diagnostics.OuterExceptionHResult=[int]$exception.HResult
+          $diagnostics.ExceptionKind=$diagnostics.OuterExceptionKind
+          $diagnostics.ExceptionHResult=$diagnostics.OuterExceptionHResult
+          # At most four exception objects; never serialize type names/messages, FQIDs or paths.
+          for ($depth=0; $null -ne $exception -and $depth -lt 4; $depth++) {
+            $kind=Get-FixedExceptionKind $exception
+            if ($kind -cnotin @('PowerShell','PowerShellInvocation','PowerShellStop','Unknown')) {
+              $diagnostics.ExceptionKind=$kind; $diagnostics.ExceptionHResult=[int]$exception.HResult; break
+            }
+            $exception=$exception.InnerException
+          }
+        }
         function Test-FixedLocalFile([string]$path) {
           if ([string]::IsNullOrEmpty($path) -or $path.Length -gt 1024) { return $false }
           $full = [IO.Path]::GetFullPath($path)
@@ -119,19 +192,24 @@ internal static partial class NativeFixtures
           $env:PSModulePath = [IO.Path]::Combine($expectedHome,'Modules')
           $directory = [IO.Path]::Combine($expectedHome,'Modules','Dism')
           $manifest = [IO.Path]::Combine($directory,'Dism.psd1')
+          $stage = 'Manifest'
           $flags.ManifestPathQualified = Test-FixedLocalFile $manifest
           if (-not $flags.ManifestPathQualified) { $status='Unavailable'; throw 'FixedMetadataModuleUnavailable' }
+          $stage = 'ModuleImport'
           try { $imported = @(Microsoft.PowerShell.Core\Import-Module -Name $manifest -PassThru -ErrorAction Stop) }
-          catch { $status='Unavailable'; throw 'FixedMetadataModuleUnavailable' }
+          catch { Save-FirstMetadataError $_ $false; $status='Unavailable'; throw 'FixedMetadataModuleUnavailable' }
+          $stage = 'ModuleBinding'
           if ($imported.Count -ne 1) { throw 'AmbiguousImportedModule' }
           $module = $imported[0]
           $flags.ImportedModuleBound = ($module.Name -ceq 'Dism') -and [string]::Equals([IO.Path]::GetFullPath($module.ModuleBase),$directory,[StringComparison]::OrdinalIgnoreCase) -and (Test-WithinDismDirectory $module.Path $directory)
           if (-not $flags.ImportedModuleBound) { throw 'ImportedModuleScopeUnknown' }
+          $stage = 'CommandMetadata'
           $commands = @(Microsoft.PowerShell.Core\Get-Command -Name 'Dism\Repair-WindowsImage' -CommandType Cmdlet -All -ListImported -ErrorAction Stop)
           if ($commands.Count -ne 1) { throw 'AmbiguousCommandMetadata' }
           $command = $commands[0]
           $flags.CommandBound = ($command.Name -ceq 'Repair-WindowsImage') -and [object]::ReferenceEquals($command.Module,$module)
           if (-not $flags.CommandBound) { throw 'CommandModuleScopeUnknown' }
+          $stage = 'OutputMetadata'
           $outputs = @($command.OutputType)
           if ($outputs.Count -le 8) { $counts.OutputTypeCount = $outputs.Count }
           if ($outputs.Count -lt 1 -or $outputs.Count -gt 8) { throw 'OutputMetadataBound' }
@@ -142,6 +220,7 @@ internal static partial class NativeFixtures
           $flags.OutputTypeResolved = $true
           $flags.OutputAssemblyPathQualified = (-not $type.Assembly.IsDynamic) -and (Test-WithinDismDirectory $type.Assembly.Location $directory)
           if (-not $flags.OutputAssemblyPathQualified) { throw 'OutputAssemblyScopeUnknown' }
+          $stage = 'PropertyMetadata'
           $properties = @($type.GetProperties([Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Instance))
           if ($properties.Count -le 64) { $counts.PublicPropertyCount = $properties.Count }
           if ($properties.Count -lt 1 -or $properties.Count -gt 64) { throw 'PropertyMetadataBound' }
@@ -152,11 +231,13 @@ internal static partial class NativeFixtures
           $enum = $health[0].PropertyType
           $flags.HealthPropertyEnum = $enum.IsEnum
           if (-not $flags.HealthPropertyReadable -or -not $flags.HealthPropertyEnum) { throw 'CandidatePropertyShapeUnknown' }
+          $stage = 'EnumMetadata'
           if ($enum.Assembly.IsDynamic -or -not (Test-WithinDismDirectory $enum.Assembly.Location $directory)) { throw 'EnumAssemblyScopeUnknown' }
           $members = [Enum]::GetNames($enum)
           if ($members.Length -gt 16) { throw 'EnumMetadataBound' }
           $counts.EnumMemberCount = $members.Length
           $flags.EnumShapeMatched = ($members.Length -eq 3) -and ($members -ccontains 'Healthy') -and ($members -ccontains 'Repairable') -and ($members -ccontains 'NonRepairable')
+          $stage = 'ParameterMetadata'
           $sets = @($command.ParameterSets)
           if ($sets.Count -le 16) { $counts.ParameterSetCount = $sets.Count }
           if ($sets.Count -lt 1 -or $sets.Count -gt 16) { throw 'ParameterSetMetadataBound' }
@@ -181,15 +262,24 @@ internal static partial class NativeFixtures
           $flags.NonTargetMandatoryAbsent = $validSets -gt 0
           $complete = $true
           foreach ($entry in $flags.GetEnumerator()) { if ($entry.Key -cnotin @('PublisherTrustVerified','HealthCheckInvoked') -and -not $entry.Value) { $complete=$false } }
-          if ($complete) { $status='Available' }
-        } catch { }
+          if ($complete) { $status='Available'; $stage='Completed' } else { $stage='Incomplete' }
+        } catch { Save-FirstMetadataError $_ $true }
+        if (-not $captured.First) { $diagnostics.Stage=$stage }
         $json = [System.Text.StringBuilder]::new()
-        [void]$json.Append('{"Schema":1,"Status":"').Append($status).Append('"')
+        [void]$json.Append('{"Schema":2,"Status":"').Append($status).Append('"')
         foreach ($entry in $flags.GetEnumerator()) { [void]$json.Append(',"').Append($entry.Key).Append('":').Append(([bool]$entry.Value).ToString().ToLowerInvariant()) }
         foreach ($entry in $counts.GetEnumerator()) {
           [void]$json.Append(',"').Append($entry.Key).Append('":')
           if ($null -eq $entry.Value) { [void]$json.Append('null') }
           else { [void]$json.Append(([int]$entry.Value).ToString([Globalization.CultureInfo]::InvariantCulture)) }
+        }
+        foreach ($key in @('Stage','OuterExceptionKind','ExceptionKind','ModuleError')) {
+          [void]$json.Append(',"').Append($key).Append('":"').Append($diagnostics[$key]).Append('"')
+        }
+        foreach ($key in @('ErrorCategory','OuterExceptionHResult','ExceptionHResult')) {
+          [void]$json.Append(',"').Append($key).Append('":')
+          if ($null -eq $diagnostics[$key]) { [void]$json.Append('null') }
+          else { [void]$json.Append(([int]$diagnostics[$key]).ToString([Globalization.CultureInfo]::InvariantCulture)) }
         }
         [void]$json.Append('}')
         [Console]::WriteLine($json.ToString())

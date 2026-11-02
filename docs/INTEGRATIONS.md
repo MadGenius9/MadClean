@@ -157,3 +157,8 @@ The bounded [catalog observation contract](SYSTEM-TOOL-CATALOG-OBSERVATION.md) u
 ## Owned diagnostic operation prerequisites
 
 The [versioned journal prototype](SYSTEM-TOOL-JOURNAL-RECORDS.md) uses a fixed owned Lifecycle store, strict bounded immutable-prefix snapshots and deliberate inert writer self-exit. It does not access production LocalAppData or dispatch any Windows tool. Parsed intent/loss remains Unresolved; malformed tails stay Unknown without repair or successful-prefix salvage. The [DISM capability probe](DISM-CAPABILITY.md) separately imports only the fixed inbox module to inspect advertised type/enum/switch metadata; it never calls a health/repair command, authenticates a publisher from a path or changes production execution gates. Both are explicit development harness checks, outside ordinary app inspection.
+
+
+## Selected cleanup-file metadata
+
+The [selected cleanup recheck](CLEANUP-FILE-EVIDENCE.md) independently refreshes actual supported temp roots, current persisted exclusions and protected known-folder redirects. Its one-file READ_ATTRIBUTES query observes guarded native identities/stamps without target contents, sibling enumeration, DELETE/write rights or elevation. Scope/source generations preserve original inventory and discard stale UI results. Active/application ownership remain Unknown and CanDelete stays false. Pending native workers retain their own handles and the exact owned fixture tree; production UI rejects the separate development-source projection.

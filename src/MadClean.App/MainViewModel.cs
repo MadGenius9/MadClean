@@ -100,6 +100,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             {
                 BeginStorageOverview();
                 BeginInspectionEvidence();
+                InvalidateCleanupEvidenceSnapshot();
                 Disks.Clear(); CleanupRows.Clear(); CleanupCategories.Clear(); StartupRows.Clear(); SecurityRows.Clear();
                 DiskSummary = CleanupSummary = StartupSummary = SecuritySummary = "Checking…";
                 DiskMessage = CleanupMessage = StartupMessage = SecurityMessage = "Checking…";
@@ -130,6 +131,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             Event(ActivityArea.Cleanup, ActivityOutcome.Failed); return;
         }
         var report = await new CleanupScanner().ScanAsync(inventory.CleanupLocations, token, preferences.Items); token.ThrowIfCancellationRequested();
+        var completedUtc = DateTimeOffset.UtcNow;
         cleanupPreview = report.Candidates.ToArray();
         foreach (var group in report.Candidates.GroupBy(c => c.Category)) CleanupCategories.Add($"{group.Key}: {group.Count()} files · {Display.Bytes(group.Sum(c => c.Bytes))}");
         int added = 0;
@@ -143,6 +145,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         CleanupSummary = Display.Bytes(report.TotalBytes) + (report.Truncated || report.Issues.Count > 0 ? " (partial)" : "");
         var state = report.Truncated || report.Issues.Count > 0 ? CheckState.Partial : CheckState.Available;
         CleanupMessage = Stamp(state, $"{report.Candidates.Count} candidates; {report.ExcludedCount} exclusions; {report.Issues.Count} recorded errors. Check reported paths/permissions or close active files before retrying. {(report.Truncated ? "Safety limit reached; inventory incomplete." : "Scan finished.")} Nothing was deleted.");
+        PublishCleanupEvidenceSnapshot(report, preferences.Items, completedUtc);
         Event(ActivityArea.Cleanup, Outcome(state));
     }, text => { CleanupMessage = text; CleanupSummary = text; });
     private async Task LoadStartup(CancellationToken token) => await Guard(ActivityArea.Startup, async () =>

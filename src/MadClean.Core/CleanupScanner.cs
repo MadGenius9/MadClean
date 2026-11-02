@@ -3,15 +3,6 @@ namespace MadClean.Core;
 // No deletion API exists. An inventory candidate is never a promise that deletion is safe.
 public sealed class CleanupScanner
 {
-    private static readonly HashSet<string> ProtectedNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Downloads", "Documents", "Desktop", "Pictures", "Videos", "Music", "Saved Games", "Saves",
-        "Credentials", "Vault", "Protect", "Profiles", "User Data", "Default", "Login Data", ".ssh", ".gnupg",
-        "Chrome", "Chromium", "Edge", "Firefox", "Brave-Browser", "Opera", "Cookies", "Sessions", "Session Storage", "Local Storage"
-    };
-    private static readonly HashSet<string> ProtectedExtensions = new(StringComparer.OrdinalIgnoreCase)
-        { ".db", ".sqlite", ".sqlite3", ".kdbx", ".pem", ".key", ".pfx", ".p12", ".sav" };
-    private static readonly string[] SensitiveNameParts = ["credential", "password", "token", "secret", "login", "cookie", "session", "wallet"];
     private readonly TimeSpan minimumAge;
     private readonly int limit;
     public CleanupScanner(TimeSpan? minimumAge = null, int limit = 100_000)
@@ -67,7 +58,7 @@ public sealed class CleanupScanner
                     var ancestor = ancestors.Pop();
                     var attributes = File.GetAttributes(ancestor);
                     var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(ancestor));
-                    if ((attributes & FileAttributes.ReparsePoint) != 0 || (attributes & FileAttributes.Directory) == 0 || ProtectedNames.Contains(name))
+                    if ((attributes & FileAttributes.ReparsePoint) != 0 || (attributes & FileAttributes.Directory) == 0 || CleanupSafetyPolicy.IsProtectedName(name))
                         throw new IOException("Excluded ancestor");
                 }
                 if (!Directory.Exists(root)) { Issue(location, root, "Location missing; no inventory performed."); continue; }
@@ -93,12 +84,12 @@ public sealed class CleanupScanner
                         {
                             if (rules.ExcludesDirectory(path)) { excluded++; continue; }
                             var attributes = File.GetAttributes(path);
-                            if ((attributes & FileAttributes.ReparsePoint) != 0 || ProtectedNames.Contains(Path.GetFileName(path)) || SensitiveNameParts.Any(part => Path.GetFileName(path).Contains(part, StringComparison.OrdinalIgnoreCase)))
+                            if ((attributes & FileAttributes.ReparsePoint) != 0 || CleanupSafetyPolicy.IsProtectedName(Path.GetFileName(path)) || CleanupSafetyPolicy.IsSensitiveName(Path.GetFileName(path)))
                             { excluded++; continue; }
                             if ((attributes & FileAttributes.Directory) != 0) { directories.Push(path); continue; }
                             if (rules.ExcludesFile(path)) { excluded++; continue; }
                             var info = new FileInfo(path);
-                            if (info.LastWriteTimeUtc > cutoff || ProtectedExtensions.Contains(info.Extension) ||
+                            if (info.LastWriteTimeUtc > cutoff || CleanupSafetyPolicy.IsProtectedExtension(info.Extension) ||
                                 (attributes & (FileAttributes.Encrypted | FileAttributes.Offline | FileAttributes.System)) != 0)
                             { excluded++; continue; }
                             // Exclude sharing conflicts. A successful open is not inactive-use proof:

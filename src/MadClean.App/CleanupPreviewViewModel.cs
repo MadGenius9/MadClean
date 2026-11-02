@@ -15,7 +15,7 @@ public sealed partial class MainViewModel
     private string exclusionsMessage = "Exclusions have not been loaded.";
     public ObservableCollection<CleanupExclusion> CleanupExclusions { get; } = [];
     public string ExclusionsMessage { get => exclusionsMessage; private set => Set(ref exclusionsMessage, value); }
-    public ResultRow? SelectedCleanupRow { get => selectedCleanupRow; set { Set(ref selectedCleanupRow, value); PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails))); CommandManager.InvalidateRequerySuggested(); } }
+    public ResultRow? SelectedCleanupRow { get => selectedCleanupRow; set { if (!ReferenceEquals(selectedCleanupRow, value)) InvalidateCleanupFileEvidence(); Set(ref selectedCleanupRow, value); PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails))); CommandManager.InvalidateRequerySuggested(); } }
     public string SelectedCleanupDetails => selectedCleanupRow == null ? "Select a preview row to inspect and copy its complete path, size/observation and category before choosing an exclusion." :
         selectedCleanupRow.Name + "\n" + selectedCleanupRow.Detail + "\n" + selectedCleanupRow.State +
         (cleanupPreview.Any(candidate => candidate.Path.Equals(selectedCleanupRow.Name, StringComparison.OrdinalIgnoreCase))
@@ -37,6 +37,7 @@ public sealed partial class MainViewModel
             cleanupPreview.Any(c => c.Path.Equals(SelectedCleanupRow.Name, StringComparison.OrdinalIgnoreCase)));
         ExcludeCleanupFolderCommand = new ActionCommand(ExcludeCleanupFolder, () => !IsBusy);
         RemoveCleanupExclusionCommand = new ActionCommand(RemoveCleanupExclusion, () => !IsBusy && SelectedCleanupExclusion != null);
+        InitializeCleanupFileEvidence();
         LoadCleanupPreferences();
     }
     private CleanupExclusionSettings LoadCleanupPreferences()
@@ -74,6 +75,7 @@ public sealed partial class MainViewModel
     }
     private void InvalidateCleanupPreview(string message)
     {
+        InvalidateCleanupEvidenceSnapshot();
         cleanupPreview = Array.Empty<CleanupCandidate>(); SelectedCleanupRow = null;
         CleanupRows.Clear(); CleanupCategories.Clear(); CleanupSummary = "Rescan required"; CleanupMessage = message;
     }

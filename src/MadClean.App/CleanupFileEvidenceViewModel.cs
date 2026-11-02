@@ -1,0 +1,113 @@
+using System.Windows.Input;
+using MadClean.Core;
+using MadClean.Windows;
+
+namespace MadClean.App;
+
+public sealed partial class MainViewModel
+{
+    private readonly ICleanupFileEvidence cleanupFileEvidence = new WindowsCleanupFileEvidence();
+    private CleanupReport? cleanupEvidenceSnapshot;
+    private DateTimeOffset cleanupEvidenceCompletedUtc;
+    private IReadOnlyList<CleanupExclusion> cleanupEvidenceExclusions = Array.Empty<CleanupExclusion>();
+    private long cleanupEvidenceGeneration;
+    private string cleanupFileEvidenceMessage = "Not checked. Select one actual cleanup candidate, then recheck its current information.";
+    private string cleanupFileEvidenceDetails = CleanupFileEvidenceLimits;
+    private const string CleanupFileEvidenceLimits = "This reads metadata for exactly the selected temporary file. It does not read contents or rescan folders. Current identity is a first observation; the earlier scan cannot establish identity continuity. Active use and application ownership remain unknown. Nothing is deleted and no read handle remains protected after publication.";
+    public ICommand RecheckCleanupFileCommand { get; private set; } = null!;
+    public string CleanupFileEvidenceMessage { get => cleanupFileEvidenceMessage; private set => Set(ref cleanupFileEvidenceMessage, value); }
+    public string CleanupFileEvidenceDetails { get => cleanupFileEvidenceDetails; private set => Set(ref cleanupFileEvidenceDetails, value); }
+
+    private CleanupCandidate? CurrentCleanupEvidenceCandidate() => SelectedCleanupRow is { } row && CleanupRows.Contains(row)
+        ? cleanupPreview.FirstOrDefault(candidate => string.Equals(candidate.Path, row.Name, StringComparison.OrdinalIgnoreCase)) : null;
+    private void InitializeCleanupFileEvidence() => RecheckCleanupFileCommand = new AsyncCommand(RecheckCleanupFile,
+        () => !IsBusy && cleanupEvidenceSnapshot != null && CurrentCleanupEvidenceCandidate() != null);
+    private void InvalidateCleanupFileEvidence()
+    {
+        cleanupEvidenceGeneration++;
+        CleanupFileEvidenceMessage = "Not checked for this selection. Any earlier current-file observation is invalidated.";
+        CleanupFileEvidenceDetails = CleanupFileEvidenceLimits;
+        CommandManager.InvalidateRequerySuggested();
+    }
+    private void InvalidateCleanupEvidenceSnapshot()
+    {
+        cleanupEvidenceSnapshot = null;
+        cleanupEvidenceCompletedUtc = default;
+        cleanupEvidenceExclusions = Array.Empty<CleanupExclusion>();
+        InvalidateCleanupFileEvidence();
+    }
+    private void PublishCleanupEvidenceSnapshot(CleanupReport report, IReadOnlyList<CleanupExclusion> exclusions, DateTimeOffset completedUtc)
+    {
+        InvalidateCleanupFileEvidence();
+        cleanupEvidenceSnapshot = report;
+        cleanupEvidenceCompletedUtc = completedUtc;
+        cleanupEvidenceExclusions = Array.AsReadOnly(exclusions.Select(item => item with { }).ToArray());
+        CommandManager.InvalidateRequerySuggested();
+    }
+    private Task RecheckCleanupFile()
+    {
+        var selected = CurrentCleanupEvidenceCandidate();
+        var row = SelectedCleanupRow;
+        var snapshot = cleanupEvidenceSnapshot;
+        var exclusions = cleanupEvidenceExclusions;
+        var completedUtc = cleanupEvidenceCompletedUtc;
+        long generation = cleanupEvidenceGeneration;
+        bool Current() => generation == cleanupEvidenceGeneration && ReferenceEquals(snapshot, cleanupEvidenceSnapshot) &&
+            ReferenceEquals(row, SelectedCleanupRow) && ReferenceEquals(selected, CurrentCleanupEvidenceCandidate());
+        return RunDiscoveryAsync(ActivityArea.CleanupFileEvidence, "Rechecking the selected temporary file", async token =>
+        {
+            CleanupFileEvidenceMessage = "Checking current temporary roots, saved exclusions and exactly the selected file's metadata…";
+            CleanupFileEvidenceDetails = "In progress. No current file or deletion eligibility is established.";
+            var prepared = await Task.Run(() => CleanupFileEvidenceScope.Create(snapshot, selected, completedUtc, exclusions, DateTimeOffset.UtcNow, token), token);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) return CheckState.Cancelled;
+            if (prepared.Items.Count != 1)
+            {
+                if (Current())
+                {
+                    CleanupFileEvidenceMessage = Stamp(prepared.State, prepared.Message);
+                    CleanupFileEvidenceDetails = "No native file query started. Scan again or select a supported current candidate. " + CleanupFileEvidenceLimits;
+                }
+                return prepared.State;
+            }
+            var scope = prepared.Items[0];
+            var result = await cleanupFileEvidence.ReadAsync(scope, token);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) return CheckState.Cancelled;
+            CleanupFileEvidenceMessage = Stamp(result.State, result.Message);
+            if (result.Items.Count != 1)
+            {
+                CleanupFileEvidenceDetails = "No accepted current metadata report was returned. Missing, excluded, changed or inaccessible files do not establish cleanup eligibility. " + CleanupFileEvidenceLimits;
+                return result.State;
+            }
+            var data = result.Items[0];
+            static bool Utc(DateTimeOffset value) => value != default && value.Offset == TimeSpan.Zero;
+            static bool Identity(string? value) => value is { Length: 49 } && value[16] == ':' &&
+                value.Where((_, index) => index != 16).All(character => character is >= '0' and <= '9' or >= 'A' and <= 'F') &&
+                value.AsSpan(17).IndexOfAnyExcept('0') >= 0;
+            if (result.State is not (CheckState.Available or CheckState.Partial) || data.CanDelete || data.ActiveUse != "Unknown" ||
+                data.SourceKind != CleanupEvidenceSourceKind.WindowsTemporary || data.RootKind != scope.RootKind || data.Prior != scope.Candidate ||
+                data.SourceCoverageState != scope.SourceCoverageState || data.ExclusionCoverageState is not (CheckState.Available or CheckState.Partial) ||
+                !Utc(data.QueryStartedUtc) || !Utc(data.QueryCompletedUtc) || data.QueryStartedUtc < scope.ValidatedUtc ||
+                data.QueryCompletedUtc < data.QueryStartedUtc || data.QueryCompletedUtc > DateTimeOffset.UtcNow ||
+                data.File == null || data.File.Bytes < 0 || data.File.LinkCount != 1 || !Identity(data.File.Identity) || !Identity(data.RootIdentity) ||
+                !Utc(data.File.CreationUtc) || !Utc(data.File.LastWriteUtc) || !Utc(data.File.ChangeUtc) ||
+                CleanupFileEvidenceScope.NormalizeFilePath(data.File.Path) == null ||
+                !string.Equals(data.File.Path, scope.Candidate.Path, StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrEmpty(data.RootPath) || !data.File.Path.StartsWith(data.RootPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase) ||
+                !data.HistoricalPathMatches || data.HistoricalSizeMatches != (data.File.Bytes == scope.Candidate.Bytes) ||
+                data.HistoricalModifiedMatches != (data.File.LastWriteUtc.UtcDateTime == scope.Candidate.ModifiedUtc))
+                throw new InvalidOperationException("Current cleanup metadata was inconsistent.");
+            string changed = data.HistoricalSizeMatches && data.HistoricalModifiedMatches
+                ? "The observed size and modification time match the earlier scan. This does not prove unchanged identity or uninterrupted history."
+                : "The file's size or modification time differs from the scan. Review the current observation and scan again.";
+            CleanupFileEvidenceDetails = $"Current path: {data.File.Path}\nSupported temporary root: {data.RootPath}\nCurrent logical bytes: {data.File.Bytes:N0}; reported links: {data.File.LinkCount}\nModified UTC: {data.File.LastWriteUtc:u}\nCreation UTC: {data.File.CreationUtc:u}; change UTC: {data.File.ChangeUtc:u}\nCheck interval UTC: {data.QueryStartedUtc:u} — {data.QueryCompletedUtc:u}\nHistorical scan coverage: {data.SourceCoverageState}; current exclusion coverage: {data.ExclusionCoverageState}\n\n{changed}\n\n{string.Join("\n", data.Coverage)}\n\n{CleanupFileEvidenceLimits}";
+            return result.State;
+        }, error =>
+        {
+            if (!Current()) return;
+            CleanupFileEvidenceMessage = error;
+            CleanupFileEvidenceDetails = "No completed current-file observation is claimed. A native metadata read may still finish under its worker's ownership. " + CleanupFileEvidenceLimits;
+        });
+    }
+}

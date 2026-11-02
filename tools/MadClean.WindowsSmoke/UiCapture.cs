@@ -74,6 +74,32 @@ internal static partial class UiCapture
                     if (model.SelectedPage != destinations[index] || model.PrimaryNavigationIndex != index)
                         throw new SmokeAssertionException("ui-primary-route");
                 }
+                primary.SelectedIndex = 1;
+                await Idle(window);
+                var cleanupRecheck = Descendants<Button>(window).Single(button => AutomationProperties.GetName(button) == "Recheck selected cleanup file metadata");
+                var cleanupCurrent = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Current cleanup file metadata and uncertainty");
+                var cleanupStatus = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "Current cleanup file metadata status");
+                cleanupCurrent.BringIntoView();
+                await Idle(window);
+                if (!ReferenceEquals(cleanupRecheck.Command, model.RecheckCleanupFileCommand) || cleanupRecheck.IsEnabled ||
+                    !cleanupCurrent.IsReadOnly || cleanupCurrent.Text != model.CleanupFileEvidenceDetails ||
+                    cleanupCurrent.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.CleanupFileEvidenceDetails) ||
+                    cleanupStatus.Text != model.CleanupFileEvidenceMessage || !cleanupStatus.Text.StartsWith("Not checked", StringComparison.Ordinal))
+                    throw new SmokeAssertionException("ui-cleanup-file-evidence-bindings");
+                if (window.Content is not FrameworkElement cleanupClient) throw new SmokeAssertionException("ui-cleanup-file-evidence-client");
+                foreach (FrameworkElement control in new FrameworkElement[] { cleanupRecheck, cleanupCurrent, cleanupStatus })
+                {
+                    Point position = control.TranslatePoint(new Point(), cleanupClient);
+                    if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||
+                        position.X < -1 || position.Y < -1 || position.X + control.ActualWidth > cleanupClient.ActualWidth + 1 ||
+                        position.Y + control.ActualHeight > cleanupClient.ActualHeight + 1)
+                        throw new SmokeAssertionException("ui-cleanup-file-evidence-bounds");
+                }
+                AssertNoInventory(model);
+                Capture(window, output, "tool-28.png", report);
+                report.Pass("ui-cleanup-file-evidence", "Actual initial selected-file command/status/details bindings, disabled-without-selection and in-client bounds passed without file queries or sample data. Populated selection/cancellation and external-setting races remain unverified.");
+                primary.SelectedIndex = 4;
+                await Idle(window);
                 var updates = Descendants<TabControl>(window).Single(control => control.Items.OfType<TabItem>().Any(item => Equals(item.Header, "BIOS / Firmware")));
                 updates.SelectedItem = updates.Items.OfType<TabItem>().Single(item => Equals(item.Header, "BIOS / Firmware"));
                 await Idle(window);

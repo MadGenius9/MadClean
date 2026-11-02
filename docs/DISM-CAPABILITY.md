@@ -11,3 +11,10 @@ The candidate contract checks an advertised readable enum property and a shared 
 The projection contains only fixed flags, nullable bounded counts and fixed statuses. Unobserved counts are null rather than invented zero. Duplicate/extra/missing fields, malformed JSON and unsupported projections cannot pass; oversized complete evidence remains Unknown rather than truncating a positive result. No paths, arbitrary type/member names, host identities or provider errors are exported. The bounded metadata-process runner may terminate its own query process on timeout; it must never be reused to cancel future servicing operations.
 
 Independent source review found no material blocker after nullable-counter/export-bound corrections. Local compilation passed. Actual source-bound Windows metadata evidence is pending. No production corruption-check or repair control is enabled.
+
+
+## Initial Windows result and typed follow-up
+
+Source38ec883/run41369687422, immutable evidence aa401f3a4922bea1ed1af4ae684f55e833918c96, reported metadataStateUnavailable: host and manifest paths qualified, while imported-module binding and all later capabilities were unestablished. All counters were unobserved, publisher trust false and health-check invocation false. The initial result exposed no actual import category/exception data; it does not establish a missing DLL, execution policy, privilege or specific dependency cause.
+
+The follow-up preserves all import/binding/autoload/acceptance rules and adds only fixed typed stages plus the first actual ErrorRecord category, outer/meaningful exception classifications and their observed HResults across at most four exception objects. The real import error is captured before any synthetic guard. Guard failures have no guessed native code; unfamiliar classifications remain Unknown. Raw identifiers, types, messages and paths are withheld, and complete evidence stays within the fixed export bound. New Windows evidence must identify the blocker before a behavior change is justified.

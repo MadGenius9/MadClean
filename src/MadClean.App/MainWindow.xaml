@@ -255,7 +255,18 @@
                                     <Button Content="Remove selected exclusion" Command="{Binding RemoveCleanupExclusionCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Background="#343E52" Foreground="White"/>
                                 </StackPanel>
                             </Expander>
-                            <TextBox Text="{Binding SelectedCleanupDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" Grid.Row="3" AutomationProperties.Name="Full selected cleanup preview path and observation"/>
+                            <StackPanel Grid.Row="3">
+                                <TextBox Text="{Binding SelectedCleanupDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Full selected cleanup preview path and observation"/>
+                                <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Recheck the selected file" FontSize="20" Foreground="#ECF1FB"/>
+                                        <TextBlock Text="Read current file information after refreshing temporary roots and saved exclusions. This reads no contents, scans no siblings and enables no deletion." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                        <Button Content="Recheck selected file" Command="{Binding RecheckCleanupFileCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" AutomationProperties.Name="Recheck selected cleanup file metadata"/>
+                                        <TextBlock Text="{Binding CleanupFileEvidenceMessage}" Style="{StaticResource Caption}" Margin="0,8,0,0" AutomationProperties.Name="Current cleanup file metadata status"/>
+                                        <TextBox Text="{Binding CleanupFileEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="126" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Current cleanup file metadata and uncertainty"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

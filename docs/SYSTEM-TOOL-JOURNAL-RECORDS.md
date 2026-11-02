@@ -16,6 +16,13 @@ The fixed `journal-intent-exit` harness child creates only inert schema data, ve
 
 The parent also rejects a changed historical prefix with actual bytes unchanged, appends an inert ObservationLost payload, then appends exactly one owned malformed tail byte without truncation. Subsequent whole-log reads must be Unknown and refused appends must preserve all bytes. Independent bounded audits borrow the synchronous file handle, preserve/verify its native cursor and clear buffers. Cursor or resource uncertainty stops further I/O and retains the exact owned store/tree and participants; prior uncertainty cannot be reset.
 
-Independent review found no material blocker in the portable model, store seam or fixture ownership. Local build passed with zero warnings/errors; all1,104 portable tests passed. Python129 total:128 passed/one Windows-only skip. Actual Windows lifecycle evidence remains pending. Existing baseline/cross-process store results are documented separately in [store evidence](SYSTEM-TOOL-JOURNAL-STORE.md).
+Independent review found no material blocker in the portable model, store seam or fixture ownership. Local build passed with zero warnings/errors; all1,104 portable tests passed. Python129 total:128 passed/one Windows-only skip. Actual Windows lifecycle evidence is recorded below. Existing baseline/cross-process store results are documented separately in [store evidence](SYSTEM-TOOL-JOURNAL-STORE.md).
 
 Production fixed per-user scope, durable unresolved-operation reconciliation, bounded UAC dispatch, actual servicing/result interpretation and user-reviewed runtime validation remain unfinished. A persisted PID is never reopened as identity proof. This prototype does not enable another operation from a terminal-looking record.
+
+
+## Actual owned Windows lifecycle
+
+[Run 41369687422](https://github.com/MadGenius9/MadClean/actions/runs/41369687422), source `38ec883`, evidence `aa401f3a4922bea1ed1af4ae684f55e833918c96`, passed the actual owned lifecycle fixture: writer self-exit37 after intent flush/readback, existing Unresolved intent, rejected changed prefix with unchanged bytes, inert ObservationLost append, malformed-tail whole-log Unknown/empty and further append refusal with unchanged bytes. Cursor/native/participant cleanup and final parent teardown passed. This is observed deliberate self-exit behavior, not crash/power-loss durability or production recovery.
+
+Core1,094 Passed/10 NotExecuted reconciled1,104. There were55 scoped passes, zero failures and seven inconclusive checks, including unavailable DISM module metadata. Build/SDK/control/tooling passed; packaging was skipped. No servicing client, UAC, production journal or action gate was enabled.
