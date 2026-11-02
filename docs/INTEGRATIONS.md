@@ -137,7 +137,7 @@ The read-only ARP adapter now keeps exactly one native worker across instances, 
 
 ## Selected duplicate-pair recheck
 
-The separate [selected duplicate-pair recheck](DUPLICATE-PAIR-RECHECK.md) refreshes current known-folder and fixed-capacity ARP location exclusions before exactly two native content opens. It shares worker ownership and bounded caller waits with duplicate discovery, retains native file stamps and performs full bytes/EOF checks without sibling enumeration or hashes as equality proof. Both handles close before publication; current outcomes never grant removal or keeper-protection permission.
+The separate [selected duplicate-pair recheck](DUPLICATE-PAIR-RECHECK.md) refreshes current known-folder and fixed-capacity ARP location exclusions before exactly two native content opens. Missing essential known-folder exclusions block; incomplete optional application locations preserve Partial current coverage, every known exclusion and the first diagnostic. Historical and current coverage remain separate, and neither proves application ownership. It shares worker ownership and bounded caller waits with duplicate discovery, retains native file stamps and performs full bytes/EOF checks without sibling enumeration or hashes as equality proof. Both handles close before publication; current outcomes never grant removal or keeper-protection permission.
 
 ## Selected shortcut file evidence
 

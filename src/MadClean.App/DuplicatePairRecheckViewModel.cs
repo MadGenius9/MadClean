@@ -10,10 +10,12 @@ public sealed partial class MainViewModel
     private long duplicatePairRecheckGeneration;
     private string duplicatePairRecheckMessage = "Not checked. Explicitly select both files, then request a fresh comparison.";
     private string duplicatePairRecheckDetails = DuplicatePairRecheckLimits;
+    private string duplicatePairExclusionSummary = "Current exclusions: Not checked. Application ownership remains unverified.";
     private const string DuplicatePairRecheckLimits = "This separately reads exactly the two selected files, up to 64 MiB each. Current byte equality is an observation, not ownership, inactivity, immutable contents or removal permission. Matching identity values do not prove uninterrupted history or unchanged original bytes. All read handles close before publication; no retained copy stays protected. Removal remains unavailable.";
     public ICommand RecheckDuplicatePairCommand { get; private set; } = null!;
     public string DuplicatePairRecheckMessage { get => duplicatePairRecheckMessage; private set => Set(ref duplicatePairRecheckMessage, value); }
     public string DuplicatePairRecheckDetails { get => duplicatePairRecheckDetails; private set => Set(ref duplicatePairRecheckDetails, value); }
+    public string DuplicatePairExclusionSummary { get => duplicatePairExclusionSummary; private set => Set(ref duplicatePairExclusionSummary, value); }
 
     private void InitializeDuplicatePairRecheck() => RecheckDuplicatePairCommand = new AsyncCommand(RecheckDuplicatePair,
         () => !IsBusy && duplicatePairSnapshot != null && DuplicateCandidate != null && DuplicateRetainedEntry != null &&
@@ -24,6 +26,7 @@ public sealed partial class MainViewModel
         duplicatePairRecheckGeneration++;
         DuplicatePairRecheckMessage = "Not checked for this pair. Any earlier current-file result is invalidated.";
         DuplicatePairRecheckDetails = DuplicatePairRecheckLimits;
+        DuplicatePairExclusionSummary = "Current exclusions: Not checked for this pair. Application ownership remains unverified.";
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -40,6 +43,7 @@ public sealed partial class MainViewModel
         {
             DuplicatePairRecheckMessage = "Reading exactly the two selected files after refreshing protection metadata…";
             DuplicatePairRecheckDetails = "In progress. No current equality, retained-copy protection or action permission is claimed.";
+            DuplicatePairExclusionSummary = "Current exclusions: Checking known folders and application-location metadata…";
             var prepared = DuplicatePairRecheckScope.Create(root, snapshot, candidate, retained, token);
             token.ThrowIfCancellationRequested();
             if (prepared.Items.Count != 1)
@@ -48,6 +52,7 @@ public sealed partial class MainViewModel
                 {
                     DuplicatePairRecheckMessage = Stamp(prepared.State, prepared.Message);
                     DuplicatePairRecheckDetails = "No fresh pair read started. Refresh discovery or select a supported independent single-link pair. " + DuplicatePairRecheckLimits;
+                    DuplicatePairExclusionSummary = "Current exclusions: Not checked; no pair read started.";
                 }
                 return prepared.State;
             }
@@ -59,6 +64,7 @@ public sealed partial class MainViewModel
             if (result.Items.Count != 1)
             {
                 DuplicatePairRecheckDetails = "No completed pair report was returned. Missing, interrupted or unverified data does not mean equal files. " + DuplicatePairRecheckLimits;
+                DuplicatePairExclusionSummary = "Current exclusions: Not established for a completed comparison.";
                 return result.State;
             }
             var report = result.Items[0];
@@ -69,6 +75,12 @@ public sealed partial class MainViewModel
                 report.CompletedUtc.Offset != TimeSpan.Zero || report.CompletedUtc < report.StartedUtc || report.CompletedUtc > DateTimeOffset.UtcNow ||
                 report.ComparedBytes is < 0 or > DuplicatePairRecheckEngine.MaximumReadBytes)
                 throw new InvalidOperationException("Current duplicate-pair evidence was inconsistent.");
+            DuplicatePairExclusionSummary = report.CurrentExclusionCoverage switch
+            {
+                CheckState.Available => "Current known exclusion metadata: Available. Unregistered application ownership remains unknown; removal is unavailable.",
+                CheckState.Partial => "Current application exclusions: Partial. Some locations could not be verified; selected files may belong to applications. This comparison grants no removal permission.",
+                _ => "Current exclusions: Unknown. No protected current comparison is accepted."
+            };
             string observation = report.State switch
             {
                 DuplicatePairRecheckState.Equal => "The two current held streams were fully byte-compared and matched during this read.",
@@ -91,6 +103,7 @@ public sealed partial class MainViewModel
             if (!Current()) return;
             DuplicatePairRecheckMessage = error;
             DuplicatePairRecheckDetails = "No completed fresh comparison is claimed. A native read may still be finishing under its worker's ownership. " + DuplicatePairRecheckLimits;
+            DuplicatePairExclusionSummary = "Current exclusions: Not established for a completed comparison.";
         });
     }
 }

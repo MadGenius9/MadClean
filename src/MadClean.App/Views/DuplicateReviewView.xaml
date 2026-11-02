@@ -44,6 +44,7 @@
                 <TextBlock Text="Separately compare exactly these two files again, up to 64 MiB each. Application exclusions are refreshed first. This reads contents without rescanning the folder. No file is removed and no retained copy stays protected after this read." Style="{StaticResource Caption}"/>
                 <Button Content="Recheck selected pair" Command="{Binding RecheckDuplicatePairCommand}" HorizontalAlignment="Left"/>
                 <TextBlock Text="{Binding DuplicatePairRecheckMessage}" Style="{StaticResource Caption}"/>
+                <TextBlock Text="{Binding DuplicatePairExclusionSummary}" Style="{StaticResource Caption}" AutomationProperties.Name="Current duplicate pair exclusion coverage and ownership uncertainty"/>
                 <TextBox Text="{Binding DuplicatePairRecheckDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Current duplicate pair comparison, time and uncertainty"/>
             </StackPanel></Border>
             <Expander Header="Exclusions, errors and incomplete coverage">

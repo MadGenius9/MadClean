@@ -120,7 +120,7 @@ internal static partial class NativeFixtures
             if (!File.ReadAllBytes(aliasPath).AsSpan().SequenceEqual(changed)) throw new SmokeAssertionException("duplicate-recheck-owned-alias-bytes");
             DuplicateRecheckHistory(source, historical);
             report.Pass(check,
-                $"sourceState={snapshot.State}; equalState={equalResult.State}; differentState={differentResult.State}; equalComparedBytes={equal.ComparedBytes}; differentComparedBytes={different.ComparedBytes}; " +
+                $"sourceState={snapshot.State}; equalState={equalResult.State}; differentState={differentResult.State}; equalComparedBytes={equal.ComparedBytes}; differentComparedBytes={different.ComparedBytes}; currentExclusionCoverage={equal.CurrentExclusionCoverage}; exclusionStage={equal.Diagnostic?.Stage}; exclusionReason={equal.Diagnostic?.Reason}; exclusionIssues={equal.Diagnostic?.ExclusionIssues}; " +
                 "nativeFullIdentitiesMatched=true; equalThenCurrentDifferent=true; exclusiveDataOpenAfterPublication=true; sameLengthOwnedTailChange=true; currentMultiLinkNonEqual=true; preCancel=true; historyUnchanged=true; keeperAndOutsideControlBytesUnchanged=true; CanRemove=false. This is current bounded read evidence only; no keeper protection, inactivity, removal eligibility or reclaimable-space claim is made. No file was deleted or replaced.");
         }
         catch (SmokeAssertionException ex)
@@ -152,6 +152,11 @@ internal static partial class NativeFixtures
         { report.Unknown("duplicate-pair-recheck-fixture", details + $"Current state={data.State}; no complete {expected} observation was established. The result remains inconclusive rather than action eligibility."); return null; }
         if (data.State != expected || result.State is not (CheckState.Available or CheckState.Partial))
             throw new SmokeAssertionException("duplicate-recheck-current-result-state");
+        if (data.CurrentExclusionCoverage is not (CheckState.Available or CheckState.Partial) ||
+            (data.CurrentExclusionCoverage == CheckState.Partial || data.SourceCoverageState == CheckState.Partial) && result.State != CheckState.Partial ||
+            diagnostic.Stage == DuplicatePairReadStage.RegistrationExclusions && diagnostic.ExclusionIssues > 0 &&
+                (data.CurrentExclusionCoverage != CheckState.Partial || result.State != CheckState.Partial))
+            throw new SmokeAssertionException("duplicate-recheck-current-exclusion-coverage");
         return data;
     }
     private static void DuplicateRecheckValidate(DuplicatePairRecheckReport report, DuplicatePairRecheckScope scope,

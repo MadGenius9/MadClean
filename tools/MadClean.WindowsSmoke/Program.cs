@@ -8,7 +8,7 @@ namespace MadClean.WindowsSmoke;
 internal static class Program
 {
     [STAThread]
-    public static int Main()
+    public static int Main(string[] args)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -26,6 +26,10 @@ internal static class Program
             Console.Error.WriteLine("Run from the existing MadClean repository root; no checks ran.");
             return 2;
         }
+        // Fixed inert child protocol only, before any parent report/output preparation.
+        // Unknown arguments must never fall through and rerun inventory or reset captures.
+        if (args.Length != 0)
+            return InertProcessChild.TryRun(repository, args, out int childExit) ? childExit : 2;
         string output = Path.Combine(repository, "artifacts", "windows-validation");
         if (!PrepareOutput(output))
         {

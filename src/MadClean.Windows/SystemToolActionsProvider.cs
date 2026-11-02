@@ -148,19 +148,22 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
             }
             using (process)
             {
-                record = record with { State = SystemToolRunState.Launched, ProcessId = process.Id, Outcome = "A servicing client process was observed. No integrity or repair assessment has been obtained." };
+                record = record with { State = SystemToolRunState.Launched,
+                    Outcome = "A servicing client process was observed. No integrity or repair assessment has been obtained." };
                 log.Append(record, identity);
-                try
+                var observation = await SystemToolProcessObserver.ObserveAsync(process, observationToken).ConfigureAwait(false);
+                record = record with { ClientObservation = observation, ProcessId = observation.ObservedProcessId,
+                    StopMonitoringRequested = observation.StopRequested, EndedUtc = observation.ObservationCompletedUtc ?? DateTimeOffset.UtcNow };
+                if (observation.State == ClientProcessObservationState.Exited && observation.ExitCode is int exitCode)
                 {
-                    await process.WaitForExitAsync(observationToken).ConfigureAwait(false);
-                    record = record with { State = SystemToolRunState.ClientExited, EndedUtc = DateTimeOffset.UtcNow,
-                        ClientExitCode = process.ExitCode, Outcome = SystemToolActionsPolicy.DescribeClientExit(request.Operation, process.ExitCode) };
+                    record = record with { State = SystemToolRunState.ClientExited, ClientExitCode = exitCode,
+                        Outcome = SystemToolActionsPolicy.DescribeClientExit(request.Operation, exitCode) };
                 }
-                catch (OperationCanceledException)
+                else
                 {
                     monitoringBecameUncertain = true;
-                    record = record with { State = SystemToolRunState.MonitoringLost, StopMonitoringRequested = true,
-                        EndedUtc = DateTimeOffset.UtcNow, Outcome = SystemToolActionsPolicy.DescribeLostMonitoring() };
+                    record = record with { State = SystemToolRunState.MonitoringLost,
+                        Outcome = SystemToolActionsPolicy.DescribeLostMonitoring() };
                 }
                 log.Append(record, identity);
             }
@@ -168,17 +171,31 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
         }
         catch (OperationCanceledException)
         {
+            if (record.State == SystemToolRunState.ClientExited && record.ClientObservation?.State == ClientProcessObservationState.Exited &&
+                record.ClientExitCode.HasValue) return RetainExitAfterRecordFailure(record);
             return record with { EndedUtc = DateTimeOffset.UtcNow, Outcome = "Cancelled before a servicing client was confirmed. No tool cancellation, rollback or healthy state is claimed." };
         }
         catch (Exception ex) when (ex is SystemToolTrustFailure or IOException or UnauthorizedAccessException or Win32Exception or
             InvalidOperationException or System.Security.SecurityException or System.Security.Cryptography.CryptographicException or System.Formats.Asn1.AsnContentException)
         {
+            if (record.State == SystemToolRunState.ClientExited && record.ClientObservation?.State == ClientProcessObservationState.Exited &&
+                record.ClientExitCode.HasValue) return RetainExitAfterRecordFailure(record);
             if (record.ElevationRequested) monitoringBecameUncertain = true;
             return record with { State = record.ElevationRequested ? SystemToolRunState.MonitoringLost : SystemToolRunState.Unavailable,
                 EndedUtc = DateTimeOffset.UtcNow,
                 Outcome = record.ElevationRequested ? SystemToolActionsPolicy.DescribeLostMonitoring() : $"Preparation/logging/identity failed (code 0x{ex.HResult:X8}); no launch was requested." };
         }
     }
+    private static SystemToolRunRecord RetainExitAfterRecordFailure(SystemToolRunRecord record)
+    {
+        monitoringBecameUncertain = true;
+        return record with
+        {
+            Outcome = record.Outcome + " Local record persistence or post-observation cleanup was not confirmed. " +
+                "The actual observed client exit/code is retained; future operations remain blocked pending review. No servicing or integrity result is inferred."
+        };
+    }
+
     private static CheckResult<SystemToolActionPreview> PreviewFailure(SystemToolActionDefinition definition, CheckState state,
         SystemToolTrustState trust, string reason, SystemToolIdentityDiagnostic? diagnostic = null)
     {

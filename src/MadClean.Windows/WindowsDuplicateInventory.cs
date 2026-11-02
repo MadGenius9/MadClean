@@ -67,6 +67,7 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
         private readonly List<string> protectedRoots = [];
         private int entries;
         private string selectedRoot = "";
+        public CheckState CurrentExclusionCoverage { get; private set; } = CheckState.Unknown;
         private DuplicatePairReadStage firstStage = DuplicatePairReadStage.NotStarted;
         private DuplicatePairReadReason firstReason = DuplicatePairReadReason.None;
         private int? firstRegistryResult;
@@ -98,7 +99,7 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
             token.ThrowIfCancellationRequested();
             string? rootError = null;
             bool exclusionsIncomplete = false;
-            try { exclusionsIncomplete = PrepareScope(root, token, requireCompleteExclusions: false); }
+            try { exclusionsIncomplete = PrepareScope(root, token, requireEssentialKnownRoots: false); }
             catch (Exception ex) when (ReadError(ex))
             { rootError = ex is DuplicateReadException ? ex.Message : "Select an existing absolute fixed-local data folder, not a drive root, network/device path or protected area."; }
             if (rootError != null) { yield return new(root ?? "", false, rootError); yield break; }
@@ -107,10 +108,10 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
             foreach (var item in Walk(selectedRoot, 0, token)) yield return item;
         }
 
-        public bool PrepareScope(string root, CancellationToken token, bool requireCompleteExclusions)
+        public bool PrepareScope(string root, CancellationToken token, bool requireEssentialKnownRoots)
         {
             token.ThrowIfCancellationRequested();
-            protectedRoots.Clear(); entries = 0;
+            protectedRoots.Clear(); entries = 0; CurrentExclusionCoverage = CheckState.Unknown;
             firstStage = DuplicatePairReadStage.NotStarted; firstReason = DuplicatePairReadReason.None; firstRegistryResult = null;
             knownFoldersChecked = registrationKeysVisited = registeredLocationsAccepted = exclusionIssues = 0;
             try { selectedRoot = NormalizeLocalRoot(root); }
@@ -119,21 +120,25 @@ public sealed partial class WindowsDuplicateInventory : IDuplicateFileInventory
                 PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.ScopeUnsupported);
                 throw new DuplicateReadException("The selected scope is not an available supported fixed-local folder; no selected file contents were read.");
             }
-            bool incomplete = AddKnownRoots(requireCompleteExclusions, token);
+            bool knownIncomplete = AddKnownRoots(requireEssentialKnownRoots, token);
             if (Protected(selectedRoot))
             {
                 PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.SelectedRootProtected);
                 throw new DuplicateReadException("The selected root is a protected/system/application/cache/credential location; select a different local data folder.");
             }
-            incomplete |= AddRegisteredRoots(token);
+            bool registrationIncomplete = AddRegisteredRoots(token);
+            CurrentExclusionCoverage = knownIncomplete ? CheckState.Unknown
+                : registrationIncomplete ? CheckState.Partial : CheckState.Available;
             if (Protected(selectedRoot))
             {
                 PreparationIssue(DuplicatePairReadStage.ScopeValidation, DuplicatePairReadReason.SelectedRootProtected);
                 throw new DuplicateReadException("The selected root is within a known registered application installation; excluded without traversal.");
             }
-            if (incomplete && requireCompleteExclusions)
-                throw new DuplicateReadException("Required known-folder or registered application exclusions could not be refreshed completely; no selected file contents were read. Retry when that metadata is available.");
-            return incomplete;
+            if (knownIncomplete && requireEssentialKnownRoots)
+                throw new DuplicateReadException("Required known-folder exclusions could not be resolved completely; no selected file contents were read. Retry when that metadata is available.");
+            // This is read-only evidence: incomplete registration metadata remains
+            // Partial and never establishes absence of application ownership or action safety.
+            return knownIncomplete || registrationIncomplete;
         }
 
         public IDuplicateReadHandle Open(string path, bool content, CancellationToken token)

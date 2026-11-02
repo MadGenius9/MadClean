@@ -84,7 +84,7 @@ Under **More tools**, **Duplicate review** reads bounded selected-folder content
 
 Its [snapshot pair worksheet](docs/DUPLICATE-PAIR-REVIEW.md) lets you explicitly choose a copy to retain and a different candidate from the same byte-compared group, then inspect their exact paths and evidence. Choices start empty and reset on rescans; aliases, uncertain evidence and expired observations cannot produce a pair preview. The worksheet uses only the loaded snapshot. It does not establish current safety, protect a keeper, authorize removal or change files.
 
-The separate [fresh pair recheck](docs/DUPLICATE-PAIR-RECHECK.md) reads exactly those two selected files again after refreshing protection metadata, distinguishing current Equal, Different, Changed and Unknown observations. It does not rescan the folder or alter history. All read handles close before publication; no retained copy stays protected and removal remains unavailable.
+The separate [fresh pair recheck](docs/DUPLICATE-PAIR-RECHECK.md) reads exactly those two selected files again after refreshing protection metadata, distinguishing current Equal, Different, Changed and Unknown observations. It does not rescan the folder or alter history. Incomplete optional application locations remain visibly Partial; unknown essential exclusions block. A byte comparison does not prove application ownership. All read handles close before publication; no retained copy stays protected and removal remains unavailable.
 
 **Shortcut review** inspects stored `.lnk` metadata without Resolve, execution, tracking, saving, icon retrieval or installer activation. A missing supported local target is evidence for review; offline/network/access/reparse/unsupported cases remain unknown. No shortcut is removed.
 

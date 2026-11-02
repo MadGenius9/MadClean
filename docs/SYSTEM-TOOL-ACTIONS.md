@@ -63,3 +63,6 @@ Portable tests validate descriptor/request boundaries, not native trust/UAC or r
 This stage is a reviewable gated boundary, **not completion of working D2/D3 repairs**. A BIOS update, registry cleaner, DLL download or repair-all workflow is not authorized or implemented by it.
 
 The additional [identity-observation policy and native validation](SYSTEM-TOOL-IDENTITY-OBSERVATION.md) separates accepted provider projections from Windows integrity and launch readiness. Real fixed DISM/SFC executable verification and valid-preview closed-gate checks now have their own required harness contract. Its source-bound runtime status belongs in the execution ledger; it never runs the selected command, enables the production gate or substitutes for the D2/D3 requirements above.
+
+
+[Client-process observation](CLIENT-PROCESS-OBSERVATION.md) now separates actual observed exit/code from stopped observation. Its native fixture uses fixed inert instances of the existing harness only. Production servicing remains disabled; this infrastructure does not satisfy the remaining D2/D3 launch, durable ownership, private-record or interactive validation gates.

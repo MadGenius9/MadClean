@@ -265,14 +265,17 @@ internal static partial class UiCapture
                         Capture(window, output, "tool-22.png", report);
                         var freshPair = Descendants<Button>(window).Single(button => Equals(button.Content, "Recheck selected pair"));
                         var freshDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetName(box) == "Current duplicate pair comparison, time and uncertainty");
+                        var exclusions = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetName(block) == "Current duplicate pair exclusion coverage and ownership uncertainty");
                         freshDetails.BringIntoView();
                         await Idle(window);
                         if (!ReferenceEquals(freshPair.Command, model.RecheckDuplicatePairCommand) || freshPair.IsEnabled ||
                             !freshDetails.IsReadOnly || freshDetails.Text != model.DuplicatePairRecheckDetails ||
                             freshDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.DuplicatePairRecheckDetails) ||
-                            !model.DuplicatePairRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal))
+                            !model.DuplicatePairRecheckMessage.StartsWith("Not checked", StringComparison.Ordinal) || exclusions.Text != model.DuplicatePairExclusionSummary ||
+                            exclusions.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.DuplicatePairExclusionSummary) ||
+                            !exclusions.Text.StartsWith("Current exclusions: Not checked", StringComparison.Ordinal))
                             throw new SmokeAssertionException("ui-duplicate-pair-recheck-binding");
-                        foreach (FrameworkElement control in new FrameworkElement[] { freshPair, freshDetails })
+                        foreach (FrameworkElement control in new FrameworkElement[] { freshPair, freshDetails, exclusions })
                         {
                             Point position = control.TranslatePoint(new Point(), client);
                             if (!control.IsVisible || !ValidSize(control) || !double.IsFinite(position.X) || !double.IsFinite(position.Y) ||

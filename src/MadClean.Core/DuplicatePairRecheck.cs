@@ -10,6 +10,7 @@ public sealed record DuplicatePairRecheckReport(DuplicatePairRecheckState State,
 {
     public bool CanRemove => false;
     public DuplicatePairReadDiagnostic? Diagnostic { get; init; }
+    public CheckState CurrentExclusionCoverage { get; init; } = CheckState.Unknown;
 }
 public interface IDuplicatePairRecheck
 {

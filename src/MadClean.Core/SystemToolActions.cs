@@ -44,7 +44,11 @@ public sealed record SystemToolLaunchRequest(Guid PreviewId, SystemToolOperation
     bool UserSelectedOperation, bool EffectsAndElevationAcknowledged);
 public sealed record SystemToolRunRecord(Guid ExecutionId, SystemToolOperation Operation, SystemToolRunState State,
     DateTimeOffset StartedUtc, DateTimeOffset? EndedUtc, int? ProcessId, int? ClientExitCode,
-    bool ElevationRequested, bool StopMonitoringRequested, string Outcome, string WindowsLogReference);
+    bool ElevationRequested, bool StopMonitoringRequested, string Outcome, string WindowsLogReference)
+{
+    // StartedUtc is the request/preparation time, not proof of an actual client start.
+    public ClientProcessObservation? ClientObservation { get; init; }
+}
 public interface ISystemToolActions
 {
     bool ProductionExecutionValidated { get; }
