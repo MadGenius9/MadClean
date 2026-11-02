@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "b975b7c66cc23afbaa4fc64855b9038620be8b78",
-  "runId": "41373299979",
+  "sourceCommit": "44b740177fd6db3fa19e0984b4b08fd16918ec44",
+  "runId": "41375513533",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T01:39:19.784433+00:00",
-  "completedUtc": "2026-11-02T01:39:35.7156788+00:00",
+  "startedUtc": "2026-11-02T02:05:56.6110466+00:00",
+  "completedUtc": "2026-11-02T02:06:15.8164734+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -67,6 +67,26 @@
       "name": "ui-inspection-evidence",
       "state": "passed",
       "detail": "initialPositiveSourceCount=2; selectedActualRows=2; selectionStartsNoQuery=true; resetPendingObserved=True; cancellationRequested=True; completedBeforeCancelCount=1; preservationExercised=True; terminalRowCount=2; terminalStates=Storage:Available,Defender:Cancelled; noPendingOrPriorAttemptRows=true. Two explicit local production inspections only. Completed-source preservation is proved only when exercised before a live cancellation. No captures after data loading; no flags, capacities, provider messages, dates or source values exported. Available is source evidence, not health or action permission."
+    },
+    {
+      "name": "ui-cleanup-file-evidence-interaction",
+      "state": "passed",
+      "detail": "Actual production inspection discovered the owned temporary candidate; actual grid selection and bound button supplied accepted current WindowsTemporary display lineage, byte/link/time facts and uncertainty. Visible historical rows stayed unchanged; clearing selection invalidated details and disabled recheck. No deletion, private-snapshot claim, source injection, path export or post-query screenshot occurred."
+    },
+    {
+      "name": "ui-cleanup-file-evidence-selection-race",
+      "state": "passed",
+      "detail": "Selection was cleared while the real production query was Busy; no stale details were published after it settled. Historical display rows stayed unchanged."
+    },
+    {
+      "name": "ui-cleanup-file-evidence-cancellation",
+      "state": "passed",
+      "detail": "Production CancelCommand was requested while the real metadata query was Busy; the UI settled as Cancelled, with historical display rows preserved. No process kill or file action occurred."
+    },
+    {
+      "name": "ui-cleanup-file-evidence-teardown",
+      "state": "passed",
+      "detail": "Owned exact temporary files and directory were audited and removed nonrecursively; UI/native ownership is settled. This is harness teardown only, never application cleanup."
     },
     {
       "name": "cleanup-file-evidence-fixture",
@@ -136,7 +156,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -266,7 +286,7 @@
     {
       "name": "dism-powershell-capability-contract",
       "state": "inconclusive",
-      "detail": "The bounded fixed-module metadata query did not complete with recognized evidence. No raw provider/exception text, paths or host identity is exported; no health check, repair, UAC or ADK payload was requested."
+      "detail": "transport=Completed; transportException=None/unobserved; win32=unobserved; exit=0; outputChars=776. metadata=Unavailable; stage=ModuleImport; host=True; manifest=True; module=False; command=False; outputType=False; assemblyPath=False; propertyReadable=False; propertyEnum=False; enumShape=False; sharedSet=False; switches=False; noOtherMandatory=False; counts(output/property/enum/sets/shared)=unobserved/unobserved/unobserved/unobserved/unobserved; errorCategory=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; moduleError=Unknown; publisherTrustVerified=false; healthCheckInvoked=false. Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement."
     },
     {
       "name": "shortcut-rename-handle-probe",
