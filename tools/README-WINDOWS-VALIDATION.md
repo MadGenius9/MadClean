@@ -111,3 +111,6 @@ The required `cleanup-mapped-disposition-owned-probe` is described in [the mappe
 
 
 The required `cleanup-confirmation-owned-protocol` exercises private developer preview/decision/replay semantics on exact owned files only; see [protocol limits](../docs/CLEANUP-CONFIRMATION-PROTOTYPE.md). It is not production cleanup or real UI consent. `ui-msi-action-binding-interaction` uses one previously loaded real selection and the bound preflight button, then proves selection invalidation without a second query. Unsettled ARP/MSI work blocks native scope creation. `defender-scan-history-contract` reuses the existing single status read and needs at least one genuine timestamp to pass; all-unknown timestamps remain inconclusive. None starts an installer, scan, elevation or repair.
+
+
+`system-tool-private-journal-scope` uses only the shared backend under its exact owned marker scope. It checks existing-only no-creation, the immutable closed production writer gate, lease contention, inert record lifecycle and conservative reconciliation. It does not open the production writer, dispatch a process or certify production ancestry. See [the remaining boundary](../docs/SYSTEM-TOOL-PRIVATE-JOURNAL.md).

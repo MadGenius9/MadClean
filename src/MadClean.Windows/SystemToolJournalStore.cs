@@ -38,6 +38,7 @@ internal sealed class SystemToolJournalStore : IDisposable
     private readonly SafeFileHandle directory;
     private bool disposed, writeAttempted, journalAppendUncertain;
     private readonly SystemToolJournalFixtureCase fixtureCase;
+    private bool readOnly;
     internal bool CreatedIntentFile { get; }
     internal SafeFileHandle IntentHandle => intent.SafeFileHandle;
     internal SafeFileHandle DirectoryHandle => directory;
@@ -155,6 +156,43 @@ internal sealed class SystemToolJournalStore : IDisposable
         finally { Array.Clear(actual); }
     }
 
+    // The private-store facade has already established fixed scope and owns the
+    // directory/ancestry leases. The returned file store borrows that directory.
+    internal static SystemToolJournalStore OpenLifecycleFile(string path, SafeFileHandle directory,
+        string sid, bool createNew, bool readOnly, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (HasUncertainCleanup || createNew && readOnly)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        SafeFileHandle handle = createNew ? CreateIntent(path, sid, out _, requireNew: true)
+            : Open(path, readOnly ? 0x80020000u : ReadWrite, 0, false, readOnly ? 0 : WriteThrough);
+        try
+        {
+            ValidateObject(handle, path, false, MaximumIntentBytes);
+            VerifyPrivateSecurity(handle, sid, false);
+            token.ThrowIfCancellationRequested();
+            var stream = new FileStream(handle, readOnly ? FileAccess.Read : FileAccess.ReadWrite, 4096, false);
+            return new(stream, directory, [], createNew, SystemToolJournalFixtureCase.Lifecycle) { readOnly = readOnly };
+        }
+        catch { DisposeChecked(handle); throw; }
+    }
+    internal static void VerifyPersistentAclVolume(SafeFileHandle volume)
+    {
+        if (Marshal.SizeOf<SecurityAttributes>() != 24 || Marshal.SizeOf<StandardInformation>() != 24 || Marshal.SizeOf<IdentityInformation>() != 24)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        if (!GetVolumeInformationByHandleW(volume, null, 0, out _, out _, out uint flags, null, 0)) throw Native();
+        if ((flags & 8) == 0) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.PersistentAclUnavailable);
+    }
+    internal static void VerifyFixedLocalPath(string path)
+    {
+        string? root = Path.GetPathRoot(path);
+        if (root == null || root.Length != 3 || !char.IsAsciiLetter(root[0]) || root[1] != ':' || root[2] != '\\')
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        var drive = new DriveInfo(root);
+        if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+    }
+
     internal SystemToolJournalReview ReadJournal(DateTimeOffset nowUtc, CancellationToken token = default)
     {
         ValidateJournalLease(token);
@@ -167,6 +205,7 @@ internal sealed class SystemToolJournalStore : IDisposable
     internal SystemToolJournalReview AppendJournalSnapshot(IReadOnlyList<SystemToolJournalEntry> entries,
         DateTimeOffset nowUtc, CancellationToken token = default)
     {
+        if (readOnly) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
         ValidateJournalLease(token);
         if (journalAppendUncertain || !SystemToolJournal.TryEncode(entries, nowUtc, out byte[]? canonical) || canonical == null)
             return UnknownJournal(nowUtc);
@@ -267,7 +306,7 @@ internal sealed class SystemToolJournalStore : IDisposable
     private static SystemToolJournalReview UnknownJournal(DateTimeOffset nowUtc)
         => SystemToolJournal.DecodeSnapshots(ReadOnlySpan<byte>.Empty, nowUtc);
 
-    private static string ValidateRoot(string root, string marker)
+    internal static string ValidateRoot(string root, string marker)
     {
         if (!Guid.TryParseExact(marker, "N", out var owner) || owner == Guid.Empty || marker != owner.ToString("N") ||
             string.IsNullOrEmpty(root) || root.Length > 210 || root != Path.GetFullPath(root) || root.StartsWith("\\", StringComparison.Ordinal))
@@ -279,7 +318,7 @@ internal sealed class SystemToolJournalStore : IDisposable
         return root;
     }
 
-    private static void CreatePrivateDirectory(string path, string sid)
+    internal static void CreatePrivateDirectory(string path, string sid)
     {
         nint descriptor = Descriptor(sid, true);
         try
@@ -293,7 +332,7 @@ internal sealed class SystemToolJournalStore : IDisposable
         }
         finally { FreeDescriptor(descriptor); }
     }
-    private static SafeFileHandle CreateIntent(string path, string sid, out bool created)
+    internal static SafeFileHandle CreateIntent(string path, string sid, out bool created, bool requireNew = false)
     {
         created = false;
         nint descriptor = Descriptor(sid, false);
@@ -305,6 +344,7 @@ internal sealed class SystemToolJournalStore : IDisposable
             if (!handle.IsInvalid) { created = true; return handle; }
             int code = Marshal.GetLastWin32Error(); handle.Dispose(); handle = null;
             if (code is not (80 or 183)) throw new SystemToolJournalStoreFailure(code == 32 ? SystemToolJournalStoreReason.StoreBusy : SystemToolJournalStoreReason.NativeUnavailable, code);
+            if (requireNew) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch, code);
             // Opening an existing object does not apply the creation descriptor. Its
             // actual same-handle security must be verified before reading any bytes.
             handle = Open(path, ReadWrite, 0, false, WriteThrough);
@@ -326,8 +366,9 @@ internal sealed class SystemToolJournalStore : IDisposable
     }
     private static SecurityAttributes Attributes(nint descriptor) => new() { Length = 24, Descriptor = descriptor, Inherit = 0 };
 
-    private static void VerifyPrivateSecurity(SafeFileHandle handle, string sid, bool directory)
+    internal static void VerifyPrivateSecurity(SafeFileHandle handle, string sid, bool directory)
     {
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
         uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
         if (code != 0)
         {
@@ -364,14 +405,14 @@ internal sealed class SystemToolJournalStore : IDisposable
         if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
     }
 
-    private static SafeFileHandle Open(string path, uint access, uint share, bool directory, uint extra = 0)
+    internal static SafeFileHandle Open(string path, uint access, uint share, bool directory, uint extra = 0)
     {
         var handle = CreateFilePlain(path, access, share, 0, 3, OpenReparse | NoRecall | extra | (directory ? Backup : 0), 0);
         if (!handle.IsInvalid) return handle;
         int code = Marshal.GetLastWin32Error(); handle.Dispose();
         throw new SystemToolJournalStoreFailure(code == 32 ? SystemToolJournalStoreReason.StoreBusy : SystemToolJournalStoreReason.NativeUnavailable, code);
     }
-    private static void ValidateObject(SafeFileHandle handle, string expected, bool directory, long maximum = 0)
+    internal static void ValidateObject(SafeFileHandle handle, string expected, bool directory, long maximum = 0)
     {
         if (!GetTag(handle, 9, out var tag, 8) || !GetStandard(handle, 1, out var standard, 24) || !GetIdentity(handle, 18, out var id, 24)) throw Native();
         if ((tag.Attributes & Unsafe) != 0 || tag.ReparseTag != 0 || ((tag.Attributes & 0x10) != 0) != directory ||
@@ -395,7 +436,7 @@ internal sealed class SystemToolJournalStore : IDisposable
         if (LocalFree(descriptor) == 0) return;
         lock (CleanupSync) { RetainedDescriptors.Add(descriptor); Volatile.Write(ref cleanupUncertain, 1); }
     }
-    private static void DisposeChecked(IDisposable? value)
+    internal static void DisposeChecked(IDisposable? value)
     {
         try { value?.Dispose(); }
         catch (Exception) { Volatile.Write(ref cleanupUncertain, 1); }

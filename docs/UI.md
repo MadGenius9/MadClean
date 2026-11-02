@@ -86,3 +86,6 @@ Sourceb975b7c/run41373299979 passed initial cleanup-file recheck bindings/disabl
 
 
 The native popup check now also requires each generated More tools container's real WPF automation peer to expose its visible NavigationLink title. This validates the accessible-name binding only. It generates no input or inventory action; physical keyboard, screen-reader and broader accessibility testing remain separate. New source-bound proof for this assertion is pending.
+
+
+Actual source95a72c8/run41454355527/evidence580c6aaa39c5afcbb3d000b4edeb6f886b74d48c passed the live generated-item automation-peer name assertion. No physical keyboard/screen-reader or broader accessibility certification is inferred.
