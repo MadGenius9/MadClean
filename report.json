@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "4e8f91ef1e7cf457ffc8b98c6595ce61c4e2b6a7",
-  "runId": "41495966220",
+  "sourceCommit": "44a22a0467a498d36af914f865101d304d002254",
+  "runId": "41497202535",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T18:01:45.9922756+00:00",
-  "completedUtc": "2026-11-02T18:02:05.9210303+00:00",
+  "startedUtc": "2026-11-02T18:10:30.1037607+00:00",
+  "completedUtc": "2026-11-02T18:11:06.0032243+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -166,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -400,18 +400,18 @@
     },
     {
       "name": "published-executable-startup",
-      "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=53/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "state": "inconclusive",
+      "detail": "state=Inconclusive; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=False; stage=published-owned-scope-cleanup-unconfirmed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
       "state": "inconclusive",
-      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=3/software=3/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
+      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=1/software=1/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
     },
     {
       "name": "wua-offer-metadata-contract",
       "state": "passed",
-      "detail": "WUA source=Available; accepted=True; availableRows=3; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
+      "detail": "WUA source=Available; accepted=True; availableRows=1; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
     }
   ],
   "screenshots": [
