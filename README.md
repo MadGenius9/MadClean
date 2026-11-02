@@ -144,3 +144,6 @@ Development CI separately prepares an owned self-contained build to validate sta
 
 
 Selected Windows Update driver and firmware offers now show [provider-reported driver names and declared installation characteristics](docs/WUA-OFFER-METADATA.md), with independent unknown/failed field coverage. These declarations do not verify versions, compatibility, elevation or complete OEM prerequisites; no installation or restart is performed.
+
+
+Cleanup now includes a [selected metadata worksheet](docs/CLEANUP-SELECTION-REVIEW.md) for up to eight explicitly added actual candidates. Fresh per-file observations retain exclusions, stream coverage and blockers; cancellation leaves unprocessed rows Not checked. No deletion, persisted selection or reclaimable-byte claim is introduced.

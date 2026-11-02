@@ -38,6 +38,7 @@ public sealed partial class MainViewModel
         ExcludeCleanupFolderCommand = new ActionCommand(ExcludeCleanupFolder, () => !IsBusy);
         RemoveCleanupExclusionCommand = new ActionCommand(RemoveCleanupExclusion, () => !IsBusy && SelectedCleanupExclusion != null);
         InitializeCleanupFileEvidence();
+        InitializeCleanupSelectionReview();
         LoadCleanupPreferences();
     }
     private CleanupExclusionSettings LoadCleanupPreferences()

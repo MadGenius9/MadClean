@@ -14,6 +14,7 @@ internal sealed class SmokeReport(string outputDirectory)
     private readonly object writeGate = new();
     private readonly DateTimeOffset started = DateTimeOffset.UtcNow;
     public bool Failed => checks.Any(check => check.State == "failed");
+    public bool HasCheck(string name) => checks.Any(check => check.Name == name);
     public bool Inconclusive => checks.Any(check => check.State == "inconclusive");
     public int ExitCode => Failed ? 1 : Inconclusive ? 2 : 0;
     public void Pass(string name, string detail) => Add(name, "passed", detail);

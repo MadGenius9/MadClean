@@ -1,0 +1,27 @@
+<UserControl x:Class="MadClean.App.Views.CleanupSelectionReviewView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+        <Expander Header="Selected cleanup review · metadata only" IsExpanded="False" Foreground="#ECF1FB" AutomationProperties.Name="Selected cleanup metadata worksheet">
+        <StackPanel>
+            <TextBlock Text="Select an actual preview candidate above, then use Add selected to worksheet. Keep at most eight explicit choices in memory; selections start empty. Review reads metadata serially and never deletes or makes a file safe to delete." Style="{StaticResource Caption}"/>
+            <WrapPanel Margin="0,6,0,8">
+                <Button Content="Remove worksheet selection" Command="{Binding RemoveCleanupReviewCommand}" Background="#244B70"/>
+                <Button Content="Clear worksheet" Command="{Binding ClearCleanupReviewCommand}" Background="#343E52"/>
+                <Button Content="Review selected metadata" Command="{Binding ReviewCleanupSelectionCommand}" AutomationProperties.Name="Read worksheet selected cleanup metadata"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding CleanupReviewMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Cleanup metadata worksheet status" AutomationProperties.LiveSetting="Polite"/>
+            <DataGrid ItemsSource="{Binding CleanupReviewRows}" SelectedItem="{Binding SelectedCleanupReview, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" Height="215" AutomationProperties.Name="Explicit cleanup metadata worksheet entries">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="EXACT SELECTED PATH" Binding="{Binding Path}" Width="3*" MinWidth="210"/>
+                    <DataGridTextColumn Header="PRIOR LOGICAL BYTES" Binding="{Binding PriorBytes, StringFormat=N0}" Width="*" MinWidth="135"/>
+                    <DataGridTextColumn Header="CURRENT LOGICAL BYTES" Binding="{Binding CurrentBytes, TargetNullValue=Unknown, StringFormat=N0}" Width="*" MinWidth="150"/>
+                    <DataGridTextColumn Header="OBSERVATION" Binding="{Binding Status}" Width="*" MinWidth="150"/>
+                    <DataGridTextColumn Header="QUERY STATE" Binding="{Binding State}" Width="115"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="{Binding CleanupReviewByteSummary}" Style="{StaticResource Caption}" Margin="0,10,0,0" AutomationProperties.Name="Cleanup worksheet logical byte arithmetic and uncertainty"/>
+            <TextBox Text="{Binding CleanupReviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="225" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" AutomationProperties.Name="Selected cleanup worksheet path, metadata and blockers"/>
+            <TextBlock Text="No native handle remains protected after a result. Settings are observed before and after a completed batch; matching observations cannot exclude an intervening change. Interrupted results are historical only. No unique, physical or reclaimable-byte total or action permission is established." Style="{StaticResource Caption}"/>
+        </StackPanel>
+        </Expander>
+    </Border>
+</UserControl>

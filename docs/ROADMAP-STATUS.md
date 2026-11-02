@@ -259,3 +259,8 @@ The existing configured-source search now projects bounded optional driver manuf
 
 
 Actual source `4e8f91e`, [run 41495966220](https://github.com/MadGenius9/MadClean/actions/runs/41495966220), immutable evidence `2f2f53f70a01ed31e5d295b2262b0d5292fa3fee`: WUA optional metadata passed on three real software offers (Available3/Partial0/Unknown0). This verifies shared declared installation behavior only; no driver/firmware offers were available, and those getters/populated views remain unverified. Search remained Available while WinGet remained Unknown. Published static-runtime/neutral-dashboard startup, exit0 and owned cleanup passed again. Windows core1,237 Passed/10 NotExecuted reconcile1,247;81 scoped checks:71 passed,10 inconclusive,0 failed. No installation, restart, executable upload or distribution ZIP was added. The next queued cleanup preview increment is an explicitly selected bounded review worksheet; no deletion grant is implied.
+
+
+## Explicit cleanup metadata worksheet
+
+Implemented an in-memory worksheet of at most eight exact same-source candidates, serial current metadata/stream rechecks, per-entry blockers, before/after exclusion observations and source-generation invalidation. Interrupted results are historical with unfinished rows Not checked; pending workers retain ownership and byte arithmetic does not imply unique/physical/reclaimable storage. Both existing single-file and worksheet reports share the same production-source consistency policy. CanDelete remains false. Full local build: zero warnings/errors; 1,260 portable tests passed; Python154 total/153 passed/one Windows-only skip. Independent review passed; actual one-candidate Windows GUI proof is pending. [Contract and limits](CLEANUP-SELECTION-REVIEW.md).

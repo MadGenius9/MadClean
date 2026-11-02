@@ -160,13 +160,14 @@ internal static partial class UiCapture
                 report.Pass(cancelCheck, "Production CancelCommand was requested while the real metadata query was Busy; the UI settled as Cancelled, with historical display rows preserved. No process kill or file action occurred.");
             else report.Unknown(cancelCheck, "A live cancelled terminal display was not observed; completion racing cancellation is not counted as cancellation proof.");
             grid.SelectedItem = null; await Idle(window); CleanupInteractionActivity(model);
+            if (!await CheckCleanupSelectionReviewInteraction(window, model, selected, report)) ownershipUncertain = true;
         }
         catch (SmokeAssertionException) { throw; }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or System.Security.SecurityException or SystemToolTrustFailure)
         { report.Unknown(check, "Owned temporary preparation, source access or exact audit was unavailable; no arbitrary provider text, paths or fixture injection is exported."); }
         finally
         {
-            bool safe = !ownershipUncertain && !model.IsBusy && !WindowsCleanupFileEvidence.HasPendingMetadataRead;
+            bool safe = !ownershipUncertain && !model.IsBusy && !WindowsCleanupFileEvidence.HasPendingMetadataRead && !model.HasPendingCleanupSelectionReviewWork;
             try
             {
                 if (created)

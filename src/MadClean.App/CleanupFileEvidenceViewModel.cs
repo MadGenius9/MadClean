@@ -31,6 +31,7 @@ public sealed partial class MainViewModel
     }
     private void InvalidateCleanupEvidenceSnapshot()
     {
+        InvalidateCleanupSelectionReview();
         cleanupEvidenceSnapshot = null;
         cleanupEvidenceCompletedUtc = default;
         cleanupEvidenceExclusions = Array.Empty<CleanupExclusion>();
@@ -38,6 +39,7 @@ public sealed partial class MainViewModel
     }
     private void PublishCleanupEvidenceSnapshot(CleanupReport report, IReadOnlyList<CleanupExclusion> exclusions, DateTimeOffset completedUtc)
     {
+        InvalidateCleanupSelectionReview();
         InvalidateCleanupFileEvidence();
         cleanupEvidenceSnapshot = report;
         cleanupEvidenceCompletedUtc = completedUtc;
@@ -81,26 +83,8 @@ public sealed partial class MainViewModel
                 return result.State;
             }
             var data = result.Items[0];
-            static bool Utc(DateTimeOffset value) => value != default && value.Offset == TimeSpan.Zero;
-            static bool Identity(string? value) => value is { Length: 49 } && value[16] == ':' &&
-                value.Where((_, index) => index != 16).All(character => character is >= '0' and <= '9' or >= 'A' and <= 'F') &&
-                value.AsSpan(17).IndexOfAnyExcept('0') >= 0;
-            if (result.State is not (CheckState.Available or CheckState.Partial) || data.CanDelete || data.ActiveUse != "Unknown" ||
-                data.SourceKind != CleanupEvidenceSourceKind.WindowsTemporary || data.RootKind != scope.RootKind || data.Prior != scope.Candidate ||
-                data.SourceCoverageState != scope.SourceCoverageState || data.ExclusionCoverageState is not (CheckState.Available or CheckState.Partial) ||
-                !Utc(data.QueryStartedUtc) || !Utc(data.QueryCompletedUtc) || data.QueryStartedUtc < scope.ValidatedUtc ||
-                data.QueryCompletedUtc < data.QueryStartedUtc || data.QueryCompletedUtc > DateTimeOffset.UtcNow ||
-                data.File == null || data.File.Bytes < 0 || data.File.LinkCount != 1 || !Identity(data.File.Identity) || !Identity(data.RootIdentity) ||
-                !Utc(data.File.CreationUtc) || !Utc(data.File.LastWriteUtc) || !Utc(data.File.ChangeUtc) ||
-                CleanupFileEvidenceScope.NormalizeFilePath(data.File.Path) == null ||
-                !string.Equals(data.File.Path, scope.Candidate.Path, StringComparison.OrdinalIgnoreCase) ||
-                string.IsNullOrEmpty(data.RootPath) || !data.File.Path.StartsWith(data.RootPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase) ||
-                !data.HistoricalPathMatches || data.HistoricalSizeMatches != (data.File.Bytes == scope.Candidate.Bytes) ||
-                data.HistoricalModifiedMatches != (data.File.LastWriteUtc.UtcDateTime == scope.Candidate.ModifiedUtc))
-                throw new InvalidOperationException("Current cleanup metadata was inconsistent.");
-            if (!CleanupStreamScope.IsConsistent(data.StreamScope, data.File.Bytes) ||
-                result.State == CheckState.Available && data.StreamScope?.State != CleanupStreamScopeState.UnnamedDataOnly)
-                throw new InvalidOperationException("Current stream metadata was inconsistent.");
+            if (!CleanupFileEvidenceValidation.IsConsistent(result, scope, DateTimeOffset.UtcNow))
+                throw new InvalidOperationException("Current cleanup metadata or stream evidence was inconsistent.");
             string streamSummary = data.StreamScope is { } streams
                 ? $"Stream scope: {streams.State}; reason: {streams.Reason}; observed stream count: {streams.StreamCount?.ToString() ?? "Unknown"}; matching bookends: {streams.BookendsMatch?.ToString() ?? "Unknown"}. No stream names or contents are read for display. Alternate or unknown streams block qualification for later cleanup. This does not establish inactive use or deletion permission."
                 : "Stream scope: Unknown (not checked). No stream eligibility or deletion permission is established.";

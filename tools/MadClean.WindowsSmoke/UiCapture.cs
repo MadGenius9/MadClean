@@ -361,6 +361,8 @@ internal static partial class UiCapture
                 await CheckPackagedAppSearch(window, model, report);
                 await CheckInspectionEvidence(window, model, report);
                 if (!report.Failed) await CheckCleanupFileEvidenceInteraction(window, model, report);
+                if (!report.HasCheck("ui-cleanup-selection-review-interaction"))
+                    report.Unknown("ui-cleanup-selection-review-interaction", "Earlier GUI preparation or source checks did not reach the real worksheet interaction; no selection, current metadata or source invalidation proof is claimed.");
                 else
                 {
                     report.Unknown("ui-cleanup-file-evidence-interaction", "A prior GUI invariant failed; no owned temporary-file interaction started.");

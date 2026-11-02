@@ -216,6 +216,7 @@
                                 </ScrollViewer>
                                 <TextBlock Text="Exact candidate paths and logical sizes from the two supported temporary roots only. Saved exclusions are honored before traversal. Known sharing conflicts are excluded; active use remains unknown, including memory-mapped use. This preview does not authorize deletion." Style="{StaticResource Caption}"/>
                                 <WrapPanel Margin="0,0,0,12">
+                                    <Button Content="Add selected to worksheet" Command="{Binding AddSelectedCleanupReviewCommand}" AutomationProperties.Name="Add selected cleanup file to review worksheet"/>
                                     <Button Content="Exclude selected file" Command="{Binding ExcludeCleanupFileCommand}"/>
                                     <Button Content="Exclude a folder…" Command="{Binding ExcludeCleanupFolderCommand}" Background="#244B70"/>
                                     <Button Content="Queued cleanup actions" Command="{Binding CapabilityQueueCommand}" Background="#343E52" Foreground="White"/>
@@ -240,6 +241,7 @@
                                         <TextBox Text="{Binding CleanupFileEvidenceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="126" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0" AutomationProperties.Name="Current cleanup file metadata and uncertainty"/>
                                     </StackPanel>
                                 </Border>
+                                <views:CleanupSelectionReviewView/>
                             </StackPanel>
                             <Expander Grid.Row="4" Header="Persistent exclusions" Foreground="#ECF1FB" Margin="0,12,0,0">
                                 <StackPanel>
