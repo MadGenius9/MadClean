@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "927d3cd1fe840e09b060d39d2fde5af99866eab4",
-  "runId": "41459008138",
+  "sourceCommit": "06ab62bb5c9e7b7a55baaa7f7f997d72899d54ed",
+  "runId": "41464904685",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T14:12:07.035999+00:00",
-  "completedUtc": "2026-11-02T14:12:40.3588168+00:00",
+  "startedUtc": "2026-11-02T14:49:29.7046066+00:00",
+  "completedUtc": "2026-11-02T14:50:03.9112163+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -166,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -316,7 +316,7 @@
     {
       "name": "dism-builtin-import-control-contract",
       "state": "inconclusive",
-      "detail": "transport=Completed; exit=0; outputChars=550; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None; targetContext=Unknown/OuterTargetObject. Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate."
+      "detail": "transport=Completed; exit=0; outputChars=688; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None; targetContext=Unknown/OuterTargetObject; freshCleared=True; freshSampled=2; freshLimited=False; freshTypedMissing=Unknown; freshRecordIndex=1. Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate."
     },
     {
       "name": "cleanup-disposition-owned-probe",
