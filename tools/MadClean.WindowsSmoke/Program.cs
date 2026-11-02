@@ -26,8 +26,13 @@ internal static class Program
             Console.Error.WriteLine("Run from the existing MadClean repository root; no checks ran.");
             return 2;
         }
-        // Fixed inert child protocol only, before any parent report/output preparation.
-        // Unknown arguments must never fall through and rerun inventory or reset captures.
+        // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
+        if (args.Length == 1 && args[0] == "--update-discovery")
+        {
+            using var updateDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(220));
+            return UpdateDiscoveryFixture.RunAsync(repository, updateDeadline.Token).GetAwaiter().GetResult();
+        }
+        // Fixed inert child protocol only; unknown arguments never reset captures or query.
         if (args.Length != 0)
             return InertProcessChild.TryRun(repository, args, out int childExit) ? childExit : 2;
         string output = Path.Combine(repository, "artifacts", "windows-validation");
@@ -74,6 +79,7 @@ internal static class Program
                 }
             }
             else report.Unknown(startupCheck, "Earlier validation failed or native tree teardown is uncertain; no published executable was started.");
+            UpdateDiscoveryFixture.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
         }
         catch (Exception ex)
         {

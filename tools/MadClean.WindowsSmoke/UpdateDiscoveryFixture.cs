@@ -1,0 +1,235 @@
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
+using MadClean.Core;
+using MadClean.Windows;
+
+namespace MadClean.WindowsSmoke;
+
+/// <summary>Separate opt-in disposable-CI provider observation. No normal harness invocation or UI injection.</summary>
+internal static class UpdateDiscoveryFixture
+{
+    private const string DirectoryName = "update-discovery-validation";
+    private const int MaximumReportBytes = 8192, MaximumApps = 20000, MaximumUpdates = 2048;
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow };
+    private static Owner? rootedOwner;
+    private sealed class Owner
+    {
+        internal readonly WindowsInventory Inventory = new();
+        internal readonly CancellationTokenSource Stop;
+        internal readonly Task<CheckResult<AppUpdate>> Apps;
+        internal readonly Task<CheckResult<SystemUpdate>> Updates;
+        internal Task? Cancellation;
+        internal bool Completed => Apps.IsCompleted && Updates.IsCompleted && (Cancellation?.IsCompleted ?? true);
+        internal Owner(CancellationToken token)
+        {
+            Stop = CancellationTokenSource.CreateLinkedTokenSource(token);
+            // Even Process.Start is owned by these workers: providers execute a synchronous
+            // prefix before their first await. A blocked spawn must not block this reporter.
+            Apps = Task.Run(() => Inventory.AppsAsync(Stop.Token), CancellationToken.None);
+            Updates = Task.Run(() => Inventory.SystemUpdatesAsync(Stop.Token), CancellationToken.None);
+            _ = Apps.ContinueWith(task => { _ = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+            _ = Updates.ContinueWith(task => { _ = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+        }
+    }
+    private sealed record Context(string SourceCommit, string RunId, int RunAttempt);
+    private sealed record Provider(string TaskOutcome, string? ResultState, bool SchemaAccepted, int? ItemCount,
+        int? KnownPackageOffers, int? UnknownPackageDeterminations, int? SoftwareOffers, int? DriverOffers,
+        int? FirmwareOffers, int? UnclassifiedOffers);
+    private sealed record Observation(int FormatVersion, string SourceCommit, string RunId, int RunAttempt,
+        string StartedUtc, string CompletedUtc, bool ObservationWaitExpired, bool WindowsServiceCompletionVerified,
+        Provider Apps, Provider SystemUpdates);
+
+    internal static async Task<int> RunAsync(string repository, CancellationToken token)
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows() || rootedOwner != null) return 1;
+            token.ThrowIfCancellationRequested();
+            var context = CurrentContext();
+            string output = FixedOutput(repository);
+            CheckAncestry(output, allowMissing: true);
+            Directory.CreateDirectory(output); CheckAncestry(output, allowMissing: false);
+            string final = Path.Combine(output, "report.json"), temporary = Path.Combine(output, "report.json.new");
+            if (Exists(final) || Exists(temporary)) return 1; // Never reset or overwrite a stale report.
+            var started = DateTimeOffset.UtcNow;
+            var owner = new Owner(token); rootedOwner = owner;
+            bool expired = false;
+            try { await Task.WhenAll(owner.Apps, owner.Updates).WaitAsync(TimeSpan.FromSeconds(210), token).ConfigureAwait(false); }
+            catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
+            {
+                expired = true;
+                // CancelAsync roots/observes callbacks without blocking this reporter on a
+                // synchronous query-host stop callback. No servicing/service process is killed here.
+                owner.Cancellation = owner.Stop.CancelAsync();
+                try { await Task.WhenAll(owner.Apps, owner.Updates, owner.Cancellation).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
+                catch (Exception) { /* Typed task outcomes below; never output provider exception text. */ }
+            }
+            catch (Exception) { /* Both tasks are complete; typed fault outcome below. */ }
+            var apps = ObserveApps(owner.Apps); var updates = ObserveUpdates(owner.Updates);
+            if (!Valid(apps, true) || !Valid(updates, false)) return 1;
+            var observed = new Observation(1, context.SourceCommit, context.RunId, context.RunAttempt,
+                Stamp(started), Stamp(DateTimeOffset.UtcNow), expired, false, apps, updates);
+            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(observed, JsonOptions);
+            if (bytes.Length > MaximumReportBytes) return 1;
+            CheckAncestry(output, allowMissing: false);
+            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+            { stream.Write(bytes); stream.Flush(true); }
+            File.Move(temporary, final, overwrite: false);
+            if (owner.Completed) { owner.Stop.Dispose(); rootedOwner = null; }
+            // Pending owner/tasks/CTS deliberately remain rooted. Returning never establishes
+            // that Windows Update services or provider background/cache work stopped.
+            return Positive(apps) && Positive(updates) && !expired ? 0 : 2;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or
+            InvalidOperationException or OperationCanceledException or System.Security.SecurityException)
+        { return 1; }
+    }
+
+    internal static void ReadIntoReport(string repository, string expectedSourceCommit, SmokeReport report)
+    {
+        const string check = "update-discovery-provider-contract";
+        try
+        {
+            if (!OperatingSystem.IsWindows()) throw new InvalidDataException();
+            var expected = CurrentContext();
+            if (expectedSourceCommit != expected.SourceCommit) throw new InvalidDataException();
+            string output = FixedOutput(repository); CheckAncestry(output, allowMissing: false);
+            string path = Path.Combine(output, "report.json");
+            CheckFile(path);
+            var guards = SystemToolTrustNative.LockDirectoryChain(output);
+            try
+            {
+            using var handle = SystemToolTrustNative.OpenFile(path);
+            SystemToolTrustNative.ValidateAttributes(handle, directory: false);
+            SystemToolTrustNative.ValidateFinalPath(handle, path);
+            using var stream = new FileStream(handle, FileAccess.Read, 4096, false);
+            if (stream.Length is <= 0 or > MaximumReportBytes) throw new InvalidDataException();
+            byte[] bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
+            if (stream.ReadByte() != -1) throw new InvalidDataException();
+            using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 4 });
+            var root = document.RootElement;
+            if (!Fields(root, ["formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc",
+                "observationWaitExpired", "windowsServiceCompletionVerified", "apps", "systemUpdates"])) throw new InvalidDataException();
+            string[] providerFields = ["taskOutcome", "resultState", "schemaAccepted", "itemCount", "knownPackageOffers", "unknownPackageDeterminations",
+                "softwareOffers", "driverOffers", "firmwareOffers", "unclassifiedOffers"];
+            if (!Fields(root.GetProperty("apps"), providerFields) || !Fields(root.GetProperty("systemUpdates"), providerFields)) throw new InvalidDataException();
+            var data = JsonSerializer.Deserialize<Observation>(bytes, JsonOptions) ?? throw new InvalidDataException();
+            if (data.FormatVersion != 1 || data.SourceCommit != expected.SourceCommit || data.RunId != expected.RunId || data.RunAttempt != expected.RunAttempt ||
+                data.WindowsServiceCompletionVerified || !Date(data.StartedUtc, out var start) || !Date(data.CompletedUtc, out var end) || start > end ||
+                end > DateTimeOffset.UtcNow || end - start > TimeSpan.FromMinutes(4) || DateTimeOffset.UtcNow - end > TimeSpan.FromMinutes(10) ||
+                !Valid(data.Apps, true) || !Valid(data.SystemUpdates, false)) throw new InvalidDataException();
+            string detail = $"WinGet task={data.Apps.TaskOutcome}/state={data.Apps.ResultState ?? "not returned"}/schema={data.Apps.SchemaAccepted}/rows={Count(data.Apps.ItemCount)}/knownOfferFields={Count(data.Apps.KnownPackageOffers)}/unknownDeterminations={Count(data.Apps.UnknownPackageDeterminations)}; " +
+                $"WUA task={data.SystemUpdates.TaskOutcome}/state={data.SystemUpdates.ResultState ?? "not returned"}/schema={data.SystemUpdates.SchemaAccepted}/rows={Count(data.SystemUpdates.ItemCount)}/software={Count(data.SystemUpdates.SoftwareOffers)}/drivers={Count(data.SystemUpdates.DriverOffers)}/firmware={Count(data.SystemUpdates.FirmwareOffers)}/unclassified={Count(data.SystemUpdates.UnclassifiedOffers)}; waitExpired={data.ObservationWaitExpired}. " +
+                "Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported.";
+            if (Positive(data.Apps) && Positive(data.SystemUpdates) && !data.ObservationWaitExpired) report.Pass(check, detail);
+            else report.Unknown(check, detail);
+            }
+            finally { foreach (var guard in guards.AsEnumerable().Reverse()) guard.Dispose(); }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or
+            JsonException or FormatException or System.Security.SecurityException or SystemToolTrustFailure)
+        { report.Unknown(check, "Separate online source evidence is absent, stale, malformed, pending or mismatched to this source/run/attempt. No online query, report reset, synthetic offer or successful check was substituted."); }
+    }
+
+    private static Provider ObserveApps(Task<CheckResult<AppUpdate>> task)
+    {
+        if (!task.IsCompletedSuccessfully) return Unreturned(task);
+        var result = task.Result;
+        bool state = Enum.IsDefined(result.State);
+        if (result.Items == null || result.Items.Count > MaximumApps)
+            return new("Returned", state ? result.State.ToString() : "Unknown", false, null, null, null, null, null, null, null);
+        bool schema = state && (result.State is CheckState.Available or CheckState.Partial || result.Items.Count == 0);
+        int known = 0, unknown = 0;
+        foreach (var row in result.Items)
+        {
+            if (row == null || row.Status is not (CheckState.Available or CheckState.Unknown)) { schema = false; break; }
+            if (row.Status == CheckState.Available) known++; else unknown++;
+        }
+        return new("Returned", state ? result.State.ToString() : "Unknown", schema, result.Items.Count,
+            schema ? known : null, schema ? unknown : null, null, null, null, null);
+    }
+    private static Provider ObserveUpdates(Task<CheckResult<SystemUpdate>> task)
+    {
+        if (!task.IsCompletedSuccessfully) return Unreturned(task);
+        var result = task.Result;
+        bool state = Enum.IsDefined(result.State);
+        if (result.Items == null || result.Items.Count > MaximumUpdates)
+            return new("Returned", state ? result.State.ToString() : "Unknown", false, null, null, null, null, null, null, null);
+        bool schema = state && (result.State is CheckState.Available or CheckState.Partial || result.Items.Count == 0);
+        int software = 0, driver = 0, firmware = 0, unclassified = 0;
+        foreach (var row in result.Items)
+        {
+            if (row == null) { schema = false; break; }
+            switch (row.Kind)
+            { case "Software": software++; break; case "Driver": driver++; break; case "Firmware": firmware++; break; case "Unknown": unclassified++; break; default: schema = false; break; }
+        }
+        return new("Returned", state ? result.State.ToString() : "Unknown", schema, result.Items.Count, null, null,
+            schema ? software : null, schema ? driver : null, schema ? firmware : null, schema ? unclassified : null);
+    }
+    private static Provider Unreturned(Task task) => new(task.IsCanceled ? "Cancelled" : task.IsFaulted ? "Faulted" : "Pending",
+        null, false, null, null, null, null, null, null, null);
+    private static bool Positive(Provider value) => value.TaskOutcome == "Returned" && value.SchemaAccepted && (value.ResultState is "Available" or "Partial");
+    private static bool Valid(Provider value, bool apps)
+    {
+        if (value == null || value.TaskOutcome is not ("Returned" or "Cancelled" or "Faulted" or "Pending")) return false;
+        int?[] all = [value.ItemCount, value.KnownPackageOffers, value.UnknownPackageDeterminations, value.SoftwareOffers, value.DriverOffers, value.FirmwareOffers, value.UnclassifiedOffers];
+        if (value.TaskOutcome != "Returned") return value.ResultState == null && !value.SchemaAccepted && all.All(number => number == null);
+        if (!Enum.TryParse<CheckState>(value.ResultState, false, out var state) || !Enum.IsDefined(state) || state.ToString() != value.ResultState ||
+            all.Any(number => number is < 0 || number > (apps ? MaximumApps : MaximumUpdates))) return false;
+        if (!value.SchemaAccepted) return (apps ? value.KnownPackageOffers == null && value.UnknownPackageDeterminations == null : value.SoftwareOffers == null && value.DriverOffers == null && value.FirmwareOffers == null && value.UnclassifiedOffers == null) &&
+            (apps ? value.SoftwareOffers == null && value.DriverOffers == null && value.FirmwareOffers == null && value.UnclassifiedOffers == null : value.KnownPackageOffers == null && value.UnknownPackageDeterminations == null);
+        if (value.ItemCount == null || state is not (CheckState.Available or CheckState.Partial) && value.ItemCount != 0) return false;
+        if (apps && (state is CheckState.Available or CheckState.Partial) && value.ItemCount == 0) return false;
+        if (!apps && state == CheckState.Available && value.UnclassifiedOffers > 0) return false;
+        return apps ? value.KnownPackageOffers.HasValue && value.UnknownPackageDeterminations.HasValue && value.KnownPackageOffers + value.UnknownPackageDeterminations == value.ItemCount &&
+                value.SoftwareOffers == null && value.DriverOffers == null && value.FirmwareOffers == null && value.UnclassifiedOffers == null
+            : value.KnownPackageOffers == null && value.UnknownPackageDeterminations == null && value.SoftwareOffers.HasValue && value.DriverOffers.HasValue && value.FirmwareOffers.HasValue && value.UnclassifiedOffers.HasValue &&
+                value.SoftwareOffers + value.DriverOffers + value.FirmwareOffers + value.UnclassifiedOffers == value.ItemCount;
+    }
+    private static Context CurrentContext()
+    {
+        string? source = Environment.GetEnvironmentVariable("GITHUB_SHA"), run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"), attempt = Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+        if (source is not { Length: 40 } || source.Any(value => value is not (>= '0' and <= '9' or >= 'a' and <= 'f')) ||
+            run is not { Length: > 0 and <= 32 } || run[0] == '0' || run.Any(value => value is < '0' or > '9') ||
+            attempt == null || attempt.Length > 9 || !int.TryParse(attempt, NumberStyles.None, CultureInfo.InvariantCulture, out int number) || number <= 0 || number.ToString(CultureInfo.InvariantCulture) != attempt)
+            throw new InvalidDataException();
+        return new(source, run, number);
+    }
+    private static string FixedOutput(string repository)
+    {
+        string root = Path.GetFullPath(repository);
+        if (root != Path.GetFullPath(Environment.CurrentDirectory) || !Path.IsPathFullyQualified(root) || root.StartsWith(@"\\", StringComparison.Ordinal)) throw new InvalidDataException();
+        CheckAncestry(root, false); CheckFile(Path.Combine(root, "global.json"));
+        CheckAncestry(Path.Combine(root, "src", "MadClean.App"), false); CheckFile(Path.Combine(root, "src", "MadClean.App", "MadClean.App.csproj"));
+        string? drive = Path.GetPathRoot(root);
+        if (drive == null || new DriveInfo(drive).DriveType != DriveType.Fixed) throw new InvalidDataException();
+        return Path.Combine(root, "artifacts", DirectoryName);
+    }
+    private static bool Exists(string path)
+    { try { _ = File.GetAttributes(path); return true; } catch (FileNotFoundException) { return false; } catch (DirectoryNotFoundException) { return false; } }
+    private static void CheckFile(string path)
+    { var attributes = File.GetAttributes(path); if ((attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0) throw new InvalidDataException(); }
+    private static void CheckAncestry(string path, bool allowMissing)
+    {
+        List<string> chain = []; string? current = path;
+        while (current != null) { chain.Add(current); current = Path.GetDirectoryName(current); }
+        foreach (string entry in chain.AsEnumerable().Reverse())
+        {
+            try { var flags = File.GetAttributes(entry); if ((flags & FileAttributes.ReparsePoint) != 0 || (flags & FileAttributes.Directory) == 0) throw new InvalidDataException(); }
+            catch (FileNotFoundException) when (allowMissing) { }
+            catch (DirectoryNotFoundException) when (allowMissing) { }
+        }
+    }
+    private static bool Fields(JsonElement element, string[] names)
+    {
+        if (element.ValueKind != JsonValueKind.Object) return false;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in element.EnumerateObject()) if (!names.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) return false;
+        return seen.Count == names.Length;
+    }
+    private static string Stamp(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
+    private static bool Date(string value, out DateTimeOffset date) => DateTimeOffset.TryParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) && date != default && date.Offset == TimeSpan.Zero && Stamp(date) == value;
+    private static string Count(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "not observed";
+}

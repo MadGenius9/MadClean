@@ -8,7 +8,7 @@ import re
 import stat
 import unicodedata
 
-LABELS = ("restore", "build", "publisher-tests", "core-tests", "publish", "smoke", "native-abi", "shortcut-control", "startup-publish")
+LABELS = ("restore", "build", "publisher-tests", "core-tests", "publish", "smoke", "native-abi", "shortcut-control", "startup-publish", "update-discovery")
 OUTCOMES = {"success", "failure", "cancelled", "skipped"}
 MAX_LOG_BYTES = 262_144
 MAX_METADATA_BYTES = 8_192

@@ -155,6 +155,10 @@ class PublisherTests(unittest.TestCase):
                 self.report['checks']=[check for check in original if check['name']!=name]
                 self.save(); self.rejected()
                 self.report['checks']=original
+    def test_update_discovery_provider_contract_cannot_be_omitted(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'update-discovery-provider-contract']
+        self.save(); self.rejected()
+
     def test_published_executable_startup_cannot_be_omitted(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'published-executable-startup']
         self.save(); self.rejected()

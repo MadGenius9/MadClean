@@ -89,7 +89,7 @@ jobs:
   windows-verification:
     needs: build-test-package
     runs-on: windows-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     permissions:
       contents: read
     steps:
@@ -107,6 +107,12 @@ jobs:
         run: python tools/ci_command.py native-abi -- python tools/compile_wer_sdk.py
       - name: Compile development-only SDK shortcut control DLL (not packaged)
         run: python tools/ci_command.py shortcut-control -- python tools/compile_shortcut_control.py
+      - name: Observe existing read-only update providers on the disposable runner
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+        run: python tools/ci_command.py update-discovery -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --update-discovery
       - name: Prepare owned self-contained executable for startup validation (no distribution)
         run: python tools/prepare_published_startup.py
       - name: Capture real WPF content and exercise isolated native fixtures
