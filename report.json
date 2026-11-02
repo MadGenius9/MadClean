@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "53ffa7ca0093ffcc60be4077a8ddb305eb08abe9",
-  "runId": "41450922815",
+  "sourceCommit": "cc13477924a1ab939eda6de4baabf13f93f84501",
+  "runId": "41453192709",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T13:16:47.4268463+00:00",
-  "completedUtc": "2026-11-02T13:17:25.4885393+00:00",
+  "startedUtc": "2026-11-02T13:31:43.7552554+00:00",
+  "completedUtc": "2026-11-02T13:32:04.3555844+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -94,6 +94,11 @@
       "detail": "actualChannelRows=2; queriedSourceCount=2; positiveSourceCount=2; selectedActualRows=2; sourceStates=Available,Available; actualGridDetailsStatusBindings=true; selectionStartsNoQuery=true; changedRangeClearsCoverageAndSelection=true. One explicit production passive Event Log query only. Unknown counts were not treated as zero; no raw counts, source explanations, dates, providers, event records or identifiers exported. No WER, integrity command, repair, UAC, fixture injection or post-query screenshot occurred."
     },
     {
+      "name": "ui-msi-action-binding-interaction",
+      "state": "passed",
+      "detail": "bindingState=Bound; observedContextCount=1; enumerationComplete=true; actualSelectionAndDetailsBindings=true; selectionClearInvalidates=true; noAdditionalQueryActivity=true; visibleDesktopRowsAndBaselineMessageUnchanged=true; querySettled=true; canExecute=false. Exactly one explicit production binding workflow used the previously loaded genuine selection and fresh native ARP/MSI reads. No raw metadata, identities, flags, values or source text exported; no fixture injection, refresh command, update, uninstall, process, UAC, journal write or later screenshot occurred. No private baseline-object or global-absence claim is made."
+    },
+    {
       "name": "cleanup-file-evidence-fixture",
       "state": "passed",
       "detail": "source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; unnamedOnlyStreamScopeVerified=true; alternateStreamPartialBlocked=true; sameHandleStreamQueryCount=2; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState=Available; activeUse=Unknown; preCancel=true; createdReparseCount=1; reparseBlocked=True; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim."
@@ -161,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -172,6 +177,11 @@
       "name": "defender-inspection-evidence-contract",
       "state": "passed",
       "detail": "sourceState=Available; projectedState=Available; schemaValid=true; collectionTimesPreserved=true; actualNonemptySource=True. Actual read result projected in memory only; no source values, drive capacities, security settings, messages or times exported. Collection time is not provider freshness, health, protection, complete storage ownership or action permission."
+    },
+    {
+      "name": "defender-scan-history-contract",
+      "state": "inconclusive",
+      "detail": "historyState=Unknown; qualifiedTimestampCount=0; nullableTimestampSchemaValid=true. The real shared status read supplied no qualified scan timestamp, so native timestamp compatibility remains unverified. Unknown does not mean never scanned; no second query or scan ran."
     },
     {
       "name": "defender-status-contract",
@@ -314,6 +324,11 @@
       "detail": "state=ControlledOpenRefusalObserved;stage=owned-mapped-observations-complete;native=~;preCancel=True; sourceClose=1;viewBefore=1;open=0/00000020; disposition=?/~;pending=?;targetClose=?; absentWithView=0/~;viewAfter=1; unmap=1/~;mappingClose=1;absentAfterUnmap=0/~; controlAudit=True;rootAudit=True;cleanup=True. All memory access is one byte in this process's owned non-executable view; ?/~=unobserved. A live-view deletion is a counterexample, never inactivity or safety proof. No file/view coherence, physical persistence, reclaimed bytes or production permission is established."
     },
     {
+      "name": "cleanup-confirmation-owned-protocol",
+      "state": "passed",
+      "detail": "developerProtocolOnly=true; actualCases=6; dispositionCalls=2; declineExpiryCancelWrongSessionZeroCalls=true; replayAdditionalCalls=0; exactHeldIdentityBound=true; affirmativeRequestsAndCheckedClosesAndNameAbsenceObserved=true; preCancelBeforeStart=true; controlBytesRootIdsTopologyAndCleanupConfirmed=true; caseFacts=0:0,c0,a?,e,p?,h1,n0,g,u1,r0;1:1,c0,a?,e,p?,h1,n0,g,u1,r0;2:2,c0,a?,e,p?,h1,n0,g,u1,r0;3:3,c0,a?,e,p?,h1,n0,g,u1,r0;4:5,c1,a1,e,p1,h1,n1,g2,u?,r0;5:4,c1,a1,e,p1,h1,n1,g2,u?,r0; ExecutionSupported=false. These fixed developer decisions are not real UI/user consent, inactivity, durable recovery or production cleanup permission."
+    },
+    {
       "name": "shortcut-rename-handle-probe",
       "state": "inconclusive",
       "detail": "state=Unavailable; backend=ManagedWin32; controlApiCalls=0; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
@@ -371,7 +386,7 @@
     {
       "name": "fixture-teardown",
       "state": "passed",
-      "detail": "stage=OwnedTreeRemoved; encountered=115; inspected=115; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
+      "detail": "stage=OwnedTreeRemoved; encountered=123; inspected=123; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
     }
   ],
   "screenshots": [
