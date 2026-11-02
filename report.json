@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "4316ddd28f92d6f4e59657afcf569d653edc50cc",
-  "runId": "41379784575",
+  "sourceCommit": "8b736b91b984ef59d687d294ea92ac6931192a29",
+  "runId": "41381816746",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T02:53:45.2617001+00:00",
-  "completedUtc": "2026-11-02T02:54:05.0562874+00:00",
+  "startedUtc": "2026-11-02T03:16:13.4810354+00:00",
+  "completedUtc": "2026-11-02T03:16:32.9161021+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -291,12 +291,17 @@
     {
       "name": "dism-builtin-import-control-contract",
       "state": "inconclusive",
-      "detail": "transport=Completed; exit=0; outputChars=479; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None. Independent route remains Unknown. Invocation context is not proof of a missing command or cause. Original capability result unchanged; no fallback, health command, publisher trust or production gate."
+      "detail": "transport=Completed; exit=0; outputChars=550; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None; targetContext=Unknown/OuterTargetObject. Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate."
     },
     {
       "name": "cleanup-disposition-owned-probe",
       "state": "passed",
       "detail": "state=Observed;stage=owned-classic-observations-complete;native=~;preCancel=True;siblingAudit=True;rootIdAudit=True;cleanup=True. Normal:o=~,a=1,r=1,e=~,p=1,c=1,n=1,ne=00000002,f=0 | Readonly:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Recent:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | MultipleLinks:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | ChangedIdentity:o=~,a=0,r=?,e=~,p=?,c=1,n=?,ne=~,f=1 | ConflictingWriter:o=00000020,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Reparse:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 o=target-open error;a/r/e=disposition attempt/accepted/error;p=pending;c=checked target close;n/ne=name absent/probe error;f=predicate refused;?/~=unobserved. Owned files only; no fallback, recycling, inactivity, reclaimed bytes or production execution permission."
+    },
+    {
+      "name": "cleanup-mapped-disposition-owned-probe",
+      "state": "passed",
+      "detail": "state=ControlledOpenRefusalObserved;stage=owned-mapped-observations-complete;native=~;preCancel=True; sourceClose=1;viewBefore=1;open=0/00000020; disposition=?/~;pending=?;targetClose=?; absentWithView=0/~;viewAfter=1; unmap=1/~;mappingClose=1;absentAfterUnmap=0/~; controlAudit=True;rootAudit=True;cleanup=True. All memory access is one byte in this process's owned non-executable view; ?/~=unobserved. A live-view deletion is a counterexample, never inactivity or safety proof. No file/view coherence, physical persistence, reclaimed bytes or production permission is established."
     },
     {
       "name": "shortcut-rename-handle-probe",
@@ -356,7 +361,7 @@
     {
       "name": "fixture-teardown",
       "state": "passed",
-      "detail": "stage=OwnedTreeRemoved; encountered=110; inspected=110; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
+      "detail": "stage=OwnedTreeRemoved; encountered=114; inspected=114; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
     }
   ],
   "screenshots": [
