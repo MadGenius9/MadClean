@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Text;
 using MadClean.Windows;
+using MadClean.Core;
 
 namespace MadClean.WindowsSmoke;
 
@@ -20,12 +21,12 @@ internal static class InertProcessChild
         try
         {
             var lifetime = Stopwatch.StartNew();
-            if (args.Length != 4 || args[1] is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read") ||
+            if (args.Length != 4 || args[1] is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read" or "journal-intent-exit") ||
                 !IsValidChild(repository, args[2], args[3], requireOwnerOnly: true)) return true;
             WriteNew(Path.Combine(args[2], ReadyName), "ready");
             if (args[1] == "zero") { exitCode = 0; return true; }
             if (args[1] == "nonzero") { exitCode = 23; return true; }
-            if (args[1] is "journal-contention" or "journal-read")
+            if (args[1] is "journal-contention" or "journal-read" or "journal-intent-exit")
             {
                 exitCode = ObserveOwnedJournal(Path.GetDirectoryName(args[2])!, args[3], args[1]);
                 return true;
@@ -109,6 +110,22 @@ internal static class InertProcessChild
     }
     private static int ObserveOwnedJournal(string fixture, string owner, string mode)
     {
+        if (mode == "journal-intent-exit")
+        {
+            using var lifecycle = SystemToolJournalStore.OpenOwnedFixture(fixture, owner, SystemToolJournalFixtureCase.Lifecycle);
+            if (!lifecycle.CreatedIntentFile || SystemToolJournalStore.HasUncertainCleanup) return 2;
+            var intent = new SystemToolJournalEntry(Guid.NewGuid(), SystemToolOperation.DismCheckHealth, 1,
+                DateTimeOffset.UtcNow, SystemToolJournalPhase.DispatchIntent, null, null, null, null);
+            var written = lifecycle.AppendJournalSnapshot([intent], DateTimeOffset.UtcNow);
+            var read = lifecycle.ReadJournal(DateTimeOffset.UtcNow);
+            if (written.State != SystemToolJournalState.Unresolved || written.Entries.Count != 1 || written.Entries[0] != intent ||
+                read.State != SystemToolJournalState.Unresolved || read.Entries.Count != 1 || read.Entries[0] != intent ||
+                SystemToolJournalStore.HasUncertainCleanup) return 2;
+            // Inert schema only: intentionally exit this owned child after actual flush/readback,
+            // while its store is held. No servicing client is launched and no parent kills it.
+            Environment.Exit(37);
+            return 2;
+        }
         if (mode == "journal-contention")
         {
             try

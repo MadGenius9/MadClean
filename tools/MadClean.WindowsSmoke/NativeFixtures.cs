@@ -57,6 +57,9 @@ internal static partial class NativeFixtures
             if (!SystemToolJournalStoreCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup) return;
             SystemToolJournalCrossInstanceFixture(fixture, marker, report, token);
             if (!SystemToolJournalCrossInstanceCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup) return;
+            SystemToolJournalLifecycleFixture(fixture, marker, report, token);
+            if (!SystemToolJournalLifecycleCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup) return;
+            DismPowerShellCapability(report, token);
             shortcutProbeTeardownCompleted = false;
             shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token);
             if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
@@ -125,7 +128,7 @@ internal static partial class NativeFixtures
         }
         finally
         {
-            if (StartupTransactionNamespaceProbe.HasPendingNativeProbe || StartupTransactionNamespaceProbe.RequiresFixtureRetention || !namespaceProbeTeardownCompleted || StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed || !SystemToolJournalStoreCleanupConfirmed || !SystemToolJournalCrossInstanceCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup)
+            if (StartupTransactionNamespaceProbe.HasPendingNativeProbe || StartupTransactionNamespaceProbe.RequiresFixtureRetention || !namespaceProbeTeardownCompleted || StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed || !SystemToolJournalStoreCleanupConfirmed || !SystemToolJournalCrossInstanceCleanupConfirmed || !SystemToolJournalLifecycleCleanupConfirmed || SystemToolJournalStore.HasUncertainCleanup)
             {
                 report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }

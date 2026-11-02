@@ -136,7 +136,7 @@ internal static partial class NativeFixtures
     private static InertOwnedChild StartInert(string mode, string repository, string fixture, string marker,
         string apphost, List<InertOwnedChild> children, string? preparedChild = null)
     {
-        if (children.Count >= 4 || mode is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read") || !InertProcessChild.IsValidFixture(repository, fixture, marker))
+        if (children.Count >= 4 || mode is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read" or "journal-intent-exit") || !InertProcessChild.IsValidFixture(repository, fixture, marker))
             throw new InertObservationUnavailable("inert-start-scope-invalid");
         string child = preparedChild ?? PrepareInertChild(repository, fixture, marker);
         if (!InertProcessChild.IsValidChild(repository, child, marker, requireOwnerOnly: true) ||

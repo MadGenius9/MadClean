@@ -3,10 +3,11 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using MadClean.Core;
 
 namespace MadClean.Windows;
 
-internal enum SystemToolJournalFixtureCase { Primary, WrongAcl, Reparse, Oversize }
+internal enum SystemToolJournalFixtureCase { Primary, WrongAcl, Reparse, Oversize, Lifecycle }
 internal enum SystemToolJournalStoreReason
 {
     ScopeUnsupported, PersistentAclUnavailable, SecurityUnsupported, UnsafeObject, Oversize,
@@ -19,8 +20,8 @@ internal sealed class SystemToolJournalStoreFailure(SystemToolJournalStoreReason
     internal int? NativeCode { get; } = nativeCode;
 }
 
-// Owned development infrastructure only. No production scope, lifecycle journal,
-// recovery interpretation, process dispatch or hostile-same-user guarantee exists here.
+// Owned development infrastructure only. No production scope, process dispatch,
+// real-client recovery or hostile-same-user guarantee exists here.
 internal sealed class SystemToolJournalStore : IDisposable
 {
     private const uint ReadAttributes = 0x80, ReadControl = 0x20000, ReadWrite = 0xC0000000;
@@ -35,13 +36,18 @@ internal sealed class SystemToolJournalStore : IDisposable
     private readonly List<IDisposable> guards;
     private readonly FileStream intent;
     private readonly SafeFileHandle directory;
-    private bool disposed, writeAttempted;
+    private bool disposed, writeAttempted, journalAppendUncertain;
+    private readonly SystemToolJournalFixtureCase fixtureCase;
     internal bool CreatedIntentFile { get; }
     internal SafeFileHandle IntentHandle => intent.SafeFileHandle;
     internal SafeFileHandle DirectoryHandle => directory;
 
-    private SystemToolJournalStore(FileStream intent, SafeFileHandle directory, List<IDisposable> guards, bool created)
-    { this.intent = intent; this.directory = directory; this.guards = guards; CreatedIntentFile = created; }
+    private SystemToolJournalStore(FileStream intent, SafeFileHandle directory, List<IDisposable> guards, bool created,
+        SystemToolJournalFixtureCase fixtureCase)
+    {
+        this.intent = intent; this.directory = directory; this.guards = guards;
+        CreatedIntentFile = created; this.fixtureCase = fixtureCase;
+    }
 
     internal static string FixtureLeafName(SystemToolJournalFixtureCase fixtureCase) => fixtureCase switch
     {
@@ -49,6 +55,7 @@ internal sealed class SystemToolJournalStore : IDisposable
         SystemToolJournalFixtureCase.WrongAcl => "system-tool-journal-wrong-acl",
         SystemToolJournalFixtureCase.Reparse => "system-tool-journal-reparse",
         SystemToolJournalFixtureCase.Oversize => "system-tool-journal-oversize",
+        SystemToolJournalFixtureCase.Lifecycle => "system-tool-journal-lifecycle",
         _ => throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported)
     };
 
@@ -109,7 +116,7 @@ internal sealed class SystemToolJournalStore : IDisposable
             }
             catch { handle.Dispose(); throw; }
             if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
-            var result = new SystemToolJournalStore(stream, directory, owned, created);
+            var result = new SystemToolJournalStore(stream, directory, owned, created, fixtureCase);
             stream = null; owned = [];
             return result;
         }
@@ -123,6 +130,8 @@ internal sealed class SystemToolJournalStore : IDisposable
     internal bool WriteAndReadFixedIntent(CancellationToken token = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        if (fixtureCase == SystemToolJournalFixtureCase.Lifecycle)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
         token.ThrowIfCancellationRequested();
         if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
         if (CreatedIntentFile && !writeAttempted && intent.Length == 0)
@@ -145,6 +154,118 @@ internal sealed class SystemToolJournalStore : IDisposable
         }
         finally { Array.Clear(actual); }
     }
+
+    internal SystemToolJournalReview ReadJournal(DateTimeOffset nowUtc, CancellationToken token = default)
+    {
+        ValidateJournalLease(token);
+        if (journalAppendUncertain) return UnknownJournal(nowUtc);
+        byte[] bytes = ReadJournalBytes(token);
+        try { return SystemToolJournal.DecodeSnapshots(bytes, nowUtc); }
+        finally { Array.Clear(bytes); }
+    }
+
+    internal SystemToolJournalReview AppendJournalSnapshot(IReadOnlyList<SystemToolJournalEntry> entries,
+        DateTimeOffset nowUtc, CancellationToken token = default)
+    {
+        ValidateJournalLease(token);
+        if (journalAppendUncertain || !SystemToolJournal.TryEncode(entries, nowUtc, out byte[]? canonical) || canonical == null)
+            return UnknownJournal(nowUtc);
+        byte[]? existing = null, expected = null, actual = null;
+        bool appendStarted = false, confirmed = false;
+        try
+        {
+            // Use the codec's canonical immutable snapshot rather than caller-owned
+            // mutable entry collections for all subsequent comparisons and writes.
+            var candidate = SystemToolJournal.Decode(canonical, nowUtc);
+            if (candidate.State == SystemToolJournalState.Unknown) return UnknownJournal(nowUtc);
+            existing = ReadJournalBytes(token);
+            if (existing.Length == 0)
+            {
+                // Reopening an empty file must not manufacture first-intent provenance.
+                if (!CreatedIntentFile || writeAttempted || candidate.Entries.Count != 1 ||
+                    candidate.Entries[0].Phase != SystemToolJournalPhase.DispatchIntent) return UnknownJournal(nowUtc);
+            }
+            else
+            {
+                var previous = SystemToolJournal.DecodeSnapshots(existing, nowUtc);
+                if (previous.State == SystemToolJournalState.Unknown || candidate.Entries.Count != previous.Entries.Count + 1)
+                    return UnknownJournal(nowUtc);
+                for (int i = 0; i < previous.Entries.Count; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (previous.Entries[i] != candidate.Entries[i]) return UnknownJournal(nowUtc);
+                }
+            }
+            int total = checked(existing.Length + canonical.Length + 1);
+            if (total > MaximumIntentBytes || total > SystemToolJournal.MaximumUtf8Bytes || intent.Length != existing.Length)
+                return UnknownJournal(nowUtc);
+            expected = new byte[total];
+            existing.CopyTo(expected, 0); canonical.CopyTo(expected, existing.Length); expected[^1] = (byte)'\n';
+            token.ThrowIfCancellationRequested();
+            if (intent.Seek(existing.Length, SeekOrigin.Begin) != existing.Length)
+                return UnknownJournal(nowUtc);
+            // From this point, finish synchronous flush/readback while this lease owns
+            // the stream even if the caller requests cancellation. Never truncate,
+            // reset or retry a partial write, and never describe cancellation as rollback.
+            appendStarted = true; writeAttempted = true;
+            intent.Write(expected.AsSpan(existing.Length));
+            intent.Flush(flushToDisk: true);
+            actual = ReadJournalBytes(CancellationToken.None);
+            if (!actual.AsSpan().SequenceEqual(expected)) return UnknownJournal(nowUtc);
+            var observed = SystemToolJournal.DecodeSnapshots(actual, nowUtc);
+            if (observed.State == SystemToolJournalState.Unknown || observed.Entries.Count != candidate.Entries.Count)
+                return UnknownJournal(nowUtc);
+            for (int i = 0; i < candidate.Entries.Count; i++)
+                if (observed.Entries[i] != candidate.Entries[i]) return UnknownJournal(nowUtc);
+            confirmed = true;
+            token.ThrowIfCancellationRequested();
+            return observed;
+        }
+        finally
+        {
+            if (appendStarted && !confirmed) journalAppendUncertain = true;
+            Array.Clear(canonical);
+            if (existing != null) Array.Clear(existing);
+            if (expected != null) Array.Clear(expected);
+            if (actual != null) Array.Clear(actual);
+        }
+    }
+
+    private void ValidateJournalLease(CancellationToken token)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        token.ThrowIfCancellationRequested();
+        if (fixtureCase != SystemToolJournalFixtureCase.Lifecycle)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+    }
+    private byte[] ReadJournalBytes(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        long length = intent.Length;
+        if (length < 0 || length > MaximumIntentBytes || length > SystemToolJournal.MaximumUtf8Bytes)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.Oversize);
+        if (intent.Seek(0, SeekOrigin.Begin) != 0)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch);
+        byte[] bytes = new byte[(int)length];
+        try
+        {
+            int read = 0;
+            while (read < bytes.Length)
+            {
+                token.ThrowIfCancellationRequested();
+                int count = intent.Read(bytes, read, bytes.Length - read);
+                if (count == 0) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch);
+                read += count;
+            }
+            if (intent.Length != length) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch);
+            token.ThrowIfCancellationRequested();
+            return bytes;
+        }
+        catch { Array.Clear(bytes); throw; }
+    }
+    private static SystemToolJournalReview UnknownJournal(DateTimeOffset nowUtc)
+        => SystemToolJournal.DecodeSnapshots(ReadOnlySpan<byte>.Empty, nowUtc);
 
     private static string ValidateRoot(string root, string marker)
     {

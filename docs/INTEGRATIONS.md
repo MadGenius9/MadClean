@@ -152,3 +152,8 @@ Its optional [DACL observation](SHORTCUT-DACL-OBSERVATION.md) uses DACL-only Get
 ## Isolated catalog verification research implementation
 
 The bounded [catalog observation contract](SYSTEM-TOOL-CATALOG-OBSERVATION.md) uses fixed OS files, a guarded first installed catalog, actual member tags, exact subject/SHA256 matching and final native trust with the existing Microsoft signer policy. After isolated Windows proof, the production identity path can use the same held stream only for exact direct-file0x800B0100, followed by strict catalog policy/signature/cleanup and existing fingerprint/embedded metadata. It never invokes a command. Missing/limited/unverified observations remain distinct from trust; native runtime evidence is still required.
+
+
+## Owned diagnostic operation prerequisites
+
+The [versioned journal prototype](SYSTEM-TOOL-JOURNAL-RECORDS.md) uses a fixed owned Lifecycle store, strict bounded immutable-prefix snapshots and deliberate inert writer self-exit. It does not access production LocalAppData or dispatch any Windows tool. Parsed intent/loss remains Unresolved; malformed tails stay Unknown without repair or successful-prefix salvage. The [DISM capability probe](DISM-CAPABILITY.md) separately imports only the fixed inbox module to inspect advertised type/enum/switch metadata; it never calls a health/repair command, authenticates a publisher from a path or changes production execution gates. Both are explicit development harness checks, outside ordinary app inspection.
