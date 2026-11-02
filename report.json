@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "a4916dfdd0cda0d7ec6408dbce983cc68919bb52",
-  "runId": "41384517217",
+  "sourceCommit": "218460ef6f3bf8007268e243fdcf6dd3c485c59f",
+  "runId": "41447715297",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T03:46:35.2559167+00:00",
-  "completedUtc": "2026-11-02T03:46:56.2775094+00:00",
+  "startedUtc": "2026-11-02T12:53:01.2366078+00:00",
+  "completedUtc": "2026-11-02T12:53:23.1045997+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -87,6 +87,11 @@
       "name": "ui-cleanup-file-evidence-teardown",
       "state": "passed",
       "detail": "Owned exact temporary files and directory were audited and removed nonrecursively; UI/native ownership is settled. This is harness teardown only, never application cleanup."
+    },
+    {
+      "name": "ui-diagnostic-channel-coverage-interaction",
+      "state": "passed",
+      "detail": "actualChannelRows=2; queriedSourceCount=2; positiveSourceCount=2; selectedActualRows=2; sourceStates=Available,Available; actualGridDetailsStatusBindings=true; selectionStartsNoQuery=true; changedRangeClearsCoverageAndSelection=true. One explicit production passive Event Log query only. Unknown counts were not treated as zero; no raw counts, source explanations, dates, providers, event records or identifiers exported. No WER, integrity command, repair, UAC, fixture injection or post-query screenshot occurred."
     },
     {
       "name": "cleanup-file-evidence-fixture",

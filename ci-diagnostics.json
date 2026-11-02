@@ -5,13 +5,13 @@
       "label": "restore",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 183 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 206 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 6 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 3 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 427 ms)."
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 334 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 336 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 15 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 7 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 369 ms)."
     },
     {
       "label": "build",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  MadClean.Tests -> D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\bin\\Release\\net10.0\\MadClean.Tests.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:31.56"
+      "excerpt": "  MadClean.Tests -> D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\bin\\Release\\net10.0\\MadClean.Tests.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:38.17"
     },
     {
       "label": "publisher-tests",
@@ -23,7 +23,7 @@
       "label": "core-tests",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [1 ms]\n[xUnit.net 00:00:07.28]     MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [SKIP]\n[xUnit.net 00:00:07.28]     MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [SKIP]\n  Skipped MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [1 ms]\n  Skipped MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [1 ms]\n[xUnit.net 00:00:07.98]     MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [SKIP]\n  Skipped MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  1133, Skipped:    10, Total:  1143, Duration: 6 s - MadClean.Tests.dll (net10.0)"
+      "excerpt": "  Skipped MadClean.Tests.DiskUsageTests.UnreadableContentsDoNotNeedToBeOpenedToCollectLogicalLength [1 ms]\n[xUnit.net 00:00:08.51]     MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [SKIP]\n  Skipped MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [1 ms]\n[xUnit.net 00:00:08.51]     MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [SKIP]\n  Skipped MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [1 ms]\n[xUnit.net 00:00:10.78]     MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [SKIP]\n  Skipped MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  1140, Skipped:    10, Total:  1150, Duration: 8 s - MadClean.Tests.dll (net10.0)"
     }
   ]
 }
