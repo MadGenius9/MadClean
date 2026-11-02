@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "d8cf5d220993bf6954ac51ca7468b203fb8f3267",
-  "runId": "41448517065",
+  "sourceCommit": "53ffa7ca0093ffcc60be4077a8ddb305eb08abe9",
+  "runId": "41450922815",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T13:04:05.4174681+00:00",
-  "completedUtc": "2026-11-02T13:04:38.0871151+00:00",
+  "startedUtc": "2026-11-02T13:16:47.4268463+00:00",
+  "completedUtc": "2026-11-02T13:17:25.4885393+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -96,7 +96,7 @@
     {
       "name": "cleanup-file-evidence-fixture",
       "state": "passed",
-      "detail": "source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState=Available; activeUse=Unknown; preCancel=true; createdReparseCount=1; reparseBlocked=True; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim."
+      "detail": "source=OwnedDevelopmentFixture; genuineCoreInventory=true; fullFileAndRootIdentitiesAndStampsMatched=true; historicalMetadataMatched=true; unnamedOnlyStreamScopeVerified=true; alternateStreamPartialBlocked=true; sameHandleStreamQueryCount=2; changedSizeObserved=true; freshExclusionBlocked=true; currentHardlinkBlocked=true; writerObservationState=Available; activeUse=Unknown; preCancel=true; createdReparseCount=1; reparseBlocked=True; ownedBytesUnchangedExceptExplicitFixtureSizeChange=true; cleanupConfirmed=true; CanDelete=false. Uncreated reparse cases remain unverified. No production Temp inspection, content read by provider, deletion, inactivity, historical identity continuity or reclaimed-space claim."
     },
     {
       "name": "duplicate-content-fixtures",
@@ -161,7 +161,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -187,6 +187,11 @@
       "name": "msi-registration-contract",
       "state": "passed",
       "detail": "MSI state=Partial; selectedQueryCount=1; instanceCount=1; actualBindingVerified=true; fixedSourceProvenanceVerified=true; preCancellationObserved=true; pendingWorker=false. A real exact-selected-product Installed context and display metadata match the reused actual ARP observation. Partial source coverage and NoRemove restrictions remain; this grants no action eligibility. No names, IDs/product codes, SID data, paths, versions, times, flags or provider messages exported. No all-products/other-user inventory, package open, install, uninstall, repair, source-path query, elevation or fixture MSI registration performed."
+    },
+    {
+      "name": "msi-action-binding-contract",
+      "state": "passed",
+      "detail": "sourceState=Partial; bindingState=Bound; observedContextCount=1; enumerationComplete=true; preCancelled=True; querySettled=true; canExecute=false. One genuine selected product was rechecked using fresh actual ARP and full current-user/machine metadata scope. Other users/global absence, package trust, atomic continuity and action permission remain unverified. No registry seeding, raw values, identifiers, commands, process launch, installer action or journal write occurred."
     },
     {
       "name": "packaged-application-contract",
@@ -366,7 +371,7 @@
     {
       "name": "fixture-teardown",
       "state": "passed",
-      "detail": "stage=OwnedTreeRemoved; encountered=114; inspected=114; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
+      "detail": "stage=OwnedTreeRemoved; encountered=115; inspected=115; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
     }
   ],
   "screenshots": [
@@ -392,13 +397,13 @@
       "file": "tool-18.png",
       "width": 1404,
       "height": 961,
-      "sha256": "22857d2e5fa5a6eacac477e16e4f4673e88d864de8bb99ca4e50c65b997808b6"
+      "sha256": "0884ca6f9dcb678bdde3fe419a8cc8ed081bb2d8f2b424f5f3fbadac29a165a5"
     },
     {
       "file": "tool-20.png",
       "width": 1404,
       "height": 961,
-      "sha256": "7e08c7c70bd182716f7d86de991f8ed4a857ceaf822e8c1fb8f31ea2e0baf0df"
+      "sha256": "ace3013ce94c1d3999fb539276fe33bf070c28755f24e6b49372f77a17226d0e"
     },
     {
       "file": "tool-21.png",
