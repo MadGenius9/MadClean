@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "62449bf74337f55a26ac8e0e8f5a5bda791913c6",
-  "runId": "41477531776",
+  "sourceCommit": "39d5fad9ccd8f29a09f805727f82aca074d20b49",
+  "runId": "41478096814",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T16:08:20.6414765+00:00",
-  "completedUtc": "2026-11-02T16:09:01.3737671+00:00",
+  "startedUtc": "2026-11-02T16:14:38.5907998+00:00",
+  "completedUtc": "2026-11-02T16:15:08.4455252+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -61,7 +61,7 @@
     {
       "name": "ui-packaged-app-search",
       "state": "passed",
-      "detail": "Package sourceState=Available; actualLoadedRowCount=48; positiveMatchCount=1; textboxBindingVerified=true; exactSelectionAndDetailsVerified=true; hiddenSelectionAndDetailsCleared=true; clearRestoresSameRows=true; desktopSourceBaselineAndStatusUnchanged=true; noExtraFilterActivity=true. One explicit production current-user package getter supplied real rows after all captures and desktop search. No package values, query text, details, provider messages or later screenshots exported. Partial coverage remains incomplete; no-match is not absence proof, and no deployment or other package action occurred."
+      "detail": "Package sourceState=Available; actualLoadedRowCount=49; positiveMatchCount=1; textboxBindingVerified=true; exactSelectionAndDetailsVerified=true; hiddenSelectionAndDetailsCleared=true; clearRestoresSameRows=true; desktopSourceBaselineAndStatusUnchanged=true; noExtraFilterActivity=true. One explicit production current-user package getter supplied real rows after all captures and desktop search. No package values, query text, details, provider messages or later screenshots exported. Partial coverage remains incomplete; no-match is not absence proof, and no deployment or other package action occurred."
     },
     {
       "name": "ui-inspection-evidence",
@@ -166,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -206,7 +206,7 @@
     {
       "name": "packaged-application-contract",
       "state": "passed",
-      "detail": "Package state=Available; itemCount=48; rowsWithUnknownMetadata=0; preCancellationObserved=true; projectedSchemaValid=true; fixedCurrentUserProviderRequested=true; actualMetadataVerified=true. A real nonempty bounded Main/Bundle projection was returned; nullable flags remain unknown and Partial coverage remains incomplete. Bundle/main records are not unique-app counts or a combined ARP baseline. No names, identities, publishers, versions, SIDs, paths, flag values or provider text exported. No update, removal, repair, fixture package installation or other deployment action performed; metadata does not establish trust, health or action eligibility."
+      "detail": "Package state=Available; itemCount=49; rowsWithUnknownMetadata=0; preCancellationObserved=true; projectedSchemaValid=true; fixedCurrentUserProviderRequested=true; actualMetadataVerified=true. A real nonempty bounded Main/Bundle projection was returned; nullable flags remain unknown and Partial coverage remains incomplete. Bundle/main records are not unique-app counts or a combined ARP baseline. No names, identities, publishers, versions, SIDs, paths, flag values or provider text exported. No update, removal, repair, fixture package installation or other deployment action performed; metadata does not establish trust, health or action eligibility."
     },
     {
       "name": "bounded-registration-fixture",
@@ -402,6 +402,11 @@
       "name": "published-executable-startup",
       "state": "inconclusive",
       "detail": "state=Inconclusive; descriptor=True; leased=True; started=True; ownedWindow=True; neutralOverview=False; noDataOverview=False; ownedBundledRuntime=False; closeRequested=True; exitObserved=True; exitCode=0; cleanup=True; stage=neutral-Inspect-not-unique; nativeError=. Scoped own-process startup only; no inventory actions or captures, and no distribution upload."
+    },
+    {
+      "name": "update-discovery-provider-contract",
+      "state": "inconclusive",
+      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=3/software=3/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
     }
   ],
   "screenshots": [
