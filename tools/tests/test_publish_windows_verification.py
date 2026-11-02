@@ -161,6 +161,10 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_cross_instance_store_evidence_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-journal-cross-instance-fixture']
+        self.save()
+        self.rejected()
     def test_journal_store_evidence_cannot_be_omitted(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-journal-store-fixture']
         self.save()

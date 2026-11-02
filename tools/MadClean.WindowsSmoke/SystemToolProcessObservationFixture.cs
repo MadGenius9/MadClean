@@ -134,15 +134,13 @@ internal static partial class NativeFixtures
     { internal string Stage { get; } = stage; }
     private sealed record InertOwnedChild(Process Process, string Directory, string Mode, string Repository, string Owner);
     private static InertOwnedChild StartInert(string mode, string repository, string fixture, string marker,
-        string apphost, List<InertOwnedChild> children)
+        string apphost, List<InertOwnedChild> children, string? preparedChild = null)
     {
-        if (children.Count >= 4 || mode is not ("zero" or "nonzero" or "wait") || !InertProcessChild.IsValidFixture(repository, fixture, marker))
+        if (children.Count >= 4 || mode is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read") || !InertProcessChild.IsValidFixture(repository, fixture, marker))
             throw new InertObservationUnavailable("inert-start-scope-invalid");
-        string child = Path.Combine(fixture, "inert-process-" + Guid.NewGuid().ToString("N"));
-        if (Directory.Exists(child)) throw new InertObservationUnavailable("inert-child-already-existed");
-        Directory.CreateDirectory(child);
-        InertProcessChild.WriteNew(Path.Combine(child, InertProcessChild.OwnerName), marker);
-        if (!InertProcessChild.IsValidChild(repository, child, marker, requireOwnerOnly: true))
+        string child = preparedChild ?? PrepareInertChild(repository, fixture, marker);
+        if (!InertProcessChild.IsValidChild(repository, child, marker, requireOwnerOnly: true) ||
+            !string.Equals(Path.GetDirectoryName(child), fixture, StringComparison.OrdinalIgnoreCase))
             throw new InertObservationUnavailable("inert-child-ownership-invalid");
         var info = new ProcessStartInfo(apphost) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = repository };
         info.ArgumentList.Add(InertProcessChild.Switch); info.ArgumentList.Add(mode); info.ArgumentList.Add(child); info.ArgumentList.Add(marker);
@@ -151,6 +149,17 @@ internal static partial class NativeFixtures
         children.Add(result); // Retain ownership even if Start throws with an uncertain association.
         if (!process.Start()) throw new InertObservationUnavailable("inert-start-not-established");
         return result;
+    }
+    private static string PrepareInertChild(string repository, string fixture, string marker)
+    {
+        if (!InertProcessChild.IsValidFixture(repository, fixture, marker)) throw new InertObservationUnavailable("inert-prepare-scope-invalid");
+        string child = Path.Combine(fixture, "inert-process-" + Guid.NewGuid().ToString("N"));
+        if (Directory.Exists(child)) throw new InertObservationUnavailable("inert-child-already-existed");
+        Directory.CreateDirectory(child);
+        InertProcessChild.WriteNew(Path.Combine(child, InertProcessChild.OwnerName), marker);
+        if (!InertProcessChild.IsValidChild(repository, child, marker, requireOwnerOnly: true))
+            throw new InertObservationUnavailable("inert-child-ownership-invalid");
+        return child;
     }
     private static void WaitInertReady(InertOwnedChild child, CancellationToken token)
     {

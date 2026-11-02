@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Text;
 using MadClean.Windows;
 
@@ -18,11 +20,16 @@ internal static class InertProcessChild
         try
         {
             var lifetime = Stopwatch.StartNew();
-            if (args.Length != 4 || args[1] is not ("zero" or "nonzero" or "wait") ||
+            if (args.Length != 4 || args[1] is not ("zero" or "nonzero" or "wait" or "journal-contention" or "journal-read") ||
                 !IsValidChild(repository, args[2], args[3], requireOwnerOnly: true)) return true;
             WriteNew(Path.Combine(args[2], ReadyName), "ready");
             if (args[1] == "zero") { exitCode = 0; return true; }
             if (args[1] == "nonzero") { exitCode = 23; return true; }
+            if (args[1] is "journal-contention" or "journal-read")
+            {
+                exitCode = ObserveOwnedJournal(Path.GetDirectoryName(args[2])!, args[3], args[1]);
+                return true;
+            }
             // Cooperative self-deadline; no parent kill/termination protocol exists. A stalled
             // OS call is not declared stopped merely because the parent stops observing it.
             while (lifetime.Elapsed < TimeSpan.FromSeconds(10))
@@ -100,6 +107,77 @@ internal static class InertProcessChild
         try { using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read); stream.Write(bytes); }
         finally { Array.Clear(bytes); }
     }
+    private static int ObserveOwnedJournal(string fixture, string owner, string mode)
+    {
+        if (mode == "journal-contention")
+        {
+            try
+            {
+                using var unexpected = SystemToolJournalStore.OpenOwnedFixture(fixture, owner);
+                return 2; // No payload read/write when the expected contention was not observed.
+            }
+            catch (SystemToolJournalStoreFailure failure) when (failure.Reason == SystemToolJournalStoreReason.StoreBusy && failure.NativeCode == 32)
+            { return SystemToolJournalStore.HasUncertainCleanup ? 2 : 0; }
+        }
+        string directory = Path.Combine(fixture, SystemToolJournalStore.FixtureLeafName(SystemToolJournalFixtureCase.Primary));
+        string path = Path.Combine(directory, "intent.bin");
+        if (!WindowsShortcutNative.TryOpenAncestry(directory, true, CancellationToken.None, out var ancestry, out _)) return 2;
+        bool success;
+        using (ancestry)
+        using (var anchor = JournalExistingAnchor(path))
+        {
+            var original = JournalIdentity(anchor);
+            using (var store = SystemToolJournalStore.OpenOwnedFixture(fixture, owner))
+            {
+                // The factory still attempts CREATE_NEW before OPEN_EXISTING. The separate
+                // no-delete metadata anchor keeps the already-existing object bound against
+                // ordinary replacement. There is no no-creation-API or hostile-user claim.
+                if (store.CreatedIntentFile || JournalIdentity(store.IntentHandle) != original) return 2;
+                success = store.WriteAndReadFixedIntent() && JournalIdentity(store.IntentHandle) == original;
+            }
+        }
+        // Publish zero only after store, no-delete file anchor and ancestry leases are released.
+        return success && !SystemToolJournalStore.HasUncertainCleanup ? 0 : 2;
+    }
+    private sealed record JournalExistingIdentity(ulong Volume, ulong Low, ulong High, long Bytes);
+    private static SafeFileHandle JournalExistingAnchor(string path)
+    {
+        var handle = JournalAnchorCreateFileW(path, 0x80, 3, IntPtr.Zero, 3, 0x00200000 | 0x00100000, IntPtr.Zero);
+        try
+        {
+            if (handle.IsInvalid) throw new IOException("Owned existing-object anchor unavailable.");
+            SystemToolTrustNative.ValidateAttributes(handle, false);
+            SystemToolTrustNative.ValidateFinalPath(handle, path);
+            _ = JournalIdentity(handle);
+            return handle;
+        }
+        catch { handle.Dispose(); throw; }
+    }
+    private static JournalExistingIdentity JournalIdentity(SafeFileHandle handle)
+    {
+        if (!JournalAnchorIdentity(handle, 18, out var identity, 24) || !JournalAnchorStandard(handle, 1, out var standard, 24) ||
+            identity.Low == 0 && identity.High == 0 || standard.Directory || standard.DeletePending || standard.Links != 1 ||
+            standard.Bytes is <= 0 or > SystemToolJournalStore.MaximumIntentBytes)
+            throw new IOException("Owned existing-object identity unavailable.");
+        return new(identity.Volume, identity.Low, identity.High, standard.Bytes);
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct JournalAnchorId { public ulong Volume, Low, High; }
+    [StructLayout(LayoutKind.Sequential)] private struct JournalAnchorSize
+    {
+        public long Allocation, Bytes; public uint Links;
+        [MarshalAs(UnmanagedType.U1)] public bool DeletePending;
+        [MarshalAs(UnmanagedType.U1)] public bool Directory;
+    }
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern SafeFileHandle JournalAnchorCreateFileW(string path, uint access, uint share, IntPtr attributes, uint disposition, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool JournalAnchorIdentity(SafeFileHandle handle, int kind, out JournalAnchorId identity, uint bytes);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool JournalAnchorStandard(SafeFileHandle handle, int kind, out JournalAnchorSize standard, uint bytes);
+
     private const FileAttributes Unsafe = FileAttributes.ReparsePoint | FileAttributes.Offline | FileAttributes.Encrypted |
         (FileAttributes)0x00040000 | (FileAttributes)0x00400000;
     private static bool OrdinaryPath(string path) => !string.IsNullOrWhiteSpace(path) && path.Length is >= 4 and <= 2048 &&
