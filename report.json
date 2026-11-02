@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "44b740177fd6db3fa19e0984b4b08fd16918ec44",
-  "runId": "41375513533",
+  "sourceCommit": "c575b6e04280f37767795da536b133ffbcf0d02c",
+  "runId": "41377870124",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T02:05:56.6110466+00:00",
-  "completedUtc": "2026-11-02T02:06:15.8164734+00:00",
+  "startedUtc": "2026-11-02T02:31:49.8722706+00:00",
+  "completedUtc": "2026-11-02T02:32:04.0110767+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -156,7 +156,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -286,7 +286,12 @@
     {
       "name": "dism-powershell-capability-contract",
       "state": "inconclusive",
-      "detail": "transport=Completed; transportException=None/unobserved; win32=unobserved; exit=0; outputChars=776. metadata=Unavailable; stage=ModuleImport; host=True; manifest=True; module=False; command=False; outputType=False; assemblyPath=False; propertyReadable=False; propertyEnum=False; enumShape=False; sharedSet=False; switches=False; noOtherMandatory=False; counts(output/property/enum/sets/shared)=unobserved/unobserved/unobserved/unobserved/unobserved; errorCategory=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; moduleError=Unknown; publisherTrustVerified=false; healthCheckInvoked=false. Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement."
+      "detail": "transport=Completed; transportException=None/unobserved; win32=unobserved; exit=0; outputChars=848. metadata=Unavailable; stage=ModuleImport; host=True; manifest=True; module=False; command=False; outputType=False; assemblyPath=False; propertyReadable=False; propertyEnum=False; enumShape=False; sharedSet=False; switches=False; noOtherMandatory=False; counts(output/property/enum/sets/shared)=unobserved/unobserved/unobserved/unobserved/unobserved; importMetadata(qualified/unqualified)=True/True; errorCategory=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; moduleError=CommandNotFound; publisherTrustVerified=false; healthCheckInvoked=false. Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement."
+    },
+    {
+      "name": "cleanup-disposition-owned-probe",
+      "state": "passed",
+      "detail": "state=Observed;stage=owned-classic-observations-complete;native=~;preCancel=True;siblingAudit=True;rootIdAudit=True;cleanup=True. Normal:o=~,a=1,r=1,e=~,p=1,c=1,n=1,ne=00000002,f=0 | Readonly:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Recent:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | MultipleLinks:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | ChangedIdentity:o=~,a=0,r=?,e=~,p=?,c=1,n=?,ne=~,f=1 | ConflictingWriter:o=00000020,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Reparse:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 o=target-open error;a/r/e=disposition attempt/accepted/error;p=pending;c=checked target close;n/ne=name absent/probe error;f=predicate refused;?/~=unobserved. Owned files only; no fallback, recycling, inactivity, reclaimed bytes or production execution permission."
     },
     {
       "name": "shortcut-rename-handle-probe",
@@ -345,8 +350,8 @@
     },
     {
       "name": "fixture-teardown",
-      "state": "passed",
-      "detail": "Only the owned development fixture tree was removed; no application or personal-file cleanup action was exercised."
+      "state": "inconclusive",
+      "detail": "Owned fixture cleanup could not complete (0x80131620); no broader deletion was attempted."
     }
   ],
   "screenshots": [
