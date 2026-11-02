@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "cc13477924a1ab939eda6de4baabf13f93f84501",
-  "runId": "41453192709",
+  "sourceCommit": "95a72c85ac799ad102594c61f5232e853c7793be",
+  "runId": "41454355527",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T13:31:43.7552554+00:00",
-  "completedUtc": "2026-11-02T13:32:04.3555844+00:00",
+  "startedUtc": "2026-11-02T13:40:11.5440544+00:00",
+  "completedUtc": "2026-11-02T13:40:46.0893636+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -51,7 +51,7 @@
     {
       "name": "ui-tool-popup",
       "state": "passed",
-      "detail": "The real More tools popup opens, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted."
+      "detail": "The real More tools popup opens; every generated tool item exposes its actual title through a WPF automation peer, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted."
     },
     {
       "name": "ui-installed-app-search",
@@ -166,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
