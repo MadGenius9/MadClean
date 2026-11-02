@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "eff185be5b623cf34a9ad3d7600c008cbbde0807",
-  "runId": "41368130671",
+  "sourceCommit": "38ec883f580f22e67122ccd367637e809604ebc5",
+  "runId": "41369687422",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T00:41:48.0946332+00:00",
-  "completedUtc": "2026-11-02T00:42:01.4105386+00:00",
+  "startedUtc": "2026-11-02T00:59:29.051053+00:00",
+  "completedUtc": "2026-11-02T00:59:46.2004727+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -126,7 +126,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=20; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -247,6 +247,16 @@
       "name": "system-tool-journal-cross-instance-fixture",
       "state": "passed",
       "detail": "actualChildren=2; contentionChildExit0=true; exactStoreBusyNative32Branch=true; parentReleasedBeforeReadChild=true; existingReadChildExit0=true; existingObjectIdentityAndLengthMatched=true; fixedParentReadbackUnchanged=true; childAndNativeCleanupConfirmed=true. The fixed factory still attempts CREATE_NEW before OPEN_EXISTING; the read child required an existing anchored object and CreatedIntentFile=false. No payload repair/reset, crash recovery, durability, production store, UAC, servicing or installation is established."
+    },
+    {
+      "name": "system-tool-journal-lifecycle-fixture",
+      "state": "passed",
+      "detail": "ownedChildExit37AfterIntentFlush=true; existingIntentUnresolved=true; changedPrefixRejectedBytesUnchanged=true; inertObservationLostAppended=true; malformedTailWholeLogUnknownEmpty=true; furtherAppendRefusedBytesUnchanged=true; cleanupConfirmed=true. This observes an exact harness self-exit after flush/readback, not crash/power-loss recovery, record authorship, a running process, production servicing or tool health."
+    },
+    {
+      "name": "dism-powershell-capability-contract",
+      "state": "inconclusive",
+      "detail": "metadataState=Unavailable; hostPathQualified=True; manifestPathQualified=True; importedModuleBound=False; commandBound=False; outputTypeResolved=False; outputAssemblyPathQualified=False; healthPropertyReadable=False; healthPropertyEnum=False; enumShapeMatched=False; sharedParameterSetMatched=False; switchParametersMatched=False; nonTargetMandatoryAbsent=False; outputTypeCount=unobserved; publicPropertyCount=unobserved; enumMemberCount=unobserved; parameterSetCount=unobserved; sharedParameterSetCount=unobserved; publisherTrustVerified=false; healthCheckInvoked=false. The complete source-bound candidate metadata contract was not established. Missing, blocked, unresolved or changed metadata remains Unknown; no health or servicing evidence is claimed."
     },
     {
       "name": "shortcut-rename-handle-probe",
