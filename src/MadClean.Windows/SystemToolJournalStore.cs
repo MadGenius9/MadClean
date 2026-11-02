@@ -1,0 +1,321 @@
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+
+namespace MadClean.Windows;
+
+internal enum SystemToolJournalFixtureCase { Primary, WrongAcl, Reparse, Oversize }
+internal enum SystemToolJournalStoreReason
+{
+    ScopeUnsupported, PersistentAclUnavailable, SecurityUnsupported, UnsafeObject, Oversize,
+    ContentMismatch, NativeUnavailable, StoreBusy, CleanupUncertain
+}
+internal sealed class SystemToolJournalStoreFailure(SystemToolJournalStoreReason reason, int? nativeCode = null)
+    : IOException("The owned journal-store boundary could not be established.")
+{
+    internal SystemToolJournalStoreReason Reason { get; } = reason;
+    internal int? NativeCode { get; } = nativeCode;
+}
+
+// Owned development infrastructure only. No production scope, lifecycle journal,
+// recovery interpretation, process dispatch or hostile-same-user guarantee exists here.
+internal sealed class SystemToolJournalStore : IDisposable
+{
+    private const uint ReadAttributes = 0x80, ReadControl = 0x20000, ReadWrite = 0xC0000000;
+    private const uint OpenReparse = 0x00200000, NoRecall = 0x00100000, Backup = 0x02000000, WriteThrough = 0x80000000;
+    private const uint Unsafe = 0x400 | 0x1000 | 0x4000 | 0x40 | 0x40000 | 0x400000;
+    internal const int MaximumIntentBytes = 4096;
+    private static readonly byte[] FixedIntent = Encoding.ASCII.GetBytes("MadClean.InertJournalStore.v1\n");
+    private static readonly object CleanupSync = new();
+    private static readonly List<nint> RetainedDescriptors = [];
+    private static int cleanupUncertain;
+    internal static bool HasUncertainCleanup => Volatile.Read(ref cleanupUncertain) != 0;
+    private readonly List<IDisposable> guards;
+    private readonly FileStream intent;
+    private readonly SafeFileHandle directory;
+    private bool disposed, writeAttempted;
+    internal bool CreatedIntentFile { get; }
+    internal SafeFileHandle IntentHandle => intent.SafeFileHandle;
+    internal SafeFileHandle DirectoryHandle => directory;
+
+    private SystemToolJournalStore(FileStream intent, SafeFileHandle directory, List<IDisposable> guards, bool created)
+    { this.intent = intent; this.directory = directory; this.guards = guards; CreatedIntentFile = created; }
+
+    internal static string FixtureLeafName(SystemToolJournalFixtureCase fixtureCase) => fixtureCase switch
+    {
+        SystemToolJournalFixtureCase.Primary => "system-tool-journal-primary",
+        SystemToolJournalFixtureCase.WrongAcl => "system-tool-journal-wrong-acl",
+        SystemToolJournalFixtureCase.Reparse => "system-tool-journal-reparse",
+        SystemToolJournalFixtureCase.Oversize => "system-tool-journal-oversize",
+        _ => throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported)
+    };
+
+    internal static SystemToolJournalStore OpenOwnedFixture(string root, string ownerMarker,
+        SystemToolJournalFixtureCase fixtureCase = SystemToolJournalFixtureCase.Primary, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+        if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess || Marshal.SizeOf<SecurityAttributes>() != 24 ||
+            Marshal.SizeOf<StandardInformation>() != 24 || Marshal.SizeOf<IdentityInformation>() != 24)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        string leaf = FixtureLeafName(fixtureCase);
+        string normalized = ValidateRoot(root, ownerMarker);
+        string folder = Path.Combine(normalized, leaf), path = Path.Combine(folder, "intent.bin");
+        if (path.Length > 258) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        List<IDisposable> owned = [];
+        FileStream? stream = null;
+        try
+        {
+            if (!WindowsShortcutNative.TryOpenAncestry(normalized, true, token, out var ancestry, out _))
+                throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.UnsafeObject);
+            owned.Add(ancestry!);
+            using (var marker = Open(Path.Combine(normalized, ".madclean-fixture-owner"), 0x80000000, 1, false))
+            {
+                ValidateObject(marker, Path.Combine(normalized, ".madclean-fixture-owner"), false, 32);
+                using var input = new FileStream(marker, FileAccess.Read, 32, false);
+                byte[] bytes = new byte[32];
+                try
+                {
+                    input.ReadExactly(bytes);
+                    if (Encoding.ASCII.GetString(bytes) != ownerMarker)
+                        throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+                }
+                finally { Array.Clear(bytes); }
+            }
+            using var volume = Open(normalized, ReadAttributes, 3, true);
+            ValidateObject(volume, normalized, true);
+            if (!GetVolumeInformationByHandleW(volume, null, 0, out _, out _, out uint flags, null, 0)) throw Native();
+            if ((flags & 8) == 0) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.PersistentAclUnavailable);
+            using var identity = WindowsIdentity.GetCurrent();
+            string sid = identity.User?.Value ?? throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.SecurityUnsupported);
+            token.ThrowIfCancellationRequested();
+            CreatePrivateDirectory(folder, sid);
+            if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+            var directory = Open(folder, ReadAttributes | ReadControl, 3, true);
+            owned.Add(directory);
+            ValidateObject(directory, folder, true);
+            VerifyPrivateSecurity(directory, sid, true);
+            token.ThrowIfCancellationRequested();
+            bool created;
+            SafeFileHandle handle = CreateIntent(path, sid, out created);
+            try
+            {
+                ValidateObject(handle, path, false, MaximumIntentBytes);
+                VerifyPrivateSecurity(handle, sid, false);
+                token.ThrowIfCancellationRequested();
+                stream = new FileStream(handle, FileAccess.ReadWrite, 4096, false);
+            }
+            catch { handle.Dispose(); throw; }
+            if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+            var result = new SystemToolJournalStore(stream, directory, owned, created);
+            stream = null; owned = [];
+            return result;
+        }
+        finally
+        {
+            DisposeChecked(stream);
+            for (int i = owned.Count - 1; i >= 0; i--) DisposeChecked(owned[i]);
+        }
+    }
+
+    internal bool WriteAndReadFixedIntent(CancellationToken token = default)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        token.ThrowIfCancellationRequested();
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+        if (CreatedIntentFile && !writeAttempted && intent.Length == 0)
+        {
+            writeAttempted = true;
+            intent.Write(FixedIntent); intent.Flush(flushToDisk: true);
+        }
+        // Existing bytes are never repaired/replaced. No interpretation as real intent,
+        // persisted operation status, authorship or recovery evidence is supported.
+        if (intent.Length != FixedIntent.Length)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch);
+        intent.Position = 0;
+        byte[] actual = new byte[FixedIntent.Length];
+        try
+        {
+            intent.ReadExactly(actual); token.ThrowIfCancellationRequested();
+            if (!actual.AsSpan().SequenceEqual(FixedIntent))
+                throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ContentMismatch);
+            return true;
+        }
+        finally { Array.Clear(actual); }
+    }
+
+    private static string ValidateRoot(string root, string marker)
+    {
+        if (!Guid.TryParseExact(marker, "N", out var owner) || owner == Guid.Empty || marker != owner.ToString("N") ||
+            string.IsNullOrEmpty(root) || root.Length > 210 || root != Path.GetFullPath(root) || root.StartsWith("\\", StringComparison.Ordinal))
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        string name = Path.GetFileName(root); const string prefix = "windows-validation-fixtures-";
+        if (!name.StartsWith(prefix, StringComparison.Ordinal) || !Guid.TryParseExact(name[prefix.Length..], "N", out var id) || id == Guid.Empty ||
+            Path.GetFileName(Path.GetDirectoryName(root)) != "artifacts")
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        return root;
+    }
+
+    private static void CreatePrivateDirectory(string path, string sid)
+    {
+        nint descriptor = Descriptor(sid, true);
+        try
+        {
+            var attributes = Attributes(descriptor);
+            if (!CreateDirectoryW(path, ref attributes))
+            {
+                int code = Marshal.GetLastWin32Error();
+                if (code != 183) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, code);
+            }
+        }
+        finally { FreeDescriptor(descriptor); }
+    }
+    private static SafeFileHandle CreateIntent(string path, string sid, out bool created)
+    {
+        created = false;
+        nint descriptor = Descriptor(sid, false);
+        SafeFileHandle? handle = null;
+        try
+        {
+            var attributes = Attributes(descriptor);
+            handle = CreateFileSecured(path, ReadWrite, 0, ref attributes, 1, WriteThrough | OpenReparse | NoRecall, 0);
+            if (!handle.IsInvalid) { created = true; return handle; }
+            int code = Marshal.GetLastWin32Error(); handle.Dispose(); handle = null;
+            if (code is not (80 or 183)) throw new SystemToolJournalStoreFailure(code == 32 ? SystemToolJournalStoreReason.StoreBusy : SystemToolJournalStoreReason.NativeUnavailable, code);
+            // Opening an existing object does not apply the creation descriptor. Its
+            // actual same-handle security must be verified before reading any bytes.
+            handle = Open(path, ReadWrite, 0, false, WriteThrough);
+            return handle;
+        }
+        finally
+        {
+            FreeDescriptor(descriptor);
+            if (HasUncertainCleanup) DisposeChecked(handle);
+        }
+    }
+    private static nint Descriptor(string sid, bool directory)
+    {
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+        string inheritance = directory ? "OICI" : "";
+        string sddl = $"O:{sid}D:P(A;{inheritance};FA;;;{sid})(A;{inheritance};FA;;;SY)";
+        if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, out nint descriptor, out _)) throw Native();
+        return descriptor;
+    }
+    private static SecurityAttributes Attributes(nint descriptor) => new() { Length = 24, Descriptor = descriptor, Inherit = 0 };
+
+    private static void VerifyPrivateSecurity(SafeFileHandle handle, string sid, bool directory)
+    {
+        uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
+        if (code != 0)
+        {
+            if (descriptor != 0) FreeDescriptor(descriptor);
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, unchecked((int)code));
+        }
+        try
+        {
+            if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor)) throw Security();
+            uint length = GetSecurityDescriptorLength(descriptor);
+            // API-owned allocation is validated after return; this is not a native allocation cap.
+            if (length is < 20 or > 65536) throw Security();
+            byte[] bytes = new byte[length];
+            try
+            {
+                Marshal.Copy(descriptor, bytes, 0, bytes.Length);
+                var security = new RawSecurityDescriptor(bytes, 0);
+                if (security.Owner?.Value != sid || security.DiscretionaryAcl is not { Count: 2 } acl ||
+                    (security.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0) throw Security();
+                bool user = false, system = false;
+                foreach (var entry in acl)
+                {
+                    if (entry is not CommonAce ace || ace.IsCallback || ace.AceQualifier != AceQualifier.AccessAllowed ||
+                        ace.AccessMask != 0x1F01FF || ace.AceFlags != (directory ? AceFlags.ObjectInherit | AceFlags.ContainerInherit : AceFlags.None)) throw Security();
+                    if (ace.SecurityIdentifier.Value == sid && !user) user = true;
+                    else if (ace.SecurityIdentifier.Value == "S-1-5-18" && !system) system = true;
+                    else throw Security();
+                }
+                if (!user || !system) throw Security();
+            }
+            finally { Array.Clear(bytes); }
+        }
+        finally { FreeDescriptor(descriptor); }
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+    }
+
+    private static SafeFileHandle Open(string path, uint access, uint share, bool directory, uint extra = 0)
+    {
+        var handle = CreateFilePlain(path, access, share, 0, 3, OpenReparse | NoRecall | extra | (directory ? Backup : 0), 0);
+        if (!handle.IsInvalid) return handle;
+        int code = Marshal.GetLastWin32Error(); handle.Dispose();
+        throw new SystemToolJournalStoreFailure(code == 32 ? SystemToolJournalStoreReason.StoreBusy : SystemToolJournalStoreReason.NativeUnavailable, code);
+    }
+    private static void ValidateObject(SafeFileHandle handle, string expected, bool directory, long maximum = 0)
+    {
+        if (!GetTag(handle, 9, out var tag, 8) || !GetStandard(handle, 1, out var standard, 24) || !GetIdentity(handle, 18, out var id, 24)) throw Native();
+        if ((tag.Attributes & Unsafe) != 0 || tag.ReparseTag != 0 || ((tag.Attributes & 0x10) != 0) != directory ||
+            standard.Directory != directory || standard.DeletePending || (id.Low == 0 && id.High == 0) || !directory && standard.Links != 1)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.UnsafeObject);
+        if (!directory && (standard.Bytes < 0 || standard.Bytes > maximum))
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.Oversize);
+        var final = new StringBuilder(32768);
+        uint count = GetFinalPathNameByHandleW(handle, final, (uint)final.Capacity, 0);
+        if (count == 0 || count >= final.Capacity) throw Native();
+        string path = final.ToString();
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal)) path = path[4..];
+        if (!string.Equals(Path.TrimEndingDirectorySeparator(path), Path.TrimEndingDirectorySeparator(expected), StringComparison.OrdinalIgnoreCase))
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.UnsafeObject);
+    }
+    private static SystemToolJournalStoreFailure Security() => new(SystemToolJournalStoreReason.SecurityUnsupported);
+    private static SystemToolJournalStoreFailure Native() => new(SystemToolJournalStoreReason.NativeUnavailable, Marshal.GetLastWin32Error());
+    private static void FreeDescriptor(nint descriptor)
+    {
+        if (descriptor == 0) return;
+        if (LocalFree(descriptor) == 0) return;
+        lock (CleanupSync) { RetainedDescriptors.Add(descriptor); Volatile.Write(ref cleanupUncertain, 1); }
+    }
+    private static void DisposeChecked(IDisposable? value)
+    {
+        try { value?.Dispose(); }
+        catch (Exception) { Volatile.Write(ref cleanupUncertain, 1); }
+    }
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        DisposeChecked(intent);
+        for (int i = guards.Count - 1; i >= 0; i--) DisposeChecked(guards[i]);
+    }
+
+    [StructLayout(LayoutKind.Sequential)] private struct SecurityAttributes { internal uint Length; internal nint Descriptor; internal int Inherit; }
+    [StructLayout(LayoutKind.Sequential)] private struct TagInformation { internal uint Attributes, ReparseTag; }
+    [StructLayout(LayoutKind.Sequential)] private struct IdentityInformation { internal ulong Volume, Low, High; }
+    [StructLayout(LayoutKind.Sequential)] private struct StandardInformation
+    { internal long Allocation, Bytes; internal uint Links; [MarshalAs(UnmanagedType.U1)] internal bool DeletePending; [MarshalAs(UnmanagedType.U1)] internal bool Directory; }
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern SafeFileHandle CreateFilePlain(string path, uint access, uint share, nint attributes, uint disposition, uint flags, nint template);
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern SafeFileHandle CreateFileSecured(string path, uint access, uint share, ref SecurityAttributes attributes, uint disposition, uint flags, nint template);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CreateDirectoryW(string path, ref SecurityAttributes attributes);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string text, uint revision, out nint descriptor, out uint bytes);
+    [DllImport("advapi32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern uint GetSecurityInfo(SafeFileHandle handle, uint objectType, uint information, nint owner, nint group, nint dacl, nint sacl, out nint descriptor);
+    [DllImport("advapi32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsValidSecurityDescriptor(nint descriptor);
+    [DllImport("advapi32.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern uint GetSecurityDescriptorLength(nint descriptor);
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern nint LocalFree(nint memory);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetVolumeInformationByHandleW(SafeFileHandle handle, StringBuilder? name, uint nameCapacity, out uint serial, out uint maximumComponent, out uint flags, StringBuilder? fileSystem, uint fileSystemCapacity);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetTag(SafeFileHandle handle, int informationClass, out TagInformation information, uint bytes);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetStandard(SafeFileHandle handle, int informationClass, out StandardInformation information, uint bytes);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetIdentity(SafeFileHandle handle, int informationClass, out IdentityInformation information, uint bytes);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] private static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder path, uint capacity, uint flags);
+}

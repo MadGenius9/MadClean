@@ -28,3 +28,6 @@ Private logs, durable reconciliation across application instances, bounded UAC b
 [Run 41365750643](https://github.com/MadGenius9/MadClean/actions/runs/41365750643), source `2077c50`, evidence `d1c31a613885315285638515eea8936ae1b57392`, passed the required inert process fixture: four real children, exit 0 and 23, pre-cancel/live observation-stop while still alive, cooperative release then exit 0, actual exited-with-stop precedence, borrowed handle ownership and unstarted-process Unavailable. All actual exits and exact owned file audits completed; fixture teardown passed. No DISM, SFC, UAC, repair, installation or forced termination ran.
 
 Core records reconcile 1,087 total: 1,077 Passed and 10 NotExecuted. The full build, SDK and native-control compilation passed. The report contains 51 scoped passes, zero failures and six inconclusive checks in other areas; the aggregate remains inconclusive. Packaging was skipped. This is scoped actual process-observation evidence, not production servicing readiness or general power-loss/durability proof.
+
+
+The separate [owned journal-store boundary](SYSTEM-TOOL-JOURNAL-STORE.md) tests explicit security creation and fixed inert persistence prerequisites. It is not a production journal or a completed durable recovery mechanism.

@@ -28,4 +28,13 @@ Official Microsoft documentation was rechecked during this increment:
 - [GetTransactionInformation](https://learn.microsoft.com/en-us/windows/win32/api/ktmw32/nf-ktmw32-gettransactioninformation) and [TRANSACTION_OUTCOME](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ne-winnt-transaction_outcome): first observed outcome is distinct from later rollback cleanup.
 - [RegDeleteKey](https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regdeletekeyw): deletion remains pending while handles remain open; the fixture does not close original handles to force interference.
 
-Source review found no material correctness/ownership blocker. Actual Windows evidence is pending for this source. These observations cannot satisfy all production startup source-binding, REG_LINK/ancestor, durable private journal, reversible action or recovery gates. Both real startup mutation methods remain unavailable.
+Source review found no material correctness/ownership blocker. Actual Windows evidence for source878a734 is recorded below. These observations cannot satisfy all production startup source-binding, REG_LINK/ancestor, durable private journal, reversible action or recovery gates. Both real startup mutation methods remain unavailable.
+
+
+## Actual owned Windows results
+
+[Run 41366457245](https://github.com/MadGenius9/MadClean/actions/runs/41366457245), source `878a734`, evidence `0b9c7ccb3cc1f80ab29d5dd56ca02f6f27a2d022`, recorded all four sequences before timeout and confirmed terminal settlement, original inert baseline and exact teardown. All four ordinary renames succeeded with native result0. Source rename first observed outcome3 (Aborted); both ancestor-rename cases first observed outcome1 (Undetermined), including the all-fresh-owned-ancestors enlistment case. Same-path replacement had actual rename/create/write result0 and first outcome3. The fixture committed no interference transaction.
+
+The check passed its narrow observation contract. Crucially, ancestor enlistment did not yield an observed first abort for ancestor rename; no namespace-freezing or source-binding claim follows. Ordinary registry-key handles and equal value bytes remain insufficient identity/protection evidence. Both production startup mutation methods remain unavailable.
+
+The run had52 scoped passes, zero failures and six existing inconclusive checks. Core1,077 Passed/10 NotExecuted reconciled1,087. Build, SDK and native control compilation passed; packaging was skipped. Current duplicate comparison and inert-process checks retained their prior scoped passes. These results concern only the controlled owned sequences, not real startup entries, registry links, crash recovery or production actions.
