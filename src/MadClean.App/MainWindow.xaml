@@ -57,7 +57,8 @@
             <DockPanel><Button DockPanel.Dock="Right" Content="View MadClean update" Command="{Binding MadCleanReminderCommand}"/><TextBlock Text="{Binding MadCleanReminderText}" VerticalAlignment="Center" Margin="0,0,16,0" AutomationProperties.LiveSetting="Polite"/></DockPanel>
         </Border>
         <TabControl Grid.Row="3" SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0">
-            <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
+            <TabControl.ItemContainerStyle><Style TargetType="TabItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/></Style></TabControl.ItemContainerStyle>
+            <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
                 <TabItem Header="Overview">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid>

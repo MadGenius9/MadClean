@@ -95,3 +95,8 @@ H3 acceptance gates:
 ## Narrow live service-source increment
 
 The explicit [Surface service-source checker](SURFACE-SERVICE-FACTS.md) retrieves only three fixed Microsoft Learn articles for two supported exact PC identities. It confirms limited family service-parts/procedure observations, not upgrade limits, exact part fit, RAM/CPU support or a recommendation. The source's13-inch label versus the2033 SKU reference's13.5-inch label is not silently rounded into part compatibility. H2 limit matching and H3 advice remain gated.
+
+
+## Additional official-source access limit
+
+On 2026-11-02 at16:07:03 UTC, one read-only request to the official Lenovo [PSREF M90q Gen4 specification URL](https://psref.lenovo.com/syspool/Sys/PDF/ThinkCentre/ThinkCentre_M90q_Gen_4/ThinkCentre_M90q_Gen_4_Spec.pdf) returned HTTP403. No PDF was received; therefore no document title/revision/hash, exact machine-type/model mapping, RAM limit/type, supported CPU/required BIOS or expansion/storage claim was verified. The URL filename alone is not identity or compatibility evidence. No retry, alternate download, manufacturer recommendation or production catalog entry was added. These manufacturer limits remain Unknown. This is an environment access limitation, not evidence that the product or official document lacks specifications.

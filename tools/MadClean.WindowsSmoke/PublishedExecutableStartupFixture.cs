@@ -185,7 +185,9 @@ internal static class PublishedExecutableStartupFixture
             AutomationElement Find(string id)
             {
                 var found = root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, id));
-                if (found.Count != 1 || found[0].Current.ProcessId != process.Id) throw new Unavailable("neutral-" + id[(id.LastIndexOf('.') + 1)..] + "-not-unique", null);
+                string label = "neutral-" + id[(id.LastIndexOf('.') + 1)..];
+                if (found.Count != 1) throw new Unavailable(label + (found.Count == 0 ? "-missing" : "-multiple"), null);
+                if (found[0].Current.ProcessId != process.Id) throw new Unavailable(label + "-owner-unconfirmed", null);
                 return found[0];
             }
             var inspect = Find("MadClean.Overview.Inspect");
