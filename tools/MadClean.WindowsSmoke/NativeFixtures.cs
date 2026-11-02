@@ -8,8 +8,11 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
+    public static bool NativeFixtureTreeCleanupConfirmed { get; private set; }
+
     public static void Run(string repository, SmokeReport report, CancellationToken token)
     {
+        NativeFixtureTreeCleanupConfirmed = false;
         if (!UiCapture.MsiActionBindingInteractionSettled || new WindowsMsiActionBindingInventory().HasPendingNativeRead)
         {
             report.Unknown("fixture-teardown", "A prior selected MSI or ARP query remains unsettled. No native fixture tree or later provider query was started.");
@@ -193,6 +196,7 @@ internal static partial class NativeFixtures
                     else
                     {
                         Directory.Delete(fixture, recursive: true);
+                        NativeFixtureTreeCleanupConfirmed = true;
                         report.Pass("fixture-teardown", $"stage=OwnedTreeRemoved; encountered={walk.Encountered}; inspected={walk.Inspected}; limit={FixtureTreeLimit}. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised.");
                     }
                 }

@@ -107,6 +107,8 @@ jobs:
         run: python tools/ci_command.py native-abi -- python tools/compile_wer_sdk.py
       - name: Compile development-only SDK shortcut control DLL (not packaged)
         run: python tools/ci_command.py shortcut-control -- python tools/compile_shortcut_control.py
+      - name: Prepare owned self-contained executable for startup validation (no distribution)
+        run: python tools/prepare_published_startup.py
       - name: Capture real WPF content and exercise isolated native fixtures
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'

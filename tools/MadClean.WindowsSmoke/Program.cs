@@ -52,6 +52,28 @@ internal static class Program
             // Application.Run can leave the closed dispatcher context installed on this STA.
             SynchronizationContext.SetSynchronizationContext(null);
             if (!report.Failed) NativeFixtures.Run(repository, report, deadline.Token);
+            const string startupCheck = "published-executable-startup";
+            if (!report.Failed && NativeFixtures.NativeFixtureTreeCleanupConfirmed)
+            {
+                string source = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "";
+                if (source.Length != 40 || source.Any(c => !Uri.IsHexDigit(c)))
+                    report.Unknown(startupCheck, "Current source commit is unavailable; no published executable was started.");
+                else
+                {
+                    var startup = PublishedExecutableStartupFixture.RunAsync(repository, source.ToLowerInvariant(), deadline.Token).GetAwaiter().GetResult();
+                    string detail = $"state={startup.State}; descriptor={startup.DescriptorValidated}; leased={startup.ExecutableLeased}; started={startup.ProcessStarted}; ownedWindow={startup.OwnedWindowObserved}; neutralOverview={startup.NeutralOverviewObserved}; noDataOverview={startup.OverviewNoDataObserved}; ownedBundledRuntime={startup.OwnedBundledRuntimeObserved}; closeRequested={startup.CloseRequested}; exitObserved={startup.ExitObserved}; exitCode={startup.ExitCode}; cleanup={startup.CleanupConfirmed}; stage={startup.Stage}; nativeError={startup.NativeError}. Scoped own-process startup only; no inventory actions or captures, and no distribution upload.";
+                    if (detail.Length > 1000)
+                    {
+                        if (startup.State == PublishedExecutableStartupState.Failed) report.Fail(startupCheck, "A published-startup invariant failed; diagnostic export exceeded its bound.");
+                        else report.Unknown(startupCheck, "Published-startup diagnostic export exceeded its bound; no success claimed.");
+                    }
+                    else if (startup.State == PublishedExecutableStartupState.Observed && startup.CleanupConfirmed && !PublishedExecutableStartupFixture.HasPendingStartup && !PublishedExecutableStartupFixture.RequiresRetention)
+                        report.Pass(startupCheck, detail);
+                    else if (startup.State == PublishedExecutableStartupState.Failed) report.Fail(startupCheck, detail);
+                    else report.Unknown(startupCheck, detail);
+                }
+            }
+            else report.Unknown(startupCheck, "Earlier validation failed or native tree teardown is uncertain; no published executable was started.");
         }
         catch (Exception ex)
         {

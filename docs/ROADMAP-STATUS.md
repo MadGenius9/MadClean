@@ -205,3 +205,8 @@ The next [private-journal seam](SYSTEM-TOOL-PRIVATE-JOURNAL.md) adds fixed exist
 Source927d3cd/run41459008138/evidence61d4f38d856150ddb2258f69272beb4d999bc6fa passed the owned private-journal backend fixture: existing-only absence created nothing, the production writer guard rejected access, exclusive contention blocked, inert records flushed/read back/reopened, read-only intent was refused and unresolved loss blocked another intent. No production writer or actual client was used. Core1,185 Passed+10 NotExecuted=1,195;77 checks68 passed/9 Unknown/0 failed, successful main build stages, parent teardown127/127/512 and publishing skipped. This does not qualify production parent security, namespace races or permission to dispatch.
 
 The next source adds only a bounded fresh child-error sample to the independent DISM metadata import control. Original import facts and acceptance remain unchanged; no dependency, health command or additional import is invoked. Static review and full local build passed. New error provenance remains Windows-unverified.
+
+
+## Standalone startup validation increment
+
+The existing app now has a separate owned self-contained publish/startup fixture and required source-bound evidence check; see [scope and limits](PUBLISHED-STARTUP-VALIDATION.md). Local build succeeds with zero warnings/errors; Python151 total,150 passed/one Windows-only skip. Actual Windows publication, neutral UI Automation, owned bundled-runtime observation, graceful exit and teardown are pending CI. No distribution ZIP or executable upload is prepared, and no roadmap action gate is promoted.

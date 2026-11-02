@@ -1,0 +1,15 @@
+# Published executable startup validation
+
+This development check publishes the existing WPF project as a self-contained Windows x64 single-file app, using the README options and locked runtime package graph. It is separate from distribution packaging: no ZIP, binary upload, signing, installation or release is performed. Compilation alone never satisfies this check.
+
+The Windows preparation script accepts no arguments. It creates a fresh marked scope under artifacts, refuses stale descriptors, validates bounded ordinary files, and writes an exclusive three-field descriptor bound to the current source commit. The publish output and initially empty bundle cache stay outside the uploaded validation directory. Fixed CI logs retain only bounded scrubbed development output.
+
+After prior GUI/native workers and their owned tree teardown settle, the harness validates the descriptor, retains native leases on its own executable and directory ancestors, and starts that exact executable without arguments or shell execution. The child receives only selected standard Windows environment variables plus its owned bundle extraction directory; CI credentials, startup hooks and profiler variables are not inherited. There is no production test flag or permission override.
+
+Out-of-process UI Automation reads only this own process's window and neutral Overview controls. It checks unchecked summaries, unknown Defender status, absent capacity reading and no selected drive twice. It invokes no inspection, update, navigation or inventory command and takes no capture. These properties establish only the observed neutral dashboard; they do not trace every I/O operation or prove the absence of background behavior in all environments.
+
+Using the held own process handle, a fixed-capacity Windows module query must observe coreclr.dll under the owned extraction cache. Unavailable or truncated module information stays inconclusive; a successful launch with an installed runtime is not substituted for this evidence. Module values are never exported. A graceful close request is followed by actual process exit and exit-code observation. A queued WM_CLOSE alone is not completion. An observed exit before the required window or an observed nonzero exit code fails this startup contract; no crash cause is inferred.
+
+Caller cancellation or deadline cannot release another worker's process/native resources. Unsettled workers, ambiguous launch outcomes or cleanup uncertainty retain the scope. Only after actual child exit and returned Automation calls may bounded marker/identity/tree validation and checked lease release precede owned development artifact removal. There is no force-kill or cleanup of client files.
+
+The required source-bound published-executable-startup result exports bounded states and booleans only. Linux compilation and preparation tests with a fake publisher are not Windows startup evidence. A passing runner observation would still leave physical input, DPI, assistive technology, signature/reputation, every supported Windows configuration and action-module validation outstanding.
