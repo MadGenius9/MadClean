@@ -83,3 +83,6 @@ Source2077c50/run41365750643 passed the actual initial pair-recheck command, det
 
 
 Sourceb975b7c/run41373299979 passed initial cleanup-file recheck bindings/disabled state/client bounds. Coordinator inspected tool28 (1404×961; SHA-2564f1460b146ab5d751e0ec9ea8f8adbfb044de8e049b9c9661db9d6df6f182eb3) from evidence97bf2e9e7004d46fe22944353ba8cc6bed9aebc5. The real card and neutral status are visible without queried/sample data. A later owned temporary-file interaction uses actual Inspect, grid and button automation, with no injected rows or post-query capture; its live selection/cancel proof awaits Windows and cannot establish physical input/accessibility or private snapshot identity.
+
+
+The native popup check now also requires each generated More tools container's real WPF automation peer to expose its visible NavigationLink title. This validates the accessible-name binding only. It generates no input or inventory action; physical keyboard, screen-reader and broader accessibility testing remain separate. New source-bound proof for this assertion is pending.

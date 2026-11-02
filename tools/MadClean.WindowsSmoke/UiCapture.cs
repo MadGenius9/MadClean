@@ -345,9 +345,16 @@ internal static partial class UiCapture
                 await Idle(window);
                 if (tools.Template.FindName("PART_Popup", tools) is not Popup { IsOpen: true, Child: { IsVisible: true } })
                     throw new SmokeAssertionException("ui-tool-popup");
+                foreach (var link in links)
+                {
+                    if (tools.ItemContainerGenerator.ContainerFromItem(link) is not ComboBoxItem item ||
+                        System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(item) is not { } peer ||
+                        !string.Equals(peer.GetName(), link.Title, StringComparison.Ordinal))
+                        throw new SmokeAssertionException("ui-tool-popup-accessible-name");
+                }
                 tools.IsDropDownOpen = false;
                 AssertNoInventory(model);
-                report.Pass("ui-tool-popup", "The real More tools popup opens, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted.");
+                report.Pass("ui-tool-popup", "The real More tools popup opens; every generated tool item exposes its actual title through a WPF automation peer, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted.");
                 // All captures and unchecked/navigation assertions are complete. This separate
                 // explicit CI metadata workflow must not produce any later screenshots.
                 await CheckInstalledAppSearch(window, model, report);

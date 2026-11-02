@@ -9,3 +9,6 @@ ARP and MSI queries are sequential, non-atomic observations. Current-user plus m
 The actual Windows contract fixture performs genuine registration queries only, exports fixed states/counts and never seeds registry entries or executes an installer. Missing suitable real coverage stays Unknown. Windows runtime evidence remains pending. This preflight is a prerequisite for later reviewed actions, not an action executor.
 
 Official supported API references and bounded metadata rules are shared with the existing MSI registration reader: [MsiEnumProductsExW](https://learn.microsoft.com/windows/win32/api/msi/nf-msi-msienumproductsexw) and [MsiGetProductInfoExW](https://learn.microsoft.com/windows/win32/api/msi/nf-msi-msigetproductinfoexw).
+
+
+Actual Sourcecc13477/run41453192709/evidencef7324052d9f2ec5945bf41cf908271010b9bdeca passed the bound WPF interaction with one genuine observed context, completed enumeration, visible source/history preservation, selection-clear invalidation and no additional query activity. Installer execution remained disabled. Broader context/policy cases retain their portable coverage and require additional runtime cases as applicable.
