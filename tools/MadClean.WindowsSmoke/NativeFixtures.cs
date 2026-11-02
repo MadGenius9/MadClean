@@ -15,6 +15,7 @@ internal static partial class NativeFixtures
         Directory.CreateDirectory(fixture);
         File.WriteAllText(Path.Combine(fixture, ".madclean-fixture-owner"), marker);
         bool transactionProbeTeardownCompleted = true;
+        bool namespaceProbeTeardownCompleted = true;
         bool shortcutProbeTeardownCompleted = true;
         try
         {
@@ -111,10 +112,16 @@ internal static partial class NativeFixtures
                 transactionProbeTeardownCompleted = StartupTransactionInterference(fixture, report, token);
             }
             else report.Unknown("startup-transaction-interference-probe", "The earlier isolated transaction probe did not establish safe teardown; the interference probe was not started and the entire owned fixture tree is retained.");
+            if (transactionProbeTeardownCompleted && !StartupTransactionProbe.HasPendingNativeProbe)
+            {
+                namespaceProbeTeardownCompleted = false;
+                namespaceProbeTeardownCompleted = StartupNamespaceObservation(fixture, marker, report, token);
+            }
+            else report.Unknown("startup-transaction-namespace-observation", "Earlier transaction teardown is uncertain; no namespace observation started and the complete marked tree is retained.");
         }
         finally
         {
-            if (StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed)
+            if (StartupTransactionNamespaceProbe.HasPendingNativeProbe || StartupTransactionNamespaceProbe.RequiresFixtureRetention || !namespaceProbeTeardownCompleted || StartupTransactionProbe.HasPendingNativeProbe || !transactionProbeTeardownCompleted || ShortcutRenameProbe.HasPendingNativeProbe || !shortcutProbeTeardownCompleted || WindowsShortcutInventory.HasPendingMetadataRead || WindowsDuplicateInventory.HasPendingFileRead || !ShortcutDirectorySharingCleanupConfirmed || !SystemToolProcessObservationCleanupConfirmed)
             {
                 report.Unknown("fixture-teardown", "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted.");
             }

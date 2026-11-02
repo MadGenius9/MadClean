@@ -161,6 +161,10 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_namespace_observation_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='startup-transaction-namespace-observation']
+        self.save()
+        self.rejected()
     def test_passing_report_cannot_omit_a_directory_guard_profile(self):
         for name in ('shortcut-rename-source-guard','shortcut-rename-destination-guard','shortcut-rename-ancestor-guard'):
             with self.subTest(name=name):

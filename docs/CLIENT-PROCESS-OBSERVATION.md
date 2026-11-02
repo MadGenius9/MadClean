@@ -18,6 +18,13 @@ The parent retains bounded ownership of unconfirmed children and its apphost lea
 
 ## Validation limits
 
-The coordinator reports a passing full solution build and 1,087 portable .NET tests on Linux. Python tooling results are 125 total: 124 passed and one Windows-only skip. Independent source review corrected optional-start metadata so it cannot erase an actual exit and found no remaining material blocker in the reviewed observer, dormant provider mapping, fixed child protocol or ownership guards. These local checks do not establish Windows process or fixture success. New source-bound Windows runtime evidence remains pending.
+The coordinator reports a passing full solution build and 1,087 portable .NET tests on Linux. Python tooling results are 125 total: 124 passed and one Windows-only skip. Independent source review corrected optional-start metadata so it cannot erase an actual exit and found no remaining material blocker in the reviewed observer, dormant provider mapping, fixed child protocol or ownership guards. These local checks do not establish Windows process or fixture success. Source-bound Windows observation is recorded below; the broader validation gates remain pending.
 
 Private logs, durable reconciliation across application instances, bounded UAC behavior, actual servicing execution, Windows result-log interpretation and tool-specific interruption/recovery remain separate unverified gates. No real DISM/SFC/UAC/repair operation is authorized or exercised by the inert fixture, and this increment does not complete D2 or D3.
+
+
+## Actual owned Windows observation
+
+[Run 41365750643](https://github.com/MadGenius9/MadClean/actions/runs/41365750643), source `2077c50`, evidence `d1c31a613885315285638515eea8936ae1b57392`, passed the required inert process fixture: four real children, exit 0 and 23, pre-cancel/live observation-stop while still alive, cooperative release then exit 0, actual exited-with-stop precedence, borrowed handle ownership and unstarted-process Unavailable. All actual exits and exact owned file audits completed; fixture teardown passed. No DISM, SFC, UAC, repair, installation or forced termination ran.
+
+Core records reconcile 1,087 total: 1,077 Passed and 10 NotExecuted. The full build, SDK and native-control compilation passed. The report contains 51 scoped passes, zero failures and six inconclusive checks in other areas; the aggregate remains inconclusive. Packaging was skipped. This is scoped actual process-observation evidence, not production servicing readiness or general power-loss/durability proof.
