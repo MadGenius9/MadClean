@@ -8,27 +8,60 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
+    private enum DismCapabilityTransportStage { Host, Formatting, CommandLineBound, Process, Exit, OutputBound, Parse, Projection, Completed }
+
     // Metadata discovery only. This runner's process-tree termination is NOT a servicing
     // cancellation mechanism and must never be reused to launch CheckHealth or a repair.
     private static void DismPowerShellCapability(SmokeReport report, CancellationToken token)
     {
         const string check = "dism-powershell-capability-contract";
+        var transportStage = DismCapabilityTransportStage.Host;
+        int? observedExit = null, observedCharacters = null;
+        string TransportEvidence(Exception? exception = null)
+        {
+            string kind = exception switch
+            {
+                null => "None", Win32Exception => "Win32", JsonException => "Json", TimeoutException => "Timeout",
+                OperationCanceledException => "Cancelled", UnauthorizedAccessException => "AccessDenied", IOException => "IO",
+                System.Security.SecurityException => "Security", ArgumentException => "Argument", InvalidOperationException => "InvalidOperation", _ => "Unknown"
+            };
+            string code = exception == null ? "unobserved" : "0x" + unchecked((uint)exception.HResult).ToString("X8");
+            string native = exception is Win32Exception win32 ? win32.NativeErrorCode.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unobserved";
+            string exit = observedExit?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unobserved";
+            string characters = observedCharacters?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unobserved";
+            return $"transport={transportStage}; transportException={kind}/{code}; win32={native}; exit={exit}; outputChars={characters}. ";
+        }
         try
         {
             token.ThrowIfCancellationRequested();
             string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
             if (!OperatingSystem.IsWindows() || !Path.IsPathFullyQualified(system))
-            { report.Unknown(check, "The fixed Windows PowerShell metadata host is unavailable. No health check or servicing command was invoked."); return; }
+            { report.Unknown(check, TransportEvidence() + "The fixed Windows PowerShell metadata host is unavailable. No health check or servicing command was invoked."); return; }
             string executable = Path.Combine(system, @"WindowsPowerShell\v1.0\powershell.exe");
             if (!DismCapabilitySafeFile(executable))
-            { report.Unknown(check, "The fixed metadata host path was missing or unsafe. Path qualification does not establish publisher trust; no alternative host was launched."); return; }
-            var result = new ReadOnlyProcess().RunAsync(executable,
-                ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(DismCapabilityScript))],
+            { report.Unknown(check, TransportEvidence() + "The fixed metadata host path was missing or unsafe. Path qualification does not establish publisher trust; no alternative host was launched."); return; }
+            transportStage = DismCapabilityTransportStage.Formatting;
+            if (!DismCapabilityFormatFixedScript(out string formatted))
+            { report.Unknown(check, TransportEvidence() + "The fixed source contains an unsupported formatting construct; no script was shortened, truncated or launched. No health check was invoked."); return; }
+            string[] arguments = ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(formatted))];
+            transportStage = DismCapabilityTransportStage.CommandLineBound;
+            if (!DismCapabilityCommandLineFits(executable, arguments))
+            { report.Unknown(check, TransportEvidence() + "The complete conservatively quoted fixed command line exceeds the 32,767 UTF-16-character limit including NUL. The encoded script was not truncated or launched; no health check was invoked."); return; }
+            transportStage = DismCapabilityTransportStage.Process;
+            var result = new ReadOnlyProcess().RunAsync(executable, arguments,
                 TimeSpan.FromSeconds(20), token).GetAwaiter().GetResult();
+            observedExit = result.ExitCode;
+            observedCharacters = result.Output.Length;
             token.ThrowIfCancellationRequested();
-            if (result.ExitCode != 0 || result.Output.Length is < 1 or > 16_384)
-            { report.Unknown(check, "The bounded metadata query did not return a supported result. No raw output, host details or provider errors are exported; no health check was invoked."); return; }
+            transportStage = DismCapabilityTransportStage.Exit;
+            if (result.ExitCode != 0)
+            { report.Unknown(check, TransportEvidence() + "The bounded metadata process did not exit successfully. No raw output or host/provider data is exported; no health check was invoked."); return; }
+            transportStage = DismCapabilityTransportStage.OutputBound;
+            if (result.Output.Length is < 1 or > 16_384)
+            { report.Unknown(check, TransportEvidence() + "The metadata output was empty or outside its bound; it was not parsed or exported. No health check was invoked."); return; }
+            transportStage = DismCapabilityTransportStage.Parse;
             using var document = JsonDocument.Parse(result.Output, new JsonDocumentOptions { MaxDepth = 3 });
+            transportStage = DismCapabilityTransportStage.Projection;
             var root = document.RootElement;
             string[] flags = ["HostPathQualified", "ManifestPathQualified", "ImportedModuleBound", "CommandBound", "OutputTypeResolved",
                 "OutputAssemblyPathQualified", "HealthPropertyReadable", "HealthPropertyEnum", "EnumShapeMatched", "SharedParameterSetMatched",
@@ -54,31 +87,87 @@ internal static partial class NativeFixtures
                     (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out int count) || count is < 0 or > 64)) ||
                 diagnosticNumbers.Any(name => !NullableInteger(name)) || !FixedText("Stage", stages) || !FixedText("OuterExceptionKind", kinds) ||
                 !FixedText("ExceptionKind", kinds) || !FixedText("ModuleError", moduleErrors))
-            { report.Unknown(check, "The metadata projection was unrecognized or ambiguous. No type/parameter capability, publisher trust or health result was inferred."); return; }
+            { report.Unknown(check, TransportEvidence() + "The metadata projection was unrecognized or ambiguous. No type/parameter capability, publisher trust or health result was inferred."); return; }
             bool Flag(string name) => root.GetProperty(name).GetBoolean();
             int? Count(string name) => root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : root.GetProperty(name).GetInt32();
             string CountText(string name) => Count(name)?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unobserved";
             string Text(string name) => root.GetProperty(name).GetString()!;
             string HResultText(string name) => Count(name) is { } code ? "0x" + unchecked((uint)code).ToString("X8") : "unobserved";
             if (Flag("PublisherTrustVerified") || Flag("HealthCheckInvoked"))
-            { report.Fail(check, "The metadata-only projection contradicted its no-health-execution/no-publisher-verification invariant. No payload or host data is exported."); return; }
+            { report.Fail(check, TransportEvidence() + "The metadata-only projection contradicted its no-health-execution/no-publisher-verification invariant. No payload or host data is exported."); return; }
             bool qualified = flags.Where(name => name is not ("PublisherTrustVerified" or "HealthCheckInvoked")).All(Flag) &&
                 Count("OutputTypeCount") is >= 1 and <= 8 && Count("PublicPropertyCount") is >= 1 and <= 64 && Count("EnumMemberCount") == 3 &&
                 Count("ParameterSetCount") is >= 1 and <= 16 && Count("SharedParameterSetCount") is >= 1 and <= 16 &&
                 Count("SharedParameterSetCount") <= Count("ParameterSetCount");
             string detail = $"metadata={status.GetString()}; stage={Text("Stage")}; host={Flag("HostPathQualified")}; manifest={Flag("ManifestPathQualified")}; module={Flag("ImportedModuleBound")}; command={Flag("CommandBound")}; outputType={Flag("OutputTypeResolved")}; assemblyPath={Flag("OutputAssemblyPathQualified")}; propertyReadable={Flag("HealthPropertyReadable")}; propertyEnum={Flag("HealthPropertyEnum")}; enumShape={Flag("EnumShapeMatched")}; sharedSet={Flag("SharedParameterSetMatched")}; switches={Flag("SwitchParametersMatched")}; noOtherMandatory={Flag("NonTargetMandatoryAbsent")}; counts(output/property/enum/sets/shared)={CountText("OutputTypeCount")}/{CountText("PublicPropertyCount")}/{CountText("EnumMemberCount")}/{CountText("ParameterSetCount")}/{CountText("SharedParameterSetCount")}; errorCategory={CountText("ErrorCategory")}; outer={Text("OuterExceptionKind")}/{HResultText("OuterExceptionHResult")}; exception={Text("ExceptionKind")}/{HResultText("ExceptionHResult")}; moduleError={Text("ModuleError")}; publisherTrustVerified=false; healthCheckInvoked=false. ";
             bool complete = status.GetString() == "Available" && qualified;
-            string message = detail + (complete
+            transportStage = DismCapabilityTransportStage.Completed;
+            string message = TransportEvidence() + detail + (complete
                 ? "Candidate metadata observed only. No output instance/getter or health/servicing command invoked. No stable result-schema, publisher, elevation, component-health or production-readiness proof."
                 : "Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement.");
             if (message.Length > 1000)
-            { report.Unknown(check, "The bounded metadata summary could not preserve its complete qualification. No health check was invoked and no publisher trust or production servicing readiness is established."); return; }
+            { report.Unknown(check, TransportEvidence() + "The bounded metadata summary could not preserve its complete qualification. No health check was invoked and no publisher trust or production servicing readiness is established."); return; }
             if (complete) report.Pass(check, message);
             else report.Unknown(check, message);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or
             ArgumentException or System.Security.SecurityException or JsonException or OperationCanceledException or TimeoutException)
-        { report.Unknown(check, "The bounded fixed-module metadata query did not complete with recognized evidence. No raw provider/exception text, paths or host identity is exported; no health check, repair, UAC or ADK payload was requested."); }
+        { report.Unknown(check, TransportEvidence(ex) + "The fixed-module metadata query did not complete. These are actual exception metadata, not a guessed native cause. No raw text/paths, health check, repair, UAC or ADK payload."); }
+    }
+
+    // Formatting of this fixed constant only, not a PowerShell minifier. Preserve statement
+    // boundaries and directives, reject unsupported multiline constructs, and always join LF.
+    private static bool DismCapabilityFormatFixedScript(out string formatted)
+    {
+        List<string> lines = [];
+        foreach (string source in DismCapabilityScript.Split('\n'))
+        {
+            string line = source.Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith('#') && !line.StartsWith("#requires", StringComparison.OrdinalIgnoreCase)) continue;
+            if (line.Contains('`') || line.Contains("@'", StringComparison.Ordinal) || line.Contains("@\"", StringComparison.Ordinal))
+            { formatted = ""; return false; }
+            char quote = '\0';
+            for (int index = 0; index < line.Length; index++)
+            {
+                char value = line[index];
+                if (quote == '\0')
+                {
+                    if (value == '#') break;
+                    if (value is '\'' or '"') quote = value;
+                }
+                else if (value == quote)
+                {
+                    if (index + 1 < line.Length && line[index + 1] == quote) index++;
+                    else quote = '\0';
+                }
+            }
+            if (quote != '\0') { formatted = ""; return false; }
+            lines.Add(line);
+        }
+        formatted = string.Join('\n', lines);
+        return formatted.Length != 0;
+    }
+
+    private static bool DismCapabilityCommandLineFits(string executable, IReadOnlyList<string> arguments)
+    {
+        // Quote EVERY token conservatively, including backslashes before quotes/end, as in
+        // Windows argument quoting. Include executable, separators and the terminal WCHAR NUL.
+        static long QuotedLength(string value)
+        {
+            if (value.Contains('\0')) return 32_768;
+            long length = 2, backslashes = 0;
+            foreach (char character in value)
+            {
+                if (character == '\\') { backslashes++; continue; }
+                length += character == '"' ? backslashes * 2 + 2 : backslashes + 1;
+                backslashes = 0;
+            }
+            return length + backslashes * 2;
+        }
+        long total = QuotedLength(executable) + 1;
+        foreach (string argument in arguments) total += 1 + QuotedLength(argument);
+        return total <= 32_767;
     }
 
     private static bool DismCapabilitySafeFile(string path)

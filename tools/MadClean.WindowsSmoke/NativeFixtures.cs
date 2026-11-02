@@ -10,6 +10,11 @@ internal static partial class NativeFixtures
 {
     public static void Run(string repository, SmokeReport report, CancellationToken token)
     {
+        if (!UiCapture.CleanupFileEvidenceInteractionCleanupConfirmed)
+        {
+            report.Unknown("fixture-teardown", "Prior owned GUI temporary-file cleanup is uncertain. Its exact tree/leases remain retained; no subsequent native fixture scope was created or mutated.");
+            return;
+        }
         string fixture = Path.Combine(repository, "artifacts", "windows-validation-fixtures-" + Guid.NewGuid().ToString("N"));
         string marker = Guid.NewGuid().ToString("N");
         Directory.CreateDirectory(fixture);

@@ -80,3 +80,6 @@ Source158b7a4/run41358222404 adds an independently visible recorded-access-contr
 
 
 Source2077c50/run41365750643 passed the actual initial pair-recheck command, details, separate current-exclusion caption and client-bounds assertions without queries. The coordinator inspected tool27 (1404×961; SHA-2565ec40eaf6be65741db0a2fb4522e378f2e7c54d8fa5b7d805a3da591c77c52a1) from evidence d1c31a613885315285638515eea8936ae1b57392. Caption and disabled unchecked controls are legible in the navy workspace. This verifies initial rendering only, not populated selection/cancellation interaction, physical input, DPI or accessibility.
+
+
+Sourceb975b7c/run41373299979 passed initial cleanup-file recheck bindings/disabled state/client bounds. Coordinator inspected tool28 (1404×961; SHA-2564f1460b146ab5d751e0ec9ea8f8adbfb044de8e049b9c9661db9d6df6f182eb3) from evidence97bf2e9e7004d46fe22944353ba8cc6bed9aebc5. The real card and neutral status are visible without queried/sample data. A later owned temporary-file interaction uses actual Inspect, grid and button automation, with no injected rows or post-query capture; its live selection/cancel proof awaits Windows and cannot establish physical input/accessibility or private snapshot identity.

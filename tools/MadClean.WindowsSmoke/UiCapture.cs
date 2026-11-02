@@ -353,6 +353,13 @@ internal static partial class UiCapture
                 await CheckInstalledAppSearch(window, model, report);
                 await CheckPackagedAppSearch(window, model, report);
                 await CheckInspectionEvidence(window, model, report);
+                if (!report.Failed) await CheckCleanupFileEvidenceInteraction(window, model, report);
+                else
+                {
+                    report.Unknown("ui-cleanup-file-evidence-interaction", "A prior GUI invariant failed; no owned temporary-file interaction started.");
+                    report.Unknown("ui-cleanup-file-evidence-selection-race", "A prior GUI invariant failed; no selection-race proof is claimed.");
+                    report.Unknown("ui-cleanup-file-evidence-cancellation", "A prior GUI invariant failed; no cancellation proof is claimed.");
+                }
                 completed = true;
             }
             catch (SmokeAssertionException ex)
