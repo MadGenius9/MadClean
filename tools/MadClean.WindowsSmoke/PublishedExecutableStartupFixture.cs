@@ -169,11 +169,11 @@ internal static class PublishedExecutableStartupFixture
             }
             if (window == 0 || !OwnsWindow(window)) throw new Unavailable("owned-window-unobserved", null);
             ownedWindow = true;
+            stage = "observe-owned-bundled-runtime";
+            ObserveBundledRuntime(); bundled = true;
             stage = "observe-neutral-overview";
             ObserveNeutralOverview(); Thread.Sleep(250); Check(); ObserveNeutralOverview();
             neutral = true; noData = true;
-            stage = "observe-owned-bundled-runtime";
-            ObserveBundledRuntime(); bundled = true;
             stage = "published-neutral-startup-observed";
         }
         private void ObserveNeutralOverview()

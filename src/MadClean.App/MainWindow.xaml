@@ -56,9 +56,9 @@
         <Border Grid.Row="2" Background="#1A3652" BorderBrush="#426582" BorderThickness="0,0,0,1" Padding="24,12" Visibility="{Binding HasMadCleanReminder, Converter={StaticResource BooleanVisibility}}">
             <DockPanel><Button DockPanel.Dock="Right" Content="View MadClean update" Command="{Binding MadCleanReminderCommand}"/><TextBlock Text="{Binding MadCleanReminderText}" VerticalAlignment="Center" Margin="0,0,16,0" AutomationProperties.LiveSetting="Polite"/></DockPanel>
         </Border>
-        <TabControl Grid.Row="3" SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0">
-            <TabControl.ItemContainerStyle><Style TargetType="TabItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/></Style></TabControl.ItemContainerStyle>
-            <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
+        <local:PageHost AutomationProperties.Name="Main content" Grid.Row="3" SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0">
+            <local:PageHost.ItemContainerStyle><Style TargetType="TabItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/></Style></local:PageHost.ItemContainerStyle>
+            <local:PageHost.Template><ControlTemplate TargetType="{x:Type local:PageHost}"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/></ControlTemplate></local:PageHost.Template>
                 <TabItem Header="Overview">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid>
@@ -632,7 +632,7 @@
             <TabItem Header="Guided Windows workflows"><views:GuidedWindowsView/></TabItem>
             <TabItem Header="Windows integrity tools"><views:SystemToolsView/></TabItem>
             <TabItem Header="Startup recovery previews"><views:StartupActionsView/></TabItem>
-        </TabControl>
+        </local:PageHost>
         <Border Grid.Row="4" BorderBrush="#294256" BorderThickness="0,1,0,0" Background="#162A3B" Padding="28,10">
             <StackPanel>
                 <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="2" Foreground="#44B4FF" Background="#263E54" Visibility="{Binding IsBusy, Converter={StaticResource BooleanVisibility}}" Margin="0,0,0,8"/>
