@@ -10,6 +10,11 @@ internal static partial class NativeFixtures
 {
     public static void Run(string repository, SmokeReport report, CancellationToken token)
     {
+        if (!UiCapture.DiagnosticChannelInteractionSettled)
+        {
+            report.Unknown("fixture-teardown", "The prior passive Diagnostics UI query has not settled. No subsequent provider query or owned native fixture scope was started.");
+            return;
+        }
         if (!UiCapture.CleanupFileEvidenceInteractionCleanupConfirmed)
         {
             report.Unknown("fixture-teardown", "Prior owned GUI temporary-file cleanup is uncertain. Its exact tree/leases remain retained; no subsequent native fixture scope was created or mutated.");

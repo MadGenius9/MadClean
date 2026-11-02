@@ -105,3 +105,6 @@ After every initial capture and existing inspection interaction, the populated c
 
 
 The required `cleanup-mapped-disposition-owned-probe` is described in [the mapped-file experiment](../docs/CLEANUP-MAPPED-DISPOSITION.md). It uses this process’s own non-executable view and fixed marked files only, exports distinct request/view/name/release observations, retains uncertain resources, and grants no production deletion permission.
+
+
+`ui-diagnostic-channel-coverage-interaction` runs after every image and earlier query interaction. It invokes one actual production passive Event Log read through the bound button, inspects channel selection/details/status and range invalidation, and exports fixed states/counts only. It never injects rows or captures populated controls. Missing genuine coverage stays Unknown; timeout requests existing cancellation without claiming provider completion. No WER, servicing, repair or elevation runs.

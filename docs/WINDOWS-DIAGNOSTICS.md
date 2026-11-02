@@ -100,3 +100,8 @@ The following current official Microsoft documentation was read for this roadmap
 Current implementation details: [WER metadata](WER-METADATA.md) covers minimized supported store reads and bounded caller/native ownership. [System-tool actions](SYSTEM-TOOL-ACTIONS.md) covers fixed Microsoft descriptors, explicit identity verification and the immutable disabled production execution boundary. No launch setting or environment override enables D2/D3. The current [ledger](ROADMAP-STATUS.md) distinguishes code, source-bound Windows evidence and unresolved gates.
 
 The separate [component-store flag API research](COMPONENT-STORE-FLAGS.md) confirms that `ScanImage=FALSE` is not a fresh scan, but also identifies elevated initialization and supported ADK deployment gates. No API implementation, inbox-DLL assumption, ADK download or hidden elevation was added to make that proposal look complete.
+
+
+## Per-channel coverage panel
+
+The Application/System coverage table uses only the existing parsed Event Log response. It distinguishes observed usable matching records from whole-log counts and retention probes. Unread, denied, missing, ambiguous or malformed sources retain unknown counts; actual validated zero matching records is a separate outcome. Truncation, rejected records, duplicate references and non-atomic retention conflicts preserve Partial coverage. Selecting a channel shows its explanation without another query; changing the range or starting/cancelling a read invalidates prior rows. No health score or repair suggestion is inferred from an empty response. Portable boundary tests cover these differences; populated WPF behavior requires its own actual Windows proof.

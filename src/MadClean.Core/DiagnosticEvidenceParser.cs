@@ -110,9 +110,12 @@ public static class DiagnosticEvidenceParser
                 string? bounds = source.GetProperty("BoundsStatus").ValueKind == JsonValueKind.String ? source.GetProperty("BoundsStatus").GetString() : null;
                 bool oldestKnown = Date(source.GetProperty("OldestUtc"), out var oldest);
                 bool newestKnown = Date(source.GetProperty("NewestUtc"), out var newest);
-                if (bounds == "Available" && (!oldestKnown || !newestKnown || oldest > newest || oldestId == null)) { bounds = "Unknown"; partial = channelPartial = true; }
+                if (bounds == "Available" && (!oldestKnown || !newestKnown || oldest > newest || oldestId == null || count == 0))
+                { bounds = "Unknown"; partial = channelPartial = true; }
                 if (bounds is not ("Available" or "Empty")) { bounds = "Unknown"; partial = channelPartial = true; }
-                if (bounds == "Empty" && (count != 0 || oldestKnown || newestKnown)) { bounds = "Unknown"; partial = channelPartial = true; }
+                if (bounds == "Empty" && (count != 0 || source.GetProperty("OldestRecordId").ValueKind != JsonValueKind.Null ||
+                    source.GetProperty("OldestUtc").ValueKind != JsonValueKind.Null || source.GetProperty("NewestUtc").ValueKind != JsonValueKind.Null))
+                { bounds = "Unknown"; partial = channelPartial = true; }
                 if (count == null) partial = channelPartial = true;
                 string retention = bounds == "Available"
                     ? $"oldest/newest currently retained event times {oldest:O} / {newest:O} (whole-log probes, not matching-event or continuous-coverage proof)"

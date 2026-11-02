@@ -164,6 +164,7 @@
 
     <!-- Local item containers deliberately bind NavigationLink.Title, the selector's contract. -->
     <Style x:Key="ReferenceToolSelectorItem" TargetType="ComboBoxItem">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
         <Setter Property="Foreground" Value="#C9D8EC"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>

@@ -360,6 +360,10 @@ internal static partial class UiCapture
                     report.Unknown("ui-cleanup-file-evidence-selection-race", "A prior GUI invariant failed; no selection-race proof is claimed.");
                     report.Unknown("ui-cleanup-file-evidence-cancellation", "A prior GUI invariant failed; no cancellation proof is claimed.");
                 }
+                if (!report.Failed && !model.IsBusy)
+                    await CheckDiagnosticChannelCoverageInteraction(window, model, report);
+                else
+                    report.Unknown("ui-diagnostic-channel-coverage-interaction", "A prior GUI failure or pending query prevents a separate Event Log interaction; no channel coverage proof claimed.");
                 completed = true;
             }
             catch (SmokeAssertionException ex)

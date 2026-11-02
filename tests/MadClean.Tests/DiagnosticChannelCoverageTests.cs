@@ -144,4 +144,39 @@ public sealed class DiagnosticChannelCoverageTests
         Assert.Equal(CheckState.Partial, result.State); Assert.Equal(2, report.ChannelCoverage.Count);
         Assert.DoesNotContain(report.ChannelCoverage, row => row.Channel == "Security");
     }
+    [Theory]
+    [InlineData("OldestRecordId", 1L)]
+    [InlineData("OldestRecordId", 0L)]
+    [InlineData("OldestRecordId", "malformed-private-retention")]
+    [InlineData("OldestUtc", "malformed-private-retention")]
+    [InlineData("NewestUtc", "malformed-private-retention")]
+    [InlineData("OldestUtc", "2026-10-01T00:00:00Z")]
+    public void EmptyRetentionRequiresExplicitNullReferencesInsteadOfFailedParsing(string field, object nonNull)
+    {
+        var application = Channel("Application");
+        application["BoundsStatus"] = "Empty"; application["RecordCount"] = 0;
+        application["OldestRecordId"] = null; application["OldestUtc"] = null; application["NewestUtc"] = null;
+        application[field] = nonNull;
+        var result = Parse(application, Channel("System"));
+        var row = Source(Assert.Single(result.Items), "Application");
+        Assert.Equal(CheckState.Partial, result.State); Assert.Equal(CheckState.Partial, row.State);
+        Assert.Equal(0, row.UsableMatchingRecords); Assert.Equal(0L, row.WholeLogRecordCount);
+        Assert.Equal(DiagnosticRetentionState.Unknown, row.RetentionState);
+        Assert.Null(row.OldestRetainedUtc); Assert.Null(row.NewestRetainedUtc);
+        Assert.DoesNotContain("malformed-private-retention", row.Explanation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZeroWholeLogCountCannotQualifyAvailableRetainedRecordBoundsEvenWithNoMatches()
+    {
+        var application = Channel("Application"); application["RecordCount"] = 0;
+        var result = Parse(application, Channel("System"));
+        var report = Assert.Single(result.Items); var row = Source(report, "Application");
+        Assert.Equal(CheckState.Partial, result.State); Assert.Equal(CheckState.Partial, row.State);
+        Assert.Equal(0L, row.WholeLogRecordCount); Assert.Equal(0, row.UsableMatchingRecords);
+        Assert.Equal(DiagnosticRetentionState.Unknown, row.RetentionState);
+        Assert.Null(row.OldestRetainedUtc); Assert.Null(row.NewestRetainedUtc);
+        Assert.Equal(CheckState.Available, Source(report, "System").State);
+    }
+
 }
