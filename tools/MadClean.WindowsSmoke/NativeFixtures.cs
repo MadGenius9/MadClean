@@ -148,10 +148,21 @@ internal static partial class NativeFixtures
                 // Teardown is restricted to exactly this harness-created tree. Production scanners never delete.
                 if (Directory.GetParent(fixture)?.FullName != Path.Combine(repository, "artifacts") ||
                     !Path.GetFileName(fixture).StartsWith("windows-validation-fixtures-", StringComparison.Ordinal) ||
-                    File.ReadAllText(Path.Combine(fixture, ".madclean-fixture-owner")) != marker || HasReparseEntry(fixture))
-                    throw new IOException("Fixture ownership could not be revalidated.");
-                Directory.Delete(fixture, recursive: true);
-                report.Pass("fixture-teardown", "Only the owned development fixture tree was removed; no application or personal-file cleanup action was exercised.");
+                    File.ReadAllText(Path.Combine(fixture, ".madclean-fixture-owner")) != marker)
+                {
+                    report.Unknown("fixture-teardown", "stage=Ownership; the exact marked artifact scope was not re-established. The tree was retained and no recursive deletion started.");
+                }
+                else
+                {
+                    var walk = InspectFixtureTree(fixture);
+                    if (walk.State != FixtureTreeState.Clear)
+                        report.Unknown("fixture-teardown", $"stage=TreeValidation; state={walk.State}; encountered={walk.Encountered}; inspected={walk.Inspected}; limit={FixtureTreeLimit}. The complete marked tree was retained; no recursive deletion started. No reparse point is inferred from a count limit.");
+                    else
+                    {
+                        Directory.Delete(fixture, recursive: true);
+                        report.Pass("fixture-teardown", $"stage=OwnedTreeRemoved; encountered={walk.Encountered}; inspected={walk.Inspected}; limit={FixtureTreeLimit}. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised.");
+                    }
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             { report.Unknown("fixture-teardown", $"Owned fixture cleanup could not complete (0x{ex.HResult:X8}); no broader deletion was attempted."); }
@@ -336,18 +347,23 @@ internal static partial class NativeFixtures
 
     private static bool PathEquals(string first, string second) => string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), StringComparison.OrdinalIgnoreCase);
 
-    private static bool HasReparseEntry(string root)
+    private const int FixtureTreeLimit = 100;
+    private enum FixtureTreeState { Clear, ReparsePointObserved, EntryLimitReached }
+    private sealed record FixtureTreeObservation(FixtureTreeState State, int Encountered, int Inspected);
+    private static FixtureTreeObservation InspectFixtureTree(string root)
     {
-        var pending = new Stack<string>(); pending.Push(root); int count = 0;
+        var pending = new Stack<string>(); pending.Push(root); int encountered = 0, inspected = 0;
         while (pending.TryPop(out var path))
         {
-            if (++count > 100) return true;
-            var attributes = File.GetAttributes(path);
-            if ((attributes & FileAttributes.ReparsePoint) != 0) return true;
+            if (++encountered > FixtureTreeLimit)
+                return new(FixtureTreeState.EntryLimitReached, encountered, inspected);
+            var attributes = File.GetAttributes(path); inspected++;
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+                return new(FixtureTreeState.ReparsePointObserved, encountered, inspected);
             if ((attributes & FileAttributes.Directory) != 0)
                 foreach (var child in Directory.EnumerateFileSystemEntries(path)) pending.Push(child);
         }
-        return false;
+        return new(FixtureTreeState.Clear, encountered, inspected);
     }
 
     // Development fixture creation only. Production S1 code never creates/saves/activates shortcuts.
