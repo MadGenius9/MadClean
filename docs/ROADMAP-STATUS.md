@@ -223,3 +223,22 @@ The disposable Windows CI job now invokes a separate fixed read-only provider mo
 
 
 Actual separate provider observation at source39d5fad/run41478096814 (evidenceab9e7627efca51919a997f04d0878ba0b5be852c) returned WUA Available with three software offers and no driver/firmware offers; WinGet remained Unknown/zero rows. Combined source coverage is inconclusive, without Up to date or installation claims.80 scoped checks:69 passed,11 inconclusive,0 failed. Windows core1,185 Passed/10 NotExecuted reconcile1,195; build, SDK/control and owned startup publication passed. Startup still stopped at Inspect-not-unique before neutral/bundled-runtime proof; its own process exited0 and teardown completed. The new named WPF presenter correction remains pending a separate source-bound result. Distribution packaging stayed off.
+
+## Planned phase: Automatic Maintenance
+
+**Status: planned, not implemented.** Build on the existing Update Center after direct selected program/driver installation, source-specific operation lifecycle and actual result handling have passed their reviewed Windows validation gates. This roadmap entry does not enable background work or relax any current execution gate.
+
+- **Scheduled automatic program updates:** user-enabled schedules and explicitly approved update scope, reusing validated Update Center sources, package identity/trust checks, prerequisites and installation/result handling.
+- **Scheduled automatic driver updates:** a separate opt-in policy, limited to supported, individually qualified device/driver updates after exact-device compatibility and source-specific installation/result validation. No blanket bulk driver replacement.
+- **Scheduled read-only PC inspections:** reuse the conservative inspection providers with timestamps, source and coverage; keep inspections separate from update execution. Failed, partial, unavailable or unknown checks must not become “clean” or “up to date.”
+- **Cleanup and attention notifications:** notify when supported inspection evidence indicates cleanup may be worthwhile or the PC needs review, explaining the finding and its uncertainty and linking to an explicit review. Notifications do not authorize automatic cleanup, deletion, repair or other corrective actions.
+
+Design and validation requirements before enabling this phase:
+
+- Persist user preferences for program updates, driver updates and inspections separately, with explicit enable/disable, scope and schedule controls.
+- Define and validate the background lifecycle, including missed schedules, sleep/resume, app exit, cancellation, overlapping work and pending/unknown outcomes; do not infer operation completion from process exit alone.
+- Deduplicate notifications, respect quiet hours and keep bounded local inspection/update/notification history with actual outcomes and privacy-preserving detail. Notification dismissal is not resolution.
+- Use safe defaults: automatic actions off until explicitly enabled, no silent elevation and no forced restarts. If consent or prerequisites are missing, notify and defer rather than bypass a gate.
+- Keep BIOS/firmware outside automatic driver/program updates; any future firmware action requires separate explicit approval and its existing model-specific safety and validation gates.
+
+This is planning only: no source/runtime change, schedule activation, current-PC access or maintenance action is included.
