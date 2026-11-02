@@ -161,6 +161,10 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_relative_directory_create_control_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='owned-relative-directory-create-control']
+        self.save()
+        self.rejected()
     def test_private_journal_scope_cannot_be_omitted(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-private-journal-scope']
         self.save()
