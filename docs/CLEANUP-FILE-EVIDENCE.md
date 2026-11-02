@@ -30,3 +30,12 @@ The initial real WPF panel passed bindings, disabled state and bounds. The coord
 The new separate GUI fixture creates one exact GUID-marked temporary directory on the disposable runner, then drives the real Inspect command, actual grid selection and button automation peer. No rows, providers, private snapshots or fixture reports are injected. Actual Windows inventory supplies the owned temporary-file row; the test checks accepted public metadata bindings, visible historical rows, selection invalidation and fixed activity behavior. It exports no paths/values or post-query screenshots. Busy selection/cancellation branches count as tested only if actually observed in flight; an already-finished operation leaves those checks inconclusive.
 
 Only the new marked directory is changed by the harness. Existing production enum-only activity writes remain expected; no preferences or Windows settings are changed. Exact entry/marker/native identity/content audits precede nonrecursive teardown. Busy/pending metadata or ownership uncertainty retains the directory and guards, and prevents later native fixture creation. This is integration coverage through real data and controls, not physical-input/accessibility, arbitrary settings races or private-snapshot identity proof. Local build passed; Windows interaction remains pending.
+
+
+## Actual production UI interaction
+
+[Run 41375513533](https://github.com/MadGenius9/MadClean/actions/runs/41375513533), source `44b7401`, evidence `155147941bede7a0b3f461ab260d63c84ac7acff`, passed the real Inspect/grid/button lookup on the owned actual-Temp file. Accepted public display lineage and visible historical rows were verified. Selection was cleared while Busy and blocked stale publication; CancelCommand was issued while Busy and settled Cancelled with historical rows preserved. Exact owned Temp teardown was audited and nonrecursive; later native fixture teardown passed.
+
+There were61 scoped passes, zero failures and seven inconclusive checks (68 actual check records, including the extra owned-UI teardown observation). Core1,120 Passed/10 NotExecuted reconciled1,130. Build/SDK/control/tooling passed; packaging was skipped. No paths/queried values or post-query screenshots were exported. These tests do not prove private snapshot identity, arbitrary external-settings races, physical input, DPI/accessibility or deletion eligibility.
+
+The separate [classic disposition experiment](CLEANUP-DISPOSITION-PROBE.md) changes only owned development files and supplies no client executor or permission.

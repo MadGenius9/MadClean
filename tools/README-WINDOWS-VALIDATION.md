@@ -96,3 +96,6 @@ The required `startup-transaction-namespace-observation` runs only after precedi
 
 
 After every initial capture and existing inspection interaction, the populated cleanup fixture drives real Inspect/grid/button bindings on one newly owned marked actual-Temp file. It never injects rows or uses a provider override. Required checks separate accepted metadata/history+selection invalidation, observed-live selection race and observed-live cancellation; already-finished operations leave race checks inconclusive. Existing app enum-only activity logging is expected; preferences/Windows settings are untouched. No post-query screenshots/values/paths are exported. Exact identity/bytes/topology audit and nonrecursive own cleanup gate later native fixtures; uncertainty retains Temp tree/guards. [Scope](../docs/CLEANUP-FILE-EVIDENCE.md).
+
+
+`cleanup-disposition-owned-probe` creates only fixed marked artifact files, never production Temp files. It separately records classic class4 acceptance, optional pending flag, checked target close and actual error2 name absence, plus six no-disposition refusal controls. Namespace/open errors and unobserved closes remain distinct. Caller stop/uncertain closure retains ownership/tree and skips later probes. Parent fixture cleanup is never a primitive fallback. [Contract and limits](../docs/CLEANUP-DISPOSITION-PROBE.md).

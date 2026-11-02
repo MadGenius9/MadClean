@@ -161,6 +161,10 @@ class PublisherTests(unittest.TestCase):
     def test_passing_report_requires_inert_process_observation(self):
         self.report['checks']=[check for check in self.report['checks'] if check['name']!='system-tool-process-observation-fixture']
         self.save(); self.rejected()
+    def test_owned_disposition_evidence_cannot_be_omitted(self):
+        self.report['checks']=[check for check in self.report['checks'] if check['name']!='cleanup-disposition-owned-probe']
+        self.save()
+        self.rejected()
     def test_populated_cleanup_interaction_checks_cannot_be_omitted(self):
         for name in ('ui-cleanup-file-evidence-interaction','ui-cleanup-file-evidence-selection-race','ui-cleanup-file-evidence-cancellation'):
             with self.subTest(name=name):
