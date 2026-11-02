@@ -361,14 +361,14 @@ internal static partial class UiCapture
                 await CheckPackagedAppSearch(window, model, report);
                 await CheckInspectionEvidence(window, model, report);
                 if (!report.Failed) await CheckCleanupFileEvidenceInteraction(window, model, report);
-                if (!report.HasCheck("ui-cleanup-selection-review-interaction"))
-                    report.Unknown("ui-cleanup-selection-review-interaction", "Earlier GUI preparation or source checks did not reach the real worksheet interaction; no selection, current metadata or source invalidation proof is claimed.");
                 else
                 {
                     report.Unknown("ui-cleanup-file-evidence-interaction", "A prior GUI invariant failed; no owned temporary-file interaction started.");
                     report.Unknown("ui-cleanup-file-evidence-selection-race", "A prior GUI invariant failed; no selection-race proof is claimed.");
                     report.Unknown("ui-cleanup-file-evidence-cancellation", "A prior GUI invariant failed; no cancellation proof is claimed.");
                 }
+                if (!report.HasCheck("ui-cleanup-selection-review-interaction"))
+                    report.Unknown("ui-cleanup-selection-review-interaction", "Earlier GUI preparation or source checks did not reach the real worksheet interaction; no selection, current metadata or source invalidation proof is claimed.");
                 if (!report.Failed && !model.IsBusy)
                     await CheckDiagnosticChannelCoverageInteraction(window, model, report);
                 else
@@ -377,6 +377,10 @@ internal static partial class UiCapture
                     await CheckMsiActionBindingInteraction(window, model, report);
                 else
                     report.Unknown("ui-msi-action-binding-interaction", "A previous GUI query or invariant is unsettled; no selected MSI interaction started.");
+                if (!report.Failed && !model.IsBusy && DiagnosticChannelInteractionSettled && MsiActionBindingInteractionSettled)
+                    await CheckDeviceDriverInventoryInteraction(window, model, report);
+                else
+                    report.Unknown("ui-device-driver-inventory-interaction", "A previous GUI query or invariant is unsettled; no explicit device-property interaction started.");
                 completed = true;
             }
             catch (SmokeAssertionException ex)
@@ -484,6 +488,10 @@ internal static partial class UiCapture
             model.InspectionEvidenceRows.Any(row => row.State != MadClean.Core.CheckState.Unknown || row.AttemptedUtc != null || row.CompletedUtc != null ||
                 !row.Observation.StartsWith("Not checked", StringComparison.Ordinal)))
             throw new SmokeAssertionException("ui-inspection-evidence-unchecked");
+        if (model.DeviceDriverRows.Count != 0 || model.SelectedDeviceDriver != null || model.HasPendingDeviceDriverRead ||
+            !model.DeviceDriverMessage.StartsWith("Not checked", StringComparison.Ordinal) ||
+            !model.DeviceDriverQueryDetails.StartsWith("Not checked", StringComparison.Ordinal))
+            throw new SmokeAssertionException("ui-device-driver-automatic-query");
         if (model.IsBusy || model.Activity.Count != 0 || model.Disks.Count != 0 || model.CleanupRows.Count != 0 || model.StartupRows.Count != 0)
             throw new SmokeAssertionException("ui-navigation-provider-activity");
         if (model.FirmwareHistoryRows.Count != 0 || model.FirmwareHistoryCoverage.Count != 0 || model.SelectedFirmwareRelease != null ||

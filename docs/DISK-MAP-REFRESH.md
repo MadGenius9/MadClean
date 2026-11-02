@@ -1,0 +1,15 @@
+# Explicit disk-map refresh
+
+**Refresh original folder** rereads the original user-selected disk-map scope. It is a separate explicit action; there is no polling, startup scan or automatic refresh. Drilling into a child, moving up and resetting the view only navigate the loaded snapshot. They do not change the original requested scope or issue filesystem queries. To map a different scope, use **Choose local folder**.
+
+Choose and Refresh share one read path. Before an accepted attempt, MadClean invalidates the displayed map, child navigation, selected item, issues and optional file-identity accounting. The original requested path is retained for retry after cancellation or failure. Old observations are never kept on screen as a successful refresh. An unsuccessful attempt does not prove that the folder is empty or that its files are gone.
+
+Each attempt revalidates that the requested path is absolute and on a fixed local drive, on a background task. The existing bounded metadata-only scanner then checks root-to-leaf ancestry, reparse/excluded attributes and metadata coverage again. A missing, inaccessible or changed folder has explicit incomplete/failed coverage; unsupported drives and paths do not become successful empty results. The scanner's existing entry, depth and issue limits remain in effect. No file contents are read, no items are changed and no elevated access is requested.
+
+The original requested scope, attempt-start UTC and returned-report UTC/coverage are available in **Original scope and check times**. Report receipt is not a per-file observation time or a claim that all observations happened simultaneously. Every refresh is a new path-based observation: it does not prove that the pathname still refers to the same folder object as the prior scan. Logical bytes remain different from physical allocation, unique-file bytes, reclaimable space and deletion permission.
+
+The global busy gate prevents another discovery/refresh while one is running. A separate map generation and cancellation checks after background validation and scanning suppress stale publication. Cancellation/failure clears any published map/identity snapshot again, including an interruption detected by the enclosing discovery runner. The scanner owns its work until its task settles; the UI does not close worker handles or claim that cancellation completed native I/O.
+
+## Validation limits
+
+Existing portable `DiskUsageTests` exercise actual fixture lengths, missing/file/relative roots, cancellation, traversal limits, reparse points and inaccessible paths where the platform permits. Those tests validate scanner boundaries, not a Windows WPF refresh interaction. The full solution must compile after the UI change. A Windows interaction still needs to select a real owned folder, drill into a child, refresh the original scope, observe reset navigation/identity invalidation, and check cancellation plus missing/inaccessible retry. Linux compilation is not evidence that these WPF interactions ran.

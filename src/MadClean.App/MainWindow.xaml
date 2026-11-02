@@ -458,10 +458,14 @@
                                 </ScrollViewer>
                                 <WrapPanel Margin="0,0,0,10">
                                     <Button Content="Choose local folder…" Command="{Binding ChooseDiskMapFolderCommand}"/>
+                                    <Button Content="Refresh original folder" Command="{Binding RefreshDiskMapCommand}" Background="#244B70" ToolTip="Recheck the originally selected folder, including when the map is drilled into a child. Previous map and identity results are cleared before the new read."/>
                                     <Button Content="Drill into selected folder" Command="{Binding DrillDiskMapCommand}" Background="#244B70"/>
                                     <Button Content="Up" Command="{Binding UpDiskMapCommand}" Background="#343E52" Foreground="White"/>
                                     <Button Content="Reset view" Command="{Binding ResetDiskMapCommand}" Background="#343E52" Foreground="White"/>
                                 </WrapPanel>
+                                <Expander Header="Original scope and check times" Foreground="#ECF1FB" Margin="0,0,0,8">
+                                    <TextBox Text="{Binding DiskMapQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="130" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" AutomationProperties.Name="Disk map original scope and query times"/>
+                                </Expander>
                                 <ScrollViewer MaxHeight="42" VerticalScrollBarVisibility="Auto">
                                     <TextBlock Text="{Binding DiskMapPath}" FontWeight="SemiBold"/>
                                 </ScrollViewer>

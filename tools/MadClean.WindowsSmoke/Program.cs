@@ -56,9 +56,11 @@ internal static class Program
             UiCapture.Run(output, report);
             // Application.Run can leave the closed dispatcher context installed on this STA.
             SynchronizationContext.SetSynchronizationContext(null);
-            if (!report.Failed) NativeFixtures.Run(repository, report, deadline.Token);
+            if (!report.Failed && UiCapture.DeviceDriverInteractionSettled) NativeFixtures.Run(repository, report, deadline.Token);
+            else if (!UiCapture.DeviceDriverInteractionSettled)
+                report.Unknown("fixture-teardown", "The explicit driver UI worker or native cleanup remains unsettled. No owned native fixture tree or later provider query was started.");
             const string startupCheck = "published-executable-startup";
-            if (!report.Failed && NativeFixtures.NativeFixtureTreeCleanupConfirmed)
+            if (!report.Failed && UiCapture.DeviceDriverInteractionSettled && NativeFixtures.NativeFixtureTreeCleanupConfirmed)
             {
                 string source = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "";
                 if (source.Length != 40 || source.Any(c => !Uri.IsHexDigit(c)))
