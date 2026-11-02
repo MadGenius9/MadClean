@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "d021866112918554764d9886109cf37aca735eee",
-  "runId": "41475252091",
+  "sourceCommit": "bb36c7cc95bd832ee518cd26447e1b8a5fca4cb3",
+  "runId": "41475906189",
   "runAttempt": 1,
-  "startedUtc": "2026-11-02T15:52:36.5187522+00:00",
-  "completedUtc": "2026-11-02T15:52:59.9785474+00:00",
+  "startedUtc": "2026-11-02T15:58:17.300313+00:00",
+  "completedUtc": "2026-11-02T15:58:42.6280715+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -166,7 +166,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -397,6 +397,11 @@
       "name": "fixture-teardown",
       "state": "passed",
       "detail": "stage=OwnedTreeRemoved; encountered=127; inspected=127; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
+    },
+    {
+      "name": "published-executable-startup",
+      "state": "inconclusive",
+      "detail": "state=Inconclusive; descriptor=True; leased=True; started=True; ownedWindow=True; neutralOverview=False; noDataOverview=False; ownedBundledRuntime=False; closeRequested=True; exitObserved=True; exitCode=0; cleanup=True; stage=neutral-element-not-unique; nativeError=. Scoped own-process startup only; no inventory actions or captures, and no distribution upload."
     }
   ],
   "screenshots": [
