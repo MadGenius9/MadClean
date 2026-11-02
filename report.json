@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "377122edd60c1000e46c3c9fe5ad37aa163ab16e",
-  "runId": "41363698642",
+  "sourceCommit": "2077c50bfeebee88050187d57edcf64fc84bff18",
+  "runId": "41365750643",
   "runAttempt": 1,
-  "startedUtc": "2026-11-01T23:50:50.9227373+00:00",
-  "completedUtc": "2026-11-01T23:51:06.7210409+00:00",
+  "startedUtc": "2026-11-02T00:15:15.2915315+00:00",
+  "completedUtc": "2026-11-02T00:15:31.3726891+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -80,8 +80,8 @@
     },
     {
       "name": "duplicate-pair-recheck-fixture",
-      "state": "inconclusive",
-      "detail": "stage=RegistrationExclusions; reason=RegistrationLocationUnsupported; registryNativeResult=unobserved; knownFoldersChecked=8; registrationKeysVisited=458; locationsAccepted=22; exclusionIssues=1; comparedBytes=0. Current state=Unknown; no complete Equal observation was established. The result remains inconclusive rather than action eligibility."
+      "state": "passed",
+      "detail": "sourceState=Partial; equalState=Partial; differentState=Partial; equalComparedBytes=262242; differentComparedBytes=262242; currentExclusionCoverage=Partial; exclusionStage=RegistrationExclusions; exclusionReason=RegistrationLocationUnsupported; exclusionIssues=1; nativeFullIdentitiesMatched=true; equalThenCurrentDifferent=true; exclusiveDataOpenAfterPublication=true; sameLengthOwnedTailChange=true; currentMultiLinkNonEqual=true; preCancel=true; historyUnchanged=true; keeperAndOutsideControlBytesUnchanged=true; CanRemove=false. This is current bounded read evidence only; no keeper protection, inactivity, removal eligibility or reclaimable-space claim is made. No file was deleted or replaced."
     },
     {
       "name": "disk-identity-fixture",
@@ -234,6 +234,11 @@
       "detail": "The hard gate rejects an acknowledged dummy repair descriptor with Unavailable/no elevation/no PID. The harness did not Prepare a tool identity, start servicing or request UAC; actual execution remains unverified and disabled."
     },
     {
+      "name": "system-tool-process-observation-fixture",
+      "state": "passed",
+      "detail": "inertChildren=4; actualExit0=true; actualExit23=true; precancelStoppedWhileAlive=true; liveStopWhileAlive=true; releaseThenExit0=true; exitedWithStopPreserved=true; borrowedOwnershipRetained=true; invalidProcessUnavailable=true; allActualExitsAndOwnedFilesAudited=true. This tests observation of this existing harness's fixed inert child modes only: no servicing executable, UAC, repair, installation, forced termination or tool-health conclusion occurred."
+    },
+    {
       "name": "shortcut-rename-handle-probe",
       "state": "inconclusive",
       "detail": "state=Unavailable; backend=ManagedWin32; controlApiCalls=0; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
@@ -336,19 +341,19 @@
       "file": "tool-12.png",
       "width": 1404,
       "height": 961,
-      "sha256": "d1d97666940bec7b8d2a76ba489faa88c1dedf7fe6a454f6fb1adf698ebe9644"
+      "sha256": "e4e90ba8e864a0bbcb38e9082fc382273f22d8ac25f191b74057b90626eddbee"
     },
     {
       "file": "tool-22.png",
       "width": 1404,
       "height": 961,
-      "sha256": "e745b5811c8e48c3572b1886fb473986d415c405c0893d3f2d51fa5b42cd9b4c"
+      "sha256": "8d1758efc830b5254b57550d54a86aa6ecf415e020d21bce573b0078febf67e2"
     },
     {
       "file": "tool-27.png",
       "width": 1404,
       "height": 961,
-      "sha256": "b3d565b9688415450409197e0f8b05b5bdfb3b1976a66b1f7cc99dd587a11404"
+      "sha256": "5ec40eaf6be65741db0a2fb4522e378f2e7c54d8fa5b7d805a3da591c77c52a1"
     },
     {
       "file": "tool-26.png",
