@@ -11,6 +11,7 @@ public sealed partial class MainViewModel
     private readonly IComponentStoreStatusProvider componentStoreStatus = new ComponentStoreStatusProvider();
     private ComponentStoreStatusPreview? componentStorePreview;
     private ComponentStoreStatusIntent? componentStoreIntent;
+    private ComponentStoreStatusResult? componentStoreLastResult;
     private IComponentStoreStatusSession? componentStoreSession;
     private Task<ComponentStoreStatusResult>? componentStoreCompletion;
     private CancellationTokenSource? componentStorePreparationStop;
@@ -29,6 +30,7 @@ public sealed partial class MainViewModel
     public string ComponentStorePreviewDetails { get => componentStorePreviewDetails; private set => Set(ref componentStorePreviewDetails, value); }
     public string ComponentStoreCurrentAssessment { get => componentStoreCurrentAssessment; private set => Set(ref componentStoreCurrentAssessment, value); }
     public string ComponentStoreLastObservation { get => componentStoreLastObservation; private set => Set(ref componentStoreLastObservation, value); }
+    public ComponentStoreStatusResult? ComponentStoreLastResult => componentStoreLastResult;
     public bool HasPendingComponentStoreStatus => componentStoreRunActive || componentStoreCompletion is { IsCompleted: false } ||
         componentStoreSession?.HasPendingWork == true || componentStoreSession?.RequiresRetention == true ||
         componentStoreStatus.HasPendingWork || componentStoreStatus.RequiresRetention;
@@ -117,6 +119,7 @@ public sealed partial class MainViewModel
                 throw new InvalidOperationException("Component-store observations are inconsistent.");
             var assessed = ComponentStoreStatusPolicy.Assess(intent, actual.Evidence, actual.Transport,
                 actual.AttemptedUtc, actual.CompletedUtc, componentStoreCallerStopRequested || componentStoreSession.StopRequested);
+            Set(ref componentStoreLastResult, assessed, nameof(ComponentStoreLastResult));
             ComponentStoreLastObservation = DescribeComponentStoreObservation(assessed);
             ComponentStoreMessage = assessed.Message;
             ComponentStoreCurrentAssessment = DescribeComponentStoreAssessment(assessed);

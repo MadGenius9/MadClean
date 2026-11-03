@@ -41,10 +41,13 @@ def collect(directory, context, read_json, safe_path, reject):
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage",
               "precancelState", "resultState", "recordedFlag", "transport", "evidence", "fixtureExceptionHResult"} | TOP_BOOLEANS
-    reject(isinstance(value, dict) and set(value) == fields and type(value["formatVersion"]) is int and value["formatVersion"] == 1, "component-report-schema")
+    reject(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {1, 2}, "component-report-schema")
+    version = value["formatVersion"]
+    reject(set(value) == fields | ({"ui"} if version == 2 else set()), "component-report-schema")
     reject(type(value["runAttempt"]) is int and (value["sourceCommit"], value["runId"], value["runAttempt"]) == context, "component-report-context")
     reject(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"}, "component-report-state")
-    reject(isinstance(value["stage"], str) and value["stage"] in {"OwnedSetup", "AdministratorUnavailable", "Precancel", "PrecancelInvariantFailed", "Candidate", "Observed", "OwnershipUnsettled", "Complete"}, "component-report-stage")
+    stages = {"OwnedSetup", "AdministratorUnavailable", "Precancel", "PrecancelInvariantFailed", "Candidate", "Observed", "OwnershipUnsettled", "Complete"}
+    reject(isinstance(value["stage"], str) and value["stage"] in stages | ({"UiActual", "UiUnsettled"} if version == 2 else set()), "component-report-stage")
     _booleans(value, TOP_BOOLEANS, reject)
     _label(value["precancelState"], CHECK_STATES, reject)
     _label(value["resultState"], CHECK_STATES, reject)
@@ -59,6 +62,52 @@ def collect(directory, context, read_json, safe_path, reject):
         except ValueError:
             reject(False, "component-report-time")
     reject(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=20), "component-report-time-order")
+    _validate_observation(value, reject)
+    transport, evidence = value["transport"], value["evidence"]
+    if version == 2:
+        _validate_ui(value["ui"], reject)
+    reject(value["requestMatched"] is not False or value["state"] == "failed", "component-request-mismatch")
+    if value["precancelNoHostObserved"] is True:
+        reject(value["precancelState"] == "Cancelled" and value["precancelAuthorizationTransferred"] is False, "component-precancel-coherence")
+    if value["ownedTeardown"] is True:
+        reject(value["candidateAuthorizationReleased"] is True and all(value[name] is False for name in ("sessionPending", "providerPending", "sessionRetention", "providerRetention")), "component-teardown-coherence")
+    if value["state"] == "passed":
+        required_true = {"administratorObserved", "precancelNoHostObserved", "candidateAuthorizationTransferred", "candidateAuthorizationReleased", "requestMatched", "transportConsistent", "evidenceConsistent", "ownedTeardown"}
+        required_false = {"precancelAuthorizationTransferred", "sessionStopRequested", "sessionPending", "providerPending", "sessionRetention", "providerRetention"}
+        reject(value["stage"] == "Complete" and value["resultState"] == "Available" and value["fixtureExceptionHResult"] is None and
+               all(value[name] is True for name in required_true) and all(value[name] is False for name in required_false), "component-pass-coherence")
+        _require_complete_observation(value, reject)
+        if version == 2:
+            ui = value["ui"]
+            reject(ui is not None and all(ui[name] is True for name in UI_BOOLEANS) and ui["exceptionHResult"] is None, "component-pass-ui")
+            _require_complete_observation(ui, reject)
+    return value
+
+
+UI_BOOLEANS = {"prepareObserved", "acknowledgementObserved", "confirmObserved", "resultReturned", "freshResultObserved", "settled", "transportConsistent", "evidenceConsistent"}
+
+
+def _validate_ui(ui, reject):
+    if ui is None:
+        return
+    reject(isinstance(ui, dict) and set(ui) == UI_BOOLEANS | {"resultState", "recordedFlag", "transport", "evidence", "exceptionHResult"}, "component-ui-schema")
+    _booleans(ui, UI_BOOLEANS, reject)
+    _label(ui["resultState"], CHECK_STATES, reject)
+    _label(ui["recordedFlag"], FLAGS, reject)
+    _integer(ui["exceptionHResult"], reject)
+    _validate_observation(ui, reject)
+    reject(ui["acknowledgementObserved"] is not True or ui["prepareObserved"] is True, "component-ui-order")
+    reject(ui["confirmObserved"] is not True or ui["acknowledgementObserved"] is True, "component-ui-order")
+    reject(ui["resultReturned"] is not True or ui["confirmObserved"] is True, "component-ui-order")
+    reject(ui["freshResultObserved"] is not True or ui["resultReturned"] is True, "component-ui-order")
+    if ui["resultReturned"] is not True:
+        reject(all(ui[name] is None for name in ("resultState", "recordedFlag", "transport", "evidence", "transportConsistent", "evidenceConsistent")), "component-ui-unobserved")
+    else:
+        reject(ui["resultState"] is not None and ui["recordedFlag"] is not None and ui["transport"] is not None, "component-ui-result")
+    reject(ui["settled"] is not True or ui["resultReturned"] is True and ui["freshResultObserved"] is True, "component-ui-settled")
+
+
+def _validate_observation(value, reject):
     transport, evidence = value["transport"], value["evidence"]
     if transport is not None:
         transport_fields = TRANSPORT_BOOLEANS | {"hostExitCode", "stderrCharacterCount", "stopSignalNativeError", "identityStage", "identityReason", "nativeTrustResult"}
@@ -109,28 +158,22 @@ def collect(directory, context, read_json, safe_path, reject):
         reject(value["recordedFlag"] not in (None, "Unknown"), "component-flag-coherence")
     reject(value["evidenceConsistent"] is not True or evidence is not None, "component-evidence-coherence")
     reject(value["transportConsistent"] is not True or transport is not None, "component-transport-coherence")
-    reject(value["requestMatched"] is not False or value["state"] == "failed", "component-request-mismatch")
-    if value["precancelNoHostObserved"] is True:
-        reject(value["precancelState"] == "Cancelled" and value["precancelAuthorizationTransferred"] is False, "component-precancel-coherence")
-    if value["ownedTeardown"] is True:
-        reject(value["candidateAuthorizationReleased"] is True and all(value[name] is False for name in ("sessionPending", "providerPending", "sessionRetention", "providerRetention")), "component-teardown-coherence")
-    if value["state"] == "passed":
-        required_true = {"administratorObserved", "precancelNoHostObserved", "candidateAuthorizationTransferred", "candidateAuthorizationReleased", "requestMatched", "transportConsistent", "evidenceConsistent", "ownedTeardown"}
-        required_false = {"precancelAuthorizationTransferred", "sessionStopRequested", "sessionPending", "providerPending", "sessionRetention", "providerRetention"}
-        reject(value["stage"] == "Complete" and value["resultState"] == "Available" and value["fixtureExceptionHResult"] is None and
-               all(value[name] is True for name in required_true) and all(value[name] is False for name in required_false), "component-pass-coherence")
-        reject(transport is not None and evidence is not None, "component-pass-coherence")
-        reject(all(transport[name] is True for name in ("administratorObserved", "hostStartAttempted", "hostStartObserved", "hostExitObserved", "ownershipReleased", "stdoutDrained", "stderrDrained")) and
-               transport["hostExitCode"] == 0 and transport["outputBoundExceeded"] is False and transport["stderrCharacterCount"] == 0 and
-               transport["stopSignalSucceeded"] is None and transport["stopSignalNativeError"] is None and
-               transport["identityStage"] == "Completed" and transport["identityReason"] == "Observed" and transport["nativeTrustResult"] == 0, "component-pass-transport")
-        reject(evidence["stage"] == "Completed" and evidence["outcome"] == "Completed" and evidence["pipelineState"] == "Completed" and
-               all(evidence[name] is True for name in ("hostQualified", "moduleBound", "cmdletQualified", "outputContractQualified", "invocationStarted", "endInvokeReturned", "powerShellDisposed", "runspaceClosed", "cancelHandleDisposed")) and
-               evidence["cancelEventObserved"] is False and evidence["beginStopCalled"] is False and evidence["endStopReturned"] is None and
-               evidence["outputCount"] == 1 and evidence["errorCount"] == 0 and evidence["warningCount"] == 0 and evidence["managedExceptionHResult"] is None, "component-pass-evidence")
-        expected = {"Healthy": "NoRecordedCorruptionFlag", "Repairable": "RecordedRepairable", "NonRepairable": "RecordedNonRepairable"}
-        reject(evidence["healthState"] in expected and value["recordedFlag"] == expected[evidence["healthState"]], "component-pass-flag")
-    return value
+
+
+def _require_complete_observation(value, reject):
+    transport, evidence = value["transport"], value["evidence"]
+    reject(value["resultState"] == "Available" and value["transportConsistent"] is True and value["evidenceConsistent"] is True, "component-pass-observation")
+    reject(transport is not None and evidence is not None, "component-pass-coherence")
+    reject(all(transport[name] is True for name in ("administratorObserved", "hostStartAttempted", "hostStartObserved", "hostExitObserved", "ownershipReleased", "stdoutDrained", "stderrDrained")) and
+           transport["hostExitCode"] == 0 and transport["outputBoundExceeded"] is False and transport["stderrCharacterCount"] == 0 and
+           transport["stopSignalSucceeded"] is None and transport["stopSignalNativeError"] is None and
+           transport["identityStage"] == "Completed" and transport["identityReason"] == "Observed" and transport["nativeTrustResult"] == 0, "component-pass-transport")
+    reject(evidence["stage"] == "Completed" and evidence["outcome"] == "Completed" and evidence["pipelineState"] == "Completed" and
+           all(evidence[name] is True for name in ("hostQualified", "moduleBound", "cmdletQualified", "outputContractQualified", "invocationStarted", "endInvokeReturned", "powerShellDisposed", "runspaceClosed", "cancelHandleDisposed")) and
+           evidence["cancelEventObserved"] is False and evidence["beginStopCalled"] is False and evidence["endStopReturned"] is None and
+           evidence["outputCount"] == 1 and evidence["errorCount"] == 0 and evidence["warningCount"] == 0 and evidence["managedExceptionHResult"] is None, "component-pass-evidence")
+    expected = {"Healthy": "NoRecordedCorruptionFlag", "Repairable": "RecordedRepairable", "NonRepairable": "RecordedNonRepairable"}
+    reject(evidence["healthState"] in expected and value["recordedFlag"] == expected[evidence["healthState"]], "component-pass-flag")
 
 
 def _booleans(value, fields, reject):

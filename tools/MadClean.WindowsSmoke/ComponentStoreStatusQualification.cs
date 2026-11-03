@@ -14,7 +14,7 @@ internal static class ComponentStoreStatusQualification
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
     private sealed class Report
     {
-        public int FormatVersion { get; } = 1;
+        public int FormatVersion { get; } = 2;
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -40,6 +40,7 @@ internal static class ComponentStoreStatusQualification
         public bool? ProviderRetention { get; set; }
         public TransportFacts? Transport { get; set; }
         public EvidenceFacts? Evidence { get; set; }
+        public UiFacts? Ui { get; set; }
         public bool? OwnedTeardown { get; set; }
         public int? FixtureExceptionHResult { get; set; }
     }
@@ -52,6 +53,24 @@ internal static class ComponentStoreStatusQualification
         bool? EndInvokeReturned, bool? CancelEventObserved, bool? BeginStopCalled, bool? EndStopReturned,
         int? OutputCount, int? ErrorCount, int? WarningCount, string? HealthState, bool? PowerShellDisposed, bool? RunspaceClosed,
         bool? CancelHandleDisposed, int? ManagedExceptionHResult);
+
+    private sealed record UiFacts(bool? PrepareObserved, bool? AcknowledgementObserved, bool? ConfirmObserved,
+        bool? ResultReturned, bool? FreshResultObserved, bool? Settled, bool? TransportConsistent,
+        bool? EvidenceConsistent, string? ResultState, string? RecordedFlag, TransportFacts? Transport,
+        EvidenceFacts? Evidence, int? ExceptionHResult);
+
+    private static TransportFacts ProjectTransport(ComponentStoreStatusTransport transport) =>
+        new(transport.AdministratorObserved, transport.HostStartAttempted, transport.HostStartObserved,
+            transport.HostExitObserved, transport.HostExitCode, transport.OwnershipReleased, transport.StdoutDrained,
+            transport.StderrDrained, transport.OutputBoundExceeded, transport.StderrCharacterCount, transport.StopSignalSucceeded,
+            transport.StopSignalNativeError, transport.HostIdentity?.Stage.ToString(), transport.HostIdentity?.Reason.ToString(), transport.HostIdentity?.NativeTrustResult);
+
+    private static EvidenceFacts? ProjectEvidence(ComponentStoreStatusEvidence? evidence) => evidence == null ? null :
+        new(evidence.Stage.ToString(), evidence.Outcome.ToString(), evidence.HostQualified, evidence.ModuleBound,
+            evidence.CmdletQualified, evidence.OutputContractQualified, evidence.InvocationStarted, evidence.PipelineState?.ToString(),
+            evidence.EndInvokeReturned, evidence.CancelEventObserved, evidence.BeginStopCalled, evidence.EndStopReturned,
+            evidence.OutputCount, evidence.ErrorCount, evidence.WarningCount, evidence.HealthState, evidence.PowerShellDisposed, evidence.RunspaceClosed,
+            evidence.CancelHandleDisposed, evidence.ManagedExceptionHResult);
 
     internal static int Run(string repository)
     {
@@ -143,22 +162,26 @@ internal static class ComponentStoreStatusQualification
                 if (!candidate.Proof.WasTransferred && !session.HasPendingWork && !session.RequiresRetention && !provider.HasPendingWork && !provider.RequiresRetention) candidate.Proof.Dispose();
                 report.CandidateAuthorizationReleased = candidate.Proof.IsReleased;
                 var transport = observed.Transport;
-                report.Transport = new(transport.AdministratorObserved, transport.HostStartAttempted, transport.HostStartObserved,
-                    transport.HostExitObserved, transport.HostExitCode, transport.OwnershipReleased, transport.StdoutDrained,
-                    transport.StderrDrained, transport.OutputBoundExceeded, transport.StderrCharacterCount, transport.StopSignalSucceeded,
-                    transport.StopSignalNativeError, transport.HostIdentity?.Stage.ToString(), transport.HostIdentity?.Reason.ToString(), transport.HostIdentity?.NativeTrustResult);
+                report.Transport = ProjectTransport(transport);
                 if (observed.Evidence is { } evidence)
                 {
                     report.EvidenceConsistent = ComponentStoreStatusParser.IsConsistent(evidence, candidate.Intent.RequestId);
-                    report.Evidence = new(evidence.Stage.ToString(), evidence.Outcome.ToString(), evidence.HostQualified, evidence.ModuleBound,
-                        evidence.CmdletQualified, evidence.OutputContractQualified, evidence.InvocationStarted, evidence.PipelineState?.ToString(),
-                        evidence.EndInvokeReturned, evidence.CancelEventObserved, evidence.BeginStopCalled, evidence.EndStopReturned,
-                        evidence.OutputCount, evidence.ErrorCount, evidence.WarningCount, evidence.HealthState, evidence.PowerShellDisposed, evidence.RunspaceClosed,
-                        evidence.CancelHandleDisposed, evidence.ManagedExceptionHResult);
+                    report.Evidence = ProjectEvidence(evidence);
                 }
                 report.Stage = "Observed"; Save();
                 bool settled = !session.HasPendingWork && !session.RequiresRetention && !provider.HasPendingWork && !provider.RequiresRetention && candidate.Proof.IsReleased;
                 if (!settled) { report.Stage = "OwnershipUnsettled"; Save(); return 2; }
+                report.Stage = "UiActual"; Save();
+                var ui = await ComponentStoreStatusUiQualification.RunAsync();
+                var uiResult = ui.Result;
+                report.Ui = new(ui.PrepareObserved, ui.AcknowledgementObserved, ui.ConfirmObserved,
+                    ui.ResultReturned, ui.FreshResultObserved, ui.Settled,
+                    uiResult == null ? null : ComponentStoreStatusPolicy.IsTransportConsistent(uiResult.Transport),
+                    uiResult?.Evidence is { } uiEvidence ? ComponentStoreStatusParser.IsConsistent(uiEvidence, uiResult.RequestId) : null,
+                    uiResult?.State.ToString(), uiResult?.Flag.ToString(),
+                    uiResult == null ? null : ProjectTransport(uiResult.Transport), ProjectEvidence(uiResult?.Evidence), ui.ExceptionHResult);
+                Save();
+                if (ui.Settled != true) { report.Stage = "UiUnsettled"; Save(); return 2; }
                 foreach (var scope in scopes) scope.Proof.Dispose();
                 foreach (var scope in scopes)
                 {
@@ -175,6 +198,19 @@ internal static class ComponentStoreStatusQualification
                     transport.StopSignalSucceeded == null && transport.StopSignalNativeError == null &&
                     transport.HostIdentity is { Stage: SystemToolIdentityStage.Completed, Reason: SystemToolIdentityReason.Observed, NativeTrustResult: 0 } &&
                     observed.Evidence is { Stage: ComponentStoreStatusStage.Completed, Outcome: ComponentStoreStatusOutcome.Completed,
+                        HostQualified: true, ModuleBound: true, CmdletQualified: true, OutputContractQualified: true, InvocationStarted: true,
+                        PipelineState: ComponentStorePipelineState.Completed, EndInvokeReturned: true, CancelEventObserved: false, BeginStopCalled: false,
+                        EndStopReturned: null, OutputCount: 1, ErrorCount: 0, WarningCount: 0, ManagedExceptionHResult: null,
+                        PowerShellDisposed: true, RunspaceClosed: true, CancelHandleDisposed: true };
+                qualified = qualified && ui.PrepareObserved == true && ui.AcknowledgementObserved == true && ui.ConfirmObserved == true &&
+                    ui.ResultReturned == true && ui.FreshResultObserved == true && ui.Settled == true && ui.ExceptionHResult == null &&
+                    uiResult is { State: CheckState.Available } && uiResult.Flag != ComponentStoreRecordedFlag.Unknown &&
+                    report.Ui.TransportConsistent == true && report.Ui.EvidenceConsistent == true &&
+                    uiResult.Transport is { AdministratorObserved: true, HostStartAttempted: true, HostStartObserved: true,
+                        HostExitObserved: true, HostExitCode: 0, OwnershipReleased: true, StdoutDrained: true, StderrDrained: true,
+                        OutputBoundExceeded: false, StderrCharacterCount: 0, StopSignalSucceeded: null, StopSignalNativeError: null,
+                        HostIdentity: { Stage: SystemToolIdentityStage.Completed, Reason: SystemToolIdentityReason.Observed, NativeTrustResult: 0 } } &&
+                    uiResult.Evidence is { Stage: ComponentStoreStatusStage.Completed, Outcome: ComponentStoreStatusOutcome.Completed,
                         HostQualified: true, ModuleBound: true, CmdletQualified: true, OutputContractQualified: true, InvocationStarted: true,
                         PipelineState: ComponentStorePipelineState.Completed, EndInvokeReturned: true, CancelEventObserved: false, BeginStopCalled: false,
                         EndStopReturned: null, OutputCount: 1, ErrorCount: 0, WarningCount: 0, ManagedExceptionHResult: null,

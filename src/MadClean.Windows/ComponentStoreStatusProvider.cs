@@ -13,7 +13,8 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
 {
     private static readonly object GlobalGate = new();
     private static readonly List<Session> Rooted = [];
-    public bool ProductionCheckValidated => false;
+    // Fixed backend qualified at source 2e0c0160 / evidence c93b0960; no runtime override.
+    public bool ProductionCheckValidated => true;
     public bool HasPendingWork { get { lock (GlobalGate) return Rooted.Any(session => session.HasPendingWork); } }
     public bool RequiresRetention { get { lock (GlobalGate) return SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty || Rooted.Any(session => session.RequiresRetention); } }
 

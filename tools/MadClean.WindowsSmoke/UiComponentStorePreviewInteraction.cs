@@ -45,13 +45,10 @@ internal static partial class UiCapture
         Require(!model.ComponentStoreAcknowledged && acknowledgement.IsChecked == false &&
             !confirm.IsEnabled && !model.ConfirmComponentStoreStatusCommand.CanExecute(null) &&
             !stop.IsEnabled && !model.RequestComponentStoreStopCommand.CanExecute(null) &&
+            model.ComponentStoreLastResult == null &&
             model.ComponentStoreCurrentAssessment.StartsWith("Not checked", StringComparison.Ordinal) &&
             model.ComponentStoreLastObservation.StartsWith("No returned observation", StringComparison.Ordinal), "ui-component-preview-initially-unchecked");
-        if (!qualification.Text.StartsWith("Confirmation is unavailable until", StringComparison.Ordinal))
-        {
-            report.Unknown(check, "This passive interaction qualifies the disabled production boundary only; a different qualification state was observed. Confirm and Stop were not invoked, and no recorded-status host or operation was substituted.");
-            return;
-        }
+        bool productionQualified = !qualification.Text.StartsWith("Confirmation is unavailable until", StringComparison.Ordinal);
 
         var activity = model.Activity.ToArray();
         var disks = model.Disks.ToArray(); var cleanup = model.CleanupRows.ToArray(); var startup = model.StartupRows.ToArray();
@@ -62,6 +59,7 @@ internal static partial class UiCapture
         string overallStatus = model.Status, eventMessage = model.DiagnosticsMessage, eventAttempt = model.DiagnosticsAttempt;
         string eventWindow = model.DiagnosticsWindow, werMessage = model.WerMessage, werWindow = model.WerWindow;
         string originalHistory = model.ComponentStoreLastObservation, originalAssessment = model.ComponentStoreCurrentAssessment;
+        var originalResult = model.ComponentStoreLastResult;
         var range = model.SelectedDiagnosticRange;
         bool Same<T>(T[] original, IEnumerable<T> current) where T : class =>
             original.Length == current.Count() && original.Zip(current).All(pair => ReferenceEquals(pair.First, pair.Second));
@@ -74,7 +72,9 @@ internal static partial class UiCapture
             model.DiagnosticsMessage == eventMessage && model.DiagnosticsAttempt == eventAttempt && model.DiagnosticsWindow == eventWindow &&
             model.WerMessage == werMessage && model.WerWindow == werWindow && ReferenceEquals(range, model.SelectedDiagnosticRange) &&
             model.ComponentStoreLastObservation == originalHistory && model.ComponentStoreCurrentAssessment == originalAssessment &&
-            !confirm.IsEnabled && !model.ConfirmComponentStoreStatusCommand.CanExecute(null) &&
+            ReferenceEquals(model.ComponentStoreLastResult, originalResult) &&
+            confirm.IsEnabled == (productionQualified && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
+            model.ConfirmComponentStoreStatusCommand.CanExecute(null) == (productionQualified && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
             !stop.IsEnabled && !model.RequestComponentStoreStopCommand.CanExecute(null);
         async Task Prepare()
         {
@@ -112,6 +112,6 @@ internal static partial class UiCapture
         toggle.Toggle(); await Idle(window); toggle.Toggle(); await Idle(window);
         Require(acknowledgement.IsChecked == false && !model.ComponentStoreAcknowledged && toggle.ToggleState == ToggleState.Off &&
             history.Text == originalHistory && assessment.Text == originalAssessment && Unchanged(), "ui-component-preview-acknowledgement-restored");
-        report.Pass(check, "Actual production Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed recorded-flags scope, permissions/log writes/stop limits, acknowledgement reset and the disabled confirmation boundary were observed. Existing activity, source rows, diagnostic window and current/historical assessment remained unchanged, with no pending component owner. Confirm and Stop were never invoked; no source injection, screenshot after data, host, DISM invocation, scan, repair, elevation or restart was requested. Native checks, physical keyboard and enabled-production interaction remain separate validation.");
+        report.Pass(check, $"productionQualified={productionQualified}; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed scope, permissions/log writes/stop limits, acknowledgement reset and qualification-dependent confirmation enablement were observed. Existing activity, source rows, diagnostic window and current/historical assessment stayed unchanged, typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation.");
     }
 }

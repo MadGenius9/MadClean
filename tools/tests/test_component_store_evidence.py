@@ -46,6 +46,64 @@ class ComponentStoreEvidenceTests(unittest.TestCase):
     def collect(self):
         return c.collect(self.root, self.context, p.read_json, p.safe_path, p.reject_unless)
 
+    def use_ui_v2(self):
+        self.report['formatVersion'] = 2
+        self.report['ui'] = {name: True for name in c.UI_BOOLEANS}
+        self.report['ui'].update(resultState='Available', recordedFlag='NoRecordedCorruptionFlag',
+                                 transport=copy.deepcopy(self.report['transport']), evidence=copy.deepcopy(self.report['evidence']),
+                                 exceptionHResult=None)
+
+    def test_v2_requires_actual_ui_cycle_independently_of_candidate_success(self):
+        self.use_ui_v2(); self.save()
+        self.assertEqual('passed', self.collect()['state'])
+        for field in c.UI_BOOLEANS:
+            for missing in (None, False):
+                self.report['ui'][field] = missing; self.save()
+                with self.subTest(field=field, missing=missing):
+                    with self.assertRaises(p.EvidenceError): self.collect()
+            self.report['ui'][field] = True
+        self.report['ui'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-pass-ui'): self.collect()
+        self.report.update(state='inconclusive', stage='UiActual'); self.save()
+        observed = self.collect()
+        self.assertIsNone(observed['ui'])
+        self.assertEqual('Available', observed['resultState'])
+        self.assertTrue(observed['candidateAuthorizationReleased'])
+
+    def test_v2_ui_reuses_actual_transport_pipeline_warning_and_flag_requirements(self):
+        self.use_ui_v2()
+        for target, field, wrong in [('evidence', 'endInvokeReturned', None), ('evidence', 'warningCount', None),
+                                     ('evidence', 'warningCount', 1), ('evidence', 'runspaceClosed', False),
+                                     ('transport', 'hostExitCode', None), ('transport', 'stdoutDrained', False),
+                                     ('transport', 'ownershipReleased', None), ('transport', 'identityReason', 'OtherUnavailable')]:
+            original = self.report['ui'][target][field]; self.report['ui'][target][field] = wrong; self.save()
+            with self.subTest(target=target, field=field, wrong=wrong):
+                with self.assertRaises(p.EvidenceError): self.collect()
+            self.report['ui'][target][field] = original
+        self.report['ui']['recordedFlag'] = 'RecordedRepairable'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-pass-flag'): self.collect()
+
+    def test_v2_ui_pending_result_does_not_fabricate_completion_or_hide_candidate(self):
+        self.use_ui_v2(); self.report.update(state='inconclusive', stage='UiUnsettled', ownedTeardown=None)
+        self.report['ui'].update(resultReturned=None, freshResultObserved=None, settled=False,
+                                 transportConsistent=None, evidenceConsistent=None, resultState=None, recordedFlag=None,
+                                 transport=None, evidence=None, exceptionHResult=-1)
+        self.save(); observed = self.collect()
+        self.assertIsNone(observed['ui']['resultState'])
+        self.assertEqual('Available', observed['resultState'])
+        self.assertIsNone(observed['ownedTeardown'])
+        self.report['ui']['resultState'] = 'Available'; self.save()
+        with self.assertRaises(p.EvidenceError): self.collect()
+
+    def test_v2_ui_schema_rejects_identity_and_boolean_substitutions(self):
+        self.use_ui_v2()
+        self.report['ui']['requestId'] = 'TEST-ONLY-NOT-REAL'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-ui-schema'): self.collect()
+        del self.report['ui']['requestId']; self.report['ui']['settled'] = 1; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-report-boolean'): self.collect()
+        self.report['ui']['settled'] = True; self.report['formatVersion'] = 1; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-report-schema'): self.collect()
+
     def test_each_real_recorded_flag_qualifies_its_scope_without_a_pc_health_score(self):
         for native, flag in [('Healthy', 'NoRecordedCorruptionFlag'), ('Repairable', 'RecordedRepairable'), ('NonRepairable', 'RecordedNonRepairable')]:
             self.report['evidence']['healthState'] = native; self.report['recordedFlag'] = flag; self.save()
