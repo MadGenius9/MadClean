@@ -64,7 +64,7 @@ Diagnostics now includes [inspection evidence from this session](docs/DIAGNOSTIC
 
 Diagnostics also offers a separate [recorded component-store status preview](docs/COMPONENT-STORE-STATUS.md). It describes the fixed inbox `Repair-WindowsImage -Online -CheckHealth -NoRestart` request, required existing administrator access, Windows log writes and cooperative stop limits. This is an existing-flag check, never a fresh scan, repair or overall health verdict. Its fixed backend passed dedicated disposable Windows qualification and independent review. The real public Prepare/acknowledgement/Confirm workflow also passed on the disposable Windows runner. Ordinary inspection does not invoke it; broader Windows policy and mid-operation stop scenarios remain in the validation matrix.
 
-A separate [fresh component-store scan](docs/COMPONENT-STORE-SCAN.md) uses the same owned controller. It uses only the supported `ScanHealth` switch, can take several minutes, and requests no repair. The fixed backend passed its own disposable Windows qualification and independent review; confirmation is enabled for the next public WPF qualification candidate. That public scan cycle remains unverified. Its findings cannot be substituted for recorded flags or overall PC health.
+A separate [fresh component-store scan](docs/COMPONENT-STORE-SCAN.md) uses the same owned controller. It uses only the supported `ScanHealth` switch, can take several minutes, and requests no repair. The fixed backend and real public WPF Prepare/acknowledgement/Confirm cycle passed their separate disposable Windows qualification. Broader policy, physical Windows 11 and mid-native stop behavior remain unverified. Its findings cannot be substituted for recorded flags or overall PC health.
 
 ## Interface
 

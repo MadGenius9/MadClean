@@ -69,7 +69,7 @@
                 <TextBox Text="{Binding WerDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="230" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected WER metadata source, time and uncertainty"/>
                 <ItemsControl ItemsSource="{Binding WerCoverage}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#A9BDD3" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
             </StackPanel></Border>
-            <TextBlock Text="No matching records does not mean healthy. Unexpected-shutdown events alone do not diagnose a PSU, RAM or driver fault. The separate recorded-status check requests no fresh scan or repair; other integrity/repair operations remain gated, and ordinary inventory never runs DISM or SFC." Style="{StaticResource Caption}"/>
+            <TextBlock Text="No matching records does not mean healthy. Unexpected-shutdown events alone do not diagnose a PSU, RAM or driver fault. Component-store tools separately offer recorded flags or a fresh scan after review and confirmation; neither requests repair. SFC and repairs remain disabled. Ordinary inventory never runs DISM or SFC." Style="{StaticResource Caption}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
