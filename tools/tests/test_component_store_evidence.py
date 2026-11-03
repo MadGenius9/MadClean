@@ -67,6 +67,19 @@ class ComponentStoreEvidenceTests(unittest.TestCase):
     def collect_kind(self, kind):
         return c.collect(self.root, self.context, p.read_json, p.safe_path, p.reject_unless, expected_kind=kind)
 
+    def test_only_v3_fresh_scan_gets_the_longer_two_cycle_window(self):
+        observed = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=1)
+        self.use_kind_v3()
+        self.report.update(startedUtc=(observed - dt.timedelta(minutes=25)).isoformat(), observedUtc=observed.isoformat())
+        self.save(); self.assertEqual('passed', self.collect_kind('ScanHealth')['state'])
+        self.use_kind_v3('RecordedFlags', ui_required=True); self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-report-time-order'):
+            self.collect_kind('RecordedFlags')
+        self.use_kind_v3()
+        self.report['startedUtc'] = (observed - dt.timedelta(minutes=36)).isoformat(); self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-report-time-order'):
+            self.collect_kind('ScanHealth')
+
     def test_v3_scan_backend_proof_is_separate_from_public_ui_and_recorded_flags(self):
         self.use_kind_v3(); self.save()
         actual = self.collect_kind('ScanHealth')

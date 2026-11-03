@@ -18,9 +18,11 @@ Pre-cancellation must invalidate the unreserved intent without host start, proof
 
 ## Backend and public UI are separate milestones
 
-The immutable provider initially qualifies only RecordedFlags for production. `uiRequired` is captured from `IsCheckKindValidated(kind)`, not supplied by environment/configuration or JSON. With ScanHealth still false, this mode performs one backend candidate only; it never invokes the public scan confirmation. A passed backend report does not qualify the public UI.
+The backend-only source `88038b6c` passed in [run 41703092192](https://github.com/MadGenius9/MadClean/actions/runs/41703092192), immutable evidence `6b5970a1619d85e6a4ad679257e09a52ea1bd61d`. Its `uiRequired=false` and null UI result do not establish public UI behavior. Actual pipeline, typed output, zero errors/warnings, host exit/drains and ownership release qualified the backend. The approximately eight-minute qualification window includes setup and cleanup and is not an isolated scan benchmark.
 
-Only a later explicit code promotion, supported by source-matched backend evidence and independent review, can make the scan UI required. Then the same real WPF helper uses actual fresh-scan Prepare/acknowledgement/Confirm controls and a fresh assessed typed result, waiting for actual settlement and window closure. No injected result or direct candidate-provider call substitutes for UI proof. Ordinary passive smoke still never confirms an operation.
+Independent common-path review cleared the literal ScanHealth guard for the next public WPF candidate. `uiRequired` is captured from `IsCheckKindValidated(kind)`, never environment/configuration or JSON. With the guard enabled, this mode must perform both the backend candidate and a second real WPF Prepare/acknowledgement/Confirm cycle, observing a fresh typed result, actual settlement and window closure. Public UI qualification remains unverified until matching actual evidence arrives. No injected result or direct candidate-provider call substitutes for UI proof. Ordinary passive smoke still never confirms an operation.
+
+The separate scan job has a 30-minute outer CI limit to accommodate both cycles. Only v3 ScanHealth reports have a 35-minute evidence window; recorded checks and legacy reports retain 20 minutes. These bounds do not prove native cancellation or override failed/cancelled job results.
 
 ## Report and publication
 

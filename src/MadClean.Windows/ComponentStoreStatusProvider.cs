@@ -18,8 +18,8 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
     public bool IsCheckKindValidated(ComponentStoreCheckKind kind) => kind switch
     {
         ComponentStoreCheckKind.RecordedFlags => true,
-        // A fresh scan has a separate source-bound qualification; no runtime override.
-        ComponentStoreCheckKind.ScanHealth => false,
+        // Backend qualified at 88038b6c / 6b5970a1; public UI is separately qualified. No runtime override.
+        ComponentStoreCheckKind.ScanHealth => true,
         _ => false
     };
     public bool HasPendingWork { get { lock (GlobalGate) return Rooted.Any(session => session.HasPendingWork); } }

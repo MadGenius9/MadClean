@@ -68,7 +68,8 @@ def collect(directory, context, read_json, safe_path, reject, expected_kind="Rec
             times.append(dt.datetime.fromisoformat(text.replace("Z", "+00:00")))
         except ValueError:
             reject(False, "component-report-time")
-    reject(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=20), "component-report-time-order")
+    maximum_minutes = 35 if version == 3 and value["checkKind"] == "ScanHealth" else 20
+    reject(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=maximum_minutes), "component-report-time-order")
     _validate_observation(value, reject, kind)
     transport, evidence = value["transport"], value["evidence"]
     if version >= 2:
