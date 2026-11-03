@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "6d8595e655163abe30cf070f50cfcc1cb41ba17c",
-  "runId": "41565215988",
+  "sourceCommit": "a69598ce569ddd4168613d02d8309dbaacc44c17",
+  "runId": "41643164912",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T02:22:32.9833415+00:00",
-  "completedUtc": "2026-11-03T02:23:02.2726703+00:00",
+  "startedUtc": "2026-11-03T13:23:05.4266082+00:00",
+  "completedUtc": "2026-11-03T13:23:36.8459894+00:00",
   "passed": false,
-  "state": "failed",
+  "state": "inconclusive",
   "checks": [
     {
       "name": "ui-wide-size",
@@ -176,7 +176,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -325,13 +325,13 @@
     },
     {
       "name": "owned-private-parent-security-preflight",
-      "state": "failed",
-      "detail": "qualifiedParent=True; unprotectedRefused=False; foreignGrantRefused=True; qualifiedControlInvocations=0; rejectedControlInvocations=0; rejectedParentsStillEmpty=False; qualifiedChildAbsent=False; nativeControlCleanupConfirmed=False; workerOwnershipReleased=True. Strict existing same-handle owner/protected-DACL predicate only. Rejected composed routes were not invoked; counts are not an instrumented all-I/O trace. No effective-access, prior-handle, namespace-race, durability or production-creation qualification. No profile, servicing, elevation or production gate change."
+      "state": "passed",
+      "detail": "setup=actual-unprotected-observed; protectedBefore=True; unprotectCalled=True; unprotectSucceeded=True; protectedAfter=False; qualifiedParent=True; unprotectedRefused=True; foreignGrantRefused=True; qualifiedControlInvocations=1; rejectedControlInvocations=0; rejectedParentsStillEmpty=True; qualifiedChildAbsent=True; nativeControlCleanupConfirmed=True; workerOwnershipReleased=True. Strict same-handle descriptor predicate; rejected route counts are not all-I/O tracing. No effective-access, prior-handle, namespace-race, durability or production-creation proof; no profile/actions/gate change."
     },
     {
       "name": "owned-relative-directory-create-control",
-      "state": "inconclusive",
-      "detail": "state=Unknown; stage=owned-parent-security-preflight; apiReturn=unobserved; nativeStage=unobserved; setupWin32=unobserved; parent=unobserved; parentIo=unobserved; parentId=False; create=unobserved; createIo=unobserved; created=False; structuralSD=False; collision=unobserved; refused=False; parentBookend=False; childBookend=False; dispositionRequested=False; dispositionAccepted=False; nativeClosed=False; descriptorReleased=False; absence=False; teardown=True; pending=False; retained=False. Owned baseline/collision only; no reparse interference, effective parent ACL, history, durability or production creation proof. Creation, disposition acceptance, checked closure and observed absence are separate evidence. No profile/journal writer, elevation or gate change."
+      "state": "passed",
+      "detail": "state=Available; stage=baseline-collision-cleanup-observed-only; apiReturn=True; nativeStage=8; setupWin32=unobserved; parent=0x00000000; parentIo=0x00000000; parentId=True; create=0x00000000; createIo=0x00000000; created=True; structuralSD=True; collision=0xC0000035; refused=True; parentBookend=True; childBookend=True; dispositionRequested=True; dispositionAccepted=True; nativeClosed=True; descriptorReleased=True; absence=True; teardown=True; pending=False; retained=False. Owned baseline/collision only; no reparse interference, effective parent ACL, history, durability or production creation proof. Creation, disposition acceptance, checked closure and observed absence are separate evidence. No profile/journal writer, elevation or gate change."
     },
     {
       "name": "dism-powershell-capability-contract",
@@ -420,8 +420,8 @@
     },
     {
       "name": "published-executable-startup",
-      "state": "inconclusive",
-      "detail": "Earlier validation failed or native tree teardown is uncertain; no published executable was started."
+      "state": "passed",
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
