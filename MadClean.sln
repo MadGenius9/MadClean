@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadClean.WindowsSmoke", "tools\MadClean.WindowsSmoke\MadClean.WindowsSmoke.csproj", "{711982C3-8796-4849-8793-DE7951D6E85D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadClean.Windows.WinGet", "src\MadClean.Windows.WinGet\MadClean.Windows.WinGet.csproj", "{82B38264-1CB9-4E11-A069-5AD1EB594DCB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -89,6 +91,18 @@ Global
 		{711982C3-8796-4849-8793-DE7951D6E85D}.Release|x64.Build.0 = Release|Any CPU
 		{711982C3-8796-4849-8793-DE7951D6E85D}.Release|x86.ActiveCfg = Release|Any CPU
 		{711982C3-8796-4849-8793-DE7951D6E85D}.Release|x86.Build.0 = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|x64.Build.0 = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Debug|x86.Build.0 = Debug|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|x64.ActiveCfg = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|x64.Build.0 = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|x86.ActiveCfg = Release|Any CPU
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -99,5 +113,6 @@ Global
 		{CDF3BB43-64FB-4287-9D8C-95E3A8EA3452} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{6504080F-9BA4-4E7E-AC15-8DD96611EE88} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{711982C3-8796-4849-8793-DE7951D6E85D} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{82B38264-1CB9-4E11-A069-5AD1EB594DCB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

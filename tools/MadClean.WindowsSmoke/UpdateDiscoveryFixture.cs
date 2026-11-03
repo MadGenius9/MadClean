@@ -20,8 +20,10 @@ internal static class UpdateDiscoveryFixture
         internal readonly CancellationTokenSource Stop;
         internal readonly Task<WingetQueryObservation> Apps;
         internal readonly Task<CheckResult<SystemUpdate>> Updates;
+        internal readonly Task<StructuredWingetProbe.Observation> StructuredWinget;
         internal Task? Cancellation;
-        internal bool Completed => Apps.IsCompleted && Updates.IsCompleted && (Cancellation?.IsCompleted ?? true);
+        internal bool Completed => Apps.IsCompleted && Updates.IsCompleted && StructuredWinget.IsCompletedSuccessfully &&
+            !StructuredWinget.Result.PendingNativeRead && (Cancellation?.IsCompleted ?? true);
         internal Owner(CancellationToken token)
         {
             Stop = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -29,8 +31,10 @@ internal static class UpdateDiscoveryFixture
             // prefix before their first await. A blocked spawn must not block this reporter.
             Apps = Task.Run(() => Inventory.AppsObservedAsync(Stop.Token), CancellationToken.None);
             Updates = Task.Run(() => Inventory.SystemUpdatesAsync(Stop.Token), CancellationToken.None);
+            StructuredWinget = Task.Run(() => StructuredWingetProbe.ObserveAsync(Stop.Token), CancellationToken.None);
             _ = Apps.ContinueWith(task => { _ = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
             _ = Updates.ContinueWith(task => { _ = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+            _ = StructuredWinget.ContinueWith(task => { _ = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
     private sealed record Context(string SourceCommit, string RunId, int RunAttempt);
@@ -45,6 +49,8 @@ internal static class UpdateDiscoveryFixture
     {
         public MetadataCoverage? OfferMetadata { get; init; }
         public WingetDiagnostics? Winget { get; init; }
+        public string? StructuredWingetTaskOutcome { get; init; }
+        public StructuredWingetProbe.Observation? StructuredWinget { get; init; }
     }
 
     internal static async Task<int> RunAsync(string repository, CancellationToken token)
@@ -62,14 +68,14 @@ internal static class UpdateDiscoveryFixture
             var started = DateTimeOffset.UtcNow;
             var owner = new Owner(token); rootedOwner = owner;
             bool expired = false;
-            try { await Task.WhenAll(owner.Apps, owner.Updates).WaitAsync(TimeSpan.FromSeconds(210), token).ConfigureAwait(false); }
+            try { await Task.WhenAll(owner.Apps, owner.Updates, owner.StructuredWinget).WaitAsync(TimeSpan.FromSeconds(210), token).ConfigureAwait(false); }
             catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
             {
                 expired = true;
                 // CancelAsync roots/observes callbacks without blocking this reporter on a
                 // synchronous query-host stop callback. No servicing/service process is killed here.
                 owner.Cancellation = owner.Stop.CancelAsync();
-                try { await Task.WhenAll(owner.Apps, owner.Updates, owner.Cancellation).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
+                try { await Task.WhenAll(owner.Apps, owner.Updates, owner.StructuredWinget, owner.Cancellation).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
                 catch (Exception) { /* Typed task outcomes below; never output provider exception text. */ }
             }
             catch (Exception) { /* Both tasks are complete; typed fault outcome below. */ }
@@ -77,8 +83,12 @@ internal static class UpdateDiscoveryFixture
             if (!Valid(apps, true) || !Valid(updates, false)) return 1;
             var diagnostics = ObserveWinget(owner.Apps);
             if (!ValidWinget(diagnostics, apps, legacy: false)) return 1;
-            var observed = new Observation(3, context.SourceCommit, context.RunId, context.RunAttempt,
-                Stamp(started), Stamp(DateTimeOffset.UtcNow), expired, false, apps, updates) { OfferMetadata = ObserveMetadata(owner.Updates, updates), Winget = diagnostics };
+            var structuredOutcome = TaskOutcome(owner.StructuredWinget);
+            var structured = owner.StructuredWinget.IsCompletedSuccessfully ? owner.StructuredWinget.Result : null;
+            if (!ValidStructured(structuredOutcome, structured, legacy: false)) return 1;
+            var observed = new Observation(4, context.SourceCommit, context.RunId, context.RunAttempt,
+                Stamp(started), Stamp(DateTimeOffset.UtcNow), expired, false, apps, updates) { OfferMetadata = ObserveMetadata(owner.Updates, updates), Winget = diagnostics,
+                    StructuredWingetTaskOutcome = structuredOutcome, StructuredWinget = structured };
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(observed, JsonOptions);
             if (bytes.Length > MaximumReportBytes) return 1;
             CheckAncestry(output, allowMissing: false);
@@ -88,7 +98,7 @@ internal static class UpdateDiscoveryFixture
             if (owner.Completed) { owner.Stop.Dispose(); rootedOwner = null; }
             // Pending owner/tasks/CTS deliberately remain rooted. Returning never establishes
             // that Windows Update services or provider background/cache work stopped.
-            return Positive(apps) && Positive(updates) && !expired ? 0 : 2;
+            return Positive(apps) && Positive(updates) && structured is { State: "passed" } && !expired ? 0 : 2;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or
             InvalidOperationException or OperationCanceledException or System.Security.SecurityException)
@@ -100,6 +110,7 @@ internal static class UpdateDiscoveryFixture
         const string check = "update-discovery-provider-contract";
         const string metadataCheck = "wua-offer-metadata-contract";
         const string wingetCheck = "winget-query-observation-contract";
+        const string structuredCheck = "structured-winget-discovery-contract";
         try
         {
             if (!OperatingSystem.IsWindows()) throw new InvalidDataException();
@@ -120,14 +131,26 @@ internal static class UpdateDiscoveryFixture
             if (stream.ReadByte() != -1) throw new InvalidDataException();
             using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 4 });
             var root = document.RootElement;
-            if (!root.TryGetProperty("formatVersion", out var versionJson) || !versionJson.TryGetInt32(out int version) || version is not (2 or 3)) throw new InvalidDataException();
+            if (!root.TryGetProperty("formatVersion", out var versionJson) || !versionJson.TryGetInt32(out int version) || version is not (2 or 3 or 4)) throw new InvalidDataException();
             string[] baseFields = ["formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc",
                 "observationWaitExpired", "windowsServiceCompletionVerified", "apps", "systemUpdates", "offerMetadata"];
-            if (!Fields(root, version == 3 ? [.. baseFields, "winget"] : baseFields)) throw new InvalidDataException();
-            if (version == 3)
+            string[] versionFields = version switch
+            {
+                4 => [.. baseFields, "winget", "structuredWingetTaskOutcome", "structuredWinget"],
+                3 => [.. baseFields, "winget"],
+                _ => baseFields
+            };
+            if (!Fields(root, versionFields)) throw new InvalidDataException();
+            if (version >= 3)
             {
                 var wingetJson = root.GetProperty("winget");
                 if (wingetJson.ValueKind != JsonValueKind.Null && !Fields(wingetJson, ["outcome", "exitCode", "outputHasContent", "parseIssue"])) throw new InvalidDataException();
+            }
+            if (version == 4)
+            {
+                var structuredJson = root.GetProperty("structuredWinget");
+                if (structuredJson.ValueKind != JsonValueKind.Null && !StructuredWingetProbe.ValidJson(structuredJson))
+                    throw new InvalidDataException();
             }
             string[] providerFields = ["taskOutcome", "resultState", "schemaAccepted", "itemCount", "knownPackageOffers", "unknownPackageDeterminations",
                 "softwareOffers", "driverOffers", "firmwareOffers", "unclassifiedOffers"];
@@ -138,7 +161,9 @@ internal static class UpdateDiscoveryFixture
             if (data.FormatVersion != version || data.SourceCommit != expected.SourceCommit || data.RunId != expected.RunId || data.RunAttempt != expected.RunAttempt ||
                 data.WindowsServiceCompletionVerified || !Date(data.StartedUtc, out var start) || !Date(data.CompletedUtc, out var end) || start > end ||
                 end > DateTimeOffset.UtcNow || end - start > TimeSpan.FromMinutes(4) || DateTimeOffset.UtcNow - end > TimeSpan.FromMinutes(10) ||
-                !Valid(data.Apps, true) || !Valid(data.SystemUpdates, false) || !ValidWinget(data.Winget, data.Apps, legacy: version == 2) || !ValidMetadata(data.OfferMetadata, data.SystemUpdates)) throw new InvalidDataException();
+                !Valid(data.Apps, true) || !Valid(data.SystemUpdates, false) ||
+                !ValidStructured(data.StructuredWingetTaskOutcome, data.StructuredWinget, legacy: version < 4) ||
+                data.StructuredWinget is { } sdkTime && (sdkTime.StartedUtc < start || sdkTime.CompletedUtc > end) || !ValidWinget(data.Winget, data.Apps, legacy: version == 2) || !ValidMetadata(data.OfferMetadata, data.SystemUpdates)) throw new InvalidDataException();
             string detail = $"WinGet task={data.Apps.TaskOutcome}/state={data.Apps.ResultState ?? "not returned"}/schema={data.Apps.SchemaAccepted}/rows={Count(data.Apps.ItemCount)}/knownOfferFields={Count(data.Apps.KnownPackageOffers)}/unknownDeterminations={Count(data.Apps.UnknownPackageDeterminations)}; " +
                 $"WUA task={data.SystemUpdates.TaskOutcome}/state={data.SystemUpdates.ResultState ?? "not returned"}/schema={data.SystemUpdates.SchemaAccepted}/rows={Count(data.SystemUpdates.ItemCount)}/software={Count(data.SystemUpdates.SoftwareOffers)}/drivers={Count(data.SystemUpdates.DriverOffers)}/firmware={Count(data.SystemUpdates.FirmwareOffers)}/unclassified={Count(data.SystemUpdates.UnclassifiedOffers)}; waitExpired={data.ObservationWaitExpired}. " +
                 "Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported.";
@@ -152,6 +177,12 @@ internal static class UpdateDiscoveryFixture
             else if (data.Winget is { Outcome: nameof(WingetQueryOutcome.ParsedOutput) or nameof(WingetQueryOutcome.NonzeroExit) } && !data.ObservationWaitExpired)
                 report.Pass(wingetCheck, wingetDetail);
             else report.Unknown(wingetCheck, wingetDetail);
+            string sdkDetail = data.StructuredWinget is { } sdk
+                ? $"task={data.StructuredWingetTaskOutcome}; preCancellationVerified={sdk.PreCancellationVerified}; schema={sdk.ResultSchemaAccepted}; result={sdk.ResultState ?? "unobserved"}; rows={Count(sdk.ItemCount)}; availableRows={Count(sdk.AvailableRows)}; unknownRows={Count(sdk.UnknownRows)}; pendingNativeRead={sdk.PendingNativeRead}; stage={sdk.Diagnostic?.Stage ?? "unobserved"}; outcome={sdk.Diagnostic?.Outcome ?? "unobserved"}. Fixed read-only SDK source scope only. Empty results do not establish all software is up to date. Native-query completion is not shared-server or metadata-refresh completion. No names, IDs, versions, paths or provider messages exported."
+                : $"task={data.StructuredWingetTaskOutcome ?? "legacy-unobserved"}; no returned source-bound structured SDK observation. Pending, offline and unavailable checks remain unknown; no source success, all-software coverage or up-to-date verdict is substituted.";
+            if (data.StructuredWinget is { State: "failed" }) report.Fail(structuredCheck, sdkDetail);
+            else if (data.StructuredWinget is { State: "passed" } && !data.ObservationWaitExpired) report.Pass(structuredCheck, sdkDetail);
+            else report.Unknown(structuredCheck, sdkDetail);
             string metadataDetail = $"WUA source={data.SystemUpdates.ResultState ?? "not returned"}; accepted={data.OfferMetadata?.Accepted}; availableRows={Count(data.OfferMetadata?.AvailableRows)}; partialRows={Count(data.OfferMetadata?.PartialRows)}; unknownRows={Count(data.OfferMetadata?.UnknownRows)}. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission.";
             if (Positive(data.SystemUpdates) && data.OfferMetadata is { Accepted: true, AvailableRows: > 0 } && !data.ObservationWaitExpired) report.Pass(metadataCheck, metadataDetail);
             else report.Unknown(metadataCheck, metadataDetail);
@@ -164,7 +195,16 @@ internal static class UpdateDiscoveryFixture
             report.Unknown(check, "Separate online source evidence is absent, stale, malformed, pending or mismatched to this source/run/attempt. No online query, report reset, synthetic offer or successful check was substituted.");
             report.Unknown(metadataCheck, "No accepted source-bound optional WUA metadata observation is available; no query or synthetic metadata was substituted.");
             report.Unknown(wingetCheck, "No accepted source-bound typed WinGet observation is available; no provider message parsing, second query or failure-cause guess was substituted.");
+            report.Unknown(structuredCheck, "No accepted source-bound structured WinGet observation is available; no query, source success or up-to-date verdict was substituted.");
         }
+    }
+
+    private static string TaskOutcome(Task task) => task.IsCompletedSuccessfully ? "Returned" : task.IsCanceled ? "Cancelled" : task.IsFaulted ? "Faulted" : "Pending";
+    private static bool ValidStructured(string? outcome, StructuredWingetProbe.Observation? observation, bool legacy)
+    {
+        if (legacy) return outcome is null && observation is null;
+        if (outcome is not ("Returned" or "Cancelled" or "Faulted" or "Pending")) return false;
+        return outcome == "Returned" ? observation is not null && StructuredWingetProbe.Valid(observation) : observation is null;
     }
 
     private static Provider ObserveApps(Task<WingetQueryObservation> task)

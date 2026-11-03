@@ -4,11 +4,12 @@ A personal Windows desktop utility for understanding storage, startup entries, M
 
 ## Stack and architecture
 
-C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. No third-party runtime UI or integration libraries are required.
+C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. The UI uses the Windows desktop framework. An isolated development-only WinGet bridge pins Microsoft’s Windows Package Manager projection; it is not yet used by the production app.
 
 - `src/MadClean.App`: dark WPF UI, navigation, dashboard, background-operation orchestration and cancellation. Default state is unchecked; all production data comes from Windows. No sample/design data is injected.
 - `src/MadClean.Core`: platform-independent models, conservative filesystem inventory, WinGet table parser, bounded cancellable process execution, and privacy-limited activity log.
 - `src/MadClean.Windows`: read-only registry, disk, Windows PowerShell/Defender, WinGet, and Windows Update Agent adapters.
+- `src/MadClean.Windows.WinGet`: isolated Windows 11/x64 structured WinGet SDK reader under qualification; only the development harness references it. Production discovery remains unchanged until actual runtime qualification.
 - `tests/MadClean.Tests`: core boundary tests. Windows-only runtime behavior is tracked separately in [validation](docs/VALIDATION.md).
 - `.github/workflows`: Windows build/test/package workflow and a separate disposable-runner qualification for one freshly generated inert MSI product. No automatic release, signing or deployment; the ordinary validation harness does not install applications.
 

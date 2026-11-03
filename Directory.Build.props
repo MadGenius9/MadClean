@@ -10,4 +10,19 @@
         <!-- Publishing adds runtime/linker build tooling; keep that graph separate from normal development. -->
         <NuGetLockFilePath Condition="'$(MadCleanPackage)' == 'true'">$(MSBuildProjectDirectory)/packages.win-x64.lock.json</NuGetLockFilePath>
     </PropertyGroup>
+    <!-- The optional structured WinGet bridge consumes Microsoft's prebuilt projection.
+         Never import or copy the SDK's default native activation factory. Keep this
+         explicit for its development consumer as well as the integration library. -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'MadClean.Windows.WinGet' Or '$(MSBuildProjectName)' == 'MadClean.WindowsSmoke'">
+        <MicrosoftManagementDeployment-FactoryLinkage>none</MicrosoftManagementDeployment-FactoryLinkage>
+        <MicrosoftManagementDeployment-OutputWinMD>false</MicrosoftManagementDeployment-OutputWinMD>
+        <CsWinRTEnabled>false</CsWinRTEnabled>
+        <CsWinRTGenerateProjection>false</CsWinRTGenerateProjection>
+        <CsWinRTAotOptimizerEnabled>false</CsWinRTAotOptimizerEnabled>
+        <!-- CsWinRT's separate IID optimizer is a Windows executable. Keep its
+             supported default on Windows; cross-compilation cannot execute it. -->
+        <CsWinRTIIDOptimizerOptOut Condition="$([MSBuild]::IsOSPlatform('Linux'))">true</CsWinRTIIDOptimizerOptOut>
+        <PublishTrimmed>false</PublishTrimmed>
+        <PublishAot>false</PublishAot>
+    </PropertyGroup>
 </Project>

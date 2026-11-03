@@ -146,7 +146,7 @@ def validate_report(download, context):
         return None, {}
     report = read_json(path, 262_144)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "passed", "state", "checks", "screenshots", "limits"}
-    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] == 1, "report-schema")
+    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2}, "report-schema")
     times = []
     for field in ("startedUtc", "completedUtc"):
         value = report[field]
@@ -170,7 +170,8 @@ def validate_report(download, context):
     computed = "failed" if any(c["state"] == "failed" for c in checks) else "inconclusive" if any(c["state"] == "inconclusive" for c in checks) else "passed"
     reject_unless(type(report.get("passed")) is bool and report["passed"] == (computed == "passed") and report.get("state") == computed, "contradictory-report")
     if report["passed"]:
-        reject_unless(REQUIRED_CHECKS <= names, "missing-required-check")
+        required = REQUIRED_CHECKS | ({"structured-winget-discovery-contract"} if report["formatVersion"] == 2 else set())
+        reject_unless(required <= names, "missing-required-check")
     images = report.get("screenshots")
     reject_unless(isinstance(images, list) and len(images) <= 32, "report-images")
     found = set()

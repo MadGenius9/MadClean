@@ -1,0 +1,27 @@
+# Separate structured WinGet observation
+
+This development probe is a read-only candidate for the existing disposable Windows validation workflow. It is not wired into ordinary inspection or the production Update Center. It neither replaces a failed legacy CLI observation nor explains that observation's cause. The existing [SDK adoption audit](WINGET-SDK-ADOPTION-AUDIT.md) and [candidate contract](STRUCTURED-WINGET-DISCOVERY.md) record the fixed supported source and activation boundary.
+
+## What the probe requests
+
+`StructuredWingetProbe.ObserveAsync` first calls the actual candidate with an already-cancelled token. It requires a Cancelled result with no attempt, timestamps, rows or pending owner. Only after this succeeds does it request one actual installed-first query against the existing explicitly supported official catalog. It supplies no source agreement acceptance, account, credentials, source modification, installation, registration repair, elevation, uninstall or restart request. Catalog opening can involve provider-owned metadata/cache/network work. A zero background-update interval is not proof that cached data is fresh or that no provider work occurs.
+
+The probe runs in parallel with the existing CLI/WUA observations only in the separate `--update-discovery` development mode. Update report v4 adds its strict nested observation; legacy v2/v3 reports retain their original acceptance and cannot establish SDK success. Standard smoke report v2 requires the independent `structured-winget-discovery-contract` check, while legacy v1 retains its previous required checks. The enclosing 220-second caller budget is unchanged. The probe is called only from that separately selected development mode; it is not called by passive UI/native fixtures. Its caller owns the existing source/run/attempt context validation, fixed output path, atomic report publication and report acceptance. This file itself does not write reports or read additional host data. Source binding must come from that actual enclosing execution, never a supplied arbitrary package result.
+
+## Fixed observation, without package data
+
+The version-1 projection contains observation start/end UTC, state, pre-cancellation qualification, the bounded caller task outcome, schema acceptance, result-state name, row/Available/Unknown counts, an actual pending-native-read observation, and a nullable fixed diagnostic object. Diagnostic fields are the closed stage/outcome names, HRESULT, attempted flag, nullable actual request/completion UTC, bounded counts and nullable source/agreement/authentication/Connect/Find/truncation facts. Actual diagnostic completion stays null when only caller waiting completed.
+
+No package name, ID, version, path, source label/URL, result message, provider text, exception object, user identity or token is exported. The probe checks returned row contracts in memory and exports counts only. Diagnostic fields are copied individually into a separate DTO; the provider result is never serialized.
+
+A passed observation requires the real query's Completed/Partial outcome, a completed typed projection, known source match, agreements disabled, authentication None, successful Connect and Find, actual completion time and no pending owner. Partial remains Partial. Missing capabilities, source access, policy or server availability remain inconclusive; a returned invalid fixed result schema fails the probe. Even a passed observation does not establish compatibility, authenticated publisher trust, installed-server version, newest-software coverage, installation eligibility or that every app is up to date. Zero returned rows never establishes those claims.
+
+## Deadlines and ownership
+
+The candidate has its own bounded caller wait. The reporter adds a 110-second wait bound and requests caller cancellation asynchronously if it expires or its token is cancelled. Neither bound kills a process/service or proves native cancellation. The query task, reader and cancellation callbacks are rooted before scheduling and remain rooted if work is pending. A late fault is observed without exporting its text. The actual native owner retains projected objects/operations until its real worker finishes; normal runtime-managed wrapper lifetimes continue afterward. No forced COM release, exact reference-count claim, shared-server exit claim or background-refresh completion claim is made.
+
+`pendingNativeRead=false` is an observation after the caller result, not an atomic machine snapshot or proof of every provider activity stopping. `Pending` is never changed to `Completed` merely because the reporter returned. An unsettled probe cannot be silently replaced with another run and does not authorize owned fixture teardown.
+
+## Validation limits
+
+No Windows activation or source query has been performed while authoring this probe. Compilation, portable policy tests and neutral application startup cannot qualify this lazily loaded SDK path. The next actual disposable-Windows run must identify its source commit/run/attempt and retain the genuine observation, including unavailable/unsupported outcomes. Runtime qualification must separately exercise the actual published layout before production adoption; passing the project build alone does not establish that the executable can load/query the SDK. Standard-user and policy-restricted environments, offline access, missing App Installer, agreement refusal and actual pending-native cancellation require applicable runtime evidence.

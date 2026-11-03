@@ -34,7 +34,7 @@ internal sealed class SmokeReport(string outputDirectory)
             int runAttempt = int.TryParse(suppliedAttempt, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int attempt) && attempt > 0 ? attempt : 0;
             var snapshot = new
             {
-                formatVersion = 1,
+                formatVersion = 2,
                 sourceCommit,
                 runId,
                 runAttempt,

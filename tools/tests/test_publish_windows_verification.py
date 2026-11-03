@@ -541,6 +541,23 @@ class PublisherTests(unittest.TestCase):
     def test_owned_private_parent_security_preflight_is_required_for_pass(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'owned-private-parent-security-preflight']
         self.save(); self.rejected()
+    def test_v2_passed_report_requires_structured_winget_contract_even_when_legacy_check_is_present(self):
+        self.report['formatVersion'] = 2
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'structured-winget-discovery-contract']
+        self.save(); self.rejected()
+
+    def test_legacy_v1_preserves_acceptance_without_structured_winget_contract(self):
+        self.assertEqual(1, self.report['formatVersion'])
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
+    def test_v2_accepts_separate_structured_check_without_relabeling_other_checks(self):
+        self.report['formatVersion'] = 2
+        self.report['checks'].append({'name': 'structured-winget-discovery-contract', 'state': 'passed', 'detail': 'TEST-ONLY fixed diagnostic evidence'})
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
     def test_passed_report_requires_same_query_winget_observation(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'winget-query-observation-contract']
         self.save(); self.rejected()
