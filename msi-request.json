@@ -1,10 +1,10 @@
 {
   "formatVersion": 4,
-  "sourceCommit": "ff52039e6c84e5e7a9f225a98e614d930ad5d1c0",
-  "runId": "41695230417",
+  "sourceCommit": "88038b6cfc3c479b1cd92712da8fc884e78a3806",
+  "runId": "41703092192",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T18:40:08.6929393+00:00",
-  "observedUtc": "2026-11-03T18:41:40.9505004+00:00",
+  "startedUtc": "2026-11-03T19:29:16.6090877+00:00",
+  "observedUtc": "2026-11-03T19:30:48.0779107+00:00",
   "state": "inconclusive",
   "stage": "VisibleConsentUnverified",
   "packageBuilt": true,
@@ -32,7 +32,7 @@
     "yesPatternSeen": null,
     "yesInvoked": null,
     "enumerationFailed": false,
-    "pollCount": 805,
+    "pollCount": 812,
     "managedExceptionHResult": null
   },
   "clientStarted": true,

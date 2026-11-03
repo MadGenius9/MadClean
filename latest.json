@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ff52039e6c84e5e7a9f225a98e614d930ad5d1c0",
-  "runId": "41695230417",
+  "sourceCommit": "88038b6cfc3c479b1cd92712da8fc884e78a3806",
+  "runId": "41703092192",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-03T18:54:00.035987+00:00",
+  "updatedUtc": "2026-11-03T19:43:22.705922+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -32,6 +32,13 @@
   "componentStoreStatusReportPresent": true,
   "componentStoreStatusQualified": true,
   "componentStoreStatusError": null,
+  "componentStoreScanScope": "Separate explicit disposable-runner fresh component-store scan; Windows-managed health metadata/log writes, no repair or restart.",
+  "componentStoreScanResult": "success",
+  "componentStoreScanArtifactOutcome": "success",
+  "componentStoreScanReportPresent": true,
+  "componentStoreScanBackendQualified": true,
+  "componentStoreScanPublicUiQualified": false,
+  "componentStoreScanError": null,
   "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
   "msiRequestResult": "cancelled",
   "msiRequestArtifactOutcome": "success",
@@ -97,11 +104,11 @@
     },
     {
       "name": "tool-25.png",
-      "sha256": "e0644c8033ebf0ce7ce5c301a85a406845b7a1d1a459af2d42f37cabb5cfd126"
+      "sha256": "699629a1ece0ea61853861df9a971c76c9acdbad4df0292d8e9ab8e27e8075a2"
     },
     {
       "name": "tool-14.png",
-      "sha256": "20beb3c13bb7a83e5b7e9b739f65fba1bf2af10745b30a0094c78c28fc63c87a"
+      "sha256": "ebd8bd3622fbc4624ea743de8d1ac9f6e61c52a03080196fcdd463e59ade2990"
     },
     {
       "name": "tool-15.png",

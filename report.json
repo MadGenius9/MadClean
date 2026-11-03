@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ff52039e6c84e5e7a9f225a98e614d930ad5d1c0",
-  "runId": "41695230417",
+  "sourceCommit": "88038b6cfc3c479b1cd92712da8fc884e78a3806",
+  "runId": "41703092192",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T18:40:41.9180866+00:00",
-  "completedUtc": "2026-11-03T18:41:17.1065445+00:00",
+  "startedUtc": "2026-11-03T19:30:38.1716462+00:00",
+  "completedUtc": "2026-11-03T19:31:14.9695055+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -106,7 +106,7 @@
     {
       "name": "ui-component-store-preview-interaction",
       "state": "passed",
-      "detail": "productionQualified=True; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed scope, permissions/log writes/stop limits, acknowledgement reset and qualification-dependent confirmation enablement were observed. Existing activity, source rows, diagnostic window and current/historical assessment stayed unchanged, typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation."
+      "detail": "productionQualified=True; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Both fixed check kinds, permission/write/stop limits, acknowledgement reset and kind-dependent confirmation enablement were observed. Activity, source rows, diagnostic window and returned history stayed unchanged; kind changes withheld the current assessment. Typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation."
     },
     {
       "name": "ui-msi-action-binding-interaction",
@@ -436,7 +436,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=56/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
@@ -543,13 +543,13 @@
       "file": "tool-25.png",
       "width": 1404,
       "height": 961,
-      "sha256": "e0644c8033ebf0ce7ce5c301a85a406845b7a1d1a459af2d42f37cabb5cfd126"
+      "sha256": "699629a1ece0ea61853861df9a971c76c9acdbad4df0292d8e9ab8e27e8075a2"
     },
     {
       "file": "tool-14.png",
       "width": 1404,
       "height": 961,
-      "sha256": "20beb3c13bb7a83e5b7e9b739f65fba1bf2af10745b30a0094c78c28fc63c87a"
+      "sha256": "ebd8bd3622fbc4624ea743de8d1ac9f6e61c52a03080196fcdd463e59ade2990"
     },
     {
       "file": "tool-15.png",
