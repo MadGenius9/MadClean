@@ -52,6 +52,18 @@ static_assert(sizeof(ACL) == 8 && sizeof(ACL_SIZE_INFORMATION) == 12 && sizeof(A
 using DaclQuery = DWORD (WINAPI*)(HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION, PSID*, PSID*, PACL*, PACL*, PSECURITY_DESCRIPTOR*);
 static_assert(std::is_same<decltype(&GetSecurityInfo), DaclQuery>::value, "DACL query signature differs.");
 
+// Owned negative-case setup and same-handle control observation only.
+using DaclSet = DWORD (WINAPI*)(HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION, PSID, PSID, PACL, PACL);
+using DescriptorControlQuery = BOOL (WINAPI*)(PSECURITY_DESCRIPTOR, PSECURITY_DESCRIPTOR_CONTROL, LPDWORD);
+using DescriptorDaclQuery = BOOL (WINAPI*)(PSECURITY_DESCRIPTOR, LPBOOL, PACL*, LPBOOL);
+static_assert(std::is_same<decltype(&SetSecurityInfo), DaclSet>::value, "Owned DACL setup signature differs.");
+static_assert(std::is_same<decltype(&GetSecurityDescriptorControl), DescriptorControlQuery>::value, "Descriptor control query signature differs.");
+static_assert(std::is_same<decltype(&GetSecurityDescriptorDacl), DescriptorDaclQuery>::value, "Descriptor DACL query signature differs.");
+static_assert(DACL_SECURITY_INFORMATION == 0x00000004 && UNPROTECTED_DACL_SECURITY_INFORMATION == 0x20000000,
+    "Owned unprotected-case setup flags differ.");
+static_assert(SE_DACL_PROTECTED == 0x1000 && READ_CONTROL == 0x20000 && WRITE_DAC == 0x40000 && FILE_READ_ATTRIBUTES == 0x80,
+    "Owned parent protection/access constants differ.");
+
 // Present-device property reader: compile-only checks against the actual SDK,
 // independent of managed declarations. No device enumeration or property read.
 static_assert(sizeof(SP_DEVINFO_DATA) == 32, "Device information layout differs.");

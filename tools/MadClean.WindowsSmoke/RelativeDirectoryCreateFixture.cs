@@ -46,8 +46,15 @@ internal static partial class NativeFixtures
         const string check = "owned-private-parent-security-preflight";
         if (observation is not { } value)
         { report.Unknown(check, "The owned private-parent composition was not reached; no parent-security or creation proof is claimed."); return; }
-        string detail = $"qualifiedParent={value.Qualified}; unprotectedRefused={value.UnprotectedRefused}; foreignGrantRefused={value.ForeignGrantRefused}; qualifiedControlInvocations={value.QualifiedControlInvocations}; rejectedControlInvocations={value.RejectedControlInvocations}; rejectedParentsStillEmpty={value.RejectedTopologyUnchanged}; qualifiedChildAbsent={value.QualifiedChildAbsent}; nativeControlCleanupConfirmed={value.NativeControlCleanupConfirmed}; workerOwnershipReleased={ownershipReleased}. Strict existing same-handle owner/protected-DACL predicate only. Rejected composed routes were not invoked; counts are not an instrumented all-I/O trace. No effective-access, prior-handle, namespace-race, durability or production-creation qualification. No profile, servicing, elevation or production gate change.";
-        if (value.State == CheckState.Failed) report.Fail(check, detail);
+        string Flag(bool? flag) => flag?.ToString() ?? "unobserved";
+        string detail = $"setup={value.SetupStage}; protectedBefore={Flag(value.ProtectedBefore)}; unprotectCalled={Flag(value.UnprotectCalled)}; unprotectSucceeded={Flag(value.UnprotectSucceeded)}; protectedAfter={Flag(value.ProtectedAfter)}; qualifiedParent={value.Qualified}; unprotectedRefused={Flag(value.UnprotectedRefused)}; foreignGrantRefused={value.ForeignGrantRefused}; qualifiedControlInvocations={value.QualifiedControlInvocations}; rejectedControlInvocations={value.RejectedControlInvocations}; rejectedParentsStillEmpty={value.RejectedTopologyUnchanged}; qualifiedChildAbsent={value.QualifiedChildAbsent}; nativeControlCleanupConfirmed={value.NativeControlCleanupConfirmed}; workerOwnershipReleased={ownershipReleased}. Strict same-handle descriptor predicate; rejected route counts are not all-I/O tracing. No effective-access, prior-handle, namespace-race, durability or production-creation proof; no profile/actions/gate change.";
+        if (detail.Length > 1000)
+        {
+            const string bounded = "The parent-security diagnostic exceeded its bound; no complete evidence is claimed. Production creation remains disabled.";
+            if (value.State == CheckState.Failed) report.Fail(check, bounded + " A known invariant failure remains failed.");
+            else report.Unknown(check, bounded);
+        }
+        else if (value.State == CheckState.Failed) report.Fail(check, detail);
         else if (value.State == CheckState.Available && value.NativeControlCleanupConfirmed && ownershipReleased) report.Pass(check, detail);
         else report.Unknown(check, detail);
     }
@@ -65,9 +72,11 @@ internal struct RelativeDirectoryNativeResult
     internal uint CollisionRefused, ParentBookend, ChildBookend;
     internal uint DispositionCalled, DispositionSucceeded, HandlesClosed, DescriptorReleased, Complete;
 }
-internal sealed record PrivateParentSecurityObservation(CheckState State, bool Qualified, bool UnprotectedRefused,
+internal sealed record PrivateParentSecurityObservation(CheckState State, bool Qualified, bool? UnprotectedRefused,
     bool ForeignGrantRefused, int QualifiedControlInvocations, int RejectedControlInvocations,
-    bool RejectedTopologyUnchanged, bool QualifiedChildAbsent, bool NativeControlCleanupConfirmed);
+    bool RejectedTopologyUnchanged, bool QualifiedChildAbsent, bool NativeControlCleanupConfirmed,
+    string SetupStage = "not-reached", bool? ProtectedBefore = null, bool? UnprotectCalled = null,
+    bool? UnprotectSucceeded = null, bool? ProtectedAfter = null);
 internal sealed record RelativeDirectoryCreateResult(CheckState State, string Stage,
     RelativeDirectoryNativeResult Native, bool AbsenceObserved, bool TeardownCompleted, bool? ApiReturned = null,
     PrivateParentSecurityObservation? ParentSecurity = null);
@@ -197,10 +206,18 @@ internal static class RelativeDirectoryCreateProbe
         }
         private void CheckPrivateParents(string sid, uint descriptorBytes)
         {
-            bool qualified = false, unprotectedRefused = false, foreignRefused = false;
+            bool qualified = false, foreignRefused = false;
+            bool? unprotectedRefused = null;
             bool unchanged = false, childAbsent = false;
             int qualifiedCalls = 0, rejectedCalls = 0;
-            parentSecurity = new(CheckState.Unknown, false, false, false, 0, 0, false, false, false);
+            nint unprotectedDacl = 0;
+            bool? protectedBefore = null, protectedAfter = null, unprotectCalled = null, unprotectSucceeded = null;
+            string setupStage = "create-owned-cases";
+            PrivateParentSecurityObservation Observation(CheckState state, bool cleanup = false) =>
+                new(state, qualified, unprotectedRefused, foreignRefused, qualifiedCalls, rejectedCalls, unchanged, childAbsent, cleanup,
+                    setupStage, protectedBefore, unprotectCalled, unprotectSucceeded, protectedAfter);
+            void PublishSetup() => parentSecurity = Observation(CheckState.Unknown);
+            PublishSetup();
             Guard CreateParent(string leaf, string sddl)
             {
                 token.ThrowIfCancellationRequested(); VerifyOwner();
@@ -215,6 +232,17 @@ internal static class RelativeDirectoryCreateProbe
                 var attributes = new CreationSecurityAttributes { Length = (uint)Marshal.SizeOf<CreationSecurityAttributes>(), Descriptor = security };
                 string path = Path.Combine(root, leaf);
                 if (!CreateDirectoryW(path, ref attributes)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (leaf == "relative-parent-unprotected")
+                {
+                    // Only this exact newly-created owned negative case receives WRITE_DAC.
+                    // The generic no-follow Open helper and every production path stay unchanged.
+                    if (!GetSecurityDescriptorDacl(security, out bool present, out nint dacl, out _) || !present || dacl == 0)
+                        throw new IOException();
+                    unprotectedDacl = dacl;
+                    var handle = CreateFileW(path, 0x60080, 1, 0, 3, 0x02300000, 0);
+                    if (handle.IsInvalid) { int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new Win32Exception(error); }
+                    guards.Add(handle); CheckGuard(handle, directory: true); return handle;
+                }
                 return Open(path, directory: true);
             }
             bool Qualify(Guard guard)
@@ -246,13 +274,30 @@ internal static class RelativeDirectoryCreateProbe
             if (!Empty(goodLeaf) || !Empty(openLeaf) || !Empty(foreignLeaf)) throw new IOException();
             qualified = Qualify(good);
             if (!safeRelease) throw new IOException();
+            if (!qualified)
+            { setupStage = "qualified-parent-refused"; parentSecurity = Observation(CheckState.Failed); throw new IOException(); }
+            setupStage = "observe-before"; PublishSetup();
+            protectedBefore = ObserveDaclProtected(unprotected); PublishSetup();
+            token.ThrowIfCancellationRequested(); VerifyOwner();
+            setupStage = "unprotect-owned-case"; unprotectCalled = true; PublishSetup();
+            // DWORD return code is the result; GetLastError is not this API's contract.
+            uint unprotectCode = SetSecurityInfo(unprotected, 1, 0x20000004, 0, 0, unprotectedDacl, 0);
+            unprotectSucceeded = unprotectCode == 0; PublishSetup();
+            if (unprotectCode != 0) throw new IOException();
+            setupStage = "observe-after"; PublishSetup();
+            protectedAfter = ObserveDaclProtected(unprotected); PublishSetup();
+            if (protectedAfter != false)
+            { setupStage = "unprotected-case-not-established"; PublishSetup(); throw new IOException(); }
+            setupStage = "actual-unprotected-observed"; PublishSetup();
             unprotectedRefused = !Qualify(unprotected);
             if (!safeRelease) throw new IOException();
+            if (unprotectedRefused != true)
+            { setupStage = "actual-unprotected-accepted"; parentSecurity = Observation(CheckState.Failed); throw new IOException(); }
             foreignRefused = !Qualify(foreign);
             if (!safeRelease) throw new IOException();
-            if (!qualified || !unprotectedRefused || !foreignRefused)
+            if (!qualified || unprotectedRefused != true || !foreignRefused)
             {
-                parentSecurity = new(CheckState.Failed, qualified, unprotectedRefused, foreignRefused, 0, 0, false, false, false);
+                parentSecurity = Observation(CheckState.Failed);
                 throw new IOException();
             }
             // Only this qualified branch invokes the existing native composed route. Rejected
@@ -278,8 +323,32 @@ internal static class RelativeDirectoryCreateProbe
             if (!absent.CloseChecked(out _)) { safeRelease = false; throw new IOException(); }
             if (!childAbsent) { safeRelease = false; throw new IOException(); }
             CheckState state = nativeProof && unchanged ? CheckState.Available : native.Complete == 1 || returned ? CheckState.Failed : CheckState.Unknown;
-            parentSecurity = new(state, qualified, unprotectedRefused, foreignRefused, qualifiedCalls, rejectedCalls, unchanged, childAbsent, true);
+            parentSecurity = Observation(state, cleanup: true);
             if (state != CheckState.Available) throw new IOException();
+        }
+        private bool ObserveDaclProtected(Guard guard)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!safeRelease || SystemToolJournalStore.HasUncertainCleanup) { safeRelease = false; throw new IOException(); }
+            uint code = GetSecurityInfo(guard, 1, 4, 0, 0, 0, 0, out nint security);
+            // Root any allocation even on an error return; cleanup must precede another call.
+            if (security != 0) parentDescriptors.Add(security);
+            try
+            {
+                if (code != 0 || security == 0 || !IsValidSecurityDescriptor(security)) throw new IOException();
+                uint length = GetSecurityDescriptorLength(security);
+                if (length is < 20 or > 65536 || !GetSecurityDescriptorControl(security, out ushort control, out uint revision) || revision != 1)
+                    throw new IOException();
+                return (control & 0x1000) != 0;
+            }
+            finally
+            {
+                if (security != 0)
+                {
+                    if (LocalFree(security) != 0) { safeRelease = false; throw new IOException(); }
+                    parentDescriptors.Remove(security);
+                }
+            }
         }
         private T Export<T>(string name) where T : Delegate
         { nint pointer = GetProcAddress(module, name); if (pointer == 0) throw new Win32Exception(Marshal.GetLastWin32Error()); return Marshal.GetDelegateForFunctionPointer<T>(pointer); }
@@ -328,6 +397,18 @@ internal static class RelativeDirectoryCreateProbe
     [StructLayout(LayoutKind.Sequential)] private struct CreationSecurityAttributes { internal uint Length; internal nint Descriptor; internal int Inherit; }
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CreateDirectoryW(string path, ref CreationSecurityAttributes security);
+    [DllImport("advapi32.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern uint SetSecurityInfo(Guard handle, uint objectType, uint information, nint owner, nint group, nint dacl, nint sacl);
+    [DllImport("advapi32.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern uint GetSecurityInfo(Guard handle, uint objectType, uint information, nint owner, nint group, nint dacl, nint sacl, out nint descriptor);
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetSecurityDescriptorDacl(nint descriptor, [MarshalAs(UnmanagedType.Bool)] out bool present, out nint dacl, [MarshalAs(UnmanagedType.Bool)] out bool defaulted);
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetSecurityDescriptorControl(nint descriptor, out ushort control, out uint revision);
+    [DllImport("advapi32.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsValidSecurityDescriptor(nint descriptor);
+    [DllImport("advapi32.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern uint GetSecurityDescriptorLength(nint descriptor);
     [StructLayout(LayoutKind.Sequential)] private struct AttributeTag { internal uint Attributes, Tag; }
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate uint Version();
     [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
