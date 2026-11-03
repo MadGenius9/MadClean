@@ -56,8 +56,8 @@ internal static class ComponentStoreStatusHost
           managedExceptionHResult=$null
         }
         $rs=$null; $meta=$null; $lookup=$null; $ps=$null; $cancel=$null; $async=$null; $stopAsync=$null
-        $endTried=$false; $guard=$false; $allDisposed=$true
-        function Refuse([string]$outcome) { $script:guard=$true; $r.outcome=$outcome; throw 'Fixed component-store qualification refused' }
+        $endTried=$false; $control=@{ guard=$false }; $allDisposed=$true
+        function Refuse([string]$outcome) { $control.guard=$true; $r.outcome=$outcome; throw 'Fixed component-store qualification refused' }
         function Ordinary([string]$p,[bool]$directory) {
           if (-not [IO.Path]::IsPathRooted($p)) { return $false }
           $p=[IO.Path]::GetFullPath($p)
@@ -115,7 +115,8 @@ internal static class ComponentStoreStatusHost
           [void]$meta.AddCommand('Microsoft.PowerShell.Core\Import-Module').AddParameter('Name',$manifest).AddParameter('PassThru').AddParameter('ErrorAction','Stop')
           $modules=@($meta.Invoke())
           if ($meta.HadErrors -or $modules.Count -ne 1) { Refuse 'MetadataUnqualified' }
-          $module=[Management.Automation.PSObject]::AsPSObject($modules[0]).BaseObject
+          $module=$modules[0]
+          if ($null -eq $module -or $module.GetType() -ne [Management.Automation.PSModuleInfo]) { $r.moduleBound=$false; Refuse 'MetadataUnqualified' }
           $r.moduleBound=($module.Name -ceq 'Dism') -and [string]::Equals([IO.Path]::GetFullPath($module.ModuleBase),$dir,[StringComparison]::OrdinalIgnoreCase) -and (InDism $module.Path $dir)
           if (-not $r.moduleBound) { Refuse 'MetadataUnqualified' }
           $r.stage='CmdletQualification'
@@ -123,8 +124,8 @@ internal static class ComponentStoreStatusHost
           [void]$lookup.AddCommand('Microsoft.PowerShell.Core\Get-Command').AddParameter('Name','Dism\Repair-WindowsImage').AddParameter('CommandType',[Management.Automation.CommandTypes]::Cmdlet).AddParameter('All').AddParameter('ListImported').AddParameter('ErrorAction','Stop')
           $commands=@($lookup.Invoke())
           if ($lookup.HadErrors -or $commands.Count -ne 1) { Refuse 'MetadataUnqualified' }
-          $cmd=[Management.Automation.PSObject]::AsPSObject($commands[0]).BaseObject
-          $r.cmdletQualified=($cmd -is [Management.Automation.CmdletInfo]) -and ($cmd.Name -ceq 'Repair-WindowsImage') -and [object]::ReferenceEquals($cmd.Module,$module) -and
+          $cmd=$commands[0]
+          $r.cmdletQualified=($null -ne $cmd) -and ($cmd.GetType() -eq [Management.Automation.CmdletInfo]) -and ($cmd.Name -ceq 'Repair-WindowsImage') -and [object]::ReferenceEquals($cmd.Module,$module) -and
               (-not $cmd.ImplementingType.Assembly.IsDynamic) -and (InDism $cmd.ImplementingType.Assembly.Location $dir)
           if (-not $r.cmdletQualified) { Refuse 'MetadataUnqualified' }
           $outTypes=@($cmd.OutputType); if ($outTypes.Length -lt 1 -or $outTypes.Length -gt 8) { Refuse 'MetadataUnqualified' }
@@ -185,7 +186,7 @@ internal static class ComponentStoreStatusHost
             $r.stage='OutputQualification'
             if ($output.Count -le 16) { $r.outputCount=$output.Count }
             if ($output.Count -ne 1) { Refuse 'UnexpectedOutput' }
-            $obj=[Management.Automation.PSObject]::AsPSObject($output[0]).BaseObject
+            $obj=$output[0]
             if ($null -eq $obj -or $obj.GetType() -ne $ot) { Refuse 'UnexpectedOutput' }
             $value=$hp.GetValue($obj,$null)
             if ($null -eq $value -or $value.GetType() -ne $enum) { Refuse 'UnexpectedOutput' }
@@ -196,7 +197,7 @@ internal static class ComponentStoreStatusHost
           if ($cancel.WaitOne(0)) { $r.cancelEventObserved=$true }
         }
         catch {
-          if (-not $guard) { SaveException $_; $r.outcome=if ($r.invocationStarted -eq $true) { 'InvocationFailed' } else { 'Unavailable' } }
+          if (-not $control.guard) { SaveException $_; $r.outcome=if ($r.invocationStarted -eq $true) { 'InvocationFailed' } else { 'Unavailable' } }
         }
         finally {
           if ($null -ne $async -and -not $endTried) {
