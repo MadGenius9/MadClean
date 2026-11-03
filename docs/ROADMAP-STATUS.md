@@ -454,3 +454,10 @@ Source `56e97f0f`, [run 41709738590](https://github.com/MadGenius9/MadClean/acti
 RecordedFlags public UI passed its separate regression. Passive checks were 79 passed/10 inconclusive/0 failed; Windows core was 1,379 passed/10 not executed, total 1,389. The inert MSI qualification still lacked the authored Remove confirmation/teardown; overall CI therefore remained failed. No distribution ZIP was produced. The capability queue and diagnostics caption now describe the actual selected-check support rather than claiming all D2 execution disabled.
 
 The next proposed manufacturer RAM/storage increment could not establish a new fact: current official Learn requests returned proxy403 and official source lookups returned404. Existing service-category evidence supplies no capacities or upgrade limits. No guessed adapter or manufacturer claim was added; that coverage remains Unknown.
+
+
+## Explicit full Windows Installer UI request candidate
+
+The shared selected-MSI immutable intent, exact launcher allowlist and direct argument list now explicitly request `/x {ProductCode} /qf /norestart`. The preview describes requested Full UI and its package/policy limitations. Current retrieved official Microsoft command-line documentation explicitly supports `/qf` with `/x`; this strengthens the requested interface without claiming a cause for the earlier absent authored dialog. It adds no quiet/basic/passive behavior, restart, alternate context, raw registration command or production gate override. All existing authored consent, actual client exit, exact product/payload absence and ownership/teardown requirements remain unchanged.
+
+Independent review cleared the fixed-argument boundary. Full solution compilation passed with zero warnings/errors, all 1,410 portable .NET tests passed, and the workflow-tool suite had 222 passes/one Windows-only skip (223 total). Production MSI dispatch remains disabled pending a new source-matched Windows run; no client application was uninstalled during this development change.

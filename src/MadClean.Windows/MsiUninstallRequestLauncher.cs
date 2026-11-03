@@ -225,7 +225,7 @@ public sealed class MsiUninstallRequestLauncher
                 "The caller context changed before dispatch. No installer started.");
             if (!Guid.TryParseExact(intent.ProductCode, "B", out var code) || code == Guid.Empty ||
                 code.ToString("B").ToUpperInvariant() != intent.ProductCode ||
-                !intent.Arguments.SequenceEqual(new[] { "/x", intent.ProductCode, "/norestart" }))
+                !intent.Arguments.SequenceEqual(new[] { "/x", intent.ProductCode, "/qf", "/norestart" }))
                 return Blocked(intent, requested, "The fixed ProductCode request descriptor was inconsistent. No installer started.");
             var start = new ProcessStartInfo
             {
@@ -233,7 +233,7 @@ public sealed class MsiUninstallRequestLauncher
                 UseShellExecute = false, CreateNoWindow = false, WindowStyle = ProcessWindowStyle.Normal,
                 ErrorDialog = false
             };
-            start.ArgumentList.Add("/x"); start.ArgumentList.Add(intent.ProductCode); start.ArgumentList.Add("/norestart");
+            start.ArgumentList.Add("/x"); start.ArgumentList.Add(intent.ProductCode); start.ArgumentList.Add("/qf"); start.ArgumentList.Add("/norestart");
             process = new Process { StartInfo = start };
             var reservation = intent.TryReserveDispatch(confirmed, generation, DateTimeOffset.UtcNow, token);
             if (reservation != MsiUninstallDispatchReservation.Reserved)

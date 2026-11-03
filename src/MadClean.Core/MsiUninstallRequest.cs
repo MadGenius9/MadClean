@@ -37,7 +37,7 @@ public sealed class MsiUninstallRequestIntent
     {
         Scope = scope; SelectedProductScope = selectedProductScope; Context = context; SourceGeneration = sourceGeneration;
         PreparedUtc = preparedUtc; ExpiresUtc = expiresUtc; RequestId = Guid.NewGuid();
-        Arguments = Array.AsReadOnly(new[] { "/x", scope.ProductCode, "/norestart" });
+        Arguments = Array.AsReadOnly(new[] { "/x", scope.ProductCode, "/qf", "/norestart" });
     }
 
     public Guid RequestId { get; }
@@ -128,8 +128,8 @@ public sealed class MsiUninstallRequestPreview
     public DateTimeOffset PreparedUtc => Intent.PreparedUtc;
     public DateTimeOffset ExpiresUtc => Intent.ExpiresUtc;
     public IReadOnlyList<string> Arguments => Intent.Arguments;
-    public string ExactEffect => "Request Windows Installer's registered ProductCode uninstall operation for the selected product, requesting normal/default full Windows Installer UI (no quiet/passive flags) and /norestart. MadClean does not read or execute a registered uninstall command or force-delete application files.";
-    public string Limitations => "The context is a unique current-user/machine observation, not a frozen context or immutable package. Windows Installer resolves the ProductCode and controls its package-defined effects, permissions, prompts and cancellation. Displayed publisher is registration metadata, not package authentication. Package-defined file/settings/service changes cannot all be previewed. Client exit and later registration observations remain separate; no rollback, crash recovery, global absence or completed uninstall is inferred. Use Windows Installer's Cancel control if offered after dispatch; otherwise wait for its actual result; MadClean never kills it or forces a restart.";
+    public string ExactEffect => "Request Windows Installer's registered ProductCode uninstall operation for the selected product, explicitly requesting full Windows Installer UI (/qf) and no restart (/norestart). MadClean does not read or execute a registered uninstall command or force-delete application files.";
+    public string Limitations => "The context is a unique current-user/machine observation, not a frozen context or immutable package. Windows Installer resolves the ProductCode and controls its package-defined effects, permissions, prompts and cancellation. Full UI is requested, not guaranteed; package restrictions or Windows policy can limit the interface. Displayed publisher is registration metadata, not package authentication. Package-defined file/settings/service changes cannot all be previewed. Client exit and later registration observations remain separate; no rollback, crash recovery, global absence or completed uninstall is inferred. Use Windows Installer's Cancel control if offered after dispatch; otherwise wait for its actual result; MadClean never kills it or forces a restart.";
 }
 
 public static class MsiUninstallRequestPolicy

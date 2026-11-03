@@ -41,7 +41,7 @@ public sealed class MsiUninstallRequestTests
     {
         var source = Fixture();
         var preview = Assert.Single(MsiUninstallRequestPolicy.CreatePreview(source.Scope, source.Binding, 7, source.Now).Items);
-        Assert.Equal(new[] { "/x", ProductCode, "/norestart" }, preview.Arguments);
+        Assert.Equal(new[] { "/x", ProductCode, "/qf", "/norestart" }, preview.Arguments);
         Assert.False(Assert.Single(source.Binding.Items).CanExecute);
         Assert.Null(preview.Intent.SelectedProductScope);
         Assert.Equal(MsiRegistrationContext.Machine, preview.Context);
@@ -66,7 +66,7 @@ public sealed class MsiUninstallRequestTests
                 selected.Name, selected.Version, selected.Publisher, observed)], true, [], observed);
         var preview = Assert.Single(MsiUninstallRequestPolicy.CreatePreview(scope, binding, 0, start.AddMilliseconds(20)).Items);
         Assert.Equal(selected.Name, preview.Name);
-        Assert.Equal(new[] { "/x", ProductCode, "/norestart" }, preview.Arguments);
+        Assert.Equal(new[] { "/x", ProductCode, "/qf", "/norestart" }, preview.Arguments);
         Assert.DoesNotContain("/quiet", preview.Arguments);
         Assert.DoesNotContain("/forcerestart", preview.Arguments);
     }
@@ -229,7 +229,7 @@ public sealed class MsiUninstallRequestTests
             CheckState.Partial, CheckState.Available, false, 4, facts.Items[0].Instances, true, data.Start.AddMilliseconds(100), []);
         Assert.Empty(MsiUninstallRequestPolicy.CreatePreview(request.Scope, new(CheckState.Partial, "", [legacy]), 7,
             data.Start.AddMilliseconds(200)).Items);
-        Assert.Equal(new[] { "/x", ProductCode, "/norestart" }, request.Arguments);
+        Assert.Equal(new[] { "/x", ProductCode, "/qf", "/norestart" }, request.Arguments);
     }
 
     [Fact]
