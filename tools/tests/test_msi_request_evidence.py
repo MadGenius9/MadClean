@@ -115,6 +115,93 @@ class MsiRequestEvidenceTests(unittest.TestCase):
                 genericPromptMatched=True, yesControlSeen=True, yesControlVisibleEnabled=True,
                 yesPatternSeen=True, yesInvoked=True, yesSelectionKind='UniqueButtonName', yesCandidateCount=1)
 
+    def use_ui_v6(self, required=True):
+        self.use_consent_v5(with_yes=True)
+        self.report.update(formatVersion=6, uiRequired=required, ui=None)
+        if required:
+            self.report['ui'] = {**{name: True for name in p.MSI_UI_FACTS},
+                **{name: None for name in p.MSI_UI_CODES},
+                'installCode': 0, 'clientExitCode': 0, 'clientRequestState': 'ClientExited',
+                'toolIdentityStage': 'Completed', 'toolIdentityReason': 'Observed', 'toolNativeTrustResult': 0,
+                'toolCatalogTrustResult': 0, 'consentObservation': copy.deepcopy(self.report['consentObservation'])}
+
+    def test_v6_backend_only_proof_never_requires_or_fabricates_public_ui(self):
+        self.use_ui_v6(required=False); self.save()
+        actual = p.validate_msi_report(self.root, self.context)
+        self.assertFalse(actual['uiRequired'])
+        self.assertIsNone(actual['ui'])
+        self.report['ui'] = {}; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-mode'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v6_public_confirmation_requires_each_actual_flow_and_process_fact(self):
+        self.use_ui_v6(); self.save()
+        self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
+        for field in p.MSI_UI_FACTS:
+            previous = self.report['ui'][field]
+            self.report['ui'][field] = None; self.save()
+            with self.subTest(field=field):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['ui'][field] = previous
+        for field, wrong in [('installCode', 1603), ('clientExitCode', 1602), ('exceptionHResult', -1),
+                             ('clientRequestState', 'Blocked'), ('toolIdentityStage', 'Signature'),
+                             ('toolNativeTrustResult', -1), ('toolIdentityReason', 'WaitExpired')]:
+            previous = self.report['ui'][field]; self.report['ui'][field] = wrong; self.save()
+            with self.subTest(field=field):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['ui'][field] = previous
+
+    def test_v6_unknown_or_missing_public_result_cannot_borrow_backend_success(self):
+        self.use_ui_v6(); self.report['ui'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-pass'):
+            p.validate_msi_report(self.root, self.context)
+        self.report.update(state='inconclusive', stage='RequestUnsettled', ownedTeardown=None)
+        self.save()
+        self.assertIsNone(p.validate_msi_report(self.root, self.context)['ui'])
+        self.report['ui'] = {name: None for name in p.MSI_UI_FACTS | p.MSI_UI_CODES | set(p.MSI_UI_LABELS) | {'consentObservation'}}
+        self.save()
+        self.assertIsNone(p.validate_msi_report(self.root, self.context)['ui']['clientExitCode'])
+        self.report['ownedTeardown'] = True; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-teardown'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v6_ui_rejects_provider_data_bool_codes_and_incoherent_exit_history(self):
+        self.use_ui_v6()
+        self.report['ui']['productCode'] = 'TEST-ONLY-PRIVATE'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-schema'):
+            p.validate_msi_report(self.root, self.context)
+        del self.report['ui']['productCode']
+        self.report['ui']['clientExitCode'] = True; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-code'):
+            p.validate_msi_report(self.root, self.context)
+        self.report['ui']['clientExitCode'] = 0
+        self.report.update(state='inconclusive', ownedTeardown=None)
+        self.report['ui']['clientExited'] = False; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-ui-exit'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v6_ui_consent_cannot_substitute_generic_yes_for_authored_remove(self):
+        self.use_ui_v6()
+        consent = self.report['ui']['consentObservation']
+        for field in ('authoredTitleSeen', 'removePatternSeen', 'removeInvoked'):
+            original = consent[field]; consent[field] = False; self.save()
+            with self.subTest(field=field):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            consent[field] = original
+
+    def test_v6_ui_job_failure_cannot_be_overridden_by_a_passing_report(self):
+        self.use_ui_v6(); self.save()
+        environment = {'GITHUB_REPOSITORY': p.REPOSITORY, 'GITHUB_REF': p.SOURCE_REF,
+                       'GITHUB_EVENT_NAME': 'push', 'GITHUB_SHA': self.context[0],
+                       'GITHUB_RUN_ID': self.context[1], 'GITHUB_RUN_ATTEMPT': '1'}
+        for outcome in ('success', 'failure', 'cancelled'):
+            with patch.object(p, 'validate_checkout', side_effect=lambda root: root), \
+                 patch.object(p, 'validate_report', return_value=(None, {})), \
+                 patch.object(p.ci_diagnostics, 'collect', return_value=None):
+                _, summary, _ = p.prepare(self.root, self.root, 'success', 'success', environment,
+                    msi_directory=self.root, msi_download_result='success', msi_result=outcome)
+            self.assertEqual(outcome == 'success', summary['msiRequestPublicUiQualified'])
+
     def test_v5_unique_named_yes_chain_keeps_authored_and_client_proof_mandatory(self):
         self.use_consent_v5(with_yes=True); self.save()
         self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])

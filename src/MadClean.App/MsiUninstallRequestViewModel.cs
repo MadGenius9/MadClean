@@ -16,6 +16,7 @@ public sealed partial class MainViewModel
     private MsiSelectedProductReadScope? msiUninstallReadScope;
     private Task<CheckResult<MsiSelectedProductPreparation>>? msiUninstallPreparation;
     private Task<MsiUninstallRequestResult>? msiUninstallSubmission;
+    private MsiUninstallRequestResult? msiUninstallLastResult;
     private DispatcherTimer? msiUninstallUiTimer;
     private long msiUninstallGeneration;
     private bool msiUninstallAcknowledged, msiUninstallSubmissionActive, msiUninstallPreparationNeedsDrain, msiUninstallUiReservedObserved;
@@ -28,6 +29,7 @@ public sealed partial class MainViewModel
     public string MsiUninstallMessage { get => msiUninstallMessage; private set => Set(ref msiUninstallMessage, value); }
     public string MsiUninstallPreviewDetails { get => msiUninstallPreviewDetails; private set => Set(ref msiUninstallPreviewDetails, value); }
     public string MsiUninstallResultDetails { get => msiUninstallResultDetails; private set => Set(ref msiUninstallResultDetails, value); }
+    public MsiUninstallRequestResult? MsiUninstallLastResult { get => msiUninstallLastResult; private set => Set(ref msiUninstallLastResult, value); }
     public bool MsiUninstallAcknowledged
     {
         get => msiUninstallAcknowledged;
@@ -187,6 +189,7 @@ public sealed partial class MainViewModel
             // A cancelled UI token after dispatch cannot erase an actual client exit observation.
             if (!ConsistentMsiUninstallResult(intent, result, DateTimeOffset.UtcNow))
                 throw new InvalidOperationException("Installer request returned inconsistent observations.");
+            MsiUninstallLastResult = result;
             MsiUninstallMessage = result.Message;
             string startObservation = result.ClientStartObserved switch { true => "Started (start call returned true)", false => "Start call returned false", null => "Unobserved" };
             MsiUninstallResultDetails = $"Request observation: {result.State}\nRequested UTC: {result.RequestedUtc:u}\nActual client-start observation: {startObservation}\nObserved OS client start UTC: {result.StartedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit UTC: {result.ExitedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit code: {result.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "Unobserved"}\nWindows Installer reported outcome: {result.ExitDisposition?.ToString() ?? "Unobserved"}\n\n{MsiUninstallToolIdentityDetails(result.ToolIdentity)}\n\n{result.Message}\n\nRegistration postcheck: Not checked. Refresh registrations separately and review its coverage; client exit is not proof of global absence or every uninstall effect. The retained baseline is unchanged. Leftover candidates remain candidates, never proven junk. No automatic file removal, rollback or crash recovery is provided.";

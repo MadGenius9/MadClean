@@ -17,6 +17,7 @@ public sealed class MsiUninstallRequestLauncher
     private static Owner? rootedOwner;
     private static Task<MsiUninstallRequestResult>? pending;
     private static int retained;
+    private static PublicFixtureObservation? publicFixtureObservation;
 
     // Source qualification changes only after independent owned Windows evidence and review.
     // There is no configuration, environment or UI switch for this production boundary.
@@ -26,6 +27,51 @@ public sealed class MsiUninstallRequestLauncher
     public static bool HasPendingRequest { get { lock (Gate) return rootedOwner != null; } }
     public static bool RequiresRetention => Volatile.Read(ref retained) != 0;
     internal static Task<MsiUninstallRequestResult>? PendingCompletion { get { lock (Gate) return pending; } }
+
+    // Observation only: a registered listener cannot qualify the public dispatcher or
+    // replace its ordinary selected-product preparation/reservation. Its proof is never
+    // passed as the candidate launch authorization.
+    internal static PublicFixtureObservation RegisterOwnedPublicFixtureObserver(
+        MsiUninstallFixtureAuthorization proof, Func<MsiUninstallFixtureClient, Task> interaction)
+    {
+        ArgumentNullException.ThrowIfNull(proof);
+        ArgumentNullException.ThrowIfNull(interaction);
+        lock (Gate)
+        {
+            if (!ProductionDispatchValidated || rootedOwner != null || RequiresRetention || publicFixtureObservation != null)
+                throw new InvalidOperationException("The owned public observation cannot be registered.");
+            return publicFixtureObservation = new PublicFixtureObservation(proof, interaction);
+        }
+    }
+
+    internal sealed class PublicFixtureObservation(MsiUninstallFixtureAuthorization proof,
+        Func<MsiUninstallFixtureClient, Task> interaction) : IDisposable
+    {
+        private Guid? claimedRequestId;
+        private bool disposed;
+        internal Guid? ClaimedRequestId { get { lock (Gate) return claimedRequestId; } }
+        internal Func<MsiUninstallFixtureClient, Task> Interaction => interaction;
+        internal bool TryClaim(MsiUninstallRequestIntent intent)
+        {
+            // Called only under Gate after the ordinary public guard/context checks.
+            // The proof additionally requires its exact fresh GUID and inert fixture
+            // metadata, and remains owned by this actual worker after transfer.
+            if (disposed || claimedRequestId != null || !proof.TransferToWorker(intent)) return false;
+            claimedRequestId = intent.RequestId;
+            return true;
+        }
+        internal void ReleaseFromWorker() => proof.ReleaseFromWorker();
+        public void Dispose()
+        {
+            lock (Gate)
+            {
+                if (claimedRequestId != null || disposed) return;
+                if (ReferenceEquals(publicFixtureObservation, this)) publicFixtureObservation = null;
+                proof.Dispose();
+                disposed = true;
+            }
+        }
+    }
 
     public Task<MsiUninstallRequestResult> RequestAsync(MsiUninstallRequestIntent intent,
         bool userConfirmed, long sourceGeneration, CancellationToken token)
@@ -71,6 +117,11 @@ public sealed class MsiUninstallRequestLauncher
             if (authorization != null && !authorization.TransferToWorker(intent))
                 return Task.FromResult(Blocked(intent, requested,
                     "The exact owned qualification product was not established. No installer started."));
+            if (authorization == null && publicFixtureObservation is { } observer && observer.TryClaim(intent))
+            {
+                owner.ObservePublicFixture(observer);
+                publicFixtureObservation = null;
+            }
             rootedOwner = owner;
             try
             {
@@ -108,6 +159,9 @@ public sealed class MsiUninstallRequestLauncher
         private int? processId, exitCode;
         private bool? clientStartObserved;
         private SystemToolIdentityDiagnostic? toolIdentity;
+        private PublicFixtureObservation? publicObservation;
+
+        internal void ObservePublicFixture(PublicFixtureObservation observation) => publicObservation = observation;
 
         internal async Task<MsiUninstallRequestResult> RunAsync()
         {
@@ -162,6 +216,7 @@ public sealed class MsiUninstallRequestLauncher
                     process?.Dispose(); actualProcessHandle = null;
                     lease?.Dispose(); lease = null;
                     authorization?.ReleaseFromWorker();
+                    publicObservation?.ReleaseFromWorker();
                 }
                 catch (Exception) { uncertain = true; }
             }
@@ -252,9 +307,10 @@ public sealed class MsiUninstallRequestLauncher
             try { processId = process.Id; } catch (Exception) { }
             try { startedUtc = new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero); } catch (Exception) { }
             bool interactionFailed = false;
-            if (interaction != null)
+            var clientInteraction = interaction ?? publicObservation?.Interaction;
+            if (clientInteraction != null)
             {
-                try { await interaction(new MsiUninstallFixtureClient(process, toolIdentity)).ConfigureAwait(false); }
+                try { await clientInteraction(new MsiUninstallFixtureClient(process, toolIdentity)).ConfigureAwait(false); }
                 catch (Exception) { interactionFailed = true; }
             }
             // User cancellation after the committed boundary belongs to the visible Windows

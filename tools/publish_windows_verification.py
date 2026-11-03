@@ -371,6 +371,57 @@ def validate_msi_consent(value, version=4):
     return value["enumerationFailed"] is False and value["managedExceptionHResult"] is None and all(value[field] is True for field in ("ownClientPidObserved", "ownedWindowSeen", "authoredTitleSeen", "authoredWindowVisibleEnabled", "removeButtonSeen", "removeButtonVisibleEnabled", "removePatternSeen", "removeInvoked"))
 
 
+MSI_UI_FACTS = {"installReturned", "installedContextObserved", "payloadObserved", "inventoryRefreshObserved",
+    "ownedSelectionObserved", "prepareObserved", "acknowledgementObserved", "confirmObserved", "resultReturned",
+    "freshResultObserved", "clientObserverClaimed", "settled", "windowClosed", "visibleConsentObserved",
+    "clientStarted", "clientExited", "postCodeAbsent", "payloadAbsent"}
+MSI_UI_CODES = {"installCode", "clientExitCode", "exceptionHResult", "toolNativeTrustResult",
+    "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult"}
+MSI_UI_LABELS = {
+    "clientRequestState": {"NotStarted", "Blocked", "Preparing", "ClientStarted", "ClientExited", "MonitoringUnknown"},
+    "toolIdentityStage": {"Unknown", "SystemDirectory", "FileLease", "Signature", "Fingerprint", "VersionMetadata", "Completed"},
+    "toolIdentityReason": {"Unspecified", "Observed", "NativeTrustNotEstablished", "SignerInspectionUnavailable", "SignerNotQualified",
+        "OriginalFilenameMismatch", "IdentityBoundsOrPath", "OtherUnavailable", "WaitExpired", "PendingWorker", "UnsupportedPlatform", "TrustCleanupUnavailable"},
+}
+
+
+def validate_msi_ui(value):
+    if value is None:
+        return False
+    reject_unless(isinstance(value, dict) and set(value) == MSI_UI_FACTS | MSI_UI_CODES | set(MSI_UI_LABELS) | {"consentObservation"}, "msi-ui-schema")
+    for name in MSI_UI_FACTS:
+        reject_unless(value[name] is None or type(value[name]) is bool, "msi-ui-fact")
+    for name in MSI_UI_CODES:
+        reject_unless(value[name] is None or type(value[name]) is int and -(2**31) <= value[name] < 2**31, "msi-ui-code")
+    for name, allowed in MSI_UI_LABELS.items():
+        reject_unless(value[name] is None or type(value[name]) is str and value[name] in allowed, "msi-ui-label")
+    consent = validate_msi_consent(value["consentObservation"], 5)
+    reject_unless((value["installReturned"] is True) == (value["installCode"] is not None), "msi-ui-install")
+    reject_unless(value["clientExitCode"] is None or value["clientExited"] is True, "msi-ui-exit")
+    prerequisites = {
+        "installedContextObserved": ("installReturned",), "payloadObserved": ("installReturned",),
+        "ownedSelectionObserved": ("inventoryRefreshObserved",), "prepareObserved": ("ownedSelectionObserved",),
+        "acknowledgementObserved": ("prepareObserved",), "confirmObserved": ("acknowledgementObserved",),
+        "resultReturned": ("confirmObserved",), "freshResultObserved": ("resultReturned", "clientObserverClaimed"),
+        "clientStarted": ("confirmObserved", "clientObserverClaimed", "installedContextObserved", "payloadObserved"),
+        "clientExited": ("clientStarted",), "visibleConsentObserved": ("clientStarted",),
+        "postCodeAbsent": ("clientExited",), "payloadAbsent": ("clientExited",),
+    }
+    for name, required in prerequisites.items():
+        reject_unless(value[name] is not True or all(value[item] is True for item in required), "msi-ui-order")
+    reject_unless(value["consentObservation"] is None or value["clientStarted"] is True, "msi-ui-consent-client")
+    reject_unless(value["visibleConsentObserved"] is not True or consent, "msi-ui-consent")
+    if value["consentObservation"] is not None:
+        reject_unless(value["consentObservation"]["removeInvoked"] is not True or value["visibleConsentObserved"] is True, "msi-ui-consent-invoked")
+    reject_unless((value["toolIdentityStage"] is None) == (value["toolIdentityReason"] is None), "msi-ui-tool")
+    if value["toolIdentityStage"] is None:
+        reject_unless(all(value[name] is None for name in MSI_UI_CODES - {"installCode", "clientExitCode", "exceptionHResult"}), "msi-ui-tool")
+    return (all(value[name] is True for name in MSI_UI_FACTS) and consent
+        and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["exceptionHResult"] is None
+        and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed"
+        and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0)
+
+
 def validate_msi_report(directory, context):
     if directory is None:
         return None
@@ -379,9 +430,13 @@ def validate_msi_report(directory, context):
         return None
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult", "bindingReason", "bindingChangedFields", "selectionNoRemove", "bindingNoRemove", "bindingInstanceCount", "expectedMask", "observedContext"} | MSI_FACTS
-    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3, 4, 5}, "msi-report-schema")
+    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3, 4, 5, 6}, "msi-report-schema")
     version = value["formatVersion"]
-    reject_unless(set(value) == fields | ({"targetPreparation"} if version >= 3 else set()) | ({"consentObservation"} if version >= 4 else set()), "msi-report-schema")
+    reject_unless(set(value) == fields | ({"targetPreparation"} if version >= 3 else set()) | ({"consentObservation"} if version >= 4 else set()) | ({"uiRequired", "ui"} if version >= 6 else set()), "msi-report-schema")
+    if version >= 6:
+        reject_unless(type(value["uiRequired"]) is bool and (value["uiRequired"] or value["ui"] is None), "msi-ui-mode")
+        ui_qualified = validate_msi_ui(value["ui"])
+        reject_unless(value["state"] != "passed" or not value["uiRequired"] or ui_qualified, "msi-ui-pass")
     target_qualified = validate_msi_target(value["targetPreparation"]) if version >= 3 else False
     consent_qualified = validate_msi_consent(value["consentObservation"], version) if version >= 4 else False
     reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
@@ -441,6 +496,9 @@ def validate_msi_report(directory, context):
         reject_unless(value["clientExited"] is True, "msi-postcheck-coherence")
     if value["ownedTeardown"] is True:
         reject_unless(value["workerSettled"] is True and value["postCodeAbsent"] is True and value["payloadAbsent"] is True, "msi-teardown-coherence")
+        if version >= 6 and value["uiRequired"]:
+            reject_unless(value["ui"] is not None and all(value["ui"][name] is True for name in
+                ("settled", "windowClosed", "postCodeAbsent", "payloadAbsent")), "msi-ui-teardown")
     if value["state"] == "passed" and version == 2:
         reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["bindingReason"] == "Bound" and value["bindingChangedFields"] == 0 and value["selectionNoRemove"] is False and value["bindingNoRemove"] is False and value["bindingInstanceCount"] == 1 and value["expectedMask"] == 3 and value["observedContext"] == 2 and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
     if value["state"] == "passed" and version >= 3:
@@ -546,6 +604,7 @@ def prepare(root, download, build_result, verification_result, environment, core
         "msiRequestArtifactOutcome": msi_download_result,
         "msiRequestReportPresent": msi_report is not None,
         "msiRequestQualified": msi_result == "success" and msi_report is not None and msi_report["state"] == "passed",
+        "msiRequestPublicUiQualified": msi_result == "success" and msi_report is not None and msi_report["state"] == "passed" and msi_report.get("uiRequired") is True,
         "msiRequestError": msi_error,
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
