@@ -1,4 +1,4 @@
-"""Bounded fixed-field evidence for the separate recorded component-store flag job.
+"""Bounded fixed-field evidence for separate kind-bound component-store jobs.
 
 This module does not execute PowerShell, inspect a PC, or interpret text output.
 """
@@ -24,6 +24,8 @@ EVIDENCE_BOOLEANS = {
     "runspaceClosed", "cancelHandleDisposed",
 }
 CHECK_STATES = {"Unknown", "Available", "Unavailable", "Unsupported", "Failed", "Partial", "Cancelled"}
+KINDS = {"RecordedFlags", "ScanHealth"}
+SCAN_FINDINGS = {"Unknown", "NoCorruptionReported", "RepairableCorruptionReported", "NonRepairableCorruptionReported"}
 FLAGS = {"Unknown", "NoRecordedCorruptionFlag", "RecordedRepairable", "RecordedNonRepairable"}
 IDENTITY_STAGES = {"Unknown", "SystemDirectory", "FileLease", "Signature", "Fingerprint", "VersionMetadata", "Completed"}
 IDENTITY_REASONS = {"Unspecified", "Observed", "NativeTrustNotEstablished", "SignerInspectionUnavailable", "SignerNotQualified", "OriginalFilenameMismatch", "IdentityBoundsOrPath", "OtherUnavailable", "WaitExpired", "PendingWorker", "UnsupportedPlatform", "TrustCleanupUnavailable"}
@@ -32,7 +34,8 @@ OUTCOMES = {"NotStarted", "Unavailable", "MetadataUnqualified", "InvocationFaile
 PIPELINE_STATES = {"NotStarted", "Running", "Stopping", "Stopped", "Completed", "Failed", "Disconnected"}
 
 
-def collect(directory, context, read_json, safe_path, reject):
+def collect(directory, context, read_json, safe_path, reject, expected_kind="RecordedFlags"):
+    reject(expected_kind in KINDS, "component-expected-kind")
     if directory is None:
         return None
     path = safe_path(Path(directory), missing=True) / "report.json"
@@ -41,13 +44,17 @@ def collect(directory, context, read_json, safe_path, reject):
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage",
               "precancelState", "resultState", "recordedFlag", "transport", "evidence", "fixtureExceptionHResult"} | TOP_BOOLEANS
-    reject(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {1, 2}, "component-report-schema")
+    reject(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {1, 2, 3}, "component-report-schema")
     version = value["formatVersion"]
-    reject(set(value) == fields | ({"ui"} if version == 2 else set()), "component-report-schema")
+    reject(expected_kind == "RecordedFlags" or version == 3, "component-legacy-scan")
+    reject(set(value) == fields | ({"ui"} if version >= 2 else set()) | ({"checkKind", "sourceKind", "scanFinding", "uiRequired"} if version == 3 else set()), "component-report-schema")
+    kind = expected_kind if version == 3 else None
+    if version == 3:
+        reject(type(value["uiRequired"]) is bool and (expected_kind != "RecordedFlags" or value["uiRequired"] is True), "component-ui-required")
     reject(type(value["runAttempt"]) is int and (value["sourceCommit"], value["runId"], value["runAttempt"]) == context, "component-report-context")
     reject(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"}, "component-report-state")
     stages = {"OwnedSetup", "AdministratorUnavailable", "Precancel", "PrecancelInvariantFailed", "Candidate", "Observed", "OwnershipUnsettled", "Complete"}
-    reject(isinstance(value["stage"], str) and value["stage"] in stages | ({"UiActual", "UiUnsettled"} if version == 2 else set()), "component-report-stage")
+    reject(isinstance(value["stage"], str) and value["stage"] in stages | ({"UiActual", "UiUnsettled"} if version >= 2 else set()), "component-report-stage")
     _booleans(value, TOP_BOOLEANS, reject)
     _label(value["precancelState"], CHECK_STATES, reject)
     _label(value["resultState"], CHECK_STATES, reject)
@@ -62,10 +69,12 @@ def collect(directory, context, read_json, safe_path, reject):
         except ValueError:
             reject(False, "component-report-time")
     reject(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=20), "component-report-time-order")
-    _validate_observation(value, reject)
+    _validate_observation(value, reject, kind)
     transport, evidence = value["transport"], value["evidence"]
-    if version == 2:
-        _validate_ui(value["ui"], reject)
+    if version >= 2:
+        _validate_ui(value["ui"], reject, kind)
+    if version == 3 and not value["uiRequired"]:
+        reject(value["ui"] is None, "component-ui-not-requested")
     reject(value["requestMatched"] is not False or value["state"] == "failed", "component-request-mismatch")
     if value["precancelNoHostObserved"] is True:
         reject(value["precancelState"] == "Cancelled" and value["precancelAuthorizationTransferred"] is False, "component-precancel-coherence")
@@ -76,38 +85,38 @@ def collect(directory, context, read_json, safe_path, reject):
         required_false = {"precancelAuthorizationTransferred", "sessionStopRequested", "sessionPending", "providerPending", "sessionRetention", "providerRetention"}
         reject(value["stage"] == "Complete" and value["resultState"] == "Available" and value["fixtureExceptionHResult"] is None and
                all(value[name] is True for name in required_true) and all(value[name] is False for name in required_false), "component-pass-coherence")
-        _require_complete_observation(value, reject)
-        if version == 2:
+        _require_complete_observation(value, reject, kind)
+        if version == 2 or version == 3 and value["uiRequired"]:
             ui = value["ui"]
             reject(ui is not None and all(ui[name] is True for name in UI_BOOLEANS) and ui["exceptionHResult"] is None, "component-pass-ui")
-            _require_complete_observation(ui, reject)
+            _require_complete_observation(ui, reject, kind)
     return value
 
 
 UI_BOOLEANS = {"prepareObserved", "acknowledgementObserved", "confirmObserved", "resultReturned", "freshResultObserved", "settled", "transportConsistent", "evidenceConsistent"}
 
 
-def _validate_ui(ui, reject):
+def _validate_ui(ui, reject, kind=None):
     if ui is None:
         return
-    reject(isinstance(ui, dict) and set(ui) == UI_BOOLEANS | {"resultState", "recordedFlag", "transport", "evidence", "exceptionHResult"}, "component-ui-schema")
+    reject(isinstance(ui, dict) and set(ui) == UI_BOOLEANS | {"resultState", "recordedFlag", "transport", "evidence", "exceptionHResult"} | ({"checkKind", "sourceKind", "scanFinding"} if kind is not None else set()), "component-ui-schema")
     _booleans(ui, UI_BOOLEANS, reject)
     _label(ui["resultState"], CHECK_STATES, reject)
     _label(ui["recordedFlag"], FLAGS, reject)
     _integer(ui["exceptionHResult"], reject)
-    _validate_observation(ui, reject)
+    _validate_observation(ui, reject, kind)
     reject(ui["acknowledgementObserved"] is not True or ui["prepareObserved"] is True, "component-ui-order")
     reject(ui["confirmObserved"] is not True or ui["acknowledgementObserved"] is True, "component-ui-order")
     reject(ui["resultReturned"] is not True or ui["confirmObserved"] is True, "component-ui-order")
     reject(ui["freshResultObserved"] is not True or ui["resultReturned"] is True, "component-ui-order")
     if ui["resultReturned"] is not True:
-        reject(all(ui[name] is None for name in ("resultState", "recordedFlag", "transport", "evidence", "transportConsistent", "evidenceConsistent")), "component-ui-unobserved")
+        reject(all(ui[name] is None for name in ("resultState", "recordedFlag", "transport", "evidence", "transportConsistent", "evidenceConsistent") + (("checkKind", "sourceKind", "scanFinding") if kind is not None else ())), "component-ui-unobserved")
     else:
         reject(ui["resultState"] is not None and ui["recordedFlag"] is not None and ui["transport"] is not None, "component-ui-result")
     reject(ui["settled"] is not True or ui["resultReturned"] is True and ui["freshResultObserved"] is True, "component-ui-settled")
 
 
-def _validate_observation(value, reject):
+def _validate_observation(value, reject, kind=None):
     transport, evidence = value["transport"], value["evidence"]
     if transport is not None:
         transport_fields = TRANSPORT_BOOLEANS | {"hostExitCode", "stderrCharacterCount", "stopSignalNativeError", "identityStage", "identityReason", "nativeTrustResult"}
@@ -152,15 +161,33 @@ def _validate_observation(value, reject):
         reject(evidence["outcome"] != "PipelineStopped" or evidence["pipelineState"] == "Stopped", "component-pipeline-coherence")
         if evidence["outcome"] == "Completed":
             reject(evidence["pipelineState"] == "Completed" and evidence["endInvokeReturned"] is True and evidence["outputCount"] == 1 and evidence["errorCount"] == 0 and evidence["healthState"] is not None, "component-output-coherence")
-    if value["recordedFlag"] not in (None, "Unknown"):
-        reject(value["resultState"] == "Available" and evidence is not None and evidence["errorCount"] == 0 and evidence["warningCount"] == 0, "component-flag-coherence")
-    if value["resultState"] == "Available":
-        reject(value["recordedFlag"] not in (None, "Unknown"), "component-flag-coherence")
+    if kind is not None:
+        _label(value["checkKind"], KINDS, reject)
+        _label(value["sourceKind"], KINDS, reject)
+        _label(value["scanFinding"], SCAN_FINDINGS, reject)
+        reject(value["checkKind"] in (None, kind) and value["sourceKind"] in (None, kind), "component-kind-mismatch")
+        reject(value["sourceKind"] is None or evidence is not None, "component-source-kind")
+        reject(value["resultState"] is None or value["checkKind"] == kind and value["scanFinding"] is not None, "component-result-kind")
+        if value["resultState"] == "Available":
+            reject(value["sourceKind"] == kind, "component-source-kind")
+        if kind == "ScanHealth":
+            reject(value["recordedFlag"] in (None, "Unknown"), "component-scan-recorded-flag")
+            if value["scanFinding"] not in (None, "Unknown"):
+                reject(value["resultState"] == "Available" and evidence is not None and evidence["errorCount"] == 0 and evidence["warningCount"] == 0, "component-scan-finding")
+            if value["resultState"] == "Available":
+                reject(value["scanFinding"] not in (None, "Unknown") and value["sourceKind"] == kind, "component-scan-finding")
+        else:
+            reject(value["scanFinding"] in (None, "Unknown"), "component-recorded-scan-finding")
+    if kind != "ScanHealth":
+        if value["recordedFlag"] not in (None, "Unknown"):
+            reject(value["resultState"] == "Available" and evidence is not None and evidence["errorCount"] == 0 and evidence["warningCount"] == 0, "component-flag-coherence")
+        if value["resultState"] == "Available":
+            reject(value["recordedFlag"] not in (None, "Unknown"), "component-flag-coherence")
     reject(value["evidenceConsistent"] is not True or evidence is not None, "component-evidence-coherence")
     reject(value["transportConsistent"] is not True or transport is not None, "component-transport-coherence")
 
 
-def _require_complete_observation(value, reject):
+def _require_complete_observation(value, reject, kind=None):
     transport, evidence = value["transport"], value["evidence"]
     reject(value["resultState"] == "Available" and value["transportConsistent"] is True and value["evidenceConsistent"] is True, "component-pass-observation")
     reject(transport is not None and evidence is not None, "component-pass-coherence")
@@ -172,8 +199,14 @@ def _require_complete_observation(value, reject):
            all(evidence[name] is True for name in ("hostQualified", "moduleBound", "cmdletQualified", "outputContractQualified", "invocationStarted", "endInvokeReturned", "powerShellDisposed", "runspaceClosed", "cancelHandleDisposed")) and
            evidence["cancelEventObserved"] is False and evidence["beginStopCalled"] is False and evidence["endStopReturned"] is None and
            evidence["outputCount"] == 1 and evidence["errorCount"] == 0 and evidence["warningCount"] == 0 and evidence["managedExceptionHResult"] is None, "component-pass-evidence")
-    expected = {"Healthy": "NoRecordedCorruptionFlag", "Repairable": "RecordedRepairable", "NonRepairable": "RecordedNonRepairable"}
-    reject(evidence["healthState"] in expected and value["recordedFlag"] == expected[evidence["healthState"]], "component-pass-flag")
+    if kind is not None:
+        reject(value["checkKind"] == kind and value["sourceKind"] == kind, "component-pass-kind")
+    if kind == "ScanHealth":
+        expected = {"Healthy": "NoCorruptionReported", "Repairable": "RepairableCorruptionReported", "NonRepairable": "NonRepairableCorruptionReported"}
+        reject(value["recordedFlag"] == "Unknown" and evidence["healthState"] in expected and value["scanFinding"] == expected[evidence["healthState"]], "component-pass-scan")
+    else:
+        expected = {"Healthy": "NoRecordedCorruptionFlag", "Repairable": "RecordedRepairable", "NonRepairable": "RecordedNonRepairable"}
+        reject(evidence["healthState"] in expected and value["recordedFlag"] == expected[evidence["healthState"]], "component-pass-flag")
 
 
 def _booleans(value, fields, reject):

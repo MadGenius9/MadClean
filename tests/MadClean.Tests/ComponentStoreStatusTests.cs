@@ -6,10 +6,10 @@ namespace MadClean.Tests;
 
 public sealed class ComponentStoreStatusTests
 {
-    private static ComponentStoreStatusIntent Intent(bool reserve = true)
+    private static ComponentStoreStatusIntent Intent(bool reserve = true, ComponentStoreCheckKind kind = ComponentStoreCheckKind.RecordedFlags)
     {
         var now = DateTimeOffset.UtcNow.AddSeconds(-2);
-        var preview = Assert.Single(ComponentStoreStatusPolicy.CreatePreview(now).Items);
+        var preview = Assert.Single(ComponentStoreStatusPolicy.CreatePreview(kind, now).Items);
         var intent = Assert.Single(ComponentStoreStatusPolicy.Confirm(preview, true, now).Items);
         if (reserve) Assert.Equal(ComponentStoreStatusDispatchReservation.Reserved, intent.TryReserveDispatch(now.AddMilliseconds(1)));
         return intent;
@@ -49,6 +49,187 @@ public sealed class ComponentStoreStatusTests
         ["runspaceClosed"] = e.RunspaceClosed, ["cancelHandleDisposed"] = e.CancelHandleDisposed,
         ["managedExceptionHResult"] = e.ManagedExceptionHResult
     };
+
+    private static Dictionary<string, object?> KindEnvelope(ComponentStoreStatusEvidence evidence)
+    {
+        var payload = Envelope(evidence);
+        payload["version"] = 2; payload["kind"] = evidence.Kind.ToString();
+        return payload;
+    }
+
+    [Theory]
+    [InlineData("Healthy", ComponentStoreScanFinding.NoCorruptionReported)]
+    [InlineData("Repairable", ComponentStoreScanFinding.RepairableCorruptionReported)]
+    [InlineData("NonRepairable", ComponentStoreScanFinding.NonRepairableCorruptionReported)]
+    public void FreshScanMapsOnlyItsQualifiedFindingAndNeverPublishesARecordedFlag(string member, ComponentStoreScanFinding expected)
+    {
+        var intent = Intent(kind: ComponentStoreCheckKind.ScanHealth);
+        var source = Completed(intent.RequestId, member) with { Kind = ComponentStoreCheckKind.ScanHealth };
+        var parsed = ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(KindEnvelope(source)), intent.RequestId, intent.Kind);
+        Assert.True(parsed.Accepted);
+        var result = Assess(intent, parsed.Evidence);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Equal(ComponentStoreCheckKind.ScanHealth, result.Kind);
+        Assert.Equal(expected, result.ScanFinding);
+        Assert.Equal(ComponentStoreRecordedFlag.Unknown, result.Flag);
+        Assert.Contains("No repair or restart", result.Message);
+        Assert.Contains("not a system-file", result.Message);
+    }
+
+    [Fact]
+    public void RecordedFlagAssessmentDoesNotInventAFreshScanFinding()
+    {
+        var intent = Intent();
+        var result = Assess(intent, Completed(intent.RequestId));
+        Assert.Equal(ComponentStoreCheckKind.RecordedFlags, result.Kind);
+        Assert.Equal(ComponentStoreRecordedFlag.NoRecordedCorruptionFlag, result.Flag);
+        Assert.Equal(ComponentStoreScanFinding.Unknown, result.ScanFinding);
+    }
+
+    [Fact]
+    public void LegacyEnvelopeCanOnlyDescribeTheRecordedFlagsOperation()
+    {
+        var id = Guid.NewGuid();
+        string legacy = JsonSerializer.Serialize(Envelope(Completed(id)));
+        Assert.True(ComponentStoreStatusParser.Parse(legacy, id).Accepted);
+        Assert.True(ComponentStoreStatusParser.Parse(legacy, id, ComponentStoreCheckKind.RecordedFlags).Accepted);
+        Assert.False(ComponentStoreStatusParser.Parse(legacy, id, ComponentStoreCheckKind.ScanHealth).Accepted);
+        var upgraded = KindEnvelope(Completed(id));
+        Assert.True(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(upgraded), id).Accepted);
+        upgraded["version"] = 1;
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(upgraded), id).Accepted);
+    }
+
+    [Fact]
+    public void HostKindAndNonceMustBothMatchTheActiveIntent()
+    {
+        var scan = Intent(kind: ComponentStoreCheckKind.ScanHealth);
+        var scanEvidence = Completed(scan.RequestId) with { Kind = ComponentStoreCheckKind.ScanHealth };
+        var recordedEvidence = scanEvidence with { Kind = ComponentStoreCheckKind.RecordedFlags };
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(KindEnvelope(scanEvidence)), scan.RequestId).Accepted);
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(KindEnvelope(recordedEvidence)), scan.RequestId, scan.Kind).Accepted);
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(KindEnvelope(scanEvidence)), Guid.NewGuid(), scan.Kind).Accepted);
+        Assert.False(ComponentStoreStatusParser.IsConsistent(scanEvidence, scan.RequestId));
+        var mismatched = Assess(scan, recordedEvidence);
+        Assert.Null(mismatched.Evidence);
+        Assert.Equal(CheckState.Unknown, mismatched.State);
+        Assert.Equal(ComponentStoreRecordedFlag.Unknown, mismatched.Flag);
+        Assert.Equal(ComponentStoreScanFinding.Unknown, mismatched.ScanFinding);
+        Assert.Equal(0, mismatched.Transport.HostExitCode);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData("0")]
+    [InlineData("scanhealth")]
+    [InlineData("RecordedFlags, ScanHealth")]
+    public void VersionTwoKindCannotBeMissingCoercedOrAliased(object? wrongKind)
+    {
+        var id = Guid.NewGuid();
+        var payload = KindEnvelope(Completed(id) with { Kind = ComponentStoreCheckKind.ScanHealth });
+        payload["kind"] = wrongKind;
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(payload), id, ComponentStoreCheckKind.ScanHealth).Accepted);
+        payload.Remove("kind");
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(payload), id, ComponentStoreCheckKind.ScanHealth).Accepted);
+    }
+
+    [Fact]
+    public void UnknownCheckKindsCannotCreateOrQualifyRequests()
+    {
+        var invalid = (ComponentStoreCheckKind)9;
+        Assert.Empty(ComponentStoreStatusPolicy.CreatePreview(invalid, DateTimeOffset.UtcNow).Items);
+        var id = Guid.NewGuid();
+        Assert.False(ComponentStoreStatusParser.Parse(JsonSerializer.Serialize(Envelope(Completed(id))), id, invalid).Accepted);
+        Assert.False(ComponentStoreStatusParser.IsConsistent(Completed(id) with { Kind = invalid }, id, invalid));
+    }
+
+    [Fact]
+    public void ScanPreviewRetainsFixedScopeAndKindThroughOneShotConfirmation()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var scan = Assert.Single(ComponentStoreStatusPolicy.CreatePreview(ComponentStoreCheckKind.ScanHealth, now).Items);
+        var recorded = Assert.Single(ComponentStoreStatusPolicy.CreatePreview(now).Items);
+        Assert.Equal(ComponentStoreCheckKind.RecordedFlags, recorded.Kind);
+        Assert.Contains("-CheckHealth", recorded.CommandPreview);
+        Assert.DoesNotContain("-ScanHealth", recorded.CommandPreview);
+        Assert.Equal(ComponentStoreCheckKind.ScanHealth, scan.Kind);
+        Assert.Equal(@"Dism\Repair-WindowsImage -Online -ScanHealth -NoRestart -ErrorAction Stop", scan.CommandPreview);
+        Assert.Contains("several minutes", scan.ExactEffect);
+        Assert.Contains("health metadata", scan.ExactEffect);
+        Assert.Contains("effective administrator", scan.Permissions);
+        Assert.Contains("No servicing cancellation", scan.Cancellation);
+        Assert.DoesNotContain("-RestoreHealth", scan.CommandPreview);
+        Assert.DoesNotContain("-Source", scan.CommandPreview);
+        var intent = Assert.Single(ComponentStoreStatusPolicy.Confirm(scan, true, now).Items);
+        Assert.Equal(scan.Kind, intent.Kind);
+        Assert.Empty(ComponentStoreStatusPolicy.Confirm(scan, true, now).Items);
+        Assert.Equal(ComponentStoreStatusDispatchReservation.Reserved, intent.TryReserveDispatch(now));
+        Assert.Equal(ComponentStoreStatusDispatchReservation.AlreadyReserved, intent.TryReserveDispatch(now));
+    }
+
+    [Fact]
+    public void ScanStopsWarningsAndUnreleasedOwnershipKeepFindingUnknownButPreserveActualHistory()
+    {
+        var intent = Intent(kind: ComponentStoreCheckKind.ScanHealth);
+        var source = Completed(intent.RequestId) with { Kind = intent.Kind };
+        var stopped = Assess(intent, source, stopped: true);
+        Assert.Equal(CheckState.Cancelled, stopped.State);
+        Assert.Equal(ComponentStoreScanFinding.Unknown, stopped.ScanFinding);
+        Assert.Equal(ComponentStoreRecordedFlag.Unknown, stopped.Flag);
+        Assert.Same(source, stopped.Evidence);
+        foreach (var uncertain in new[]
+        {
+            source with { WarningCount = null }, source with { WarningCount = 1 },
+            source with { Outcome = ComponentStoreStatusOutcome.CleanupUncertain, RunspaceClosed = false },
+            source with { ManagedExceptionHResult = -1 }
+        })
+        {
+            var result = Assess(intent, uncertain);
+            Assert.Equal(ComponentStoreScanFinding.Unknown, result.ScanFinding);
+            Assert.Equal(ComponentStoreRecordedFlag.Unknown, result.Flag);
+            Assert.Equal("Healthy", result.Evidence!.HealthState);
+        }
+        var retained = Assess(intent, source, Exited() with { OwnershipReleased = false });
+        Assert.Equal(ComponentStoreScanFinding.Unknown, retained.ScanFinding);
+        Assert.Equal("Healthy", retained.Evidence!.HealthState);
+    }
+
+    [Fact]
+    public void ActualScanInvocationFailureRemainsFailedEvenWhenTheJsonHostExitsZero()
+    {
+        var intent = Intent(kind: ComponentStoreCheckKind.ScanHealth);
+        var source = Completed(intent.RequestId) with
+        {
+            Kind = intent.Kind, Outcome = ComponentStoreStatusOutcome.InvocationFailed,
+            PipelineState = ComponentStorePipelineState.Failed, EndInvokeReturned = false,
+            ErrorCount = 1, OutputCount = 0, HealthState = null
+        };
+        Assert.True(ComponentStoreStatusParser.IsConsistent(source, intent.RequestId, intent.Kind));
+        var result = Assess(intent, source);
+        Assert.Equal(CheckState.Failed, result.State);
+        Assert.Equal(ComponentStoreScanFinding.Unknown, result.ScanFinding);
+        Assert.Equal(ComponentStoreRecordedFlag.Unknown, result.Flag);
+        Assert.Same(source, result.Evidence);
+        Assert.Equal(0, result.Transport.HostExitCode);
+    }
+
+    [Fact]
+    public void LongScanCanFinishAfterPreviewExpiryButRequiresActualSourceAndExit()
+    {
+        var intent = Intent(kind: ComponentStoreCheckKind.ScanHealth);
+        var source = Completed(intent.RequestId) with { Kind = intent.Kind };
+        var completed = ComponentStoreStatusPolicy.Assess(intent, source, Exited(), intent.PreparedUtc,
+            intent.ExpiresUtc.AddMinutes(30), false);
+        Assert.Equal(CheckState.Available, completed.State);
+        Assert.Equal(ComponentStoreScanFinding.NoCorruptionReported, completed.ScanFinding);
+        foreach (var transport in new[] { Exited() with { HostExitCode = null }, Exited() with { StdoutDrained = false }, Exited() with { HostIdentity = null } })
+        {
+            var unknown = Assess(intent, source, transport);
+            Assert.Equal(ComponentStoreScanFinding.Unknown, unknown.ScanFinding);
+            Assert.Same(source, unknown.Evidence);
+        }
+    }
 
     [Theory]
     [InlineData("Healthy", ComponentStoreRecordedFlag.NoRecordedCorruptionFlag)]

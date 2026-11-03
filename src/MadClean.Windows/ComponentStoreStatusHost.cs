@@ -1,20 +1,32 @@
 using System.Text;
+using MadClean.Core;
 
 namespace MadClean.Windows;
 
-/// <summary>One fixed PS5.1 primary OS-cmdlet host; never a repair, scan, fallback or metadata-query kill runner.</summary>
+/// <summary>One fixed PS5.1 primary OS-cmdlet host for explicit status/scan requests; never repair or a query-kill runner.</summary>
 internal static class ComponentStoreStatusHost
 {
     internal const string EventPrefix = @"Local\MadClean.ComponentStoreCheck.";
     internal const int MaximumBodyCharacters = 16384;
     internal static string EncodedBootstrap => Convert.ToBase64String(Encoding.Unicode.GetBytes(Bootstrap));
-    internal static string Body(Guid requestId, string eventName)
+    internal static string Body(Guid requestId, string eventName) =>
+        Body(requestId, eventName, ComponentStoreCheckKind.RecordedFlags);
+
+    internal static string Body(Guid requestId, string eventName, ComponentStoreCheckKind kind)
     {
+        (string kindName, string healthSwitch) = kind switch
+        {
+            ComponentStoreCheckKind.RecordedFlags => (nameof(ComponentStoreCheckKind.RecordedFlags), "CheckHealth"),
+            ComponentStoreCheckKind.ScanHealth => (nameof(ComponentStoreCheckKind.ScanHealth), "ScanHealth"),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        };
         if (requestId == Guid.Empty || !eventName.StartsWith(EventPrefix, StringComparison.Ordinal) ||
             eventName.Length != EventPrefix.Length + 32 || !eventName.AsSpan(EventPrefix.Length).ToArray().All(c => c is >= 'a' and <= 'f' or >= '0' and <= '9'))
             throw new ArgumentException("The private operation correlation is invalid.");
         string source = Script.Replace("__REQUEST_ID__", requestId.ToString("N"), StringComparison.Ordinal)
-            .Replace("__CANCEL_EVENT__", eventName, StringComparison.Ordinal).ReplaceLineEndings("\n");
+            .Replace("__CANCEL_EVENT__", eventName, StringComparison.Ordinal)
+            .Replace("__CHECK_KIND__", kindName, StringComparison.Ordinal)
+            .Replace("__HEALTH_SWITCH__", healthSwitch, StringComparison.Ordinal).ReplaceLineEndings("\n");
         // Fixed ordinary source only: no here-strings, line continuations or multiline literals.
         string compact = string.Join('\n', source.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0 && !line.StartsWith('#')));
         if (compact.Length > MaximumBodyCharacters || compact.Length == 0) throw new InvalidOperationException("The fixed component-store host body exceeded its input bound.");
@@ -49,7 +61,7 @@ internal static class ComponentStoreStatusHost
         $InformationPreference = 'SilentlyContinue'
         [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false,$true)
         $r = [ordered]@{
-          version=1; requestId='__REQUEST_ID__'; stage='NotStarted'; outcome='NotStarted'
+          version=2; kind='__CHECK_KIND__'; requestId='__REQUEST_ID__'; stage='NotStarted'; outcome='NotStarted'
           hostQualified=$null; moduleBound=$null; cmdletQualified=$null; outputContractQualified=$null; invocationStarted=$null
           pipelineState=$null; endInvokeReturned=$null; cancelEventObserved=$null; beginStopCalled=$null; endStopReturned=$null
           outputCount=$null; errorCount=$null; warningCount=$null; healthState=$null; powerShellDisposed=$null; runspaceClosed=$null; cancelHandleDisposed=$null
@@ -57,6 +69,7 @@ internal static class ComponentStoreStatusHost
         }
         $rs=$null; $meta=$null; $lookup=$null; $ps=$null; $cancel=$null; $async=$null; $stopAsync=$null
         $endTried=$false; $control=@{ guard=$false }; $allDisposed=$true
+        $selectedHealthSwitch='__HEALTH_SWITCH__'
         function Refuse([string]$outcome) { $control.guard=$true; $r.outcome=$outcome; throw 'Fixed component-store qualification refused' }
         function Ordinary([string]$p,[bool]$directory) {
           if (-not [IO.Path]::IsPathRooted($p)) { return $false }
@@ -148,7 +161,7 @@ internal static class ComponentStoreStatusHost
             $params=@($set.Parameters); if ($params.Length -gt 64) { Refuse 'MetadataUnqualified' }
             $switches=0; $extra=$false
             foreach ($p in $params) {
-              if ($p.Name -cin @('Online','CheckHealth','NoRestart')) { if ($p.ParameterType -eq [Management.Automation.SwitchParameter]) { $switches++ } }
+              if ($p.Name -cin @('Online',$selectedHealthSwitch,'NoRestart')) { if ($p.ParameterType -eq [Management.Automation.SwitchParameter]) { $switches++ } }
               elseif ($p.IsMandatory) { $extra=$true }
             }
             if ($switches -eq 3 -and -not $extra) { $validSet=$true }
@@ -158,7 +171,7 @@ internal static class ComponentStoreStatusHost
           $r.cancelEventObserved=$cancel.WaitOne(0)
           if ($r.cancelEventObserved) { Refuse 'NotStarted' }
           $ps=[Management.Automation.PowerShell]::Create(); $ps.Runspace=$rs
-          [void]$ps.AddCommand($cmd).AddParameter('Online').AddParameter('CheckHealth').AddParameter('NoRestart').AddParameter('ErrorAction','Stop')
+          [void]$ps.AddCommand($cmd).AddParameter('Online').AddParameter($selectedHealthSwitch).AddParameter('NoRestart').AddParameter('ErrorAction','Stop')
           $r.stage='Invocation'; $async=$ps.BeginInvoke(); if ($null -eq $async) { Refuse 'InvocationFailed' }; $r.invocationStarted=$true; $r.beginStopCalled=$false
           while (-not $async.IsCompleted) {
             if ($cancel.WaitOne(0)) {

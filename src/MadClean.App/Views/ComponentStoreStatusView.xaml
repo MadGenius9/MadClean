@@ -1,23 +1,24 @@
 <UserControl x:Class="MadClean.App.Views.ComponentStoreStatusView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Border Style="{StaticResource Card}" Margin="0,8,0,18">
         <StackPanel>
-            <TextBlock Text="Recorded component-store status" FontSize="20"/>
-            <TextBlock Text="A separate, explicitly selected check of previously recorded Windows component-store corruption flags. This is not a fresh integrity scan, repair, antivirus result or whole-PC health score. Ordinary inspection never starts it." Style="{StaticResource Caption}"/>
-            <TextBlock Text="{Binding ComponentStoreQualification}" Style="{StaticResource Caption}" AutomationProperties.Name="Recorded component-store check qualification"/>
+            <TextBlock Text="Component-store checks" FontSize="20"/>
+            <TextBlock Text="Choose a recorded-flags check or prepare a fresh ScanHealth component-store scan. Both require separate review and confirmation. No repair, antivirus operation or whole-PC health score is provided; ordinary inspection starts neither." Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding ComponentStoreQualification}" Style="{StaticResource Caption}" AutomationProperties.Name="{Binding ComponentStoreQualificationAutomationName}"/>
             <WrapPanel Margin="0,8,0,4">
                 <Button Content="Prepare recorded-status check" Command="{Binding PrepareComponentStoreStatusCommand}" Background="#244B70" AutomationProperties.Name="Prepare explicit recorded component-store status check"/>
-                <Button Content="Check recorded status…" Command="{Binding ConfirmComponentStoreStatusCommand}" Background="#244B70" AutomationProperties.Name="Confirm explicit recorded component-store status check"/>
+                <Button Content="Prepare fresh component-store scan" Command="{Binding PrepareComponentStoreScanCommand}" Background="#244B70" AutomationProperties.Name="Prepare explicit fresh component-store scan"/>
+                <Button Content="{Binding ComponentStoreConfirmLabel}" Command="{Binding ConfirmComponentStoreStatusCommand}" Background="#244B70" AutomationProperties.Name="{Binding ComponentStoreConfirmAutomationName}"/>
                 <Button Content="Request pipeline stop" Command="{Binding RequestComponentStoreStopCommand}" Background="#343E52" Foreground="White" AutomationProperties.Name="Request stop of the owned component-store query pipeline"/>
             </WrapPanel>
             <TextBox Text="{Binding ComponentStorePreviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="270" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Exact component-store status command, permissions and side effects"/>
-            <CheckBox IsChecked="{Binding ComponentStoreAcknowledged, Mode=TwoWay}" IsEnabled="{Binding CanAcknowledgeComponentStoreStatus}" Foreground="#ECF1FB" Margin="0,10,0,12" AutomationProperties.Name="Acknowledge recorded component-store check scope and Windows log writes">
-                <TextBlock Text="I reviewed this recorded-flags-only check, its administrator requirement, Windows log/scratch writes and stop limitations." TextWrapping="Wrap"/>
+            <CheckBox IsChecked="{Binding ComponentStoreAcknowledged, Mode=TwoWay}" IsEnabled="{Binding CanAcknowledgeComponentStoreStatus}" Foreground="#ECF1FB" Margin="0,10,0,12" AutomationProperties.Name="{Binding ComponentStoreAcknowledgementAutomationName}">
+                <TextBlock Text="{Binding ComponentStoreAcknowledgementText}" TextWrapping="Wrap"/>
             </CheckBox>
             <TextBlock Text="Current effective administrator access is required. MadClean does not request UAC or relaunch itself. If access is unavailable, close it and choose any administrator relaunch yourself, then prepare and select the check again." Style="{StaticResource Caption}"/>
-            <TextBlock Text="{Binding ComponentStoreMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Recorded component-store check status" AutomationProperties.LiveSetting="Polite"/>
-            <TextBlock Text="{Binding ComponentStoreCurrentAssessment}" TextWrapping="Wrap" FontSize="18" Margin="0,8,0,12" AutomationProperties.Name="Current accepted recorded component-store assessment"/>
+            <TextBlock Text="{Binding ComponentStoreMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="{Binding ComponentStoreStatusAutomationName}" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Text="{Binding ComponentStoreCurrentAssessment}" TextWrapping="Wrap" FontSize="18" Margin="0,8,0,12" AutomationProperties.Name="{Binding ComponentStoreAssessmentAutomationName}"/>
             <TextBox Text="{Binding ComponentStoreLastObservation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="105" MaxHeight="340" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Historical component-store pipeline, reported flags and transport observations"/>
-            <TextBlock Text="A stop request may wait for Windows. MadClean never kills the client or servicing processes; pipeline/client completion does not prove that Windows servicing stopped or rolled back. A returned Healthy enum means only that this check reported no recorded corruption flag; the earlier flag date, broader integrity and crash causes remain unknown. No repair or restart action is provided here." Style="{StaticResource Caption}"/>
+            <TextBlock Text="A stop request may wait for Windows. MadClean never kills the client or servicing processes; pipeline/client completion does not prove that Windows servicing stopped or rolled back. A recorded-flags Healthy member reports only no recorded corruption flag. A fresh ScanHealth Healthy member reports only no corruption found by that component-store invocation. Neither establishes overall PC health, system-file integrity or crash causes. No repair or restart action is provided here." Style="{StaticResource Caption}"/>
         </StackPanel>
     </Border>
 </UserControl>

@@ -34,6 +34,9 @@ internal static class Program
         // It is outside the passive watchdog; no query-process kill runner is reused.
         if (args.Length == 1 && args[0] == "--component-store-status-validation")
             return ComponentStoreStatusQualification.Run(repository);
+        // Separate explicit fresh component-store scan; never passive inventory or a repair.
+        if (args.Length == 1 && args[0] == "--component-store-scan-validation")
+            return ComponentStoreStatusQualification.Run(repository, MadClean.Core.ComponentStoreCheckKind.ScanHealth);
         // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
         if (args.Length == 1 && args[0] == "--update-discovery")
         {

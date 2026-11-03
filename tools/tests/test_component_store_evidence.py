@@ -53,6 +53,73 @@ class ComponentStoreEvidenceTests(unittest.TestCase):
                                  transport=copy.deepcopy(self.report['transport']), evidence=copy.deepcopy(self.report['evidence']),
                                  exceptionHResult=None)
 
+    def use_kind_v3(self, kind='ScanHealth', ui_required=False):
+        self.report.update(formatVersion=3, checkKind=kind, sourceKind=kind,
+                           scanFinding='NoCorruptionReported' if kind == 'ScanHealth' else 'Unknown',
+                           recordedFlag='Unknown' if kind == 'ScanHealth' else 'NoRecordedCorruptionFlag',
+                           uiRequired=ui_required, ui=None)
+        if ui_required:
+            self.report['ui'] = {name: True for name in c.UI_BOOLEANS}
+            self.report['ui'].update(resultState='Available', recordedFlag=self.report['recordedFlag'],
+                transport=copy.deepcopy(self.report['transport']), evidence=copy.deepcopy(self.report['evidence']),
+                exceptionHResult=None, checkKind=kind, sourceKind=kind, scanFinding=self.report['scanFinding'])
+
+    def collect_kind(self, kind):
+        return c.collect(self.root, self.context, p.read_json, p.safe_path, p.reject_unless, expected_kind=kind)
+
+    def test_v3_scan_backend_proof_is_separate_from_public_ui_and_recorded_flags(self):
+        self.use_kind_v3(); self.save()
+        actual = self.collect_kind('ScanHealth')
+        self.assertEqual('passed', actual['state'])
+        self.assertFalse(actual['uiRequired']); self.assertIsNone(actual['ui'])
+        self.assertEqual('Unknown', actual['recordedFlag'])
+        self.assertEqual('NoCorruptionReported', actual['scanFinding'])
+        with self.assertRaises(p.EvidenceError):
+            self.collect()
+
+    def test_v3_public_scan_proof_requires_its_own_complete_ui_result(self):
+        self.use_kind_v3(ui_required=True); self.save()
+        self.assertTrue(self.collect_kind('ScanHealth')['uiRequired'])
+        self.report['ui'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-pass-ui'):
+            self.collect_kind('ScanHealth')
+        self.use_kind_v3(ui_required=True)
+        self.report['ui']['checkKind'] = 'RecordedFlags'; self.save()
+        with self.assertRaises(p.EvidenceError): self.collect_kind('ScanHealth')
+
+    def test_v3_scan_cannot_relabel_recorded_or_missing_source_kind_as_fresh_health(self):
+        self.use_kind_v3()
+        for field, wrong in [('sourceKind', 'RecordedFlags'), ('sourceKind', None),
+                             ('recordedFlag', 'NoRecordedCorruptionFlag'), ('scanFinding', 'Unknown'),
+                             ('scanFinding', 'RepairableCorruptionReported'), ('checkKind', 1)]:
+            previous = self.report[field]; self.report[field] = wrong; self.save()
+            with self.subTest(field=field, wrong=wrong):
+                with self.assertRaises(p.EvidenceError): self.collect_kind('ScanHealth')
+            self.report[field] = previous
+        self.report['formatVersion'] = 2
+        for field in ('checkKind','sourceKind','scanFinding','uiRequired'): del self.report[field]
+        self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-legacy-scan'):
+            self.collect_kind('ScanHealth')
+
+    def test_v3_recorded_requires_public_ui_and_rejects_scan_domain_finding(self):
+        self.use_kind_v3('RecordedFlags', ui_required=True); self.save()
+        self.assertEqual('passed', self.collect()['state'])
+        self.report['uiRequired'] = False; self.report['ui'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-ui-required'): self.collect()
+        self.use_kind_v3('RecordedFlags', ui_required=True)
+        self.report['scanFinding'] = 'NoCorruptionReported'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'component-recorded-scan-finding'): self.collect()
+
+    def test_v3_scan_warnings_and_stop_or_cleanup_uncertainty_withhold_qualification(self):
+        self.use_kind_v3()
+        for target, field, wrong in [('evidence','warningCount',1), ('evidence','runspaceClosed',False),
+                                     ('transport','ownershipReleased',None), ('transport','hostExitCode',None)]:
+            previous = self.report[target][field]; self.report[target][field] = wrong; self.save()
+            with self.subTest(target=target, field=field):
+                with self.assertRaises(p.EvidenceError): self.collect_kind('ScanHealth')
+            self.report[target][field] = previous
+
     def test_v2_requires_actual_ui_cycle_independently_of_candidate_success(self):
         self.use_ui_v2(); self.save()
         self.assertEqual('passed', self.collect()['state'])
@@ -218,6 +285,37 @@ class ComponentStoreEvidenceTests(unittest.TestCase):
             _, summary, files = self.prepare(artifact='failure')
         self.assertFalse(summary['componentStoreStatusReportPresent'])
         self.assertNotIn('component-store.json', files)
+
+    def prepare_scan(self, job='success', artifact='success'):
+        with patch.object(p, 'validate_checkout', side_effect=lambda root: root), \
+             patch.object(p, 'validate_report', return_value=({'passed': True}, {})), \
+             patch.object(p, 'core_test_summary', return_value={'passed': True}), \
+             patch.object(p.ci_diagnostics, 'collect', return_value=None):
+            return p.prepare(self.root, self.root, 'success', 'success', self.environment(),
+                             scan_directory=self.root, scan_download_result=artifact, scan_result=job)
+
+    def test_optional_scan_failure_cannot_hide_independent_evidence_or_claim_public_ui(self):
+        self.use_kind_v3(); self.save()
+        _, summary, files = self.prepare_scan()
+        self.assertTrue(summary['componentStoreScanBackendQualified'])
+        self.assertFalse(summary['componentStoreScanPublicUiQualified'])
+        self.assertIn('component-scan.json', files)
+        _, summary, _ = self.prepare_scan(job='failure')
+        self.assertFalse(summary['componentStoreScanBackendQualified'])
+        (self.root/'report.json').write_text('{}')
+        _, summary, files = self.prepare_scan(job='failure')
+        self.assertTrue(summary['passed'])
+        self.assertEqual('component-scan-evidence-rejected', summary['componentStoreScanError'])
+        self.assertNotIn('component-scan.json', files)
+
+    def test_scan_ui_qualification_is_not_inferred_from_candidate_or_ignored_download_failure(self):
+        self.use_kind_v3(ui_required=True); self.save()
+        _, summary, _ = self.prepare_scan()
+        self.assertTrue(summary['componentStoreScanPublicUiQualified'])
+        with patch.object(c, 'collect', side_effect=AssertionError('must not read')):
+            _, summary, files = self.prepare_scan(artifact='failure')
+        self.assertFalse(summary['componentStoreScanReportPresent'])
+        self.assertNotIn('component-scan.json', files)
 
 
 if __name__ == '__main__':

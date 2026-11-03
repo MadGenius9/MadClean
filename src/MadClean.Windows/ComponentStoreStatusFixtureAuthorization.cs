@@ -1,33 +1,46 @@
 using System.Security.Principal;
 using System.Text;
+using MadClean.Core;
 using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.Windows;
 
-/// <summary>Internal ownership proof for one explicit disposable-runner recorded-flag check.</summary>
+/// <summary>Kind-bound ownership proof for one explicit disposable-runner component-store check.</summary>
 internal sealed class ComponentStoreStatusFixtureAuthorization : IDisposable
 {
     private readonly object sync = new();
     private readonly Guid requestId;
+    private readonly ComponentStoreCheckKind kind;
     private readonly List<SafeFileHandle> directories;
     private readonly FileStream marker;
     private int ownership; // 0 caller; 1 worker; 2 released.
     private bool transferred;
-    private ComponentStoreStatusFixtureAuthorization(Guid id, List<SafeFileHandle> directories, FileStream marker)
-    { requestId = id; this.directories = directories; this.marker = marker; }
+    private ComponentStoreStatusFixtureAuthorization(Guid id, ComponentStoreCheckKind kind, List<SafeFileHandle> directories, FileStream marker)
+    { requestId = id; this.kind = kind; this.directories = directories; this.marker = marker; }
+    internal ComponentStoreCheckKind Kind => kind;
     internal bool WasTransferred { get { lock (sync) return transferred; } }
     internal bool IsReleased { get { lock (sync) return ownership == 2; } }
 
-    internal static ComponentStoreStatusFixtureAuthorization Open(string repository, string scopeDirectory, Guid id)
+    internal static ComponentStoreStatusFixtureAuthorization Open(string repository, string scopeDirectory, Guid id) =>
+        Open(repository, scopeDirectory, id, ComponentStoreCheckKind.RecordedFlags);
+
+    internal static ComponentStoreStatusFixtureAuthorization Open(string repository, string scopeDirectory, Guid id,
+        ComponentStoreCheckKind kind)
     {
+        (string job, string flag, string prefix) = kind switch
+        {
+            ComponentStoreCheckKind.RecordedFlags => ("windows-component-store-status", "MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION", "component-store-status-fixtures-"),
+            ComponentStoreCheckKind.ScanHealth => ("windows-component-store-scan", "MADCLEAN_COMPONENT_STORE_SCAN_VALIDATION", "component-store-scan-fixtures-"),
+            _ => throw Invalid()
+        };
         if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess || id == Guid.Empty ||
             Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
             Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
             Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "MadGenius9/MadClean" ||
             Environment.GetEnvironmentVariable("GITHUB_REF") != "refs/heads/feat/phase-one-foundation" ||
             Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is not ("push" or "workflow_dispatch") ||
-            Environment.GetEnvironmentVariable("GITHUB_JOB") != "windows-component-store-status" ||
-            Environment.GetEnvironmentVariable("MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION") != "1") throw Invalid();
+            Environment.GetEnvironmentVariable("GITHUB_JOB") != job ||
+            Environment.GetEnvironmentVariable(flag) != "1") throw Invalid();
         string? source = Environment.GetEnvironmentVariable("GITHUB_SHA"), run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID");
         if (source is not { Length: 40 } || !source.All(Uri.IsHexDigit) || string.IsNullOrEmpty(run) || run.Length > 32 ||
             !run.All(char.IsAsciiDigit) || !int.TryParse(Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT"), out int attempt) || attempt <= 0) throw Invalid();
@@ -39,7 +52,7 @@ internal sealed class ComponentStoreStatusFixtureAuthorization : IDisposable
         string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repository)), scope = Path.GetFullPath(scopeDirectory);
         if (root.Length < 4 || !char.IsAsciiLetter(root[0]) || root[1] != ':' || root[2] != '\\' ||
             !string.Equals(root, Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace)), StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(scope, Path.Combine(root, "artifacts", "component-store-status-fixtures-" + id.ToString("N")), StringComparison.OrdinalIgnoreCase)) throw Invalid();
+            !string.Equals(scope, Path.Combine(root, "artifacts", prefix + id.ToString("N")), StringComparison.OrdinalIgnoreCase)) throw Invalid();
         var directories = SystemToolTrustNative.LockDirectoryChain(scope);
         FileStream? marker = null;
         try
@@ -61,7 +74,7 @@ internal sealed class ComponentStoreStatusFixtureAuthorization : IDisposable
                 if (marker.ReadByte() != -1 || Encoding.ASCII.GetString(bytes) != id.ToString("N")) throw Invalid();
             }
             finally { Array.Clear(bytes); }
-            return new(id, directories, marker);
+            return new(id, kind, directories, marker);
         }
         catch
         {
@@ -70,11 +83,13 @@ internal sealed class ComponentStoreStatusFixtureAuthorization : IDisposable
             throw;
         }
     }
-    internal bool TransferToWorker(Guid id)
+    internal bool TransferToWorker(Guid id) => TransferToWorker(id, ComponentStoreCheckKind.RecordedFlags);
+
+    internal bool TransferToWorker(Guid id, ComponentStoreCheckKind requestedKind)
     {
         lock (sync)
         {
-            if (ownership != 0 || id != requestId) return false;
+            if (ownership != 0 || id != requestId || requestedKind != kind) return false;
             ownership = 1; transferred = true; return true;
         }
     }

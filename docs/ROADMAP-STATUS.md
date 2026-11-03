@@ -396,3 +396,20 @@ Passive 88 checks: 78 passed, 10 inconclusive, zero failed. Public-qualification
 The next fixture batch adds diagnostic-only nullable consent branches and early actual tool-identity projection without changing existing consent rules, command arguments or v2/v3 evidence acceptance. Its v4 success requires a coherent actual authored-control invoke chain with no callback/enumeration failure. A separately selected [Win32 full-name/NULL-root control](SHORTCUT-WIN32-ABSOLUTE-CONTROL.md) uses fresh owned files and preserves earlier relative/C++/NT results; it is neither a fallback nor a production shortcut action. [Cleanup action research](CLEANUP-SELECTED-ACTION-RESEARCH.md) confirms the remaining strict active-use/policy-consistency blocker and adds no duplicate executor.
 
 Independent review passed after evidence-coherence and public path-policy helper fixes. Full local solution build: zero warnings/errors; unchanged Core retains its 1,373 passing portable-test result. Python: 199 total, 198 passed, one Windows-only skip. The new diagnostics/control still need source-matched Windows observations; no cleanup, uninstall, repair or personal-PC action ran in this Linux workspace.
+
+
+## Owned shortcut control and MSI consent observations on Windows
+
+Source `ff52039e`, [run 41695230417](https://github.com/MadGenius9/MadClean/actions/runs/41695230417), immutable evidence `6f73ee8336f92da77a869d19bd93c8d02b3b57f4`: the independent Win32 NULL-root/full-name shortcut control passed all three calls, move/restore/no-overwrite collision refusal, identities/bytes/target preservation and checked teardown with no pending worker. Actual observed collision error was 0xB7; earlier relative managed/C++ ERROR87 cases remain inconclusive and unexplained. This qualifies only that owned control and enables no production shortcut action.
+
+MSI v4 observed the live owned client's visible generic Windows Installer window and exact confirmation question, but did not find the assumed numeric AutomationId6 Yes control. The authored dialog/invoke branches remained unobserved; no client exit, post-removal absence or teardown was established and the job was cancelled. Tool identity was independently observed Completed/catalog trust zero. These facts identify the current selector boundary without proving a provider/platform cause or granting uninstall permission.
+
+Passive 89 checks: 79 passed, 10 inconclusive, zero failed. Real public recorded-status confirmation passed again with both actual Healthy members, zero warnings/errors and complete exit/ownership facts. Windows core 1,363 Passed plus 10 NotExecuted reconcile 1,373; main build/tests/publisher succeeded, distribution stayed skipped.
+
+## Fresh component-store scan candidate
+
+The shared controller now accepts exactly two immutable kinds: RecordedFlags and ScanHealth. [ScanHealth](COMPONENT-STORE-SCAN.md) has a separate current finding domain; recorded flags cannot masquerade as a fresh scan and a scan never produces a recorded-flag assessment. Host protocol v2 binds the nonce and kind; legacy v1 remains recorded-only. The fresh operation is separately selected, discloses minutes of work and Windows-managed log/health-metadata writes, and requests no repair, source/offline override, cleanup or restart. The public scan guard remains false pending its own source-bound qualification and independent review.
+
+A separate disposable scan job qualifies the backend first. Report v3 keeps kind/source/finding separate and explicitly distinguishes backend-only qualification from actual public UI qualification; ordinary inspection and passive tests never confirm a scan. The previously qualified recorded-flags route remains independently exercised.
+
+Independent combined review passed after clearing stale current assessments on kind changes. Full local solution build: zero warnings/errors; 1,389 portable .NET tests passed; Python 206 total, 205 passed and one Windows-only skip. No Windows scan, repair, uninstall or personal-PC action ran in this Linux workspace. New shared-protocol regression and fresh-scan runtime findings await this source's Windows evidence.

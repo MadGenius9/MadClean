@@ -14,7 +14,11 @@ internal static class ComponentStoreStatusQualification
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
     private sealed class Report
     {
-        public int FormatVersion { get; } = 2;
+        public int FormatVersion { get; } = 3;
+        public string? CheckKind { get; set; }
+        public string? SourceKind { get; set; }
+        public string? ScanFinding { get; set; }
+        public bool UiRequired { get; init; }
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -57,7 +61,7 @@ internal static class ComponentStoreStatusQualification
     private sealed record UiFacts(bool? PrepareObserved, bool? AcknowledgementObserved, bool? ConfirmObserved,
         bool? ResultReturned, bool? FreshResultObserved, bool? Settled, bool? TransportConsistent,
         bool? EvidenceConsistent, string? ResultState, string? RecordedFlag, TransportFacts? Transport,
-        EvidenceFacts? Evidence, int? ExceptionHResult);
+        EvidenceFacts? Evidence, int? ExceptionHResult, string? CheckKind, string? SourceKind, string? ScanFinding);
 
     private static TransportFacts ProjectTransport(ComponentStoreStatusTransport transport) =>
         new(transport.AdministratorObserved, transport.HostStartAttempted, transport.HostStartObserved,
@@ -72,18 +76,20 @@ internal static class ComponentStoreStatusQualification
             evidence.OutputCount, evidence.ErrorCount, evidence.WarningCount, evidence.HealthState, evidence.PowerShellDisposed, evidence.RunspaceClosed,
             evidence.CancelHandleDisposed, evidence.ManagedExceptionHResult);
 
-    internal static int Run(string repository)
+    internal static int Run(string repository) => Run(repository, ComponentStoreCheckKind.RecordedFlags);
+
+    internal static int Run(string repository, ComponentStoreCheckKind kind)
     {
-        if (rootedOwner != null || !Context(repository, out string source, out string run, out int attempt)) return 2;
+        if (rootedOwner != null || !Context(repository, kind, out string source, out string run, out int attempt)) return 2;
         var repositoryGuards = SystemToolTrustNative.LockDirectoryChain(repository);
         try
         {
             string artifacts = Path.Combine(repository, "artifacts");
             Directory.CreateDirectory(artifacts); CheckAncestry(artifacts);
-            string output = Path.Combine(artifacts, "component-store-status-validation");
+            string output = Path.Combine(artifacts, kind == ComponentStoreCheckKind.ScanHealth ? "component-store-scan-validation" : "component-store-status-validation");
             if (Directory.Exists(output) || File.Exists(output)) return 1;
             Directory.CreateDirectory(output); CheckAncestry(output);
-            var owner = new Owner(repository, output, new Report { SourceCommit = source, RunId = run, RunAttempt = attempt });
+            var owner = new Owner(repository, output, kind, new Report { SourceCommit = source, RunId = run, RunAttempt = attempt, UiRequired = new ComponentStoreStatusProvider().IsCheckKindValidated(kind) });
             owner.Hold(repositoryGuards); repositoryGuards.Clear(); rootedOwner = owner;
             // No local watchdog, process kill or Environment.Exit wraps this mode. A hung
             // native/host operation stays owned; only the disposable job's outer VM expires.
@@ -92,13 +98,14 @@ internal static class ComponentStoreStatusQualification
         finally { foreach (var guard in repositoryGuards.AsEnumerable().Reverse()) guard.Dispose(); }
     }
 
-    private sealed class Owner(string repository, string output, Report report)
+    private sealed class Owner(string repository, string output, ComponentStoreCheckKind kind, Report report)
     {
         private readonly object reportGate = new();
         private readonly ComponentStoreStatusProvider provider = new();
         private readonly List<IDisposable> leases = [];
         private readonly List<(string Path, Guid Id, ComponentStoreStatusFixtureAuthorization Proof)> scopes = [];
         private IComponentStoreStatusSession? session;
+        private ComponentStoreStatusResult? lastUiResult;
         internal void Hold(IEnumerable<IDisposable> guards) => leases.AddRange(guards);
         private void Save()
         {
@@ -114,14 +121,14 @@ internal static class ComponentStoreStatusQualification
         }
         private (ComponentStoreStatusIntent Intent, ComponentStoreStatusFixtureAuthorization Proof) Prepare()
         {
-            var preview = ComponentStoreStatusPolicy.CreatePreview(DateTimeOffset.UtcNow).Items.Single();
+            var preview = ComponentStoreStatusPolicy.CreatePreview(kind, DateTimeOffset.UtcNow).Items.Single();
             var intent = ComponentStoreStatusPolicy.Confirm(preview, true, DateTimeOffset.UtcNow).Items.Single();
-            string scope = Path.Combine(repository, "artifacts", "component-store-status-fixtures-" + intent.RequestId.ToString("N"));
+            string scope = Path.Combine(repository, "artifacts", (kind == ComponentStoreCheckKind.ScanHealth ? "component-store-scan-fixtures-" : "component-store-status-fixtures-") + intent.RequestId.ToString("N"));
             if (Directory.Exists(scope) || File.Exists(scope)) throw new InvalidDataException();
             Directory.CreateDirectory(scope); CheckAncestry(scope);
             using (var marker = new FileStream(Path.Combine(scope, ".madclean-component-store-owner"), FileMode.CreateNew, FileAccess.Write, FileShare.None))
             { marker.Write(Encoding.ASCII.GetBytes(intent.RequestId.ToString("N"))); marker.Flush(true); }
-            var proof = ComponentStoreStatusFixtureAuthorization.Open(repository, scope, intent.RequestId);
+            var proof = ComponentStoreStatusFixtureAuthorization.Open(repository, scope, intent.RequestId, kind);
             scopes.Add((scope, intent.RequestId, proof));
             return (intent, proof);
         }
@@ -140,7 +147,8 @@ internal static class ComponentStoreStatusQualification
                 var cancelledResult = await cancelledSession.Completion;
                 report.PrecancelState = Enum.IsDefined(cancelledResult.State) ? cancelledResult.State.ToString() : null;
                 report.PrecancelAuthorizationTransferred = cancelled.Proof.WasTransferred;
-                report.PrecancelNoHostObserved = cancelledResult.State == CheckState.Cancelled &&
+                report.PrecancelNoHostObserved = cancelledResult.State == CheckState.Cancelled && cancelledResult.Kind == kind &&
+                    cancelledResult.Flag == ComponentStoreRecordedFlag.Unknown && cancelledResult.ScanFinding == ComponentStoreScanFinding.Unknown &&
                     cancelledResult.Transport.HostStartAttempted == false && cancelledResult.Transport.HostStartObserved == false &&
                     cancelledResult.Transport.HostExitObserved == null && cancelledResult.Transport.HostExitCode == null &&
                     !cancelledSession.HasPendingWork && !cancelledSession.RequiresRetention && !provider.HasPendingWork && !provider.RequiresRetention &&
@@ -152,7 +160,10 @@ internal static class ComponentStoreStatusQualification
                 session = await provider.StartCandidateAsync(candidate.Intent, candidate.Proof, CancellationToken.None);
                 report.CandidateAuthorizationTransferred = candidate.Proof.WasTransferred; Save();
                 var observed = await session.Completion;
-                report.RequestMatched = observed.RequestId == candidate.Intent.RequestId;
+                report.RequestMatched = observed.RequestId == candidate.Intent.RequestId && observed.Kind == kind;
+                report.CheckKind = Enum.IsDefined(observed.Kind) ? observed.Kind.ToString() : null;
+                report.ScanFinding = Enum.IsDefined(observed.ScanFinding) ? observed.ScanFinding.ToString() : null;
+                report.SourceKind = observed.Evidence is { } kindEvidence && Enum.IsDefined(kindEvidence.Kind) ? kindEvidence.Kind.ToString() : null;
                 if (report.RequestMatched == false) report.State = "failed";
                 report.ResultState = Enum.IsDefined(observed.State) ? observed.State.ToString() : null;
                 report.RecordedFlag = Enum.IsDefined(observed.Flag) ? observed.Flag.ToString() : null;
@@ -165,23 +176,27 @@ internal static class ComponentStoreStatusQualification
                 report.Transport = ProjectTransport(transport);
                 if (observed.Evidence is { } evidence)
                 {
-                    report.EvidenceConsistent = ComponentStoreStatusParser.IsConsistent(evidence, candidate.Intent.RequestId);
+                    report.EvidenceConsistent = ComponentStoreStatusParser.IsConsistent(evidence, candidate.Intent.RequestId, kind);
                     report.Evidence = ProjectEvidence(evidence);
                 }
                 report.Stage = "Observed"; Save();
                 bool settled = !session.HasPendingWork && !session.RequiresRetention && !provider.HasPendingWork && !provider.RequiresRetention && candidate.Proof.IsReleased;
                 if (!settled) { report.Stage = "OwnershipUnsettled"; Save(); return 2; }
-                report.Stage = "UiActual"; Save();
-                var ui = await ComponentStoreStatusUiQualification.RunAsync();
-                var uiResult = ui.Result;
-                report.Ui = new(ui.PrepareObserved, ui.AcknowledgementObserved, ui.ConfirmObserved,
-                    ui.ResultReturned, ui.FreshResultObserved, ui.Settled,
-                    uiResult == null ? null : ComponentStoreStatusPolicy.IsTransportConsistent(uiResult.Transport),
-                    uiResult?.Evidence is { } uiEvidence ? ComponentStoreStatusParser.IsConsistent(uiEvidence, uiResult.RequestId) : null,
-                    uiResult?.State.ToString(), uiResult?.Flag.ToString(),
-                    uiResult == null ? null : ProjectTransport(uiResult.Transport), ProjectEvidence(uiResult?.Evidence), ui.ExceptionHResult);
-                Save();
-                if (ui.Settled != true) { report.Stage = "UiUnsettled"; Save(); return 2; }
+                if (report.UiRequired)
+                {
+                    report.Stage = "UiActual"; Save();
+                    var ui = await ComponentStoreStatusUiQualification.RunAsync(kind);
+                    var uiResult = ui.Result; lastUiResult = uiResult;
+                    report.Ui = new(ui.PrepareObserved, ui.AcknowledgementObserved, ui.ConfirmObserved,
+                        ui.ResultReturned, ui.FreshResultObserved, ui.Settled,
+                        uiResult == null ? null : ComponentStoreStatusPolicy.IsTransportConsistent(uiResult.Transport),
+                        uiResult?.Evidence is { } uiEvidence ? ComponentStoreStatusParser.IsConsistent(uiEvidence, uiResult.RequestId, kind) : null,
+                        uiResult?.State.ToString(), uiResult?.Flag.ToString(),
+                        uiResult == null ? null : ProjectTransport(uiResult.Transport), ProjectEvidence(uiResult?.Evidence), ui.ExceptionHResult,
+                        uiResult?.Kind.ToString(), uiResult?.Evidence?.Kind.ToString(), uiResult?.ScanFinding.ToString());
+                    Save();
+                    if (ui.Settled != true) { report.Stage = "UiUnsettled"; Save(); return 2; }
+                }
                 foreach (var scope in scopes) scope.Proof.Dispose();
                 foreach (var scope in scopes)
                 {
@@ -191,30 +206,12 @@ internal static class ComponentStoreStatusQualification
                 foreach (var lease in leases.AsEnumerable().Reverse()) lease.Dispose(); leases.Clear(); report.OwnedTeardown = true;
                 bool qualified = report.PrecancelNoHostObserved == true && report.CandidateAuthorizationTransferred == true &&
                     report.RequestMatched == true && report.TransportConsistent == true && report.EvidenceConsistent == true &&
-                    observed.State == CheckState.Available && observed.Flag != ComponentStoreRecordedFlag.Unknown &&
-                    !session.StopRequested && transport.AdministratorObserved == true && transport.HostStartObserved == true &&
-                    transport.HostStartAttempted == true && transport.HostExitObserved == true && transport.HostExitCode == 0 && transport.OwnershipReleased == true &&
-                    transport.StdoutDrained == true && transport.StderrDrained == true && transport.OutputBoundExceeded == false && transport.StderrCharacterCount == 0 &&
-                    transport.StopSignalSucceeded == null && transport.StopSignalNativeError == null &&
-                    transport.HostIdentity is { Stage: SystemToolIdentityStage.Completed, Reason: SystemToolIdentityReason.Observed, NativeTrustResult: 0 } &&
-                    observed.Evidence is { Stage: ComponentStoreStatusStage.Completed, Outcome: ComponentStoreStatusOutcome.Completed,
-                        HostQualified: true, ModuleBound: true, CmdletQualified: true, OutputContractQualified: true, InvocationStarted: true,
-                        PipelineState: ComponentStorePipelineState.Completed, EndInvokeReturned: true, CancelEventObserved: false, BeginStopCalled: false,
-                        EndStopReturned: null, OutputCount: 1, ErrorCount: 0, WarningCount: 0, ManagedExceptionHResult: null,
-                        PowerShellDisposed: true, RunspaceClosed: true, CancelHandleDisposed: true };
-                qualified = qualified && ui.PrepareObserved == true && ui.AcknowledgementObserved == true && ui.ConfirmObserved == true &&
-                    ui.ResultReturned == true && ui.FreshResultObserved == true && ui.Settled == true && ui.ExceptionHResult == null &&
-                    uiResult is { State: CheckState.Available } && uiResult.Flag != ComponentStoreRecordedFlag.Unknown &&
-                    report.Ui.TransportConsistent == true && report.Ui.EvidenceConsistent == true &&
-                    uiResult.Transport is { AdministratorObserved: true, HostStartAttempted: true, HostStartObserved: true,
-                        HostExitObserved: true, HostExitCode: 0, OwnershipReleased: true, StdoutDrained: true, StderrDrained: true,
-                        OutputBoundExceeded: false, StderrCharacterCount: 0, StopSignalSucceeded: null, StopSignalNativeError: null,
-                        HostIdentity: { Stage: SystemToolIdentityStage.Completed, Reason: SystemToolIdentityReason.Observed, NativeTrustResult: 0 } } &&
-                    uiResult.Evidence is { Stage: ComponentStoreStatusStage.Completed, Outcome: ComponentStoreStatusOutcome.Completed,
-                        HostQualified: true, ModuleBound: true, CmdletQualified: true, OutputContractQualified: true, InvocationStarted: true,
-                        PipelineState: ComponentStorePipelineState.Completed, EndInvokeReturned: true, CancelEventObserved: false, BeginStopCalled: false,
-                        EndStopReturned: null, OutputCount: 1, ErrorCount: 0, WarningCount: 0, ManagedExceptionHResult: null,
-                        PowerShellDisposed: true, RunspaceClosed: true, CancelHandleDisposed: true };
+                    !session.StopRequested && QualifiedObservation(observed, kind);
+                if (report.UiRequired)
+                    qualified = qualified && report.Ui is { PrepareObserved: true, AcknowledgementObserved: true, ConfirmObserved: true,
+                        ResultReturned: true, FreshResultObserved: true, Settled: true, ExceptionHResult: null,
+                        TransportConsistent: true, EvidenceConsistent: true } &&
+                        lastUiResult is { } actualUi && QualifiedObservation(actualUi, kind);
                 if (report.State != "failed") report.State = qualified ? "passed" : "inconclusive";
                 report.Stage = "Complete"; Save();
                 return report.State == "failed" ? 1 : qualified ? 0 : 2;
@@ -230,6 +227,23 @@ internal static class ComponentStoreStatusQualification
             // no process termination, event replay or cleanup beneath an active worker.
         }
     }
+    private static bool QualifiedObservation(ComponentStoreStatusResult result, ComponentStoreCheckKind kind)
+    {
+        bool assessment = kind == ComponentStoreCheckKind.RecordedFlags
+            ? result.Flag != ComponentStoreRecordedFlag.Unknown && result.ScanFinding == ComponentStoreScanFinding.Unknown
+            : result.Flag == ComponentStoreRecordedFlag.Unknown && result.ScanFinding != ComponentStoreScanFinding.Unknown;
+        return result.Kind == kind && result.State == CheckState.Available && assessment &&
+            result.Transport is { AdministratorObserved: true, HostStartAttempted: true, HostStartObserved: true,
+                HostExitObserved: true, HostExitCode: 0, OwnershipReleased: true, StdoutDrained: true, StderrDrained: true,
+                OutputBoundExceeded: false, StderrCharacterCount: 0, StopSignalSucceeded: null, StopSignalNativeError: null,
+                HostIdentity: { Stage: SystemToolIdentityStage.Completed, Reason: SystemToolIdentityReason.Observed, NativeTrustResult: 0 } } &&
+            result.Evidence is { Stage: ComponentStoreStatusStage.Completed, Outcome: ComponentStoreStatusOutcome.Completed,
+                HostQualified: true, ModuleBound: true, CmdletQualified: true, OutputContractQualified: true, InvocationStarted: true,
+                PipelineState: ComponentStorePipelineState.Completed, EndInvokeReturned: true, CancelEventObserved: false, BeginStopCalled: false,
+                EndStopReturned: null, OutputCount: 1, ErrorCount: 0, WarningCount: 0, ManagedExceptionHResult: null,
+                PowerShellDisposed: true, RunspaceClosed: true, CancelHandleDisposed: true } evidence && evidence.Kind == kind;
+    }
+
     private static void DeleteScope(string scope, Guid id)
     {
         CheckAncestry(scope);
@@ -245,16 +259,16 @@ internal static class ComponentStoreStatusQualification
         for (DirectoryInfo? item = new(path); item != null; item = item.Parent) parents.Push(item);
         while (parents.Count != 0) if ((parents.Pop().Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException();
     }
-    private static bool Context(string repository, out string source, out string run, out int attempt)
+    private static bool Context(string repository, ComponentStoreCheckKind kind, out string source, out string run, out int attempt)
     {
         source = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? ""; run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? ""; attempt = 0;
         string? workspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
-        return OperatingSystem.IsWindows() && Environment.Is64BitProcess && Path.IsPathFullyQualified(repository) &&
+        return Enum.IsDefined(kind) && OperatingSystem.IsWindows() && Environment.Is64BitProcess && Path.IsPathFullyQualified(repository) &&
             !string.IsNullOrWhiteSpace(workspace) && Path.IsPathFullyQualified(workspace) &&
             Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" && Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted" &&
             Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") == "MadGenius9/MadClean" && Environment.GetEnvironmentVariable("GITHUB_REF") == "refs/heads/feat/phase-one-foundation" &&
-            Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is "push" or "workflow_dispatch" && Environment.GetEnvironmentVariable("GITHUB_JOB") == "windows-component-store-status" &&
-            Environment.GetEnvironmentVariable("MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION") == "1" &&
+            Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is "push" or "workflow_dispatch" && Environment.GetEnvironmentVariable("GITHUB_JOB") == (kind == ComponentStoreCheckKind.ScanHealth ? "windows-component-store-scan" : "windows-component-store-status") &&
+            Environment.GetEnvironmentVariable(kind == ComponentStoreCheckKind.ScanHealth ? "MADCLEAN_COMPONENT_STORE_SCAN_VALIDATION" : "MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION") == "1" &&
             source.Length == 40 && source.All(Uri.IsHexDigit) && run.Length is > 0 and <= 32 && run.All(char.IsAsciiDigit) &&
             int.TryParse(Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT"), out attempt) && attempt > 0 &&
             string.Equals(Path.GetFullPath(repository), Path.GetFullPath(workspace), StringComparison.OrdinalIgnoreCase);

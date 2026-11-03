@@ -8,13 +8,20 @@ using MadClean.Core;
 
 namespace MadClean.Windows;
 
-/// <summary>One explicit existing-flag check. Never ordinary inventory, elevation, a fresh scan or repair.</summary>
+/// <summary>One explicitly selected component-store check. Never ordinary inventory, elevation or repair.</summary>
 public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
 {
     private static readonly object GlobalGate = new();
     private static readonly List<Session> Rooted = [];
     // Fixed backend qualified at source 2e0c0160 / evidence c93b0960; no runtime override.
-    public bool ProductionCheckValidated => true;
+    public bool ProductionCheckValidated => IsCheckKindValidated(ComponentStoreCheckKind.RecordedFlags);
+    public bool IsCheckKindValidated(ComponentStoreCheckKind kind) => kind switch
+    {
+        ComponentStoreCheckKind.RecordedFlags => true,
+        // A fresh scan has a separate source-bound qualification; no runtime override.
+        ComponentStoreCheckKind.ScanHealth => false,
+        _ => false
+    };
     public bool HasPendingWork { get { lock (GlobalGate) return Rooted.Any(session => session.HasPendingWork); } }
     public bool RequiresRetention { get { lock (GlobalGate) return SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty || Rooted.Any(session => session.RequiresRetention); } }
 
@@ -22,9 +29,9 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
     {
         ArgumentNullException.ThrowIfNull(intent);
         // Immutable production gate: no profile/admin/token/native/path access and no host launch.
-        if (!ProductionCheckValidated)
-            return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent.RequestId, CheckState.Unavailable,
-                "Recorded-flag checking is not enabled in this build. No administrator query, Windows host or operation was requested.",
+        if (!IsCheckKindValidated(intent.Kind))
+            return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
+                "This selected component-store check kind is not enabled in this build. No administrator query, Windows host or operation was requested.",
                 new(null, false, null, null, true) { HostStartAttempted = false }));
         return StartOwnedAsync(intent, null, prelaunchToken);
     }
@@ -42,7 +49,7 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
         if (prelaunchToken.IsCancellationRequested)
         {
             intent.Invalidate();
-            return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent.RequestId, CheckState.Cancelled,
+            return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Cancelled,
                 "Cancelled before host preparation. No host launch was attempted.",
                 new(null, false, null, null, true) { HostStartAttempted = false }));
         }
@@ -50,16 +57,16 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
         {
             Rooted.RemoveAll(session => !session.HasPendingWork && !session.RequiresRetention);
             if (SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty)
-                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent.RequestId, CheckState.Unavailable,
+                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
                     "Shared fixed-tool identity ownership is uncertain. No additional host or identity query was requested.", null));
             if (Rooted.Any(session => session.HasPendingWork || session.RequiresRetention))
-                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent.RequestId, CheckState.Unavailable,
+                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
                     "An earlier component-store owner is pending or retained. No additional host was requested.", null));
             var owner = new Session(intent, authorization, prelaunchToken);
             var returned = Task.FromResult<IComponentStoreStatusSession>(owner);
             Rooted.EnsureCapacity(Rooted.Count + 1);
-            if (authorization != null && !authorization.TransferToWorker(intent.RequestId))
-                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent.RequestId, CheckState.Unavailable,
+            if (authorization != null && !authorization.TransferToWorker(intent.RequestId, intent.Kind))
+                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
                     "The exact source-bound disposable-CI authorization was not transferred. No host was requested.", null));
             Rooted.Add(owner);
             try { _ = Task.Run(owner.RunAsync); }
@@ -70,11 +77,11 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
 
     private sealed class CompletedSession : IComponentStoreStatusSession
     {
-        internal CompletedSession(Guid id, CheckState state, string message, ComponentStoreStatusTransport? transport)
+        internal CompletedSession(ComponentStoreStatusIntent intent, CheckState state, string message, ComponentStoreStatusTransport? transport)
         {
-            RequestId = id; var now = DateTimeOffset.UtcNow;
-            Completion = Task.FromResult(new ComponentStoreStatusResult(id, state, ComponentStoreRecordedFlag.Unknown, now, now, message)
-                { Transport = transport ?? new(null, null, null, null, null) });
+            RequestId = intent.RequestId; var now = DateTimeOffset.UtcNow;
+            Completion = Task.FromResult(new ComponentStoreStatusResult(intent.RequestId, state, ComponentStoreRecordedFlag.Unknown, now, now, message)
+                { Kind = intent.Kind, Transport = transport ?? new(null, null, null, null, null) });
         }
         public Guid RequestId { get; }
         public bool HasPendingWork => false;
@@ -137,7 +144,7 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
                 catch { retained = true; ownership = false; }
                 completion.TrySetResult(new(RequestId, CheckState.Unknown, ComponentStoreRecordedFlag.Unknown, attempted, DateTimeOffset.UtcNow,
                     "The owner could not be scheduled. No host launch was attempted; any uncertain proof remains retained.")
-                    { Transport = Transport(null, null) });
+                    { Kind = intent.Kind, Transport = Transport(null, null) });
             }
         }
         internal async Task RunAsync()
@@ -169,7 +176,7 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
                         SignalLatchedLocked();
                     }
                 }
-                string body = ComponentStoreStatusHost.Body(RequestId, cancel.Name);
+                string body = ComponentStoreStatusHost.Body(RequestId, cancel.Name, intent.Kind);
                 string encoded = ComponentStoreStatusHost.EncodedBootstrap;
                 if (lease.ToolPath.Length + encoded.Length + 128 >= 32767) throw new InvalidOperationException();
                 child = new Process
@@ -211,7 +218,7 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
                 output = await stdout.ConfigureAwait(false); error = await stderr.ConfigureAwait(false);
                 if (inputResult.Written && inputResult.Closed && !output.Exceeded && output.Completed)
                 {
-                    var parsed = ComponentStoreStatusParser.Parse(output.Text, RequestId);
+                    var parsed = ComponentStoreStatusParser.Parse(output.Text, RequestId, intent.Kind);
                     if (parsed.Accepted) evidence = parsed.Evidence;
                 }
             }

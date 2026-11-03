@@ -4,6 +4,7 @@ using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using MadClean.App;
+using MadClean.Core;
 
 namespace MadClean.WindowsSmoke;
 
@@ -26,6 +27,7 @@ internal static partial class UiCapture
         host.SelectedItem = page; await Idle(window);
         Require(model.SelectedPage == host.Items.IndexOf(page), "ui-component-preview-navigation-binding");
         var prepare = Descendants<Button>(window).Single(control => AutomationProperties.GetName(control) == "Prepare explicit recorded component-store status check");
+        var prepareScan = Descendants<Button>(window).Single(control => AutomationProperties.GetName(control) == "Prepare explicit fresh component-store scan");
         var confirm = Descendants<Button>(window).Single(control => AutomationProperties.GetName(control) == "Confirm explicit recorded component-store status check");
         var stop = Descendants<Button>(window).Single(control => AutomationProperties.GetName(control) == "Request stop of the owned component-store query pipeline");
         var acknowledgement = Descendants<CheckBox>(window).Single(control => AutomationProperties.GetName(control) == "Acknowledge recorded component-store check scope and Windows log writes");
@@ -35,6 +37,7 @@ internal static partial class UiCapture
         var assessment = Descendants<TextBlock>(window).Single(control => AutomationProperties.GetName(control) == "Current accepted recorded component-store assessment");
         var qualification = Descendants<TextBlock>(window).Single(control => AutomationProperties.GetName(control) == "Recorded component-store check qualification");
         Require(ReferenceEquals(prepare.Command, model.PrepareComponentStoreStatusCommand) &&
+            ReferenceEquals(prepareScan.Command, model.PrepareComponentStoreScanCommand) &&
             ReferenceEquals(confirm.Command, model.ConfirmComponentStoreStatusCommand) && ReferenceEquals(stop.Command, model.RequestComponentStoreStopCommand) &&
             acknowledgement.GetBindingExpression(ToggleButton.IsCheckedProperty)?.ParentBinding.Path?.Path == nameof(MainViewModel.ComponentStoreAcknowledged) &&
             details.IsReadOnly && history.IsReadOnly && details.Text == model.ComponentStorePreviewDetails && history.Text == model.ComponentStoreLastObservation &&
@@ -60,6 +63,7 @@ internal static partial class UiCapture
         string eventWindow = model.DiagnosticsWindow, werMessage = model.WerMessage, werWindow = model.WerWindow;
         string originalHistory = model.ComponentStoreLastObservation, originalAssessment = model.ComponentStoreCurrentAssessment;
         var originalResult = model.ComponentStoreLastResult;
+        string expectedAssessment = originalAssessment;
         var range = model.SelectedDiagnosticRange;
         bool Same<T>(T[] original, IEnumerable<T> current) where T : class =>
             original.Length == current.Count() && original.Zip(current).All(pair => ReferenceEquals(pair.First, pair.Second));
@@ -71,19 +75,27 @@ internal static partial class UiCapture
             Same(wer, model.WerRows) && Same(drivers, model.DeviceDriverRows) &&
             model.DiagnosticsMessage == eventMessage && model.DiagnosticsAttempt == eventAttempt && model.DiagnosticsWindow == eventWindow &&
             model.WerMessage == werMessage && model.WerWindow == werWindow && ReferenceEquals(range, model.SelectedDiagnosticRange) &&
-            model.ComponentStoreLastObservation == originalHistory && model.ComponentStoreCurrentAssessment == originalAssessment &&
+            model.ComponentStoreLastObservation == originalHistory && model.ComponentStoreCurrentAssessment == expectedAssessment &&
             ReferenceEquals(model.ComponentStoreLastResult, originalResult) &&
-            confirm.IsEnabled == (productionQualified && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
-            model.ConfirmComponentStoreStatusCommand.CanExecute(null) == (productionQualified && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
+            confirm.IsEnabled == (model.ComponentStoreSelectedKindValidated && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
+            model.ConfirmComponentStoreStatusCommand.CanExecute(null) == (model.ComponentStoreSelectedKindValidated && model.ComponentStoreAcknowledged && model.CanAcknowledgeComponentStoreStatus) &&
             !stop.IsEnabled && !model.RequestComponentStoreStopCommand.CanExecute(null);
-        async Task Prepare()
+        async Task Prepare(ComponentStoreCheckKind kind = ComponentStoreCheckKind.RecordedFlags)
         {
-            prepare.BringIntoView(); await Idle(window);
-            Require(prepare.IsVisible && prepare.IsEnabled && model.PrepareComponentStoreStatusCommand.CanExecute(null), "ui-component-preview-prepare-disabled");
-            var peer = UIElementAutomationPeer.CreatePeerForElement(prepare) ?? new ButtonAutomationPeer(prepare);
+            bool kindChanged = model.ComponentStoreSelectedKind != kind;
+            var button = kind == ComponentStoreCheckKind.ScanHealth ? prepareScan : prepare;
+            var command = kind == ComponentStoreCheckKind.ScanHealth ? model.PrepareComponentStoreScanCommand : model.PrepareComponentStoreStatusCommand;
+            button.BringIntoView(); await Idle(window);
+            Require(button.IsVisible && button.IsEnabled && command.CanExecute(null), "ui-component-preview-prepare-disabled");
+            var peer = UIElementAutomationPeer.CreatePeerForElement(button) ?? new ButtonAutomationPeer(button);
             if (peer.GetPattern(PatternInterface.Invoke) is not IInvokeProvider invoke)
                 throw new SmokeAssertionException("ui-component-preview-invoke-unavailable");
             invoke.Invoke(); await Idle(window);
+            if (kindChanged)
+            {
+                expectedAssessment = $"Not checked — selected kind: {kind}. No new check has started. Any last returned observation below is historical for this selection.";
+                Require(model.ComponentStoreCurrentAssessment == expectedAssessment, "ui-component-preview-kind-change-withholds-current-assessment");
+            }
             Require(details.Text == model.ComponentStorePreviewDetails && status.Text == model.ComponentStoreMessage && Unchanged(),
                 "ui-component-preview-only-no-source-change");
         }
@@ -112,6 +124,23 @@ internal static partial class UiCapture
         toggle.Toggle(); await Idle(window); toggle.Toggle(); await Idle(window);
         Require(acknowledgement.IsChecked == false && !model.ComponentStoreAcknowledged && toggle.ToggleState == ToggleState.Off &&
             history.Text == originalHistory && assessment.Text == originalAssessment && Unchanged(), "ui-component-preview-acknowledgement-restored");
-        report.Pass(check, $"productionQualified={productionQualified}; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed scope, permissions/log writes/stop limits, acknowledgement reset and qualification-dependent confirmation enablement were observed. Existing activity, source rows, diagnostic window and current/historical assessment stayed unchanged, typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation.");
+        await Prepare(ComponentStoreCheckKind.ScanHealth);
+        Require(model.ComponentStoreSelectedKind == ComponentStoreCheckKind.ScanHealth &&
+            details.Text.Contains(@"Dism\Repair-WindowsImage -Online -ScanHealth -NoRestart -ErrorAction Stop", StringComparison.Ordinal) &&
+            details.Text.Contains("Only ScanHealth is selected", StringComparison.Ordinal) &&
+            details.Text.Contains("No RestoreHealth, SFC, repair, cleanup or restart", StringComparison.Ordinal) &&
+            !model.ComponentStoreAcknowledged && acknowledgement.IsChecked == false && !confirm.IsEnabled &&
+            AutomationProperties.GetName(confirm) == model.ComponentStoreConfirmAutomationName &&
+            AutomationProperties.GetName(acknowledgement) == model.ComponentStoreAcknowledgementAutomationName && Unchanged(),
+            "ui-component-preview-distinct-fresh-scan");
+        acknowledgement.BringIntoView(); await Idle(window); toggle.Toggle(); await Idle(window);
+        Require(model.ComponentStoreAcknowledged && acknowledgement.IsChecked == true &&
+            confirm.IsEnabled == model.ComponentStoreSelectedKindValidated && Unchanged(),
+            "ui-component-preview-scan-acknowledgement-no-dispatch");
+        await Prepare(ComponentStoreCheckKind.RecordedFlags);
+        Require(model.ComponentStoreSelectedKind == ComponentStoreCheckKind.RecordedFlags &&
+            !model.ComponentStoreAcknowledged && acknowledgement.IsChecked == false && !confirm.IsEnabled && Unchanged(),
+            "ui-component-preview-kind-change-invalidates-acknowledgement");
+        report.Pass(check, $"productionQualified={productionQualified}; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Both fixed check kinds, permission/write/stop limits, acknowledgement reset and kind-dependent confirmation enablement were observed. Activity, source rows, diagnostic window and returned history stayed unchanged; kind changes withheld the current assessment. Typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation.");
     }
 }

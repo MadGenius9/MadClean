@@ -18,24 +18,34 @@ public static class ComponentStoreStatusParser
         "runspaceClosed", "cancelHandleDisposed", "managedExceptionHResult"
     ];
 
-    public static ComponentStoreStatusParseResult Parse(string json, Guid expectedRequestId, CancellationToken token = default)
+    public static ComponentStoreStatusParseResult Parse(string json, Guid expectedRequestId, CancellationToken token = default) =>
+        Parse(json, expectedRequestId, ComponentStoreCheckKind.RecordedFlags, token);
+
+    public static ComponentStoreStatusParseResult Parse(string json, Guid expectedRequestId, ComponentStoreCheckKind expectedKind,
+        CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(json) || json.Length > MaximumCharacters || expectedRequestId == Guid.Empty) return Rejected();
+        if (string.IsNullOrWhiteSpace(json) || json.Length > MaximumCharacters || expectedRequestId == Guid.Empty ||
+            !Enum.IsDefined(expectedKind)) return Rejected();
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 2 });
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return Rejected();
+            if (!root.TryGetProperty("version", out var versionElement)) return Rejected();
+            int version = Integer(versionElement);
+            if (version is not (1 or 2) || version == 1 && expectedKind != ComponentStoreCheckKind.RecordedFlags) return Rejected();
             var names = root.EnumerateObject().Select(value => value.Name).ToArray();
-            if (names.Length != Fields.Length || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
-                Fields.Any(field => !names.Contains(field, StringComparer.Ordinal))) return Rejected();
-            if (Integer(root.GetProperty("version")) != 1) return Rejected();
+            if (names.Length != Fields.Length + (version == 2 ? 1 : 0) || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
+                Fields.Any(field => !names.Contains(field, StringComparer.Ordinal)) ||
+                version == 2 && !names.Contains("kind", StringComparer.Ordinal)) return Rejected();
+            var kind = version == 1 ? ComponentStoreCheckKind.RecordedFlags : EnumValue<ComponentStoreCheckKind>(root.GetProperty("kind"));
+            if (kind != expectedKind) return Rejected();
             string? id = Text(root.GetProperty("requestId"));
             if (!Guid.TryParseExact(id, "N", out var requestId) || requestId != expectedRequestId || requestId.ToString("N") != id) return Rejected();
             var evidence = new ComponentStoreStatusEvidence
             {
-                RequestId = requestId,
+                RequestId = requestId, Kind = kind,
                 Stage = EnumValue<ComponentStoreStatusStage>(root.GetProperty("stage")),
                 Outcome = EnumValue<ComponentStoreStatusOutcome>(root.GetProperty("outcome")),
                 HostQualified = Boolean(root.GetProperty("hostQualified")),
@@ -60,7 +70,7 @@ public static class ComponentStoreStatusParser
                     ? null : Integer(root.GetProperty("managedExceptionHResult"))
             };
             token.ThrowIfCancellationRequested();
-            return IsConsistent(evidence, expectedRequestId)
+            return IsConsistent(evidence, expectedRequestId, expectedKind)
                 ? new(true, evidence, "The fixed host envelope was accepted. This is source compatibility, not a Windows health verdict.")
                 : Rejected();
         }
@@ -68,9 +78,13 @@ public static class ComponentStoreStatusParser
         { return Rejected(); }
     }
 
-    public static bool IsConsistent(ComponentStoreStatusEvidence evidence, Guid expectedRequestId)
+    public static bool IsConsistent(ComponentStoreStatusEvidence evidence, Guid expectedRequestId) =>
+        IsConsistent(evidence, expectedRequestId, ComponentStoreCheckKind.RecordedFlags);
+
+    public static bool IsConsistent(ComponentStoreStatusEvidence evidence, Guid expectedRequestId, ComponentStoreCheckKind expectedKind)
     {
         if (evidence == null || expectedRequestId == Guid.Empty || evidence.RequestId != expectedRequestId ||
+            !Enum.IsDefined(expectedKind) || !Enum.IsDefined(evidence.Kind) || evidence.Kind != expectedKind ||
             !Enum.IsDefined(evidence.Stage) || !Enum.IsDefined(evidence.Outcome) ||
             evidence.PipelineState is { } pipeline && !Enum.IsDefined(pipeline) ||
             evidence.OutputCount is < 0 or > MaximumOutputCount || evidence.ErrorCount is < 0 or > MaximumErrorCount ||
@@ -121,5 +135,5 @@ public static class ComponentStoreStatusParser
         return result;
     }
     private static ComponentStoreStatusParseResult Rejected() =>
-        new(false, null, "The fixed host response was absent, malformed, inconsistent or mismatched. No recorded flag was accepted.");
+        new(false, null, "The fixed host response was absent, malformed, inconsistent or mismatched. No current recorded flag or scan finding was accepted.");
 }

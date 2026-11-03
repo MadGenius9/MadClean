@@ -21,15 +21,15 @@ internal static class ComponentStoreStatusUiQualification
     private static readonly object Gate = new();
     private static Owner? rootedOwner;
 
-    internal static Task<ComponentStoreStatusUiObservation> RunAsync()
+    internal static Task<ComponentStoreStatusUiObservation> RunAsync(ComponentStoreCheckKind kind = ComponentStoreCheckKind.RecordedFlags)
     {
         // The caller additionally holds its source/run/owned-fixture authorization.
         // This harness check is not a production permission switch or a same-user security boundary.
-        if (!AuthorizedMode()) return Task.FromResult(new ComponentStoreStatusUiObservation(null, null, null, null, null, null, null, null));
+        if (!AuthorizedMode(kind)) return Task.FromResult(new ComponentStoreStatusUiObservation(null, null, null, null, null, null, null, null));
         lock (Gate)
         {
             if (rootedOwner != null) return Task.FromResult(new ComponentStoreStatusUiObservation(null, null, null, null, null, null, null, null));
-            var owner = new Owner(); rootedOwner = owner;
+            var owner = new Owner(kind); rootedOwner = owner;
             try
             {
                 owner.Thread = new Thread(owner.Run) { IsBackground = false, Name = "MadClean owned component-store UI qualification" };
@@ -41,17 +41,17 @@ internal static class ComponentStoreStatusUiQualification
         }
     }
 
-    private static bool AuthorizedMode() => OperatingSystem.IsWindows() && Environment.Is64BitProcess &&
+    private static bool AuthorizedMode(ComponentStoreCheckKind kind) => Enum.IsDefined(kind) && OperatingSystem.IsWindows() && Environment.Is64BitProcess &&
         Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
         Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted" &&
         Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") == "MadGenius9/MadClean" &&
         Environment.GetEnvironmentVariable("GITHUB_REF") == "refs/heads/feat/phase-one-foundation" &&
         Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is "push" or "workflow_dispatch" &&
-        Environment.GetEnvironmentVariable("GITHUB_JOB") == "windows-component-store-status" &&
+        Environment.GetEnvironmentVariable("GITHUB_JOB") == (kind == ComponentStoreCheckKind.ScanHealth ? "windows-component-store-scan" : "windows-component-store-status") &&
         Environment.GetEnvironmentVariable("MADCLEAN_WINDOWS_VALIDATION") == "1" &&
-        Environment.GetEnvironmentVariable("MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION") == "1";
+        Environment.GetEnvironmentVariable(kind == ComponentStoreCheckKind.ScanHealth ? "MADCLEAN_COMPONENT_STORE_SCAN_VALIDATION" : "MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION") == "1";
 
-    private sealed class Owner
+    private sealed class Owner(ComponentStoreCheckKind kind)
     {
         internal readonly TaskCompletionSource<ComponentStoreStatusUiObservation> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Thread? Thread;
@@ -112,17 +112,20 @@ internal static class ComponentStoreStatusUiQualification
                 var host = Descendants<TabControl>(window).Single(control => AutomationProperties.GetName(control) == "Main content");
                 host.SelectedItem = host.Items.OfType<TabItem>().Single(item => Equals(item.Header, "Windows Diagnostics"));
                 await Idle();
-                var prepare = Find<Button>("Prepare explicit recorded component-store status check");
+                var prepare = Find<Button>(kind == ComponentStoreCheckKind.ScanHealth ? "Prepare explicit fresh component-store scan" : "Prepare explicit recorded component-store status check");
                 var confirm = Find<Button>("Confirm explicit recorded component-store status check");
                 var acknowledgement = Find<CheckBox>("Acknowledge recorded component-store check scope and Windows log writes");
                 var preview = Find<TextBox>("Exact component-store status command, permissions and side effects");
-                Require(ReferenceEquals(prepare.Command, model.PrepareComponentStoreStatusCommand) &&
+                Require(ReferenceEquals(prepare.Command, kind == ComponentStoreCheckKind.ScanHealth ? model.PrepareComponentStoreScanCommand : model.PrepareComponentStoreStatusCommand) &&
                     ReferenceEquals(confirm.Command, model.ConfirmComponentStoreStatusCommand) && !confirm.IsEnabled &&
                     !model.ComponentStoreAcknowledged && acknowledgement.IsChecked == false && preview.IsReadOnly,
                     "component-ui-actual-control-bindings");
                 await Invoke(prepare, "component-ui-prepare");
                 prepared = preview.Text == model.ComponentStorePreviewDetails &&
-                    preview.Text.Contains(@"Dism\Repair-WindowsImage -Online -CheckHealth -NoRestart -ErrorAction Stop", StringComparison.Ordinal) &&
+                    preview.Text.Contains(kind == ComponentStoreCheckKind.ScanHealth ? @"Dism\Repair-WindowsImage -Online -ScanHealth -NoRestart -ErrorAction Stop" : @"Dism\Repair-WindowsImage -Online -CheckHealth -NoRestart -ErrorAction Stop", StringComparison.Ordinal) &&
+                    model.ComponentStoreSelectedKind == kind &&
+                    AutomationProperties.GetName(confirm) == model.ComponentStoreConfirmAutomationName &&
+                    AutomationProperties.GetName(acknowledgement) == model.ComponentStoreAcknowledgementAutomationName &&
                     model.CanAcknowledgeComponentStoreStatus && model.ComponentStoreLastResult == null && !confirm.IsEnabled &&
                     !model.HasPendingComponentStoreStatus && model.Activity.Count == 0;
                 Require(prepared == true, "component-ui-fixed-preview-only");
@@ -143,10 +146,10 @@ internal static class ComponentStoreStatusUiQualification
                 await WaitForSettlement();
                 actualResult = model.ComponentStoreLastResult;
                 resultReturned = actualResult != null;
-                freshResult = actualResult != null && confirmBoundary is { } actualBoundary && actualResult.RequestId != Guid.Empty &&
+                freshResult = actualResult != null && actualResult.Kind == kind && confirmBoundary is { } actualBoundary && actualResult.RequestId != Guid.Empty &&
                     actualResult.AttemptedUtc >= actualBoundary && actualResult.AttemptedUtc <= DateTimeOffset.UtcNow;
-                var status = Find<TextBlock>("Recorded component-store check status");
-                var assessment = Find<TextBlock>("Current accepted recorded component-store assessment");
+                var status = Find<TextBlock>(model.ComponentStoreStatusAutomationName);
+                var assessment = Find<TextBlock>(model.ComponentStoreAssessmentAutomationName);
                 var history = Find<TextBox>("Historical component-store pipeline, reported flags and transport observations");
                 Require(status.Text == model.ComponentStoreMessage && assessment.Text == model.ComponentStoreCurrentAssessment &&
                     history.IsReadOnly && history.Text == model.ComponentStoreLastObservation && !model.ComponentStoreAcknowledged,
@@ -162,7 +165,7 @@ internal static class ComponentStoreStatusUiQualification
                 {
                     actualResult ??= model.ComponentStoreLastResult;
                     resultReturned ??= actualResult != null;
-                    freshResult ??= actualResult != null && confirmBoundary is { } actualBoundary && actualResult.RequestId != Guid.Empty &&
+                    freshResult ??= actualResult != null && actualResult.Kind == kind && confirmBoundary is { } actualBoundary && actualResult.RequestId != Guid.Empty &&
                         actualResult.AttemptedUtc >= actualBoundary && actualResult.AttemptedUtc <= DateTimeOffset.UtcNow;
                 }
                 if (window != null && !windowClosed) window.Close();
