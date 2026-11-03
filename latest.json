@@ -1,13 +1,13 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "841a5688fe36646fc1a49f06a82a2e56bdc12610",
-  "runId": "41645664383",
+  "sourceCommit": "d535d6ccf11192e2d981296c9bdd72f2a90ffb56",
+  "runId": "41668699683",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-03T13:39:55.378978+00:00",
-  "scope": "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions.",
+  "updatedUtc": "2026-11-03T16:00:02.790831+00:00",
+  "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
   "reportArtifactOutcome": "success",
@@ -26,6 +26,12 @@
   "nativeLogArtifactOutcome": "success",
   "nativeDiagnosticsPresent": true,
   "nativeDiagnosticsError": null,
+  "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
+  "msiRequestResult": "failure",
+  "msiRequestArtifactOutcome": "success",
+  "msiRequestReportPresent": true,
+  "msiRequestQualified": false,
+  "msiRequestError": null,
   "images": [
     {
       "name": "overview-wide.png",
@@ -45,11 +51,11 @@
     },
     {
       "name": "tool-20.png",
-      "sha256": "ace3013ce94c1d3999fb539276fe33bf070c28755f24e6b49372f77a17226d0e"
+      "sha256": "1c958ddb4f92a4ff8a3922f09de678e1ad22aafa082496d426c0ae7a3f4b23ed"
     },
     {
       "name": "tool-21.png",
-      "sha256": "4bd7b99c3a5d9489b36ee71b70819e456c96405ec5f7fdad3c220eb59f556ed9"
+      "sha256": "cbd1a5439f97ebae71a8da6b4cb00225dac5f3a7788f5bc588004d007ee10a85"
     },
     {
       "name": "tool-19.png",

@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "841a5688fe36646fc1a49f06a82a2e56bdc12610",
-  "runId": "41645664383",
+  "sourceCommit": "d535d6ccf11192e2d981296c9bdd72f2a90ffb56",
+  "runId": "41668699683",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T13:39:09.760306+00:00",
-  "completedUtc": "2026-11-03T13:39:32.9817578+00:00",
+  "startedUtc": "2026-11-03T15:59:03.0677812+00:00",
+  "completedUtc": "2026-11-03T15:59:36.4854441+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -64,6 +64,11 @@
       "detail": "Package sourceState=Available; actualLoadedRowCount=49; positiveMatchCount=1; textboxBindingVerified=true; exactSelectionAndDetailsVerified=true; hiddenSelectionAndDetailsCleared=true; clearRestoresSameRows=true; desktopSourceBaselineAndStatusUnchanged=true; noExtraFilterActivity=true. One explicit production current-user package getter supplied real rows after all captures and desktop search. No package values, query text, details, provider messages or later screenshots exported. Partial coverage remains incomplete; no-match is not absence proof, and no deployment or other package action occurred."
     },
     {
+      "name": "ui-packaged-settings-preview-interaction",
+      "state": "passed",
+      "detail": "actualRows=49; previewedCandidates=1; actualFamilyPreview=True; bareUriAndCoverageVerified=True; clearReplacementAndSearchInvalidate=True; originalRowsAndActivityRetained=True. Actual loaded current-user metadata and the real bound preview button were used after all captures. Open was never invoked: no fresh membership query, Windows Settings request, deployment, uninstall, reset, repair or elevation occurred. No identities, URI, provider text or loaded-data screenshots exported; native handler/page availability and actual handoff remain unverified."
+    },
+    {
       "name": "ui-inspection-evidence",
       "state": "passed",
       "detail": "initialPositiveSourceCount=2; selectedActualRows=2; selectionStartsNoQuery=true; resetPendingObserved=True; cancellationRequested=True; completedBeforeCancelCount=1; preservationExercised=True; terminalRowCount=2; terminalStates=Storage:Available,Defender:Cancelled; noPendingOrPriorAttemptRows=true. Two explicit local production inspections only. Completed-source preservation is proved only when exercised before a live cancellation. No captures after data loading; no flags, capacities, provider messages, dates or source values exported. Available is source evidence, not health or action permission."
@@ -106,7 +111,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=65; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=59; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "cleanup-file-evidence-fixture",
@@ -176,7 +181,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -246,7 +251,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=65; nameAvailable=16; descriptionAvailable=62; providerAvailable=62; installedVersionAvailable=62; driverDateAvailable=62; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=59; nameAvailable=15; descriptionAvailable=56; providerAvailable=56; installedVersionAvailable=56; driverDateAvailable=56; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -421,7 +426,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=53/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
@@ -468,13 +473,13 @@
       "file": "tool-20.png",
       "width": 1404,
       "height": 961,
-      "sha256": "ace3013ce94c1d3999fb539276fe33bf070c28755f24e6b49372f77a17226d0e"
+      "sha256": "1c958ddb4f92a4ff8a3922f09de678e1ad22aafa082496d426c0ae7a3f4b23ed"
     },
     {
       "file": "tool-21.png",
       "width": 1404,
       "height": 961,
-      "sha256": "4bd7b99c3a5d9489b36ee71b70819e456c96405ec5f7fdad3c220eb59f556ed9"
+      "sha256": "cbd1a5439f97ebae71a8da6b4cb00225dac5f3a7788f5bc588004d007ee10a85"
     },
     {
       "file": "tool-19.png",
