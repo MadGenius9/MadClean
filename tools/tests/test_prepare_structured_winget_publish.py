@@ -25,6 +25,7 @@ class PublishedSdkPreparationTests(unittest.TestCase):
     def success(self, label, command, root, environment):
         self.calls.append((label, command))
         (Path(command[-1]) / prep.EXE).write_bytes(b'Inert fixture; never executable.')
+        (Path(command[-1]) / 'Microsoft.Management.Deployment.winmd').write_bytes(b'Inert metadata shape fixture; never loaded.')
         return 0
 
     def test_exact_existing_harness_locked_self_contained_profile_and_bound_context(self):
@@ -40,6 +41,24 @@ class PublishedSdkPreparationTests(unittest.TestCase):
         self.assertEqual(descriptor['ownerMarker'].encode('ascii'), (owned / prep.MARKER).read_bytes())
         self.assertEqual([], list((owned / 'bundle-cache').iterdir()))
         self.assertFalse(any(owned.rglob('*.zip')))
+
+    def test_build_success_without_required_metadata_never_authorizes_launch(self):
+        def missing(label, command, root, environment):
+            self.success(label, command, root, environment)
+            (Path(command[-1]) / 'Microsoft.Management.Deployment.winmd').unlink()
+            return 0
+        with self.assertRaises(FileNotFoundError):
+            prep._prepare(self.root, self.environment, missing)
+        self.assertFalse((self.root / 'artifacts' / prep.DESCRIPTOR).exists())
+
+    def test_empty_metadata_sidecar_never_authorizes_launch(self):
+        def empty(label, command, root, environment):
+            self.success(label, command, root, environment)
+            (Path(command[-1]) / 'Microsoft.Management.Deployment.winmd').write_bytes(b'')
+            return 0
+        with self.assertRaises(ValueError):
+            prep._prepare(self.root, self.environment, empty)
+        self.assertFalse((self.root / 'artifacts' / prep.DESCRIPTOR).exists())
 
     def test_stale_descriptor_is_preserved_before_any_publish(self):
         artifacts = self.root / 'artifacts'; artifacts.mkdir()

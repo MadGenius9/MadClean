@@ -1,8 +1,11 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using MadClean.Windows;
+using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.WindowsSmoke;
 
@@ -63,6 +66,7 @@ internal static class StructuredWingetPublishedQualification
         {
             using var output = new Scope(repository, context, stage => publicationStage = stage);
             publicationStage = Stage.PublishSummary;
+            output.RecheckDirectories();
             WriteNew(Path.Combine(repository, "artifacts", SummaryName), summary);
         }
         catch (Exception error) { Diagnostic(Role.Parent, publicationStage, error); return 1; }
@@ -108,6 +112,7 @@ internal static class StructuredWingetPublishedQualification
             info.Environment["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = scope.Cache;
             process = new Process { StartInfo = info };
             stage = Stage.Launch;
+            scope.RecheckDirectories();
             launch = true;
             if (!process.Start()) throw new InvalidOperationException();
             started = true;
@@ -199,6 +204,7 @@ internal static class StructuredWingetPublishedQualification
             bool pending = new MadClean.Windows.WinGet.StructuredWingetInventory().HasPendingNativeRead;
             if (pending) return 2;
             stage = Stage.PublishChildReport;
+            scope.RecheckDirectories();
             WriteNew(scope.ChildPath, new Child(context.SourceCommit, context.RunId, context.RunAttempt,
                 scope.Descriptor.ScopeId, scope.Descriptor.OwnerMarker, true, pending, observation));
             return observation.State == "passed" ? 0 : observation.State == "failed" ? 1 : 2;
@@ -265,6 +271,7 @@ internal static class StructuredWingetPublishedQualification
     private sealed class Scope : IDisposable
     {
         private readonly List<IDisposable> leases = [];
+        private readonly List<(string Path, SafeFileHandle Handle)> directories = [];
         internal Descriptor Descriptor { get; }
         internal string Executable { get; }
         internal string Cache { get; }
@@ -275,7 +282,7 @@ internal static class StructuredWingetPublishedQualification
             {
                 observeStage?.Invoke(Stage.ScopeDirectories);
                 string artifacts = Path.Combine(repository, "artifacts");
-                leases.AddRange(SystemToolTrustNative.LockDirectoryChain(artifacts));
+                GuardOutputChain(artifacts);
                 observeStage?.Invoke(Stage.ScopeDescriptor);
                 using var document = JsonDocument.Parse(Read(Path.Combine(artifacts, DescriptorName), 512));
                 if (!Fields(document.RootElement, ["sourceCommit", "runId", "runAttempt", "scopeId", "ownerMarker"])) throw new InvalidDataException();
@@ -285,12 +292,12 @@ internal static class StructuredWingetPublishedQualification
                     !Guid.TryParseExact(Descriptor.OwnerMarker, "N", out var marker) || marker == Guid.Empty || Descriptor.OwnerMarker != marker.ToString("N")) throw new InvalidDataException();
                 observeStage?.Invoke(Stage.ScopeMarker);
                 string owned = Path.Combine(artifacts, "structured-winget-published-" + Descriptor.ScopeId);
-                leases.AddRange(SystemToolTrustNative.LockDirectoryChain(owned));
+                GuardOutputChain(owned);
                 if (!Read(Path.Combine(owned, ".madclean-structured-winget-owner"), 32).AsSpan().SequenceEqual(System.Text.Encoding.ASCII.GetBytes(Descriptor.OwnerMarker))) throw new InvalidDataException();
                 observeStage?.Invoke(Stage.ScopePublish);
                 string publish = Path.Combine(owned, "publish"); Cache = Path.Combine(owned, "bundle-cache");
-                leases.AddRange(SystemToolTrustNative.LockDirectoryChain(publish));
-                leases.AddRange(SystemToolTrustNative.LockDirectoryChain(Cache));
+                GuardOutputChain(publish);
+                GuardOutputChain(Cache);
                 Executable = Path.Combine(publish, "MadClean.WindowsSmoke.exe"); ChildPath = Path.Combine(owned, "child-report.json");
             }
             catch { Dispose(); throw; }
@@ -299,9 +306,19 @@ internal static class StructuredWingetPublishedQualification
         {
             var handle = SystemToolTrustNative.OpenFile(Executable); leases.Add(handle);
             SystemToolTrustNative.ValidateAttributes(handle, false); SystemToolTrustNative.ValidateFinalPath(handle, Executable);
+            // The pinned SDK metadata is an intentional external content sidecar,
+            // not a bundled assembly or native activation factory. Keep it immutable
+            // for the same actual child/query lifetime as the apphost.
+            string metadata = Path.Combine(Path.GetDirectoryName(Executable)!, "Microsoft.Management.Deployment.winmd");
+            var metadataHandle = SystemToolTrustNative.OpenFile(metadata); leases.Add(metadataHandle);
+            SystemToolTrustNative.ValidateAttributes(metadataHandle, false);
+            SystemToolTrustNative.ValidateFinalPath(metadataHandle, metadata);
+            var metadataStream = new FileStream(metadataHandle, FileAccess.Read, 4096, false); leases.Add(metadataStream);
+            if (metadataStream.Length is <= 0 or > 1048576) throw new InvalidDataException();
         }
         internal byte[] Read(string path, int maximum)
         {
+            RecheckDirectories();
             var handle = SystemToolTrustNative.OpenFile(path); leases.Add(handle);
             SystemToolTrustNative.ValidateAttributes(handle, false); SystemToolTrustNative.ValidateFinalPath(handle, path);
             var stream = new FileStream(handle, FileAccess.Read, 4096, false); leases.Add(stream);
@@ -310,8 +327,48 @@ internal static class StructuredWingetPublishedQualification
             if (stream.ReadByte() != -1) throw new InvalidDataException();
             return bytes;
         }
-        public void Dispose() { foreach (var lease in leases.AsEnumerable().Reverse()) lease.Dispose(); leases.Clear(); }
+        // These are owned development output directories, not immutable system-tool
+        // directories. Permit intentional child/cache writes while denying directory
+        // deletion/rename, as in the separately qualified published-startup fixture.
+        private void GuardOutputChain(string directory)
+        {
+            string root = Path.GetPathRoot(directory) ?? throw new InvalidDataException();
+            if (new DriveInfo(root).DriveType != DriveType.Fixed) throw new InvalidDataException();
+            var ancestors = new Stack<string>();
+            for (string? current = directory; current is not null; current = Path.GetDirectoryName(current)) ancestors.Push(current);
+            foreach (string path in ancestors)
+            {
+                if (directories.Any(item => string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
+                var handle = OpenOutputDirectory(path, 0x80 | 0x20, 1 | 2, 0, 3,
+                    0x02000000 | 0x00200000 | 0x00100000, 0);
+                if (handle.IsInvalid)
+                {
+                    int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new Win32Exception(error);
+                }
+                leases.Add(handle);
+                SystemToolTrustNative.ValidateAttributes(handle, directory: true);
+                SystemToolTrustNative.ValidateFinalPath(handle, path);
+                directories.Add((path, handle));
+            }
+        }
+        internal void RecheckDirectories()
+        {
+            foreach (var (path, handle) in directories)
+            {
+                SystemToolTrustNative.ValidateAttributes(handle, directory: true);
+                SystemToolTrustNative.ValidateFinalPath(handle, path);
+            }
+        }
+        public void Dispose()
+        {
+            foreach (var lease in leases.AsEnumerable().Reverse()) lease.Dispose();
+            leases.Clear(); directories.Clear();
+        }
     }
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern SafeFileHandle OpenOutputDirectory(string path, uint access, uint share, nint security,
+        uint creation, uint flags, nint template);
     private static void Diagnostic(Role role, Stage stage, Exception error)
     {
         try { Console.WriteLine($"MadClean published SDK {role} stage={stage} hresult=0x{error.HResult.ToString("X8", CultureInfo.InvariantCulture)}"); }

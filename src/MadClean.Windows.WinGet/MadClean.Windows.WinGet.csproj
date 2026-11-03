@@ -7,7 +7,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../MadClean.Core/MadClean.Core.csproj" />
-    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.10.340" />
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.10.340" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
+    <!-- The official C# caller ships WinMD as content, not a CLR reference.
+         Preserve a sidecar for the separately qualified unpackaged COM path. -->
+    <Content Include="$(PkgMicrosoft_WindowsPackageManager_ComInterop)/lib/uap10.0/Microsoft.Management.Deployment.winmd"
+             Link="Microsoft.Management.Deployment.winmd" TargetPath="Microsoft.Management.Deployment.winmd"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

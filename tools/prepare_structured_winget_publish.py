@@ -59,6 +59,9 @@ def _prepare(root, environment, runner):
     _scope._validate_tree(owned)
     if _scope._ordinary(publish / EXE, False).st_size <= 0:
         raise ValueError('The owned apphost is absent.')
+    metadata_size = _scope._ordinary(publish / 'Microsoft.Management.Deployment.winmd', False).st_size
+    if not 0 < metadata_size <= 1048576:
+        raise ValueError('The required bounded SDK metadata sidecar is absent or invalid.')
     marker_path = owned / MARKER
     if _scope._ordinary(marker_path, False).st_size != 32:
         raise ValueError('Owned marker changed.')
