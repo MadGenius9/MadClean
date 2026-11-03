@@ -20,3 +20,5 @@ Actual Windows worksheet interaction remains pending. This is a reviewed read-on
 
 
 Local full solution build passes with zero warnings/errors; all 1,260 portable tests pass. The Python evidence suite reports 154 total / 153 passed / one Windows-only skip. Independent combined review found no remaining static blocker. Windows interaction remains pending; compilation and portable tests do not establish actual native worksheet behavior.
+
+Source `7bb4f6a`, run 41536112545, immutable evidence `c943ea2845daebd1ccae96ac8aef0fc391aae5d5` passed the actual one-candidate worksheet interaction with Available native metadata, explicit add/remove/clear/review, display-selection retention and immediate source invalidation. This does not validate multi-row interruption, native cancellation or deletion safety; CanDelete remains false.

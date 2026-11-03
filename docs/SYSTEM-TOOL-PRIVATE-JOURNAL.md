@@ -18,3 +18,5 @@ The owned fixture tests missing existing-only access without creation, the close
 
 
 Actual source927d3cd/run41459008138/evidence61d4f38d856150ddb2258f69272beb4d999bc6fa passed the owned backend and closed-production-guard fixture. It observed lease contention, empty/inert/terminal/unresolved classifications, append/readback/reopen, read-only refusal and checked participant cleanup. Only synthetic record data was used; no servicing/client process or production writer ran. Parent teardown127/127/512 passed. Production creation remains false and its parent/namespace gate is not cleared by this result.
+
+The next [owned parent-security composition](SYSTEM-TOOL-PARENT-SECURITY.md) checks the existing strict held-handle descriptor predicate before a narrowly scoped relative create, including refusal cases. It remains a development prerequisite, Windows-unverified until matching evidence, and does not clear the immutable production-creation gate or establish effective access/namespace safety.

@@ -204,8 +204,15 @@ extern "C" __declspec(dllexport) BOOL WINAPI OwnedRelativeDirectoryBaseline(HAND
     for (DWORD i = 0; i < characters; ++i) if (path[i] == 0 || path[i] == L'/' || (i != 1 && path[i] == L':')) return FALSE;
     constexpr WCHAR ownedPrefix[] = L"\\artifacts\\windows-validation-fixtures-";
     constexpr DWORD prefixLength = static_cast<DWORD>(sizeof(ownedPrefix) / sizeof(WCHAR)) - 1;
-    if (characters <= prefixLength + 32 || std::memcmp(path + characters - prefixLength - 32, ownedPrefix, prefixLength * sizeof(WCHAR)) != 0) return FALSE;
-    for (DWORD i = characters - 32; i < characters; ++i)
+    // The original marked GUID root and one fixed owned private-parent case are the
+    // only accepted parents. No arbitrary descendants or caller-provided parent roots.
+    constexpr WCHAR privateParentSuffix[] = L"\\relative-parent-qualified";
+    constexpr DWORD privateParentLength = static_cast<DWORD>(sizeof(privateParentSuffix) / sizeof(WCHAR)) - 1;
+    DWORD rootCharacters = characters;
+    if (characters >= privateParentLength && std::memcmp(path + characters - privateParentLength, privateParentSuffix, privateParentLength * sizeof(WCHAR)) == 0)
+        rootCharacters -= privateParentLength;
+    if (rootCharacters <= prefixLength + 32 || std::memcmp(path + rootCharacters - prefixLength - 32, ownedPrefix, prefixLength * sizeof(WCHAR)) != 0) return FALSE;
+    for (DWORD i = rootCharacters - 32; i < rootCharacters; ++i)
         if (!((path[i] >= L'0' && path[i] <= L'9') || (path[i] >= L'a' && path[i] <= L'f'))) return FALSE;
 
     // All storage remains live until the terminal/close path returns, including on pending.

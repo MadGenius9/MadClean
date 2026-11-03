@@ -529,6 +529,9 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual('inconclusive',next(check for check in published['checks'] if check['name']=='msi-registration-contract')['state'])
     def test_contradictory_pass_and_check_state_is_rejected(self):
         self.report['checks'][0]['state']='failed'; self.save(); self.rejected()
+    def test_owned_private_parent_security_preflight_is_required_for_pass(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'owned-private-parent-security-preflight']
+        self.save(); self.rejected()
     def test_duplicate_check_names_are_rejected(self):
         self.report['checks'].append(copy.deepcopy(self.report['checks'][0])); self.save(); self.rejected()
     def test_ill_typed_check_state_is_rejected_safely(self):

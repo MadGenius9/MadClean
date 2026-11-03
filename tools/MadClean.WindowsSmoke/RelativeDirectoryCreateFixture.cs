@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Text;
 using MadClean.Core;
 using Microsoft.Win32.SafeHandles;
+using MadClean.Windows;
 
 namespace MadClean.WindowsSmoke;
 
@@ -16,6 +17,7 @@ internal static partial class NativeFixtures
         try
         {
             var result = RelativeDirectoryCreateProbe.RunAsync(fixture, marker, token).GetAwaiter().GetResult();
+            ReportPrivateParentSecurity(result.ParentSecurity, result.TeardownCompleted && !SystemToolJournalStore.HasUncertainCleanup && !RelativeDirectoryCreateProbe.HasPendingNativeProbe && !RelativeDirectoryCreateProbe.RequiresFixtureRetention, report);
             var data = result.Native;
             string Status(uint called, int value) => called == 1 ? "0x" + unchecked((uint)value).ToString("X8") : "unobserved";
             string detail = $"state={result.State}; stage={result.Stage}; apiReturn={result.ApiReturned?.ToString() ?? "unobserved"}; nativeStage={(data.Version == 1 ? data.Stage.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unobserved")}; setupWin32={(data.SetupErrorObserved == 1 ? data.SetupError.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unobserved")}; parent={Status(data.ParentCalled, data.ParentStatus)}; parentIo={Status(data.ParentIoObserved, data.ParentIoStatus)}; parentId={data.ParentMatched == 1}; create={Status(data.CreateCalled, data.CreateStatus)}; createIo={Status(data.CreateIoObserved, data.CreateIoStatus)}; created={data.CreatedHandle == 1}; structuralSD={data.DescriptorMatched == 1}; collision={Status(data.CollisionCalled, data.CollisionStatus)}; refused={data.CollisionRefused == 1}; parentBookend={data.ParentBookend == 1}; childBookend={data.ChildBookend == 1}; dispositionRequested={data.DispositionCalled == 1}; dispositionAccepted={data.DispositionSucceeded == 1}; nativeClosed={data.HandlesClosed == 1}; descriptorReleased={data.DescriptorReleased == 1}; absence={result.AbsenceObserved}; teardown={result.TeardownCompleted}; pending={RelativeDirectoryCreateProbe.HasPendingNativeProbe}; retained={RelativeDirectoryCreateProbe.RequiresFixtureRetention}. ";
@@ -32,7 +34,22 @@ internal static partial class NativeFixtures
             return result.TeardownCompleted && !RelativeDirectoryCreateProbe.HasPendingNativeProbe && !RelativeDirectoryCreateProbe.RequiresFixtureRetention;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or Win32Exception or OperationCanceledException or TimeoutException)
-        { report.Unknown(check, "The owned SDK-native directory control did not establish checked teardown. All owned evidence remains retained; no production creation or servicing operation ran."); return false; }
+        {
+            report.Unknown(check, "The owned SDK-native directory control did not establish checked teardown. All owned evidence remains retained; no production creation or servicing operation ran.");
+            if (!report.HasCheck("owned-private-parent-security-preflight"))
+                report.Unknown("owned-private-parent-security-preflight", "The owning directory worker did not return qualified parent observations; no preflight or released-ownership proof is claimed.");
+            return false;
+        }
+    }
+    private static void ReportPrivateParentSecurity(PrivateParentSecurityObservation? observation, bool ownershipReleased, SmokeReport report)
+    {
+        const string check = "owned-private-parent-security-preflight";
+        if (observation is not { } value)
+        { report.Unknown(check, "The owned private-parent composition was not reached; no parent-security or creation proof is claimed."); return; }
+        string detail = $"qualifiedParent={value.Qualified}; unprotectedRefused={value.UnprotectedRefused}; foreignGrantRefused={value.ForeignGrantRefused}; qualifiedControlInvocations={value.QualifiedControlInvocations}; rejectedControlInvocations={value.RejectedControlInvocations}; rejectedParentsStillEmpty={value.RejectedTopologyUnchanged}; qualifiedChildAbsent={value.QualifiedChildAbsent}; nativeControlCleanupConfirmed={value.NativeControlCleanupConfirmed}; workerOwnershipReleased={ownershipReleased}. Strict existing same-handle owner/protected-DACL predicate only. Rejected composed routes were not invoked; counts are not an instrumented all-I/O trace. No effective-access, prior-handle, namespace-race, durability or production-creation qualification. No profile, servicing, elevation or production gate change.";
+        if (value.State == CheckState.Failed) report.Fail(check, detail);
+        else if (value.State == CheckState.Available && value.NativeControlCleanupConfirmed && ownershipReleased) report.Pass(check, detail);
+        else report.Unknown(check, detail);
     }
 }
 
@@ -48,8 +65,12 @@ internal struct RelativeDirectoryNativeResult
     internal uint CollisionRefused, ParentBookend, ChildBookend;
     internal uint DispositionCalled, DispositionSucceeded, HandlesClosed, DescriptorReleased, Complete;
 }
+internal sealed record PrivateParentSecurityObservation(CheckState State, bool Qualified, bool UnprotectedRefused,
+    bool ForeignGrantRefused, int QualifiedControlInvocations, int RejectedControlInvocations,
+    bool RejectedTopologyUnchanged, bool QualifiedChildAbsent, bool NativeControlCleanupConfirmed);
 internal sealed record RelativeDirectoryCreateResult(CheckState State, string Stage,
-    RelativeDirectoryNativeResult Native, bool AbsenceObserved, bool TeardownCompleted, bool? ApiReturned = null);
+    RelativeDirectoryNativeResult Native, bool AbsenceObserved, bool TeardownCompleted, bool? ApiReturned = null,
+    PrivateParentSecurityObservation? ParentSecurity = null);
 
 // Development-only. An unresolved native call owns every guard, descriptor, module and
 // marshaled argument. The caller's wait/cancellation never releases or terminates that worker.
@@ -98,6 +119,8 @@ internal static class RelativeDirectoryCreateProbe
         private RelativeDirectoryNativeResult observed;
         private string stage = "initializing", root = "";
         private Baseline? baseline;
+        private readonly List<nint> parentDescriptors = [];
+        private PrivateParentSecurityObservation? parentSecurity;
         internal RelativeDirectoryCreateResult Run()
         {
             try
@@ -133,6 +156,9 @@ internal static class RelativeDirectoryCreateProbe
                     if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, out descriptor, out uint bytes) || descriptor == 0 || bytes is < 20 or > 4096)
                         throw new Win32Exception(Marshal.GetLastWin32Error());
                     VerifyOwner(); token.ThrowIfCancellationRequested();
+                    stage = "owned-parent-security-preflight";
+                    CheckPrivateParents(sid, bytes);
+                    VerifyOwner(); token.ThrowIfCancellationRequested();
                     stage = "sdk-native-baseline-and-collision";
                     safeRelease = false;
                     apiReturned = baseline(parent!, root, (uint)root.Length, descriptor, bytes, out observed, 120);
@@ -140,7 +166,7 @@ internal static class RelativeDirectoryCreateProbe
                 }
                 if (!safeRelease)
                     return new(observed.Version != 1 || observed.Complete == 1 || apiReturned == true ? CheckState.Failed : CheckState.Unknown,
-                        "returned-native-ownership-release-unconfirmed", observed, false, false, apiReturned);
+                        "returned-native-ownership-release-unconfirmed", observed, false, false, apiReturned, parentSecurity);
                 stage = "independent-absence-and-owner-bookend";
                 VerifyOwner(); CheckGuard(parent!, directory: true);
                 absenceGuard = CreateFileW(Path.Combine(root, "relative-private-directory-baseline"), 0x80, 7, 0, 3, 0x02300000, 0);
@@ -148,7 +174,7 @@ internal static class RelativeDirectoryCreateProbe
                 absence = absenceGuard.IsInvalid && absenceError == 2;
                 if (!absenceGuard.CloseChecked(out _)) { safeRelease = false; throw new IOException(); }
                 absenceGuard = null;
-                if (!absence) { safeRelease = false; return new(CheckState.Unknown, "owned-leaf-absence-unconfirmed", observed, false, false, apiReturned); }
+                if (!absence) { safeRelease = false; return new(CheckState.Unknown, "owned-leaf-absence-unconfirmed", observed, false, false, apiReturned, parentSecurity); }
                 VerifyOwner();
                 bool proof = apiReturned == true && observed.Complete == 1 && observed.ParentCalled == 1 && observed.ParentStatus == 0 && observed.ParentIoObserved == 1 && observed.ParentIoStatus == 0 && observed.ParentInformation == 1 &&
                     observed.ParentMatched == 1 && observed.CreateCalled == 1 && observed.CreateStatus == 0 && observed.CreateIoObserved == 1 && observed.CreateIoStatus == 0 && observed.CreateInformation == 2 &&
@@ -158,7 +184,7 @@ internal static class RelativeDirectoryCreateProbe
                 bool contradiction = observed.Complete == 1 && !proof || apiReturned == true && observed.Complete != 1;
                 if (contradiction) stage = "sdk-complete-result-contract-contradiction";
                 Release();
-                return new(contradiction ? CheckState.Failed : proof && teardown ? CheckState.Available : CheckState.Unknown, stage, observed, absence, teardown, apiReturned);
+                return new(contradiction ? CheckState.Failed : proof && teardown ? CheckState.Available : CheckState.Unknown, stage, observed, absence, teardown, apiReturned, parentSecurity);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException or ArgumentException or System.Security.SecurityException or OperationCanceledException or BadImageFormatException)
             {
@@ -166,8 +192,94 @@ internal static class RelativeDirectoryCreateProbe
                 {
                     try { Release(); } catch { /* Rooted ownership and sticky retention remain. */ }
                 }
-                return new(CheckState.Unknown, stage, observed, absence, teardown, apiReturned);
+                return new(CheckState.Unknown, stage, observed, absence, teardown, apiReturned, parentSecurity);
             }
+        }
+        private void CheckPrivateParents(string sid, uint descriptorBytes)
+        {
+            bool qualified = false, unprotectedRefused = false, foreignRefused = false;
+            bool unchanged = false, childAbsent = false;
+            int qualifiedCalls = 0, rejectedCalls = 0;
+            parentSecurity = new(CheckState.Unknown, false, false, false, 0, 0, false, false, false);
+            Guard CreateParent(string leaf, string sddl)
+            {
+                token.ThrowIfCancellationRequested(); VerifyOwner();
+                if (SystemToolJournalStore.HasUncertainCleanup) { safeRelease = false; throw new IOException(); }
+                if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, out nint security, out uint bytes) || security == 0)
+                {
+                    if (security != 0) parentDescriptors.Add(security);
+                    throw new IOException();
+                }
+                parentDescriptors.Add(security);
+                if (bytes is < 20 or > 4096) throw new IOException();
+                var attributes = new CreationSecurityAttributes { Length = (uint)Marshal.SizeOf<CreationSecurityAttributes>(), Descriptor = security };
+                string path = Path.Combine(root, leaf);
+                if (!CreateDirectoryW(path, ref attributes)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                return Open(path, directory: true);
+            }
+            bool Qualify(Guard guard)
+            {
+                token.ThrowIfCancellationRequested();
+                bool added = false;
+                try
+                {
+                    guard.DangerousAddRef(ref added);
+                    using var borrowed = new SafeFileHandle(guard.DangerousGetHandle(), ownsHandle: false);
+                    SystemToolJournalStore.VerifyPrivateSecurity(borrowed, sid, directory: true);
+                    return true;
+                }
+                catch (SystemToolJournalStoreFailure failure) when (failure.Reason == SystemToolJournalStoreReason.SecurityUnsupported)
+                { return false; }
+                finally
+                {
+                    if (added) guard.DangerousRelease();
+                    // The verifier's finally can fail descriptor release while a typed rejection
+                    // is already propagating. Stop before any new allocation/control in that case.
+                    if (SystemToolJournalStore.HasUncertainCleanup) safeRelease = false;
+                }
+            }
+            bool Empty(string leaf) => !Directory.EnumerateFileSystemEntries(Path.Combine(root, leaf)).Take(1).Any();
+            const string goodLeaf = "relative-parent-qualified", openLeaf = "relative-parent-unprotected", foreignLeaf = "relative-parent-foreign-grant";
+            var good = CreateParent(goodLeaf, $"O:{sid}D:P(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)");
+            var unprotected = CreateParent(openLeaf, $"O:{sid}D:(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)");
+            var foreign = CreateParent(foreignLeaf, $"O:{sid}D:P(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)(A;OICI;0x00000004;;;WD)");
+            if (!Empty(goodLeaf) || !Empty(openLeaf) || !Empty(foreignLeaf)) throw new IOException();
+            qualified = Qualify(good);
+            if (!safeRelease) throw new IOException();
+            unprotectedRefused = !Qualify(unprotected);
+            if (!safeRelease) throw new IOException();
+            foreignRefused = !Qualify(foreign);
+            if (!safeRelease) throw new IOException();
+            if (!qualified || !unprotectedRefused || !foreignRefused)
+            {
+                parentSecurity = new(CheckState.Failed, qualified, unprotectedRefused, foreignRefused, 0, 0, false, false, false);
+                throw new IOException();
+            }
+            // Only this qualified branch invokes the existing native composed route. Rejected
+            // parents never reach the export; this is not an instrumented all-I/O trace.
+            string goodPath = Path.Combine(root, goodLeaf);
+            token.ThrowIfCancellationRequested();
+            safeRelease = false;
+            qualifiedCalls++;
+            bool returned = baseline!(good, goodPath, (uint)goodPath.Length, descriptor, descriptorBytes, out var native, 120);
+            safeRelease = native.Version == 1 && native.HandlesClosed == 1 && native.DescriptorReleased == 1;
+            if (!safeRelease) throw new IOException();
+            bool nativeProof = returned && native.Complete == 1 && native.ParentMatched == 1 && native.ParentCalled == 1 && native.ParentStatus == 0 &&
+                native.ParentIoObserved == 1 && native.ParentIoStatus == 0 && native.ParentInformation == 1 &&
+                native.CreateCalled == 1 && native.CreateStatus == 0 && native.CreateIoObserved == 1 && native.CreateIoStatus == 0 && native.CreateInformation == 2 &&
+                native.CreatedHandle == 1 && native.DescriptorMatched == 1 && native.CollisionCalled == 1 && unchecked((uint)native.CollisionStatus) == 0xC0000035 &&
+                native.CollisionRefused == 1 && native.ParentBookend == 1 && native.ChildBookend == 1 && native.DispositionCalled == 1 && native.DispositionSucceeded == 1;
+            VerifyOwner(); CheckGuard(good, directory: true); CheckGuard(unprotected, directory: true); CheckGuard(foreign, directory: true);
+            unchanged = Empty(openLeaf) && Empty(foreignLeaf);
+            var absent = CreateFileW(Path.Combine(goodPath, "relative-private-directory-baseline"), 0x80, 7, 0, 3, 0x02300000, 0);
+            int absenceError = absent.IsInvalid ? Marshal.GetLastWin32Error() : 0;
+            guards.Add(absent);
+            childAbsent = absent.IsInvalid && absenceError == 2;
+            if (!absent.CloseChecked(out _)) { safeRelease = false; throw new IOException(); }
+            if (!childAbsent) { safeRelease = false; throw new IOException(); }
+            CheckState state = nativeProof && unchanged ? CheckState.Available : native.Complete == 1 || returned ? CheckState.Failed : CheckState.Unknown;
+            parentSecurity = new(state, qualified, unprotectedRefused, foreignRefused, qualifiedCalls, rejectedCalls, unchanged, childAbsent, true);
+            if (state != CheckState.Available) throw new IOException();
         }
         private T Export<T>(string name) where T : Delegate
         { nint pointer = GetProcAddress(module, name); if (pointer == 0) throw new Win32Exception(Marshal.GetLastWin32Error()); return Marshal.GetDelegateForFunctionPointer<T>(pointer); }
@@ -205,11 +317,17 @@ internal static class RelativeDirectoryCreateProbe
             if (markerGuard != null) VerifyOwner();
             foreach (var handle in guards.AsEnumerable().Reverse())
                 if (!handle.CloseChecked(out _)) { safeRelease = false; return; }
+            foreach (nint parentDescriptor in parentDescriptors)
+                if (LocalFree(parentDescriptor) != 0) { safeRelease = false; return; }
+            parentDescriptors.Clear();
             if (descriptor != 0) { if (LocalFree(descriptor) != 0) { safeRelease = false; return; } descriptor = 0; }
             if (module != 0) { if (!FreeLibrary(module)) { safeRelease = false; return; } module = 0; }
             teardown = true;
         }
     }
+    [StructLayout(LayoutKind.Sequential)] private struct CreationSecurityAttributes { internal uint Length; internal nint Descriptor; internal int Inherit; }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CreateDirectoryW(string path, ref CreationSecurityAttributes security);
     [StructLayout(LayoutKind.Sequential)] private struct AttributeTag { internal uint Attributes, Tag; }
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate uint Version();
     [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
