@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "ddd074dffda83c6f084e7f540621abc404bb0626",
-  "runId": "41688821361",
+  "sourceCommit": "969bd3bdf9a7298fdc2d9d24854f2c44ed5c0a9e",
+  "runId": "41690480690",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T17:59:21.1702382+00:00",
-  "completedUtc": "2026-11-03T18:00:06.4271374+00:00",
+  "startedUtc": "2026-11-03T18:17:56.1010469+00:00",
+  "completedUtc": "2026-11-03T18:18:33.6159718+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -106,7 +106,7 @@
     {
       "name": "ui-component-store-preview-interaction",
       "state": "passed",
-      "detail": "Actual production Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed recorded-flags scope, permissions/log writes/stop limits, acknowledgement reset and the disabled confirmation boundary were observed. Existing activity, source rows, diagnostic window and current/historical assessment remained unchanged, with no pending component owner. Confirm and Stop were never invoked; no source injection, screenshot after data, host, DISM invocation, scan, repair, elevation or restart was requested. Native checks, physical keyboard and enabled-production interaction remain separate validation."
+      "detail": "productionQualified=True; actual Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed scope, permissions/log writes/stop limits, acknowledgement reset and qualification-dependent confirmation enablement were observed. Existing activity, source rows, diagnostic window and current/historical assessment stayed unchanged, typed last result remained null and no component owner was pending. Confirm and Stop were never invoked; no data injection, screenshots, host, DISM invocation, scan, repair, elevation or restart was requested. Actual enabled confirmation and physical keyboard remain separate validation."
     },
     {
       "name": "ui-msi-action-binding-interaction",
@@ -116,7 +116,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=59; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=64; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "cleanup-file-evidence-fixture",
@@ -186,7 +186,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -256,7 +256,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=59; nameAvailable=15; descriptionAvailable=56; providerAvailable=56; installedVersionAvailable=56; driverDateAvailable=56; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=64; nameAvailable=16; descriptionAvailable=61; providerAvailable=61; installedVersionAvailable=61; driverDateAvailable=61; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
