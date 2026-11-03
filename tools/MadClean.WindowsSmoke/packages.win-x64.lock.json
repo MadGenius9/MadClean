@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows10.0.22000": {
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "YlTamXppEQls6DYWt7RdUuwWDb0lyw/vXCaGeQpLCpsLmfwGuCkOz/vIGgMTV7ECsJcavkCOkxZXv9s8rdAHkQ=="
+      },
+      "Microsoft.Windows.CsWinRT": {
+        "type": "Transitive",
+        "resolved": "2.2.0",
+        "contentHash": "R8MDVawukHrKgYCFgYaoLfbAna/FrImEFRxDK9k8ITbrXv3KLE5uN6tRqrNV83H4MFdqJ/uiA/hg1cSsXkl0vw=="
+      },
+      "Microsoft.WindowsPackageManager.ComInterop": {
+        "type": "Transitive",
+        "resolved": "1.10.340",
+        "contentHash": "iNWZhSuGh33/BHK0v0g19LShBMuWYqeLnjjTCLd76txXcXa8vHOZRZ70FVo+2icl1k8dw3rSW7vB4lt5lbu94g=="
+      },
+      "MadClean": {
+        "type": "Project",
+        "dependencies": {
+          "MadClean.Core": "[1.0.0, )",
+          "MadClean.Windows": "[1.0.0, )"
+        }
+      },
+      "madclean.core": {
+        "type": "Project"
+      },
+      "madclean.windows": {
+        "type": "Project",
+        "dependencies": {
+          "MadClean.Core": "[1.0.0, )"
+        }
+      },
+      "madclean.windows.winget": {
+        "type": "Project",
+        "dependencies": {
+          "MadClean.Core": "[1.0.0, )",
+          "Microsoft.Windows.CsWinRT": "[2.2.0, )",
+          "Microsoft.WindowsPackageManager.ComInterop": "[1.10.340, )"
+        }
+      }
+    },
+    "net10.0-windows10.0.22000/win-x64": {}
+  }
+}

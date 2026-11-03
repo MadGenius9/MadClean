@@ -82,13 +82,38 @@ internal static class StructuredWingetProbe
         else observed = Project(started, preVerified, pending, owner.Query.Result);
         // Projected wrappers have normal runtime-managed lifetimes. No exact RCW reference
         // count, shared server exit, background refresh completion or forced release is claimed.
-        if (owner.Query.IsCompleted && !pending && (owner.StopCallbacks?.IsCompleted ?? true))
-        {
-            owner.Stop.Dispose();
-            lock (Gate) { if (ReferenceEquals(rootedOwner, owner)) rootedOwner = null; }
-        }
+        ReleaseSettledOwner(owner);
         // Unsettled tasks/CTS/reader remain rooted; no fixture teardown is authorized here.
         return observed;
+    }
+
+    // A console Main must await this before returning: a rooted background thread is
+    // not sufficient to keep the CLR alive. No deadline/kill is added to this drain.
+    internal static async Task WaitForOwnedCompletionAsync()
+    {
+        Owner? owner;
+        lock (Gate) owner = rootedOwner;
+        if (owner is null) return;
+        if (owner.Query is { } query)
+            try { await query.ConfigureAwait(false); } catch (Exception) { /* Fixed historical observation already published. */ }
+        if (owner.StopCallbacks is { } callbacks)
+            try { await callbacks.ConfigureAwait(false); } catch (Exception) { /* No callback exception text exported. */ }
+        while (owner.Inventory.HasPendingNativeRead)
+            await Task.Delay(50).ConfigureAwait(false);
+        ReleaseSettledOwner(owner);
+    }
+
+    private static void ReleaseSettledOwner(Owner owner)
+    {
+        lock (Gate)
+        {
+            if (ReferenceEquals(rootedOwner, owner) && owner.Query?.IsCompleted == true &&
+                !owner.Inventory.HasPendingNativeRead && (owner.StopCallbacks?.IsCompleted ?? true))
+            {
+                owner.Stop.Dispose();
+                rootedOwner = null;
+            }
+        }
     }
 
     private static Observation Project(DateTimeOffset started, bool preVerified, bool pending, StructuredWingetObservation observation)

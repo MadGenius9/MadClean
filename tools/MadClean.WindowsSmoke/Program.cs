@@ -37,11 +37,26 @@ internal static class Program
         // Separate explicit fresh component-store scan; never passive inventory or a repair.
         if (args.Length == 1 && args[0] == "--component-store-scan-validation")
             return ComponentStoreStatusQualification.Run(repository, MadClean.Core.ComponentStoreCheckKind.ScanHealth);
+        // Published-layout SDK qualification is separate from passive fixtures and does not distribute a package.
+        if (args.Length == 1 && args[0] == "--structured-winget-published-parent")
+        {
+            try { return StructuredWingetPublishedQualification.RunParentAsync(repository, CancellationToken.None).GetAwaiter().GetResult(); }
+            finally { StructuredWingetPublishedQualification.WaitForParentCompletionAsync().GetAwaiter().GetResult(); }
+        }
+        if (args.Length == 1 && args[0] == "--structured-winget-published-validation")
+            return StructuredWingetPublishedQualification.RunChildAsync(repository, CancellationToken.None).GetAwaiter().GetResult();
         // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
         if (args.Length == 1 && args[0] == "--update-discovery")
         {
             using var updateDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(220));
-            return UpdateDiscoveryFixture.RunAsync(repository, updateDeadline.Token).GetAwaiter().GetResult();
+            try { return UpdateDiscoveryFixture.RunAsync(repository, updateDeadline.Token).GetAwaiter().GetResult(); }
+            finally
+            {
+                // A static root cannot keep the CLR alive after Main returns. Preserve the
+                // actual SDK worker through its real completion without upgrading an earlier
+                // pending report or terminating the shared provider. CI VM limits are separate.
+                StructuredWingetProbe.WaitForOwnedCompletionAsync().GetAwaiter().GetResult();
+            }
         }
         // Fixed inert child protocol only; unknown arguments never reset captures or query.
         if (args.Length != 0)
@@ -98,6 +113,7 @@ internal static class Program
             }
             else report.Unknown(startupCheck, "Earlier validation failed or native tree teardown is uncertain; no published executable was started.");
             UpdateDiscoveryFixture.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
+            StructuredWingetPublishedQualification.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
         }
         catch (Exception ex)
         {

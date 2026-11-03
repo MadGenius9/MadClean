@@ -113,6 +113,14 @@ jobs:
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'
         run: python tools/ci_command.py update-discovery -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --update-discovery
+      - name: Prepare owned self-contained SDK harness (no distribution)
+        run: python tools/prepare_structured_winget_publish.py
+      - name: Observe actual published structured SDK query
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+        run: python tools/ci_command.py structured-winget-published -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --structured-winget-published-parent
       - name: Prepare owned self-contained executable for startup validation (no distribution)
         run: python tools/prepare_published_startup.py
       - name: Capture real WPF content and exercise isolated native fixtures

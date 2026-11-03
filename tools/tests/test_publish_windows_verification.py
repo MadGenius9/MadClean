@@ -558,6 +558,19 @@ class PublisherTests(unittest.TestCase):
         _, summary, _ = self.prepare()
         self.assertTrue(summary['passed'])
 
+    def test_v3_requires_published_query_proof_even_with_development_sdk_check(self):
+        self.report['formatVersion'] = 3
+        self.report['checks'].append({'name': 'structured-winget-discovery-contract', 'state': 'passed', 'detail': 'TEST-ONLY development query'})
+        self.save(); self.rejected()
+
+    def test_v3_accepts_both_sdk_checks_without_changing_legacy_acceptance(self):
+        self.report['formatVersion'] = 3
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY fixed proof'})
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
     def test_passed_report_requires_same_query_winget_observation(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'winget-query-observation-contract']
         self.save(); self.rejected()

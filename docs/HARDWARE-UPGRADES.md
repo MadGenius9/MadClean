@@ -1,6 +1,6 @@
 # Hardware Upgrades: H1 inventory and later roadmap
 
-**H1 is the implemented read-only Hardware Upgrades inventory increment; H2 official compatibility/specification verification and H3 recommendations remain queued.** The tab runs only on an explicit user hardware-inventory action and shows allowlisted local CIM facts with their source and query-attempt time. Windows execution/rendering remains **unverified in the Linux cloud**; implementation, compilation and portable parsing tests must not be described as a successful Windows hardware query.
+**H1 is the implemented read-only Hardware Upgrades inventory increment; H2 official compatibility/specification verification and H3 recommendations remain queued.** The tab runs only on an explicit user hardware-inventory action and shows allowlisted local CIM facts with their source and query-attempt time. The source-only CIM metadata contract passed a disposable Windows fixture, as recorded in the [execution ledger](ROADMAP-STATUS.md). That narrow check does not verify populated inventory, firmware accuracy or rendering. Actual populated comparisons across supported systems and UI rendering remain unverified; Linux compilation and portable parsing tests cannot establish them.
 
 The tab is not a compatibility engine. It does not inspect the user's PC during development, run diagnostics/stress tests, contact manufacturers automatically, download firmware, recommend purchases, install hardware or update BIOS. Existing read-only phase-one boundaries remain in effect. Separate BIOS identity reporting supplies firmware-reported observations, not upgrade limits or compatibility proof.
 
@@ -50,7 +50,7 @@ H1 acceptance and validation gates:
 - Independently review the projected fields, fixed local namespace and provider permissions. Show the query-attempt timestamp, source and partial/unavailable errors without silent elevation; never present an attempt as a successful complete query.
 - Bound returned objects/strings and numeric conversions. Reject malformed or unrepresentable values; do not turn zero/overflow/placeholder values into known specifications.
 - Test absent/multiple boards, OEM placeholders, virtual devices, missing/unknown raw enums, large/overflowing capacity values, per-class limits, permission denial, unsupported providers and cancellation. Unexpected properties such as serials/UUIDs/AdapterRAM must not be admitted into displayed fields. Completing a provider call does not prove complete hardware coverage or reveal soldered-memory upgradeability.
-- Run actual unelevated Windows runtime comparisons on disposable OEM and retail test systems before claiming Windows behavior verified. Linux parser tests and compilation alone do not pass this gate.
+- Run actual unelevated populated-inventory comparisons on disposable OEM and retail test systems before claiming the full hardware workflow verified. The passed source-only CIM metadata contract fixture, Linux parser tests and compilation do not pass this broader gate.
 - The inventory screen must work without compatibility or shopping claims and without reaching manufacturer/retailer sites automatically. No release may call H1 a working upgrade recommendation engine.
 
 ## H2 — exact-model official verification
