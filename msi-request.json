@@ -1,10 +1,10 @@
 {
   "formatVersion": 5,
-  "sourceCommit": "56e97f0fc569bd6cf61285ca580b7bb6fe913737",
-  "runId": "41709738590",
+  "sourceCommit": "97f2a837d5ac02834fa629bcb5eba86027fcadad",
+  "runId": "41712046696",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T20:12:00.9399188+00:00",
-  "observedUtc": "2026-11-03T20:12:04.6279224+00:00",
+  "startedUtc": "2026-11-03T20:28:59.3150922+00:00",
+  "observedUtc": "2026-11-03T20:29:01.3785451+00:00",
   "state": "inconclusive",
   "stage": "PostStateUnverified",
   "packageBuilt": true,
@@ -34,7 +34,7 @@
     "yesSelectionKind": "UniqueButtonName",
     "yesCandidateCount": 1,
     "enumerationFailed": false,
-    "pollCount": 6,
+    "pollCount": 4,
     "managedExceptionHResult": null
   },
   "clientStarted": true,
