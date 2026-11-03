@@ -42,6 +42,17 @@ internal sealed class SystemToolTrustedLease : IDisposable
     }
     internal static SystemToolTrustedLease Open(SystemToolActionDefinition definition, CancellationToken token)
     {
+        var target = SystemToolExecutableTargets.FromOperation(definition.Operation);
+        if (target == null || SystemToolExecutableTargets.FileName(target.Value) != definition.FileName)
+            throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable,
+                "The exact fixed executable identity target is unsupported.");
+        return Open(target.Value, token);
+    }
+    internal static SystemToolTrustedLease OpenWindowsInstaller(CancellationToken token) =>
+        Open(SystemToolExecutableTarget.WindowsInstaller, token);
+
+    private static SystemToolTrustedLease Open(SystemToolExecutableTarget target, CancellationToken token)
+    {
         token.ThrowIfCancellationRequested();
         if (!OperatingSystem.IsWindows()) throw new SystemToolTrustFailure(CheckState.Unsupported, SystemToolTrustState.Unavailable, "Windows system tools cannot be verified on this platform.",
             new(SystemToolIdentityStage.Unknown, SystemToolIdentityReason.UnsupportedPlatform, null));
@@ -50,7 +61,8 @@ internal sealed class SystemToolTrustedLease : IDisposable
             throw new SystemToolTrustFailure(CheckState.Unavailable, SystemToolTrustState.Unavailable, "The genuine local Windows system directory could not be established.",
                 new(SystemToolIdentityStage.SystemDirectory, SystemToolIdentityReason.IdentityBoundsOrPath, null));
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
-        string path = Path.Combine(system, definition.FileName);
+        string fileName = SystemToolExecutableTargets.FileName(target);
+        string path = Path.Combine(system, fileName);
         var leases = SystemToolTrustNative.LockDirectoryChain(system);
         FileStream? stream = null;
         SafeFileHandle? handle = null;
@@ -81,7 +93,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 // The direct file verifier has already closed its own native trust state.
                 // Only this exact no-file-signature result permits the separately qualified
                 // catalog route, using the same leased executable bytes throughout.
-                var catalog = SystemToolCatalogObservation.ReadHeld(definition.Operation, stream, system, token);
+                var catalog = SystemToolCatalogObservation.ReadHeld(target, stream, system, token);
                 signatureDiagnostic = new(SystemToolIdentityStage.Signature,
                     catalog.Reason == SystemToolCatalogReason.SignerNotQualified
                         ? SystemToolIdentityReason.SignerNotQualified
@@ -146,7 +158,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 throw new SystemToolTrustFailure(CheckState.Unknown, SystemToolTrustState.Unknown,
                     "The held tool stream could not be positioned for embedded version metadata.",
                     signatureDiagnostic with { Stage = SystemToolIdentityStage.VersionMetadata, Reason = SystemToolIdentityReason.IdentityBoundsOrPath });
-            var embedded = SystemToolEmbeddedVersionReader.Read(stream, definition.FileName, token);
+            var embedded = SystemToolEmbeddedVersionReader.Read(stream, fileName, token);
             if (embedded.State != SystemToolEmbeddedVersionState.Matched)
             {
                 var diagnostic = signatureDiagnostic with
@@ -188,6 +200,7 @@ internal sealed class SystemToolTrustedLease : IDisposable
 internal static class SystemToolTrustNative
 {
     private static int directTrustCleanupUncertain;
+    internal static bool HasCleanupUncertainty => Volatile.Read(ref directTrustCleanupUncertain) != 0;
     private const uint ReadAttributes = 0x80, ListDirectory = 1, ShareRead = 1, OpenExisting = 3;
     private const uint OpenReparsePoint = 0x00200000, BackupSemantics = 0x02000000, OpenNoRecall = 0x00100000;
     private const uint InvalidAttributes = 0x400 | 0x1000 | 0x4000 | 0x40000 | 0x400000;

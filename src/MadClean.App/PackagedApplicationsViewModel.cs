@@ -22,10 +22,17 @@ public sealed partial class MainViewModel
     public PackagedApplication? SelectedPackagedApplication
     {
         get => selectedPackagedApplication;
-        set { Set(ref selectedPackagedApplication, value); PropertyChanged?.Invoke(this, new(nameof(PackagedApplicationDetails))); }
+        set
+        {
+            if (value != null && !PackagedApplicationRows.Any(row => ReferenceEquals(row, value))) return;
+            if (ReferenceEquals(selectedPackagedApplication, value)) return;
+            InvalidatePackagedSettings(clearSource: false);
+            Set(ref selectedPackagedApplication, value);
+            PropertyChanged?.Invoke(this, new(nameof(PackagedApplicationDetails)));
+        }
     }
     public string PackagedApplicationDetails => selectedPackagedApplication is { } package
-        ? $"Package identity name: {package.Name}\nFull identity: {package.FullName}\nFamily identity: {package.FamilyName}\nReported version: {package.Version}\nPublisher metadata: {package.Publisher}\nArchitecture: {package.Architecture}; type: {package.PackageType}\nReported signing kind: {package.SignatureKind}\nProvider non-removable flag: {Flag(package.NonRemovable)}\nFramework: {Flag(package.IsFramework)}; resource package: {Flag(package.IsResourcePackage)}\nSource: current-user Windows Appx Main/Bundle metadata.\n\nThese are registration observations, not independent signature/publisher authentication, running/health/update status or removal permission. Other users and provisioning are outside coverage. A bundle and main records can describe the same software; no unique-app count or ARP baseline is inferred. No package action is implemented here."
+        ? $"Package identity name: {package.Name}\nFull identity: {package.FullName}\nFamily identity: {package.FamilyName}\nReported version: {package.Version}\nPublisher metadata: {package.Publisher}\nArchitecture: {package.Architecture}; type: {package.PackageType}\nReported signing kind: {package.SignatureKind}\nProvider non-removable flag: {Flag(package.NonRemovable)}\nFramework: {Flag(package.IsFramework)}; resource package: {Flag(package.IsResourcePackage)}\nSource: current-user Windows Appx Main/Bundle metadata.\n\nThese are registration observations, not independent signature/publisher authentication, running/health/update status or removal permission. Other users and provisioning are outside coverage. A bundle and main records can describe the same software; no unique-app count or ARP baseline is inferred. No package mutation is implemented here; a separate explicit preview can request Windows' family-level options page."
         : "Select a package record to inspect its exact public package identities and reported metadata. No user SID, manifest content, installation path or dependencies are collected. Non-removable and signing fields are provider reports; removal eligibility remains unknown.";
     public string PackagedApplicationSearchSummary => !installedAppSearch.IsValid
         ? "Search accepts up to 256 characters of literal text without control or hidden formatting characters. Clear it to show loaded package rows."
@@ -35,13 +42,15 @@ public sealed partial class MainViewModel
     private static string Flag(bool? value) => value switch { true => "Yes", false => "No", _ => "Unknown" };
     private void InitializePackagedApplications()
     {
+        InitializePackagedAppSettings();
         PackagedApplicationsView = CollectionViewSource.GetDefaultView(PackagedApplicationRows);
         PackagedApplicationsView.Filter = item => item is PackagedApplication package && installedAppSearch.MatchesText(package.Name, package.Publisher);
-        ReadPackagedApplicationsCommand = new AsyncCommand(ReadPackagedApplications, () => !IsBusy);
+        ReadPackagedApplicationsCommand = new AsyncCommand(ReadPackagedApplications, () => !IsBusy && !HasPendingPackagedSettingsWork);
     }
     private void RefreshPackagedApplicationSearch()
     {
         if (PackagedApplicationsView == null) return;
+        InvalidatePackagedSettings(clearSource: false);
         if (selectedPackagedApplication != null && !installedAppSearch.MatchesText(selectedPackagedApplication.Name, selectedPackagedApplication.Publisher))
             SelectedPackagedApplication = null;
         PackagedApplicationsView.Refresh();
@@ -50,6 +59,7 @@ public sealed partial class MainViewModel
     private void NotifyPackagedApplicationSearch() => PropertyChanged?.Invoke(this, new(nameof(PackagedApplicationSearchSummary)));
     private Task ReadPackagedApplications() => RunDiscoveryAsync(ActivityArea.PackagedApplications, "Reading current-user Windows package metadata", async token =>
     {
+        InvalidatePackagedSettings(clearSource: true);
         packagedApplicationsPending = true;
         PackagedApplicationRows.Clear(); SelectedPackagedApplication = null;
         NotifyPackagedApplicationSearch();
@@ -57,6 +67,7 @@ public sealed partial class MainViewModel
         PackagedApplicationsMessage = "Reading bounded current-user Main/Bundle metadata only…";
         var result = await packagedApplicationInventory.ReadAsync(token);
         token.ThrowIfCancellationRequested();
+        var receivedUtc = DateTimeOffset.UtcNow;
         if (result.Items.Count > PackagedApplicationParser.MaximumRecords)
             throw new InvalidOperationException("Package projection exceeded its fixed bound.");
         int published = 0;
@@ -66,11 +77,13 @@ public sealed partial class MainViewModel
             if (++published % 64 == 0) await Task.Delay(1, token);
         }
         token.ThrowIfCancellationRequested();
+        PublishPackagedSettingsSource(result, receivedUtc);
         PackagedApplicationsMessage = Stamp(result.State, result.Message);
         packagedApplicationsPending = false; NotifyPackagedApplicationSearch();
         return result.State;
     }, error =>
     {
+        InvalidatePackagedSettings(clearSource: true);
         PackagedApplicationRows.Clear(); SelectedPackagedApplication = null;
         packagedApplicationsPending = false; NotifyPackagedApplicationSearch();
         PackagedApplicationsMessage = error + " No completed package inventory is claimed; desktop registrations and baselines are unchanged.";

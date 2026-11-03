@@ -1,0 +1,25 @@
+<UserControl x:Class="MadClean.App.Views.MsiUninstallRequestView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+            <TextBlock Text="Selected Windows Installer request" FontSize="20"/>
+            <TextBlock Text="A separate, explicitly confirmed request for one registered MSI ProductCode. Preparation is read only. No bulk or silent uninstall, raw registered command, forced restart or folder deletion is used." Style="{StaticResource Caption}"/>
+            <TextBlock Text="{Binding MsiUninstallQualification}" Style="{StaticResource Caption}" AutomationProperties.Name="Selected MSI request qualification"/>
+            <WrapPanel Margin="0,8,0,4">
+                <Button Content="Prepare selected MSI request" Command="{Binding PrepareMsiUninstallRequestCommand}" Background="#244B70" AutomationProperties.Name="Prepare exact selected MSI uninstall request"/>
+                <Button Content="Request selected MSI uninstall…" Command="{Binding ConfirmMsiUninstallRequestCommand}" Background="#244B70" AutomationProperties.Name="Confirm exact selected Windows Installer uninstall request"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding MsiUninstallMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Selected MSI uninstall request status" AutomationProperties.LiveSetting="Polite"/>
+            <TextBox Text="{Binding MsiUninstallPreviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Exact selected MSI product, arguments, effects and limitations"/>
+            <CheckBox IsChecked="{Binding MsiUninstallAcknowledged, Mode=TwoWay}" IsEnabled="{Binding CanAcknowledgeMsiUninstallRequest}" Foreground="#ECF1FB" Margin="0,10,0,12" AutomationProperties.Name="Acknowledge exact selected MSI request preview">
+                <TextBlock Text="I reviewed this exact ProductCode request, its effects, permissions and Windows Installer prompts." TextWrapping="Wrap"/>
+            </CheckBox>
+            <TextBlock Text="Before dispatch, Cancel stops MadClean preparation. After dispatch, use Windows Installer's Cancel control if offered; otherwise wait for supported completion. MadClean will not kill it or claim rollback. Keep MadClean open until actual process ownership settles." Style="{StaticResource Caption}"/>
+            <TextBox Text="{Binding MsiUninstallResultDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="260" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Actual MSI client result and unchecked registration status"/>
+            <WrapPanel Margin="0,10,0,0">
+                <Button Content="Refresh registrations separately" Command="{Binding RefreshInstalledApplicationsCommand}" Background="#343E52" Foreground="White"/>
+                <Button Content="Review leftover candidates" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
+            </WrapPanel>
+            <TextBlock Text="Client exit is a Windows Installer report, not proof of every uninstall effect or global absence. Registration and leftover review remain separate; candidates are not proven junk. A crash or forced app termination loses this session's monitoring; no PID is reopened or completion reconstructed." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

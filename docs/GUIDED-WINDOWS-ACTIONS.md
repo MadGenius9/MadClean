@@ -2,7 +2,7 @@
 
 This increment adds reviewed navigation into Windows-owned workflows and an official instruction page. It does **not** implement startup changes, application uninstall, Defender scan/quarantine/remediation, update installation, driver replacement, system-file verification or repair. Those roadmap execution stages retain their own prerequisites and validation gates.
 
-The user selects a workflow and sees its exact effect, fixed destination, permissions, limitations and official source before choosing **Open Windows workflow**. Ordinary inventory never invokes these handoffs. No selected application/update identifiers, discovered executable paths, uninstall strings, shell arguments or credentials enter the launcher.
+The user selects a workflow and sees its exact effect, fixed destination, permissions, limitations and official source before choosing **Open Windows workflow**. Ordinary inventory never invokes these handoffs. No selected application/update identifiers, discovered executable paths, uninstall strings, shell arguments or credentials enter this generic catalog route. A separate [current-user package-family review](PACKAGED-APP-SETTINGS.md) uses its own typed, freshly revalidated descriptor for the documented family-level Settings page; it shares only the private STA owner/pending gate and does not widen this catalog.
 
 ## Fixed targets and effects
 

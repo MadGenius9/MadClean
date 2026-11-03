@@ -13,6 +13,7 @@ public sealed class GuidedWindowsActionLauncher
 {
     private static readonly TimeSpan CallerWaitBudget = TimeSpan.FromSeconds(15);
     private static int handoffPending;
+    public static bool HasPendingHandoff => Volatile.Read(ref handoffPending) != 0;
     private const string UnknownOperation = "The requested operation was not executed or monitored by MadClean; completion is Unknown.";
 
     public async Task<CheckResult<string>> OpenAsync(GuidedWindowsTask task, CancellationToken token)
@@ -21,6 +22,18 @@ public sealed class GuidedWindowsActionLauncher
         var action = GuidedWindowsActions.Find(task);
         if (action == null || !GuidedWindowsActions.IsAllowedUri(task, action.TargetUri))
             return CheckResult<string>.Empty(CheckState.Unsupported, "No allowlisted Windows navigation descriptor exists for this task. Nothing was dispatched.");
+        return await OpenTargetAsync(action.TargetUri,
+            () => GuidedWindowsActions.IsAllowedUri(task, action.TargetUri), token).ConfigureAwait(false);
+    }
+
+    internal Task<CheckResult<string>> OpenPackagedSettingsAsync(PackagedAppSettingsHandoff handoff, CancellationToken token) =>
+        OpenTargetAsync(handoff.TargetUri, () => PackagedAppSettingsPolicy.IsAllowed(handoff, DateTimeOffset.UtcNow), token);
+
+    // Private shared STA owner only. Public callers cannot supply an arbitrary URI or validator.
+    private static async Task<CheckResult<string>> OpenTargetAsync(Uri target, Func<bool> allowed, CancellationToken token)
+    {
+        if (token.IsCancellationRequested) return BeforeDispatchCancelled();
+        if (!allowed()) return CheckResult<string>.Empty(CheckState.Unsupported, "The reviewed navigation descriptor is no longer valid. Nothing was dispatched.");
         if (!OperatingSystem.IsWindows())
             return CheckResult<string>.Empty(CheckState.Unsupported, "Guided Windows handoffs are unsupported on this platform. No page was opened and no Windows operation was simulated.");
         if (Interlocked.CompareExchange(ref handoffPending, 1, 0) != 0)
@@ -44,7 +57,7 @@ public sealed class GuidedWindowsActionLauncher
                         return;
                     }
                     initialized = true;
-                    completion.TrySetResult(Dispatch(action, state, token));
+                    completion.TrySetResult(Dispatch(target, allowed, state, token));
                 }
                 catch (Exception)
                 {
@@ -72,7 +85,7 @@ public sealed class GuidedWindowsActionLauncher
             return dispatched
                 ? new(CheckState.Unknown,
                     "Cancellation was requested after Windows shell dispatch began. MadClean cannot cancel or roll back that handoff; Windows may still open or continue the page. " + UnknownOperation,
-                    [action.TargetUri.OriginalString])
+                    [target.OriginalString])
                 : BeforeDispatchCancelled();
         }
         catch (TimeoutException)
@@ -81,13 +94,13 @@ public sealed class GuidedWindowsActionLauncher
             return dispatched
                 ? new(CheckState.Unknown,
                     "The Windows shell handoff did not return within the 15-second caller wait. It may still open the page; no second handoff is allowed while dispatch remains pending. " + UnknownOperation,
-                    [action.TargetUri.OriginalString])
+                    [target.OriginalString])
                 : CheckResult<string>.Empty(CheckState.Unavailable,
                     "The queued handoff reached its wait budget before shell dispatch. It was stopped before dispatch; no page or operation was requested.");
         }
     }
 
-    private static CheckResult<string> Dispatch(GuidedWindowsAction action, HandoffState state, CancellationToken token)
+    private static CheckResult<string> Dispatch(Uri target, Func<bool> allowed, HandoffState state, CancellationToken token)
     {
         try
         {
@@ -95,13 +108,14 @@ public sealed class GuidedWindowsActionLauncher
             {
                 if (token.IsCancellationRequested || state.StopBeforeDispatch) return BeforeDispatchCancelled();
                 // Revalidate the immutable catalog descriptor at the last pre-dispatch boundary.
-                if (!GuidedWindowsActions.IsAllowedUri(action.Task, action.TargetUri))
+                if (!allowed())
                     return CheckResult<string>.Empty(CheckState.Unsupported, "The navigation descriptor was not allowlisted at dispatch. Nothing was opened.");
+                if (token.IsCancellationRequested || state.StopBeforeDispatch) return BeforeDispatchCancelled();
                 state.Dispatched = true;
             }
             using var opened = Process.Start(new ProcessStartInfo
             {
-                FileName = action.TargetUri.OriginalString,
+                FileName = target.OriginalString,
                 UseShellExecute = true,
                 Verb = "open",
                 Arguments = "",
@@ -112,7 +126,7 @@ public sealed class GuidedWindowsActionLauncher
             string message = "Handoff opened (the shell request returned; target-window appearance is unverified). " + UnknownOperation;
             if (token.IsCancellationRequested)
                 message += " Cancellation arrived after dispatch and cannot undo the Windows handoff.";
-            return new(CheckState.Available, message, [action.TargetUri.OriginalString]);
+            return new(CheckState.Available, message, [target.OriginalString]);
         }
         catch (Win32Exception ex)
         {

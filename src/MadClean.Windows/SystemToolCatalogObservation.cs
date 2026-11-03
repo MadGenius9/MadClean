@@ -30,18 +30,23 @@ internal static class SystemToolCatalogObservation
     private const string Sha256Oid = "2.16.840.1.101.3.4.2.1";
     private static readonly SemaphoreSlim Worker = new(1, 1);
     private static volatile bool cleanupUncertain;
+    internal static bool HasCleanupUncertainty => cleanupUncertain;
     private static readonly Guid GenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
 
     internal static SystemToolCatalogObservationResult Read(SystemToolOperation operation, CancellationToken token = default)
-        => ReadShared(operation, null, null, false, token);
+        => ReadShared(SystemToolExecutableTargets.FromOperation(operation), null, null, false, token);
 
     // Internal precondition: the caller owns a no-write/no-delete executable lease
     // for this exact stream for the full call. This never accepts a path as identity.
     internal static SystemToolCatalogObservationResult ReadHeld(SystemToolOperation operation, FileStream stream,
         string expectedOSsystemdir, CancellationToken token = default)
-        => ReadShared(operation, stream, expectedOSsystemdir, true, token);
+        => ReadShared(SystemToolExecutableTargets.FromOperation(operation), stream, expectedOSsystemdir, true, token);
 
-    private static SystemToolCatalogObservationResult ReadShared(SystemToolOperation operation, FileStream? stream,
+    internal static SystemToolCatalogObservationResult ReadHeld(SystemToolExecutableTarget target, FileStream stream,
+        string expectedOSsystemdir, CancellationToken token = default)
+        => ReadShared(target, stream, expectedOSsystemdir, true, token);
+
+    private static SystemToolCatalogObservationResult ReadShared(SystemToolExecutableTarget? target, FileStream? stream,
         string? expectedOSsystemdir, bool borrowed, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -69,7 +74,7 @@ internal static class SystemToolCatalogObservation
                     throw new InvalidOperationException("The held executable handle is unavailable.");
                 borrowedHandle.DangerousAddRef(ref referenceHeld);
             }
-            result = ReadCore(operation, observation, resources, stream, expectedOSsystemdir, borrowed, token);
+            result = ReadCore(target, observation, resources, stream, expectedOSsystemdir, borrowed, token);
         }
         catch (CatalogWorkerUncertain)
         { result = observation.Result(CheckState.Unavailable, SystemToolCatalogReason.CleanupUnavailable); }
@@ -116,11 +121,12 @@ internal static class SystemToolCatalogObservation
             restoreFailed ? result with { State = CheckState.Unknown, Reason = SystemToolCatalogReason.UnqualifiedScope } : result;
     }
 
-    private static SystemToolCatalogObservationResult ReadCore(SystemToolOperation operation, Observation observation,
+    private static SystemToolCatalogObservationResult ReadCore(SystemToolExecutableTarget? target, Observation observation,
         NativeResources resources, FileStream? suppliedStream, string? expectedOSsystemdir, bool borrowed, CancellationToken token)
     {
-        var definition = SystemToolActionsCatalog.Find(operation);
-        if (definition == null) return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnqualifiedScope);
+        if (target == null || !Enum.IsDefined(target.Value))
+            return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnqualifiedScope);
+        string fileName = SystemToolExecutableTargets.FileName(target.Value);
         observation.Stage = SystemToolCatalogStage.ToolLease;
         string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
         if (!Path.IsPathFullyQualified(system) || system.Length is < 4 or > 1024 || !char.IsAsciiLetter(system[0]) || system[1] != ':' || system[2] != '\\')
@@ -128,7 +134,7 @@ internal static class SystemToolCatalogObservation
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
         if (borrowed && !string.Equals(system, expectedOSsystemdir, StringComparison.OrdinalIgnoreCase))
             return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
-        string toolPath = Path.Combine(system, definition.FileName);
+        string toolPath = Path.Combine(system, fileName);
         var toolDirectories = SystemToolTrustNative.LockDirectoryChain(system);
         FileStream? ownedStream = null;
         try

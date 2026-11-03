@@ -23,6 +23,18 @@
                 </DataGrid.Columns>
             </DataGrid>
             <TextBox Text="{Binding PackagedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="250" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected current-user package identity and coverage"/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Review this package in Windows" FontSize="18"/>
+                    <TextBlock Text="Preview a family-level App features / Advanced options destination. Opening it requests no uninstall, reset or repair; Windows controls available options and any later action." Style="{StaticResource Caption}"/>
+                    <WrapPanel>
+                        <Button Content="Preview selected package page" Command="{Binding PreviewPackagedSettingsCommand}" AutomationProperties.Name="Preview selected package family Settings destination"/>
+                        <Button Content="Open reviewed package page" Command="{Binding OpenPackagedSettingsCommand}" AutomationProperties.Name="Open reviewed package family Settings destination"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding PackagedSettingsMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Package Settings handoff status" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBox Text="{Binding PackagedSettingsPreview, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="260" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Reviewed package family destination and limitations"/>
+                </StackPanel>
+            </Border>
             <TextBlock Text="Bundle and main records can describe the same software. Reported signing kind and non-removable flags do not independently verify trust, running state, health, updates or permission to remove an app. Desktop-app baselines and leftover comparisons remain separate." Style="{StaticResource Caption}"/>
         </StackPanel>
     </ScrollViewer>

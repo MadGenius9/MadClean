@@ -26,6 +26,10 @@ internal static class Program
             Console.Error.WriteLine("Run from the existing MadClean repository root; no checks ran.");
             return 2;
         }
+        // Separate explicit disposable-runner action qualification. It is outside the
+        // passive harness watchdog and can touch only its fresh inert owned MSI product.
+        if (args.Length == 1 && args[0] == "--msi-request-validation")
+            return MsiRequestQualificationFixture.Run(repository);
         // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
         if (args.Length == 1 && args[0] == "--update-discovery")
         {

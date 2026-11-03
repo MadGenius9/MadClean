@@ -136,8 +136,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  windows-msi-request:
+    needs: build-test-package
+    if: >-
+      ${{ success() && github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked qualification dependencies
+        run: dotnet restore MadClean.sln --locked-mode
+      - name: Build the separate owned MSI qualification mode
+        run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Qualify visible uninstall for one fresh inert owned product only
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+          MADCLEAN_MSI_REQUEST_VALIDATION: '1'
+        run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --msi-request-validation
+      - name: Preserve only fixed source-bound MSI qualification facts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-MSI-request-validation
+          path: artifacts/msi-request-validation/report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   publish-verification:
-    needs: [build-test-package, windows-verification]
+    needs: [build-test-package, windows-verification, windows-msi-request]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
           github.ref == 'refs/heads/feat/phase-one-foundation' &&
@@ -190,8 +225,18 @@ jobs:
           name: MadClean-native-command-logs
           path: downloaded-native-logs
           digest-mismatch: error
+      - name: Retrieve this run's separate owned MSI qualification facts
+        id: msi_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-MSI-request-validation
+          path: downloaded-msi
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
+          MADCLEAN_MSI_RESULT: ${{ needs.windows-msi-request.result }}
+          MADCLEAN_MSI_DOWNLOAD_RESULT: ${{ steps.msi_evidence.outcome }}
           MADCLEAN_BUILD_RESULT: ${{ needs.build-test-package.result }}
           MADCLEAN_VERIFICATION_RESULT: ${{ needs.windows-verification.result }}
           MADCLEAN_REPORT_DOWNLOAD_RESULT: ${{ steps.windows_evidence.outcome }}
@@ -217,3 +262,6 @@ jobs:
           --core-download-result "$MADCLEAN_CORE_DOWNLOAD_RESULT"
           --log-download-result "$MADCLEAN_LOG_DOWNLOAD_RESULT"
           --native-log-download-result "$MADCLEAN_NATIVE_LOG_DOWNLOAD_RESULT"
+          --msi-request-reports downloaded-msi
+          --msi-download-result "$MADCLEAN_MSI_DOWNLOAD_RESULT"
+          --msi-result "$MADCLEAN_MSI_RESULT"

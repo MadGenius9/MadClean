@@ -27,9 +27,9 @@ REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", *IMAGES)
 REQUIRED_CHECKS = {
-    "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
+    "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "duplicate-pair-review-fixture", "duplicate-pair-recheck-fixture", "shortcut-directory-sharing-observation", "system-tool-process-observation-fixture", "system-tool-journal-store-fixture", "system-tool-journal-cross-instance-fixture", "system-tool-journal-lifecycle-fixture", "system-tool-private-journal-scope", "owned-relative-directory-create-control", "owned-private-parent-security-preflight", "published-executable-startup", "update-discovery-provider-contract", "wua-offer-metadata-contract", "winget-query-observation-contract", "device-driver-properties-contract", "ui-device-driver-inventory-interaction", "dism-powershell-capability-contract", "dism-builtin-import-control-contract", "cleanup-file-evidence-fixture", "cleanup-disposition-owned-probe", "cleanup-mapped-disposition-owned-probe", "cleanup-confirmation-owned-protocol", "ui-cleanup-file-evidence", "ui-cleanup-file-evidence-interaction", "ui-cleanup-selection-review-interaction", "ui-cleanup-file-evidence-selection-race", "ui-cleanup-file-evidence-cancellation", "ui-diagnostic-channel-coverage-interaction", "ui-msi-action-binding-interaction", "startup-transaction-namespace-observation", "shortcut-existing-local-fixture",
     "shortcut-missing-local-fixture", "shortcut-no-mutation", "shortcut-rename-handle-probe", "shortcut-rename-cpp-control", "shortcut-rename-nt-control", "shortcut-rename-source-guard", "shortcut-rename-destination-guard", "shortcut-rename-ancestor-guard", "shortcut-mapped-write-witness", "shortcut-selected-recheck-fixture", "shortcut-file-evidence-fixture", "shortcut-dacl-fixture", "diagnostics-metadata-contract", "fixture-teardown",
@@ -271,7 +271,64 @@ def core_test_summary(directory):
     return result
 
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped"):
+MSI_FACTS = {"packageBuilt", "databaseVerified", "preexistingCodeAbsent", "installReturned", "installedContextObserved", "payloadObserved", "visibleConsentObserved", "clientStarted", "clientExited", "postCodeAbsent", "payloadAbsent", "workerSettled", "ownedTeardown"}
+MSI_STAGES = {"OwnedSetup", "BuildOwnedDatabase", "ProductCollision", "InstallOwnedProduct", "InstallUnverified", "InstalledEvidenceUnknown", "PrepareRequest", "SelectionUnknown", "VisibleRequest", "RequestUnsettled", "ObservePostState", "PostStateUnverified", "OwnershipUnverified", "Complete", "QualificationUnavailable", "VisibleConsentUnverified"}
+def validate_msi_report(directory, context):
+    if directory is None:
+        return None
+    path = safe_path(Path(directory), missing=True) / "report.json"
+    if not path.exists():
+        return None
+    value = read_json(path, 8192)
+    fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult"} | MSI_FACTS
+    reject_unless(isinstance(value, dict) and set(value) == fields and type(value["formatVersion"]) is int and value["formatVersion"] == 1, "msi-report-schema")
+    reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
+    reject_unless(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"} and isinstance(value["stage"], str) and value["stage"] in MSI_STAGES, "msi-report-state")
+    for name in MSI_FACTS:
+        reject_unless(value[name] is None or type(value[name]) is bool, "msi-report-fact")
+    reject_unless(value["previewPrepared"] is None or type(value["previewPrepared"]) is bool, "msi-preview-fact")
+    labels = {
+        "selectionSourceState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
+        "bindingResultState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
+        "currentSnapshotState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
+        "bindingReportState": {"Bound", "Blocked", "Unknown"},
+        "clientRequestState": {"NotStarted", "Blocked", "Preparing", "ClientStarted", "ClientExited", "MonitoringUnknown"},
+        "failureKind": {"NativeWin32", "OwnedEvidenceUnavailable", "ObservationUnavailable", "OwnedInvariantFailed"},
+        "toolIdentityStage": {"Unknown", "SystemDirectory", "FileLease", "Signature", "Fingerprint", "VersionMetadata", "Completed"},
+        "toolIdentityReason": {"Unspecified", "Observed", "NativeTrustNotEstablished", "SignerInspectionUnavailable", "SignerNotQualified", "OriginalFilenameMismatch", "IdentityBoundsOrPath", "OtherUnavailable", "WaitExpired", "PendingWorker", "UnsupportedPlatform", "TrustCleanupUnavailable"},
+        "databaseOperation": {"OpenDatabase", "Commit", "SummarySet", "SummaryRead", "ReadTableNames", "HandleClose"} | {prefix + table for prefix in ("Create", "Insert", "Read") for table in ("Property", "Directory", "Feature", "Component", "FeatureComponents", "File", "Media", "InstallExecuteSequence", "InstallUISequence", "Dialog", "Control", "ControlEvent", "TextStyle")},
+    }
+    for name, allowed in labels.items():
+        reject_unless(value[name] is None or isinstance(value[name], str) and value[name] in allowed, "msi-report-label")
+    for name in ("installCode", "clientExitCode", "failureCode", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult"):
+        reject_unless(value[name] is None or type(value[name]) is int and -(2**31) <= value[name] < 2**31, "msi-report-code")
+    times = []
+    for name in ("startedUtc", "observedUtc"):
+        text = value[name]
+        reject_unless(isinstance(text, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,7})?(?:Z|\+00:00)", text) is not None, "msi-report-time")
+        try:
+            times.append(dt.datetime.fromisoformat(text.replace("Z", "+00:00")))
+        except ValueError:
+            raise EvidenceError("msi-report-time") from None
+    reject_unless(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=20), "msi-report-time-order")
+    reject_unless((value["toolIdentityStage"] is None) == (value["toolIdentityReason"] is None), "msi-tool-coherence")
+    if value["toolIdentityStage"] is None:
+        reject_unless(all(value[name] is None for name in ("toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult")), "msi-tool-coherence")
+    reject_unless((value["installReturned"] is True) == (value["installCode"] is not None), "msi-install-coherence")
+    reject_unless(value["clientExitCode"] is None or value["clientExited"] is True, "msi-client-coherence")
+    if value["clientExited"] is True or value["visibleConsentObserved"] is True:
+        reject_unless(value["clientStarted"] is True, "msi-client-not-started")
+    if value["clientStarted"] is True:
+        reject_unless(all(value[name] is True for name in ("packageBuilt", "databaseVerified", "preexistingCodeAbsent", "installReturned", "installedContextObserved", "payloadObserved")), "msi-client-setup-coherence")
+    if value["postCodeAbsent"] is not None or value["payloadAbsent"] is not None:
+        reject_unless(value["clientExited"] is True, "msi-postcheck-coherence")
+    if value["ownedTeardown"] is True:
+        reject_unless(value["workerSettled"] is True and value["postCodeAbsent"] is True and value["payloadAbsent"] is True, "msi-teardown-coherence")
+    if value["state"] == "passed":
+        reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
+    return value
+
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped"):
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -294,6 +351,14 @@ def prepare(root, download, build_result, verification_result, environment, core
         native_diagnostics = ci_diagnostics.collect(native_command_logs, context, native_log_download_result)
     except (ValueError, OSError):
         native_diagnostics, native_diagnostics_error = None, "log-evidence-rejected"
+    reject_unless(msi_download_result in RESULTS and msi_result in RESULTS, "msi-job-result")
+    msi_error = None
+    try:
+        msi_report = validate_msi_report(msi_directory, context) if msi_download_result == "success" else None
+    except (ValueError, OSError):
+        # A rejected optional action qualification report must not suppress independent
+        # passive/core evidence or turn absence into a successful qualification.
+        msi_report, msi_error = None, "msi-evidence-rejected"
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -307,7 +372,7 @@ def prepare(root, download, build_result, verification_result, environment, core
         "buildResult": build_result, "verificationResult": verification_result,
         "passed": build_result == "success" and verification_result == "success" and report is not None and report["passed"] and core is not None and core["passed"],
         "updatedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "scope": "Real WPF client captures and isolated native fixture checks; no servicing, installation, real startup changes or personal-PC actions.",
+        "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
         "reportPresent": report is not None,
         "coreTestsPresent": core is not None,
         "reportArtifactOutcome": report_download_result,
@@ -319,6 +384,12 @@ def prepare(root, download, build_result, verification_result, environment, core
         "nativeLogArtifactOutcome": native_log_download_result,
         "nativeDiagnosticsPresent": native_diagnostics is not None,
         "nativeDiagnosticsError": native_diagnostics_error,
+        "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
+        "msiRequestResult": msi_result,
+        "msiRequestArtifactOutcome": msi_download_result,
+        "msiRequestReportPresent": msi_report is not None,
+        "msiRequestQualified": msi_result == "success" and msi_report is not None and msi_report["state"] == "passed",
+        "msiRequestError": msi_error,
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
     files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
@@ -330,6 +401,8 @@ def prepare(root, download, build_result, verification_result, environment, core
         files["ci-diagnostics.json"] = (json.dumps(diagnostics, indent=2) + "\n").encode()
     if native_diagnostics is not None:
         files["native-ci-diagnostics.json"] = (json.dumps(native_diagnostics, indent=2) + "\n").encode()
+    if msi_report is not None:
+        files["msi-request.json"] = (json.dumps(msi_report, indent=2) + "\n").encode()
     return root, summary, files
 
 def publish(root, files, source_commit):
@@ -366,10 +439,13 @@ def main():
     parser.add_argument("--log-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--native-command-logs", type=Path)
     parser.add_argument("--native-log-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--msi-request-reports", type=Path)
+    parser.add_argument("--msi-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--msi-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

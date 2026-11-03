@@ -25,10 +25,16 @@ public sealed partial class MainViewModel
     public InstalledApplication? SelectedInstalledApplication
     {
         get => selectedApplication;
-        set { Set(ref selectedApplication, value); InvalidateInstalledAppPlan(); PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails))); }
+        set
+        {
+            if (ReferenceEquals(selectedApplication, value) || MsiUninstallDispatchReserved) return;
+            InvalidateInstalledAppPlan();
+            if (MsiUninstallDispatchReserved) return;
+            Set(ref selectedApplication, value); PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails)));
+        }
     }
     public string SelectedApplicationDetails => selectedApplication == null ? "Select a registration to review its reported metadata and uninstall capability hint." :
-        $"{selectedApplication.Name} · {selectedApplication.Version} · publisher: {selectedApplication.Publisher}\nSource: {selectedApplication.Source}\nRegistration: {selectedApplication.Identity}\nInstall location: {selectedApplication.InstallLocation ?? "Unknown/unsupported"}\n{selectedApplication.UninstallSupport}. No uninstall command is collected or run; restricted registrations are not eligible for a future removal action.";
+        $"{selectedApplication.Name} · {selectedApplication.Version} · publisher: {selectedApplication.Publisher}\nSource: {selectedApplication.Source}\nRegistration: {selectedApplication.Identity}\nInstall location: {selectedApplication.InstallLocation ?? "Unknown/unsupported"}\n{selectedApplication.UninstallSupport}. No registered uninstall command is collected. A separately prepared and confirmed MSI request uses the fixed Windows Installer flow; removal restrictions remain visible.";
     public LeftoverCandidate? SelectedLeftoverCandidate
     {
         get => selectedLeftover;

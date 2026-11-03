@@ -17,8 +17,11 @@ public sealed partial class MainViewModel
         get => installedAppSearchText;
         set
         {
+            if (MsiUninstallDispatchReserved) return;
             string text = value ?? "";
             if (installedAppSearchText == text) return;
+            InvalidateMsiUninstallRequest();
+            if (MsiUninstallDispatchReserved) return;
             Set(ref installedAppSearchText, text);
             installedAppSearch = InstalledApplicationSearch.Create(text);
             // A hidden selection must not retain a review plan or receive pending MSI results.

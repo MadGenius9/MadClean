@@ -31,7 +31,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         ScanCommand = new AsyncCommand(() => RunAsync(false), () => !IsBusy);
         UpdatesCommand = new AsyncCommand(() => RunAsync(true), () => !IsBusy);
-        CancelCommand = new ActionCommand(Cancel, () => IsBusy);
+        CancelCommand = new ActionCommand(Cancel, () => IsBusy && !MsiUninstallDispatchReserved);
         InitializeMadCleanUpdates();
         InitializeDiscovery();
         InitializeFirmwareDiscovery();
@@ -71,9 +71,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string AppsMessage { get => appsMessage; private set => Set(ref appsMessage, value); }
     public string SystemMessage { get => systemMessage; private set => Set(ref systemMessage, value); }
     public string LogMessage { get => logMessage; private set => Set(ref logMessage, value); }
-    public void Cancel() => cancellation?.Cancel();
+    public void Cancel()
+    {
+        if (ExplainCommittedMsiUninstallCancel()) return;
+        cancellation?.Cancel();
+    }
     public void Shutdown()
     {
+        ShutdownMsiUninstallRequestUi();
         Cancel();
         // The service owns in-flight handles; disposal only cancels work before commit and
         // clears unused private previews. It never force-stops a Windows transaction.

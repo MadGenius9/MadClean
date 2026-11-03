@@ -51,10 +51,13 @@ class PublisherTests(unittest.TestCase):
         before = {f.name:f.read_bytes() for f in self.root.iterdir() if f.is_file()}
         with self.assertRaises(p.EvidenceError): self.prepare()
         self.assertEqual(before,{f.name:f.read_bytes() for f in self.root.iterdir() if f.is_file()})
+    def test_packaged_settings_preview_check_cannot_be_omitted_from_passed_evidence(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'ui-packaged-settings-preview-interaction']
+        self.save(); self.rejected()
     def test_complete_evidence_binds_real_files_and_changes_nothing_during_validation(self):
         _, summary, files = self.prepare()
         self.assertTrue(summary['passed'])
-        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json"},set(files))
+        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
     def test_another_existing_directory_cannot_impersonate_the_checkout_root(self):
         actual_git = p.git

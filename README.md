@@ -10,7 +10,7 @@ C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a m
 - `src/MadClean.Core`: platform-independent models, conservative filesystem inventory, WinGet table parser, bounded cancellable process execution, and privacy-limited activity log.
 - `src/MadClean.Windows`: read-only registry, disk, Windows PowerShell/Defender, WinGet, and Windows Update Agent adapters.
 - `tests/MadClean.Tests`: core boundary tests. Windows-only runtime behavior is tracked separately in [validation](docs/VALIDATION.md).
-- `.github/workflows`: Windows build/test/package workflow. No automatic release, install, signing, or deployment.
+- `.github/workflows`: Windows build/test/package workflow and a separate disposable-runner qualification for one freshly generated inert MSI product. No automatic release, signing or deployment; the ordinary validation harness does not install applications.
 
 The app requests **asInvoker**, not administrator privileges. It reports inaccessible data rather than silently elevating. Disk space is available to the current user, not necessarily total free bytes under disk quotas.
 
@@ -104,6 +104,12 @@ A separate **Check supported official history** action reads two fixed Microsoft
 The first official guide catalog is generic **Microsoft Surface only**, via explicit browser actions; it is not exact-model/revision matching. Other manufacturers are Unsupported until their official references/adapters are verified. OEM PCs/laptops require OEM firmware, never a similarly named retail board's BIOS. No assets, flashes, silent installs, encryption changes or restarts occur. See [firmware source/precaution contracts and staged matching](docs/FIRMWARE-UPDATES.md).
 
 The [Hardware Upgrades tab](docs/HARDWARE-UPGRADES.md) starts with a separate **Read hardware inventory** action for allowlisted local CIM PC/motherboard/CPU/RAM/GPU/storage facts, with exact provider sources and query-attempt time. It does not run with Scan local, contact manufacturers, or collect serial numbers/UUIDs/service tags. Missing, malformed, inaccessible or truncated provider data stays Unknown/Partial/Failed; these observations are not compatibility advice. Exact-model official RAM/CPU/required-BIOS/expansion/storage specifications and budget/use-case-gated advice remain queued. Detected facts, manufacturer-verified limits and manual checks stay separate. PSU/connectors, clearance, free physical slots and soldered-memory upgradeability are never inferred. This request authorizes no purchase or BIOS update.
+
+## Selected application review routes
+
+Loaded current-user Main/Bundle packages now support a separate **Preview package page** and **Open reviewed package page** workflow. The exact documented Windows App features destination is family-level. MadClean refreshes current-user metadata before requesting it, preserves partial coverage/restrictions, and invalidates stale selections. It does not request uninstall, reset or repair, and a shell return does not prove that the page appeared. [Scope and validation](docs/PACKAGED-APP-SETTINGS.md).
+
+The desktop registrations page also prepares an exact **selected MSI request** preview with a separate acknowledgement and confirmation. It uses only a canonical registered ProductCode and visible Windows Installer `/x ... /norestart`, never a raw uninstall string or folder deletion. In this development increment, submission remains disabled pending source-bound Windows qualification; the ordinary inventory remains read only. The separate disposable test can install/remove only its fresh inert per-user validation product. Windows Installer reports, registration refresh and leftover candidates remain distinct evidence. [Request contract](docs/MSI-UNINSTALL-REQUEST.md).
 
 ## MadClean updates and the in-app reminder
 

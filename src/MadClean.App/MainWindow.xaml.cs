@@ -10,6 +10,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent(); DataContext = model;
         SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
+        Closing += (_, args) =>
+        {
+            if (!model.HasPendingMsiUninstallRequest) return;
+            args.Cancel = true;
+            model.ExplainMsiUninstallCloseBlock();
+        };
         Closed += (_, _) => model.Shutdown();
     }
 }

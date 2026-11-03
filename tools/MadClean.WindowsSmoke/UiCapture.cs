@@ -359,6 +359,10 @@ internal static partial class UiCapture
                 // explicit CI metadata workflow must not produce any later screenshots.
                 await CheckInstalledAppSearch(window, model, report);
                 await CheckPackagedAppSearch(window, model, report);
+                if (!report.Failed && !model.IsBusy && !model.HasPendingPackagedSettingsWork)
+                    await CheckPackagedSettingsPreviewInteraction(window, model, report);
+                else
+                    report.Unknown("ui-packaged-settings-preview-interaction", "Earlier GUI preparation or pending ownership prevented passive package preview interaction. No metadata read, source injection, Settings handoff or package operation was substituted.");
                 await CheckInspectionEvidence(window, model, report);
                 if (!report.Failed) await CheckCleanupFileEvidenceInteraction(window, model, report);
                 else
@@ -393,6 +397,8 @@ internal static partial class UiCapture
             }
             finally
             {
+                if (!report.HasCheck("ui-packaged-settings-preview-interaction"))
+                    report.Unknown("ui-packaged-settings-preview-interaction", "Earlier GUI preparation or an invariant failure did not complete the passive package preview interaction. No successful preview, extra query or Settings handoff is claimed.");
                 window?.Close();
                 application.Shutdown(report.Failed ? 1 : 0);
             }
