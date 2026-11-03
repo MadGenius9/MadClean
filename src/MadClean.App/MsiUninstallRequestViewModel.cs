@@ -7,13 +7,14 @@ namespace MadClean.App;
 
 public sealed partial class MainViewModel
 {
-    private readonly WindowsMsiActionBindingInventory msiUninstallBindings = new();
+    private readonly WindowsMsiSelectedProductPreparation msiUninstallPreparationReader = new();
     private readonly MsiUninstallRequestLauncher msiUninstallLauncher = new();
     private MsiUninstallRequestPreview? msiUninstallPreview;
     private InstalledApplication? msiUninstallPreviewSelection;
     private CheckResult<InstalledApplication>? msiUninstallPreviewSnapshot;
     private MsiUninstallRequestIntent? msiUninstallActiveIntent;
-    private Task<CheckResult<MsiActionBindingReport>>? msiUninstallPreparation;
+    private MsiSelectedProductReadScope? msiUninstallReadScope;
+    private Task<CheckResult<MsiSelectedProductPreparation>>? msiUninstallPreparation;
     private Task<MsiUninstallRequestResult>? msiUninstallSubmission;
     private DispatcherTimer? msiUninstallUiTimer;
     private long msiUninstallGeneration;
@@ -42,7 +43,7 @@ public sealed partial class MainViewModel
     public bool MsiUninstallDispatchReserved => msiUninstallSubmissionActive && msiUninstallActiveIntent?.IsDispatchReserved == true;
     public bool HasPendingMsiUninstallRequest => msiUninstallSubmissionActive ||
         msiUninstallPreparation is { IsCompleted: false } || msiUninstallSubmission is { IsCompleted: false } ||
-        msiUninstallPreparationNeedsDrain && msiUninstallBindings.HasPendingNativeRead ||
+        msiUninstallPreparationNeedsDrain && msiUninstallPreparationReader.HasPendingNativeRead ||
         MsiUninstallRequestLauncher.HasPendingRequest || MsiUninstallRequestLauncher.RequiresRetention;
     public bool CanChangeInstalledAppSelection => !msiUninstallSubmissionActive && !HasPendingMsiUninstallRequest;
     public bool CanAcknowledgeMsiUninstallRequest => CanChangeInstalledAppSelection && MsiUninstallPreviewCurrent;
@@ -55,6 +56,8 @@ public sealed partial class MainViewModel
         !preview.Intent.IsInvalidated && !preview.Intent.IsDispatchReserved &&
         ReferenceEquals(msiUninstallPreviewSelection, selectedApplication) &&
         ReferenceEquals(msiUninstallPreviewSnapshot, latestInstalledSnapshot) &&
+        preview.Intent.SelectedProductScope is { } selectedScope && ReferenceEquals(selectedScope, msiUninstallReadScope) &&
+        MsiSelectedProductPreparationPolicy.IsFresh(selectedScope, msiUninstallGeneration, DateTimeOffset.UtcNow) &&
         preview.Intent.SourceGeneration == msiUninstallGeneration &&
         DateTimeOffset.UtcNow >= preview.PreparedUtc && DateTimeOffset.UtcNow < preview.ExpiresUtc;
 
@@ -73,6 +76,9 @@ public sealed partial class MainViewModel
     {
         msiUninstallGeneration++;
         msiUninstallPreview?.Intent.Invalidate();
+        if (!msiUninstallSubmissionActive || msiUninstallActiveIntent?.IsDispatchReserved != true)
+            msiUninstallReadScope?.Invalidate();
+        msiUninstallReadScope = null;
         // The atomic dispatch boundary cannot be revoked by changing a displayed selection.
         if (msiUninstallSubmissionActive && msiUninstallActiveIntent?.IsDispatchReserved != true)
             cancellation?.Cancel();
@@ -96,40 +102,68 @@ public sealed partial class MainViewModel
             InvalidateMsiUninstallRequest(); generation = msiUninstallGeneration;
             if (selected == null || snapshot == null || HasPendingMsiUninstallRequest)
             { MsiUninstallMessage = "Select a current MSI registration and wait for existing work to settle; no preparation started."; return CheckState.Unknown; }
-            var scoped = MsiActionBindingPolicy.CreateScope(snapshot, selected, DateTimeOffset.UtcNow, token);
+            var scoped = MsiSelectedProductPreparationPolicy.CreateScope(snapshot, selected, generation, DateTimeOffset.UtcNow, token);
             if (scoped.Items.Count != 1)
             { MsiUninstallMessage = Stamp(scoped.State, scoped.Message); return scoped.State; }
-            MsiUninstallMessage = "Reading fresh registration restrictions and this ProductCode's current-user/machine contexts only. No installer is started by preparation.";
-            msiUninstallPreparation = msiUninstallBindings.VerifyAsync(scoped.Items[0], token);
+            var selectedScope = scoped.Items[0]; msiUninstallReadScope = selectedScope;
+            using var invalidationOnCancel = token.Register(selectedScope.Invalidate);
+            MsiUninstallMessage = "Reading this exact ProductCode in the three supported ARP locations and native current-user/machine MSI contexts. Global inventory is not refreshed, and no installer starts during preparation.";
+            msiUninstallPreparation = msiUninstallPreparationReader.ReadAsync(selectedScope, generation, token);
             StartMsiUninstallUiTimer(); NotifyMsiUninstallRequest();
             try
             {
-                var binding = await msiUninstallPreparation;
+                var preparation = await msiUninstallPreparation;
                 token.ThrowIfCancellationRequested();
                 if (!Current()) return CheckState.Cancelled;
-                var prepared = MsiUninstallRequestPolicy.CreatePreview(scoped.Items[0], binding, generation, DateTimeOffset.UtcNow, token);
+                var prepared = MsiUninstallRequestPolicy.CreatePreview(selectedScope, preparation, generation, DateTimeOffset.UtcNow, token);
                 msiUninstallPreview = prepared.Items.SingleOrDefault();
+                if (msiUninstallPreview is { } actualPreview && !ReferenceEquals(actualPreview.Intent.SelectedProductScope, selectedScope))
+                { actualPreview.Intent.Invalidate(); msiUninstallPreview = null; throw new InvalidOperationException("Selected-product preview scope is inconsistent."); }
                 msiUninstallPreviewSelection = msiUninstallPreview == null ? null : selected;
                 msiUninstallPreviewSnapshot = msiUninstallPreview == null ? null : snapshot;
                 MsiUninstallMessage = Stamp(prepared.State, prepared.Message);
+                MsiUninstallPreviewDetails = DescribeMsiSelectedProductPreparation(selectedScope, preparation);
                 if (msiUninstallPreview is { } preview)
-                    MsiUninstallPreviewDetails = $"Selected registration: {preview.Name} · {preview.Version}\nReported publisher: {preview.Publisher}\nRegistration source: {preview.Source}\nRegistration identity: {preview.RegistrationIdentity}\nProductCode: {preview.ProductCode}\nUnique observed context: {preview.Context}\nHistorical inventory coverage: {snapshot.State}\nPrepared UTC: {preview.PreparedUtc:u}\nExpires UTC: {preview.ExpiresUtc:u}\n\nExact Windows Installer request: msiexec.exe {string.Join(' ', preview.Arguments)}\n\n{preview.ExactEffect}\n\n{preview.Limitations}\n\nWindows Installer resolves the registered ProductCode. This is not an atomic context or immutable package-payload binding. Review Windows Installer's own prompts before continuing.";
+                    MsiUninstallPreviewDetails += $"\n\nSelected registration: {preview.Name} · {preview.Version}\nReported publisher: {preview.Publisher}\nOriginal registration source: {preview.Source}\nRegistration identity: {preview.RegistrationIdentity}\nProductCode: {preview.ProductCode}\nUnique actually observed native context: {preview.Context}\nPrepared UTC: {preview.PreparedUtc:u}\nExpires UTC: {preview.ExpiresUtc:u}\n\nExact Windows Installer request: msiexec.exe {string.Join(' ', preview.Arguments)}\n\n{preview.ExactEffect}\n\n{preview.Limitations}\n\nWindows Installer resolves the registered ProductCode. ARP hive provenance does not determine the native context, and this is not an atomic context or immutable package-payload binding. Review Windows Installer's own prompts before continuing.";
+                else MsiUninstallPreviewDetails += "\n\nNo request preview was accepted. " + prepared.Message;
                 NotifyMsiUninstallRequest();
                 return prepared.State;
             }
             finally
             {
-                msiUninstallPreparationNeedsDrain = msiUninstallBindings.HasPendingNativeRead;
+                bool retainedByPreview = Current() && ReferenceEquals(msiUninstallPreview?.Intent.SelectedProductScope, selectedScope);
+                if (!retainedByPreview)
+                {
+                    selectedScope.Invalidate();
+                    if (ReferenceEquals(msiUninstallReadScope, selectedScope)) msiUninstallReadScope = null;
+                }
+                msiUninstallPreparationNeedsDrain = msiUninstallPreparationReader.HasPendingNativeRead;
                 NotifyMsiUninstallRequest();
             }
         }, error =>
         {
             if (!Current()) return;
+            msiUninstallReadScope?.Invalidate(); msiUninstallReadScope = null;
             msiUninstallPreview?.Intent.Invalidate(); msiUninstallPreview = null; msiUninstallPreviewSelection = null; msiUninstallPreviewSnapshot = null; MsiUninstallAcknowledged = false;
             MsiUninstallMessage = error + " No request preview or installer launch is claimed. Any pending native read retains ownership.";
             MsiUninstallPreviewDetails = "No current exact-product request preview; prepare again after work settles.";
             NotifyMsiUninstallRequest();
         });
+    }
+
+    private static string DescribeMsiSelectedProductPreparation(MsiSelectedProductReadScope scope,
+        CheckResult<MsiSelectedProductPreparation> preparation)
+    {
+        string summary = $"Historical GLOBAL inventory coverage: {scope.HistoricalGlobalSnapshotState}\nCurrent GLOBAL inventory: Not checked by this exact-product read. Historical coverage is not upgraded.\nOriginal ARP provenance: {MsiSelectedProductPreparationPolicy.SourceLabel(scope.OriginalSource)}\nRead selector validated UTC: {scope.ValidatedUtc:u}\nARP provenance and actual native MSI context are independent observations; the selected hive supplies no native-context assertion.";
+        if (preparation.Items.Count != 1 || !ReferenceEquals(preparation.Items[0].Scope, scope))
+            return summary + "\n\nNo accepted same-selector target preparation report was returned. Target lookup coverage and native context remain Unknown; no global absence or action permission is inferred.";
+        var report = preparation.Items[0];
+        string lookups = string.Join("\n", report.Lookups.Take(3).Select(row =>
+            $"{(Enum.IsDefined(row.Source) ? MsiSelectedProductPreparationPolicy.SourceLabel(row.Source) : "Unknown source")} · {row.State} · observed UTC: {row.ObservedUtc:u} · native code: {(row.NativeError is { } error ? $"0x{unchecked((uint)error):X8}" : "Unobserved")}"));
+        string instances = report.Instances.Count == 0 ? "No completed native context observation; this is not global absence proof."
+            : string.Join("\n", report.Instances.Take(3).Select(row =>
+                $"Native context: {row.Context} · reported product state: {row.ProductState} · observed UTC: {row.ObservedUtc:u}"));
+        return summary + $"\n\nTarget lookup coverage: {report.TargetCoverageState}; preparation state/reason: {report.State} / {report.Reason}\nTarget facts assessed UTC: {report.CheckedUtc:u}\nCurrent global inventory was read: {report.CurrentGlobalSnapshotWasRead}; current global coverage: {report.CurrentGlobalCoverage}\n\nExact-GUID ARP lookup observations:\n{lookups}\n\nNative current-user/machine enumeration complete: {report.EnumerationComplete}; issue count: {report.NativeIssueCount}\n{instances}\n\nThese are sequential read-only target facts, not a frozen registry/context/payload, global inventory completion or execution permission.";
     }
 
     private async Task ConfirmMsiUninstallRequest()
@@ -186,6 +220,8 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            intent.SelectedProductScope?.Invalidate();
+            if (ReferenceEquals(msiUninstallReadScope, intent.SelectedProductScope)) msiUninstallReadScope = null;
             intent.Invalidate(); msiUninstallPreview = null; msiUninstallPreviewSelection = null; msiUninstallPreviewSnapshot = null; MsiUninstallAcknowledged = false;
             MsiUninstallPreviewDetails = "This one-shot request preview is no longer available. Refresh and select a current registration before preparing another request.";
             msiUninstallSubmissionActive = false; cancellation = null; IsBusy = false;
@@ -249,6 +285,7 @@ public sealed partial class MainViewModel
     private void ShutdownMsiUninstallRequestUi()
     {
         msiUninstallPreview?.Intent.Invalidate();
+        if (!MsiUninstallDispatchReserved) msiUninstallReadScope?.Invalidate();
         msiUninstallUiTimer?.Stop();
     }
     private void StartMsiUninstallUiTimer()
@@ -258,7 +295,7 @@ public sealed partial class MainViewModel
             msiUninstallUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             msiUninstallUiTimer.Tick += (_, _) =>
             {
-                if (msiUninstallPreparationNeedsDrain && !msiUninstallBindings.HasPendingNativeRead)
+                if (msiUninstallPreparationNeedsDrain && !msiUninstallPreparationReader.HasPendingNativeRead)
                     msiUninstallPreparationNeedsDrain = false;
                 if (MsiUninstallDispatchReserved && !msiUninstallUiReservedObserved)
                 {

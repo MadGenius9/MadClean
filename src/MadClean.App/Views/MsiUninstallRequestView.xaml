@@ -3,6 +3,7 @@
         <StackPanel>
             <TextBlock Text="Selected Windows Installer request" FontSize="20"/>
             <TextBlock Text="A separate, explicitly confirmed request for one registered MSI ProductCode. Preparation is read only. No bulk or silent uninstall, raw registered command, forced restart or folder deletion is used." Style="{StaticResource Caption}"/>
+            <TextBlock Text="Preparation reads only the exact ProductCode in supported registry locations and native current-user/machine contexts. The original global inventory keeps its coverage; current global inventory is Not checked. A registry hive is provenance, not a native MSI context." Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding MsiUninstallQualification}" Style="{StaticResource Caption}" AutomationProperties.Name="Selected MSI request qualification"/>
             <WrapPanel Margin="0,8,0,4">
                 <Button Content="Prepare selected MSI request" Command="{Binding PrepareMsiUninstallRequestCommand}" Background="#244B70" AutomationProperties.Name="Prepare exact selected MSI uninstall request"/>

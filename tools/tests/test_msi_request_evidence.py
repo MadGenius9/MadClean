@@ -33,6 +33,70 @@ class MsiRequestEvidenceTests(unittest.TestCase):
     def save(self):
         (self.root / 'report.json').write_text(json.dumps(self.report), encoding='utf-8')
 
+    def use_target_v3(self):
+        self.report.update(formatVersion=3, selectionSourceState='Partial', bindingResultState='Unavailable',
+                           bindingReportState='Blocked', bindingReason='SourceContextMismatch', expectedMask=4,
+                           currentSnapshotState='Partial')
+        self.report['targetPreparation'] = {
+            'resultState': 'Partial', 'state': 'ObservedMatch', 'reason': 'ObservedMatch', 'targetCoverageState': 'Available',
+            'lookupCount': 3, 'presentCount': 1, 'absentCount': 2, 'unknownCount': 0, 'sourceMatched': True,
+            'systemComponent': False, 'windowsInstaller': True, 'noRemove': False, 'nativeEnumerationComplete': True,
+            'nativeIssueCount': 0, 'nativeInstanceCount': 1, 'observedContext': 2, 'historicalGlobalState': 'Partial',
+            'currentGlobalWasRead': False, 'currentGlobalState': 'Unknown',
+        }
+
+    def test_v3_target_proof_retains_legacy_refusal_and_historical_partial(self):
+        self.use_target_v3(); self.save()
+        result = p.validate_msi_report(self.root, self.context)
+        self.assertEqual('SourceContextMismatch', result['bindingReason'])
+        self.assertEqual('Blocked', result['bindingReportState'])
+        self.assertEqual('Partial', result['targetPreparation']['historicalGlobalState'])
+        self.assertFalse(result['targetPreparation']['currentGlobalWasRead'])
+        self.assertEqual('passed', result['state'])
+        self.report['formatVersion'] = 2; del self.report['targetPreparation']; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-pass-coherence'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v3_requires_each_exact_target_observation_and_actual_client_proof(self):
+        self.use_target_v3()
+        for field, wrong in [('state', 'Unknown'), ('reason', 'NativeCoverageIncomplete'), ('targetCoverageState', 'Partial'),
+                             ('unknownCount', 1), ('sourceMatched', None), ('systemComponent', True), ('windowsInstaller', None),
+                             ('noRemove', True), ('nativeEnumerationComplete', False), ('nativeIssueCount', 1),
+                             ('nativeInstanceCount', 2), ('observedContext', 4), ('historicalGlobalState', 'Available'),
+                             ('currentGlobalWasRead', True), ('currentGlobalState', 'Available')]:
+            with self.subTest(field=field):
+                original = self.report['targetPreparation'][field]; self.report['targetPreparation'][field] = wrong; self.save()
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+                self.report['targetPreparation'][field] = original
+        for field in p.MSI_FACTS:
+            original = self.report[field]; self.report[field] = None; self.save()
+            with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report[field] = original
+        self.report['targetPreparation'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-pass-coherence'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v3_failed_read_and_incomplete_target_keep_nullable_actual_facts(self):
+        self.use_target_v3()
+        self.report.update(state='inconclusive', stage='SelectionUnknown', previewPrepared=False, clientRequestState=None,
+                           clientStarted=None, clientExited=None, clientExitCode=None, visibleConsentObserved=None,
+                           postCodeAbsent=None, payloadAbsent=None, workerSettled=None, ownedTeardown=None,
+                           toolIdentityStage=None, toolIdentityReason=None, toolNativeTrustResult=None, toolFileTrustResult=None)
+        self.report['targetPreparation'] = None; self.save()
+        self.assertIsNone(p.validate_msi_report(self.root, self.context)['targetPreparation'])
+        self.report['targetPreparation'] = {name: None for name in p.MSI_TARGET_FIELDS}
+        self.report['targetPreparation']['resultState'] = 'Unknown'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-target-unobserved'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v3_target_schema_rejects_raw_data_and_bool_counts(self):
+        self.use_target_v3()
+        self.report['targetPreparation']['productCode'] = 'no-identifiers'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-target-schema'): p.validate_msi_report(self.root, self.context)
+        del self.report['targetPreparation']['productCode']
+        self.report['targetPreparation']['lookupCount'] = True; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-target-count'): p.validate_msi_report(self.root, self.context)
+
     def test_owned_success_requires_every_actual_fact_not_only_an_exit_code(self):
         self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
         for field in p.MSI_FACTS:

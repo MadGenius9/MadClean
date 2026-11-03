@@ -99,6 +99,7 @@ public sealed class MsiUninstallRequestLauncher
         Func<MsiUninstallFixtureClient, Task>? interaction, CancellationToken token)
     {
         private readonly WindowsMsiActionBindingInventory binding = new();
+        private readonly WindowsMsiSelectedProductPreparation selectedProduct = new();
         private SystemToolTrustedLease? lease;
         private Process? process;
         private SafeProcessHandle? actualProcessHandle;
@@ -151,7 +152,7 @@ public sealed class MsiUninstallRequestLauncher
                 uncertain = true;
             // A bounded metadata caller may finish before its synchronous native worker.
             // Its lease remains independent; never start another request or close beneath it.
-            while (!uncertain && binding.HasPendingNativeRead)
+            while (!uncertain && (binding.HasPendingNativeRead || selectedProduct.HasPendingNativeRead))
                 await Task.Delay(200, CancellationToken.None).ConfigureAwait(false);
             if (processStarted && !processExitObserved) uncertain = true;
             if (!uncertain)
@@ -201,11 +202,25 @@ public sealed class MsiUninstallRequestLauncher
                 return Blocked(intent, requested,
                     "The held fixed Windows Installer identity is incomplete. No fallback or installer request was used.");
             token.ThrowIfCancellationRequested();
-            var fresh = await binding.VerifyAsync(intent.Scope, token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
-            if (binding.HasPendingNativeRead || MsiUninstallRequestPolicy.ValidateFreshBinding(intent, fresh, DateTimeOffset.UtcNow, token).Count != 0)
-                return Blocked(intent, requested,
-                    "Fresh complete current-user/machine selection evidence did not qualify one unchanged unrestricted installed context. No installer started; refresh and review the selected registration again.");
+            if (binding.HasPendingNativeRead || selectedProduct.HasPendingNativeRead)
+                return Blocked(intent, requested, "An earlier ARP/MSI metadata owner remains pending. No additional query or installer request started.");
+            if (intent.SelectedProductScope is { } selected)
+            {
+                var fresh = await selectedProduct.ReadAsync(selected, generation, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (binding.HasPendingNativeRead || selectedProduct.HasPendingNativeRead ||
+                    MsiUninstallRequestPolicy.ValidateFreshPreparation(intent, fresh, DateTimeOffset.UtcNow, token).Count != 0)
+                    return Blocked(intent, requested,
+                        "Fresh exact-product target facts did not qualify this unchanged unrestricted installed context. No global inventory was inferred and no installer started; reread and review the selection.");
+            }
+            else
+            {
+                var fresh = await binding.VerifyAsync(intent.Scope, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (binding.HasPendingNativeRead || MsiUninstallRequestPolicy.ValidateFreshBinding(intent, fresh, DateTimeOffset.UtcNow, token).Count != 0)
+                    return Blocked(intent, requested,
+                        "Fresh complete current-user/machine selection evidence did not qualify one unchanged unrestricted installed context. No installer started; refresh and review the selected registration again.");
+            }
             if (Impersonating()) return Blocked(intent, requested,
                 "The caller context changed before dispatch. No installer started.");
             if (!Guid.TryParseExact(intent.ProductCode, "B", out var code) || code == Guid.Empty ||

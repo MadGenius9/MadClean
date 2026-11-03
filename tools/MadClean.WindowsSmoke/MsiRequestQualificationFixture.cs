@@ -21,7 +21,7 @@ internal static class MsiRequestQualificationFixture
 
     private sealed class Report
     {
-        public int FormatVersion { get; } = 2;
+        public int FormatVersion { get; } = 3;
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -53,6 +53,7 @@ internal static class MsiRequestQualificationFixture
         public int? ExpectedMask { get; set; }
         public int? ObservedContext { get; set; }
         public string? CurrentSnapshotState { get; set; }
+        public TargetPreparationFacts? TargetPreparation { get; set; }
         public bool? PreviewPrepared { get; set; }
         public string? ClientRequestState { get; set; }
         public string? ToolIdentityStage { get; set; }
@@ -66,6 +67,31 @@ internal static class MsiRequestQualificationFixture
         public int? FailureCode { get; set; }
         public bool? WorkerSettled { get; set; }
         public bool? OwnedTeardown { get; set; }
+    }
+
+    private sealed record TargetPreparationFacts(string ResultState, string? State, string? Reason,
+        string? TargetCoverageState, int? LookupCount, int? PresentCount, int? AbsentCount, int? UnknownCount,
+        bool? SourceMatched, bool? SystemComponent, bool? WindowsInstaller, bool? NoRemove,
+        bool? NativeEnumerationComplete, int? NativeIssueCount, int? NativeInstanceCount, int? ObservedContext,
+        string? HistoricalGlobalState, bool? CurrentGlobalWasRead, string? CurrentGlobalState)
+    {
+        internal static TargetPreparationFacts From(CheckResult<MsiSelectedProductPreparation> result)
+        {
+            var actual = result.Items.Count == 1 ? result.Items[0] : null;
+            var present = actual?.Lookups.Where(row => row.State == MsiSelectedArpLookupState.Present).ToArray();
+            var only = present is { Length: 1 } ? present[0] : null;
+            return new(result.State.ToString(), actual?.State.ToString(), actual?.Reason.ToString(),
+                actual?.TargetCoverageState.ToString(), actual?.Lookups.Count, present?.Length,
+                actual?.Lookups.Count(row => row.State == MsiSelectedArpLookupState.Absent),
+                actual?.Lookups.Count(row => row.State == MsiSelectedArpLookupState.Unknown),
+                only == null ? null : only.Source == actual!.Scope.OriginalSource,
+                only?.SystemComponent, only?.Registration?.RegistrationEvidence?.WindowsInstaller,
+                only?.Registration?.RegistrationEvidence?.NoRemove, actual?.EnumerationComplete,
+                actual?.NativeIssueCount, actual?.Instances.Count,
+                actual?.Instances is { Count: 1 } instances ? (int)instances[0].Context : null,
+                actual?.HistoricalGlobalSnapshotState.ToString(), actual?.CurrentGlobalSnapshotWasRead,
+                actual?.CurrentGlobalSnapshotState.ToString());
+        }
     }
 
     internal static int Run(string repository)
@@ -162,24 +188,30 @@ internal static class MsiRequestQualificationFixture
                 if (selected == null || selected.Name != OwnedMsiDatabase.ProductName || selected.Version != OwnedMsiDatabase.ProductVersion || selected.Publisher != OwnedMsiDatabase.Publisher)
                 { report.Stage = "SelectionUnknown"; Save(); return 2; }
                 var scopeResult = MsiActionBindingPolicy.CreateScope(snapshot, selected, DateTimeOffset.UtcNow);
-                if (scopeResult.Items.Count != 1) { report.Stage = "SelectionUnknown"; Save(); return 2; }
-                report.ExpectedMask = scopeResult.Items[0].ExpectedContextMask; Save();
-                var binding = await new WindowsMsiActionBindingInventory().VerifyAsync(scopeResult.Items[0], CancellationToken.None);
-                report.BindingResultState = Enum.IsDefined(binding.State) ? binding.State.ToString() : null;
-                if (binding.Items.Count == 1)
+                if (scopeResult.Items.Count == 1)
                 {
-                    var actualBinding = binding.Items[0];
-                    report.BindingReportState = Enum.IsDefined(actualBinding.State) ? actualBinding.State.ToString() : null;
-                    report.BindingReason = Enum.IsDefined(actualBinding.Reason) ? actualBinding.Reason.ToString() : null;
-                    report.BindingChangedFields = actualBinding.ChangedFields is { } changed ? (int)changed : null;
-                    report.BindingNoRemove = actualBinding.NoRemove;
-                    report.BindingInstanceCount = actualBinding.Instances?.Count;
-                    report.ExpectedMask = actualBinding.ExpectedContextMask;
-                    if (actualBinding.Instances is { Count: 1 } instances && Enum.IsDefined(instances[0].Context)) report.ObservedContext = (int)instances[0].Context;
-                    report.CurrentSnapshotState = Enum.IsDefined(binding.Items[0].CurrentSnapshotState) ? binding.Items[0].CurrentSnapshotState.ToString() : null;
+                    report.ExpectedMask = scopeResult.Items[0].ExpectedContextMask; Save();
+                    var binding = await new WindowsMsiActionBindingInventory().VerifyAsync(scopeResult.Items[0], CancellationToken.None);
+                    report.BindingResultState = Enum.IsDefined(binding.State) ? binding.State.ToString() : null;
+                    if (binding.Items.Count == 1)
+                    {
+                        var actualBinding = binding.Items[0];
+                        report.BindingReportState = Enum.IsDefined(actualBinding.State) ? actualBinding.State.ToString() : null;
+                        report.BindingReason = Enum.IsDefined(actualBinding.Reason) ? actualBinding.Reason.ToString() : null;
+                        report.BindingChangedFields = actualBinding.ChangedFields is { } changed ? (int)changed : null;
+                        report.BindingNoRemove = actualBinding.NoRemove;
+                        report.BindingInstanceCount = actualBinding.Instances?.Count;
+                        report.ExpectedMask = actualBinding.ExpectedContextMask;
+                        if (actualBinding.Instances is { Count: 1 } instances && Enum.IsDefined(instances[0].Context)) report.ObservedContext = (int)instances[0].Context;
+                        report.CurrentSnapshotState = Enum.IsDefined(binding.Items[0].CurrentSnapshotState) ? binding.Items[0].CurrentSnapshotState.ToString() : null;
+                    }
+                    Save();
                 }
-                Save();
-                var previews = MsiUninstallRequestPolicy.CreatePreview(scopeResult.Items[0], binding, 1, DateTimeOffset.UtcNow);
+                var targetScope = MsiSelectedProductPreparationPolicy.CreateScope(snapshot, selected, 1, DateTimeOffset.UtcNow, CancellationToken.None);
+                if (targetScope.Items.Count != 1) { report.Stage = "SelectionUnknown"; Save(); return 2; }
+                var targetPreparationResult = await new WindowsMsiSelectedProductPreparation().ReadAsync(targetScope.Items[0], 1, CancellationToken.None);
+                report.TargetPreparation = targetPreparationResult.Items.Count == 1 ? TargetPreparationFacts.From(targetPreparationResult) : null; Save();
+                var previews = MsiUninstallRequestPolicy.CreatePreview(targetScope.Items[0], targetPreparationResult, 1, DateTimeOffset.UtcNow, CancellationToken.None);
                 report.PreviewPrepared = previews.Items.Count == 1; Save();
                 if (previews.Items.Count != 1) { report.Stage = "SelectionUnknown"; Save(); return 2; }
                 report.Stage = "VisibleRequest"; Save();

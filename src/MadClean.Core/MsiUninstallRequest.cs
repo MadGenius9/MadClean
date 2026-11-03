@@ -32,15 +32,17 @@ public sealed class MsiUninstallRequestIntent
     private bool invalidated, reserved;
 
     internal MsiUninstallRequestIntent(MsiActionBindingScope scope, MsiRegistrationContext context,
-        long sourceGeneration, DateTimeOffset preparedUtc, DateTimeOffset expiresUtc)
+        long sourceGeneration, DateTimeOffset preparedUtc, DateTimeOffset expiresUtc,
+        MsiSelectedProductReadScope? selectedProductScope = null)
     {
-        Scope = scope; Context = context; SourceGeneration = sourceGeneration;
+        Scope = scope; SelectedProductScope = selectedProductScope; Context = context; SourceGeneration = sourceGeneration;
         PreparedUtc = preparedUtc; ExpiresUtc = expiresUtc; RequestId = Guid.NewGuid();
         Arguments = Array.AsReadOnly(new[] { "/x", scope.ProductCode, "/norestart" });
     }
 
     public Guid RequestId { get; }
     public MsiActionBindingScope Scope { get; }
+    public MsiSelectedProductReadScope? SelectedProductScope { get; }
     public string ProductCode => Scope.ProductCode;
     public string RegistrationIdentity => Scope.Application.Identity;
     public string Name => Scope.Application.Name;
@@ -52,13 +54,13 @@ public sealed class MsiUninstallRequestIntent
     public DateTimeOffset PreparedUtc { get; }
     public DateTimeOffset ExpiresUtc { get; }
     public IReadOnlyList<string> Arguments { get; }
-    public bool IsInvalidated { get { lock (dispatchLock) return invalidated; } }
+    public bool IsInvalidated { get { lock (dispatchLock) return invalidated || !reserved && SelectedProductScope?.IsInvalidated == true; } }
     public bool IsDispatchReserved { get { lock (dispatchLock) return reserved; } }
 
     /// <summary>Invalidation cannot revoke a request whose dispatch boundary already won.</summary>
     public void Invalidate()
     {
-        lock (dispatchLock) { if (!reserved) invalidated = true; }
+        lock (dispatchLock) { if (!reserved) InvalidateBeforeDispatch(); }
     }
 
     /// <summary>
@@ -71,17 +73,44 @@ public sealed class MsiUninstallRequestIntent
         lock (dispatchLock)
         {
             if (reserved) return MsiUninstallDispatchReservation.AlreadyReserved;
-            if (invalidated) return MsiUninstallDispatchReservation.Invalidated;
+            if (invalidated || SelectedProductScope?.IsInvalidated == true)
+            { InvalidateBeforeDispatch(); return MsiUninstallDispatchReservation.Invalidated; }
             if (!userConfirmed) return MsiUninstallDispatchReservation.NotConfirmed;
             if (sourceGeneration != SourceGeneration)
-            { invalidated = true; return MsiUninstallDispatchReservation.SourceChanged; }
+            { InvalidateBeforeDispatch(); return MsiUninstallDispatchReservation.SourceChanged; }
             if (!MsiUninstallRequestPolicy.ValidUtc(nowUtc) || nowUtc < PreparedUtc || nowUtc >= ExpiresUtc)
-            { invalidated = true; return MsiUninstallDispatchReservation.Stale; }
+            { InvalidateBeforeDispatch(); return MsiUninstallDispatchReservation.Stale; }
             if (token.IsCancellationRequested)
-            { invalidated = true; return MsiUninstallDispatchReservation.Cancelled; }
+            { InvalidateBeforeDispatch(); return MsiUninstallDispatchReservation.Cancelled; }
+            if (SelectedProductScope is { } selected)
+            {
+                var refusal = MsiUninstallDispatchReservation.Invalidated;
+                bool committed = selected.TryCommitDispatch(() =>
+                {
+                    // The shared selector lifecycle lock linearizes direct invalidation and
+                    // consumes this selector once across all intents built from its facts.
+                    if (token.IsCancellationRequested)
+                    { refusal = MsiUninstallDispatchReservation.Cancelled; InvalidateBeforeDispatch(); return false; }
+                    var actualNow = DateTimeOffset.UtcNow;
+                    if (!MsiUninstallRequestPolicy.ValidUtc(actualNow) || actualNow < PreparedUtc || actualNow >= ExpiresUtc)
+                    { refusal = MsiUninstallDispatchReservation.Stale; InvalidateBeforeDispatch(); return false; }
+                    if (sourceGeneration != SourceGeneration || selected.SourceGeneration != SourceGeneration)
+                    { refusal = MsiUninstallDispatchReservation.SourceChanged; InvalidateBeforeDispatch(); return false; }
+                    if (token.IsCancellationRequested)
+                    { refusal = MsiUninstallDispatchReservation.Cancelled; InvalidateBeforeDispatch(); return false; }
+                    reserved = true; return true;
+                });
+                if (!committed) { InvalidateBeforeDispatch(); return refusal; }
+                return MsiUninstallDispatchReservation.Reserved;
+            }
             reserved = true;
             return MsiUninstallDispatchReservation.Reserved;
         }
+    }
+    private void InvalidateBeforeDispatch()
+    {
+        invalidated = true;
+        SelectedProductScope?.Invalidate();
     }
 }
 
@@ -120,6 +149,82 @@ public static class MsiUninstallRequestPolicy
         return new(scope.SnapshotState == CheckState.Partial ? CheckState.Partial : CheckState.Available,
             "Exact registered-product request preview prepared; explicit confirmation and fresh native checks are still required. No installer started.",
             [new(intent)]);
+    }
+
+    public static CheckResult<MsiUninstallRequestPreview> CreatePreview(MsiSelectedProductReadScope scope,
+        CheckResult<MsiSelectedProductPreparation> preparation, long sourceGeneration, DateTimeOffset nowUtc,
+        CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (scope == null) return Refused("Select an actual exact-product read selector; no request preview was prepared.");
+        var reasons = ValidatePreparation(scope, preparation, sourceGeneration, nowUtc, scope.ValidatedUtc, null, token);
+        if (reasons.Count != 0) return Refused(string.Join(" ", reasons));
+        var report = preparation.Items[0];
+        var displayScope = MsiActionBindingScope.From(scope.NativeReadScope);
+        var intent = new MsiUninstallRequestIntent(displayScope, report.Instances[0].Context, sourceGeneration,
+            nowUtc, scope.ExpiresUtc, scope);
+        return new(scope.HistoricalGlobalSnapshotState == CheckState.Partial ? CheckState.Partial : CheckState.Available,
+            "Exact-product request preview prepared from fresh target facts. Historical global coverage is unchanged; current global inventory was not read. Explicit confirmation and another actual target recheck are required; no installer started.", [new(intent)]);
+    }
+
+    public static IReadOnlyList<string> ValidateFreshPreparation(MsiUninstallRequestIntent intent,
+        CheckResult<MsiSelectedProductPreparation> fresh, DateTimeOffset nowUtc, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (intent == null || intent.SelectedProductScope is not { } selected)
+            return ["No exact selected-product request intent is available."];
+        var reasons = new List<string>();
+        if (intent.IsInvalidated || intent.IsDispatchReserved)
+            reasons.Add("The selected-product request was invalidated or already reserved; prepare and review a new request.");
+        if (!ValidUtc(nowUtc) || nowUtc < intent.PreparedUtc || nowUtc >= intent.ExpiresUtc)
+            reasons.Add("The selected-product request expired or its time is invalid; review it again.");
+        if (intent.Scope.ProductCode != selected.ProductCode || intent.Scope.ExpectedContextMask != selected.NativeReadScope.ExpectedContextMask ||
+            intent.Scope.SnapshotState != selected.HistoricalGlobalSnapshotState || intent.Scope.ValidatedUtc != selected.ValidatedUtc ||
+            intent.Scope.Application != selected.Application || intent.SourceGeneration != selected.SourceGeneration)
+            reasons.Add("The original selected registration or generation does not match this request.");
+        reasons.AddRange(ValidatePreparation(selected, fresh, intent.SourceGeneration, nowUtc, intent.PreparedUtc, intent.Context, token));
+        return reasons.AsReadOnly();
+    }
+
+    private static IReadOnlyList<string> ValidatePreparation(MsiSelectedProductReadScope? scope,
+        CheckResult<MsiSelectedProductPreparation>? preparation, long generation, DateTimeOffset nowUtc,
+        DateTimeOffset minimumObservation, MsiRegistrationContext? expectedContext, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!ValidUtc(nowUtc) || nowUtc > DateTimeOffset.UtcNow || !ValidUtc(minimumObservation) || minimumObservation > nowUtc ||
+            !MsiSelectedProductPreparationPolicy.IsFresh(scope, generation, nowUtc))
+            return ["The exact selected-product read selector is stale, invalidated, malformed or changed."];
+        if (preparation?.Items == null || preparation.Items.Count != 1 || preparation.State is not (CheckState.Available or CheckState.Partial))
+            return ["One fresh actual selected-product preparation report is required."];
+        var report = preparation.Items[0];
+        if (report == null || !ReferenceEquals(report.Scope, scope) || report.State != MsiSelectedProductPreparationState.ObservedMatch ||
+            report.TargetCoverageState != CheckState.Available || !report.EnumerationComplete || report.NativeIssueCount != 0 ||
+            !ValidUtc(report.CheckedUtc) || report.CheckedUtc < minimumObservation || report.CheckedUtc > nowUtc ||
+            report.Lookups == null || report.Lookups.Count != 3 || report.Instances == null || report.Instances.Count != 1)
+            return ["The exact selector, complete target coverage and one observed installed context must match this request."];
+        foreach (var lookup in report.Lookups)
+        {
+            token.ThrowIfCancellationRequested();
+            if (lookup == null || !ValidUtc(lookup.ObservedUtc) || lookup.ObservedUtc < minimumObservation || lookup.ObservedUtc > report.CheckedUtc)
+                return ["Every actual registry-source lookup must be fresh for this request."];
+            if (lookup.Registration?.RegistrationEvidence is { } evidence &&
+                (!ValidUtc(evidence.ObservedUtc) || evidence.ObservedUtc < minimumObservation || evidence.ObservedUtc != lookup.ObservedUtc))
+                return ["The actual selected registration evidence must be fresh for this request."];
+        }
+        var row = report.Instances[0];
+        if (row == null || !ValidUtc(row.ObservedUtc) || row.ObservedUtc < minimumObservation || row.ObservedUtc > report.CheckedUtc ||
+            expectedContext is { } context && row.Context != context)
+            return ["The unique native installed context must be unchanged and freshly observed for this request."];
+        // Recompute from frozen primitive observations. A caller-supplied success label or Reason
+        // is not accepted as evidence and historical Partial is never upgraded to global completeness.
+        var reassessed = MsiSelectedProductPreparationPolicy.Assess(scope!, report.Lookups, report.Instances,
+            report.EnumerationComplete, report.NativeIssueCount, generation, report.CheckedUtc, token);
+        if (reassessed.Items.Count != 1 || reassessed.State != preparation.State || reassessed.Items[0].State != MsiSelectedProductPreparationState.ObservedMatch ||
+            reassessed.Items[0].TargetCoverageState != CheckState.Available || reassessed.Items[0].Instances.Count != 1 ||
+            reassessed.Items[0].Instances[0].Context != row.Context)
+            return ["Actual selected-product facts did not re-establish an unrestricted unique installed match. No request was accepted."];
+        token.ThrowIfCancellationRequested();
+        return Array.Empty<string>();
     }
 
     public static IReadOnlyList<string> ValidateFreshBinding(MsiUninstallRequestIntent intent,

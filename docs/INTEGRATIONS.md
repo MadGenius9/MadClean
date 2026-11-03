@@ -177,3 +177,7 @@ The existing WinGet adapter now has an internal immutable [same-query diagnostic
 ## Explicit recorded component-store flag check
 
 The separate [fixed DISM PowerShell CheckHealth contract](COMPONENT-STORE-STATUS.md) and [disposable qualification](COMPONENT-STORE-STATUS-VALIDATION.md) use current official Microsoft cmdlet/hosting documentation. This path is separate from passive inventory and the earlier metadata-only probe. It requires reviewed intent and already-effective administrator rights, requests neither a new scan nor repair, discloses Windows-managed log writes, and never kills a servicing host on cancellation. Its production guard remains false pending source-bound validation.
+
+[Selected-product preparation](MSI-SELECTED-PRODUCT-PREPARATION.md) reads three exact GUID registry keys and one actual native context enumeration independently from historical global inventory. It does not promote Partial global coverage or change the earlier read-only hive/context binding report. The separately confirmed MSI candidate uses fresh target facts, with production dispatch still disabled pending qualification.
+
+Future integrations are researched separately in [Defender scan requests](DEFENDER-SCAN-REQUEST-RESEARCH.md) and [structured WinGet discovery](WINGET-STRUCTURED-DISCOVERY-RESEARCH.md). These documents add no provider, dependency, scan, agreement acceptance or action.

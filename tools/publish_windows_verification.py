@@ -277,6 +277,49 @@ def core_test_summary(directory):
 
 MSI_FACTS = {"packageBuilt", "databaseVerified", "preexistingCodeAbsent", "installReturned", "installedContextObserved", "payloadObserved", "visibleConsentObserved", "clientStarted", "clientExited", "postCodeAbsent", "payloadAbsent", "workerSettled", "ownedTeardown"}
 MSI_STAGES = {"OwnedSetup", "BuildOwnedDatabase", "ProductCollision", "InstallOwnedProduct", "InstallUnverified", "InstalledEvidenceUnknown", "PrepareRequest", "SelectionUnknown", "VisibleRequest", "RequestUnsettled", "ObservePostState", "PostStateUnverified", "OwnershipUnverified", "Complete", "QualificationUnavailable", "VisibleConsentUnverified"}
+MSI_TARGET_FIELDS = {
+    "resultState", "state", "reason", "targetCoverageState", "lookupCount", "presentCount", "absentCount", "unknownCount",
+    "sourceMatched", "systemComponent", "windowsInstaller", "noRemove", "nativeEnumerationComplete", "nativeIssueCount",
+    "nativeInstanceCount", "observedContext", "historicalGlobalState", "currentGlobalWasRead", "currentGlobalState",
+}
+MSI_TARGET_REASONS = {"InvalidScope", "ArpLookupUnknown", "MultipleArpRegistrations", "SelectedRegistrationMissing",
+    "RequiredArpMetadataUnknown", "SelectionChanged", "RemovalRestricted", "HiddenComponent", "NativeCoverageIncomplete",
+    "MultipleNativeContexts", "NativeProductNotInstalled", "NativeMetadataMismatch", "ObservedMatch"}
+
+
+def validate_msi_target(value):
+    if value is None:
+        return False
+    reject_unless(isinstance(value, dict) and set(value) == MSI_TARGET_FIELDS, "msi-target-schema")
+    for name, allowed in {
+        "resultState": {"Available", "Partial", "Unavailable", "Unknown", "Unsupported", "Failed", "Cancelled"},
+        "state": {"ObservedMatch", "Blocked", "Unknown"}, "reason": MSI_TARGET_REASONS,
+        "targetCoverageState": {"Available", "Partial"}, "historicalGlobalState": {"Available", "Partial"},
+        "currentGlobalState": {"Unknown"},
+    }.items():
+        reject_unless(value[name] is None or isinstance(value[name], str) and value[name] in allowed, "msi-target-label")
+    reject_unless(value["resultState"] is not None, "msi-target-result")
+    for name in ("sourceMatched", "systemComponent", "windowsInstaller", "noRemove", "nativeEnumerationComplete", "currentGlobalWasRead"):
+        reject_unless(value[name] is None or type(value[name]) is bool, "msi-target-fact")
+    for name in ("lookupCount", "presentCount", "absentCount", "unknownCount", "nativeInstanceCount", "nativeIssueCount", "observedContext"):
+        allowed = {1, 2, 4} if name == "observedContext" else range(33 if name == "nativeIssueCount" else 4)
+        reject_unless(value[name] is None or type(value[name]) is int and value[name] in allowed, "msi-target-count")
+    reject_unless(value["state"] is not None, "msi-target-unobserved")
+    reject_unless(all(value[name] is not None for name in ("reason", "targetCoverageState", "lookupCount", "presentCount", "absentCount", "unknownCount", "nativeEnumerationComplete", "nativeIssueCount", "nativeInstanceCount", "historicalGlobalState", "currentGlobalWasRead", "currentGlobalState")), "msi-target-observed")
+    reject_unless(value["lookupCount"] == 3 and value["presentCount"] + value["absentCount"] + value["unknownCount"] == 3, "msi-target-lookup-coherence")
+    reject_unless((value["nativeInstanceCount"] == 1) == (value["observedContext"] is not None), "msi-target-context-coherence")
+    reject_unless(value["currentGlobalWasRead"] is False and value["currentGlobalState"] == "Unknown", "msi-target-global-coherence")
+    if value["presentCount"] != 1:
+        reject_unless(all(value[name] is None for name in ("sourceMatched", "systemComponent", "windowsInstaller", "noRemove")), "msi-target-single-coherence")
+    else:
+        reject_unless(value["sourceMatched"] is not None, "msi-target-single-coherence")
+    return (value["state"] == "ObservedMatch" and value["reason"] == "ObservedMatch" and value["targetCoverageState"] == "Available"
+        and value["resultState"] == value["historicalGlobalState"] and value["presentCount"] == 1 and value["absentCount"] == 2
+        and value["unknownCount"] == 0 and value["sourceMatched"] is True and value["systemComponent"] is False
+        and value["windowsInstaller"] is True and value["noRemove"] is False and value["nativeEnumerationComplete"] is True
+        and value["nativeIssueCount"] == 0 and value["nativeInstanceCount"] == 1 and value["observedContext"] == 2)
+
+
 def validate_msi_report(directory, context):
     if directory is None:
         return None
@@ -285,7 +328,10 @@ def validate_msi_report(directory, context):
         return None
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult", "bindingReason", "bindingChangedFields", "selectionNoRemove", "bindingNoRemove", "bindingInstanceCount", "expectedMask", "observedContext"} | MSI_FACTS
-    reject_unless(isinstance(value, dict) and set(value) == fields and type(value["formatVersion"]) is int and value["formatVersion"] == 2, "msi-report-schema")
+    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3}, "msi-report-schema")
+    version = value["formatVersion"]
+    reject_unless(set(value) == fields | ({"targetPreparation"} if version == 3 else set()), "msi-report-schema")
+    target_qualified = validate_msi_target(value["targetPreparation"]) if version == 3 else False
     reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
     reject_unless(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"} and isinstance(value["stage"], str) and value["stage"] in MSI_STAGES, "msi-report-state")
     for name in MSI_FACTS:
@@ -343,8 +389,15 @@ def validate_msi_report(directory, context):
         reject_unless(value["clientExited"] is True, "msi-postcheck-coherence")
     if value["ownedTeardown"] is True:
         reject_unless(value["workerSettled"] is True and value["postCodeAbsent"] is True and value["payloadAbsent"] is True, "msi-teardown-coherence")
-    if value["state"] == "passed":
+    if value["state"] == "passed" and version == 2:
         reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["bindingReason"] == "Bound" and value["bindingChangedFields"] == 0 and value["selectionNoRemove"] is False and value["bindingNoRemove"] is False and value["bindingInstanceCount"] == 1 and value["expectedMask"] == 3 and value["observedContext"] == 2 and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
+    if value["state"] == "passed" and version == 3:
+        reject_unless(target_qualified and value["selectionSourceState"] == value["targetPreparation"]["historicalGlobalState"]
+            and value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS)
+            and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True
+            and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed"
+            and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0
+            and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
     return value
 
 def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped"):

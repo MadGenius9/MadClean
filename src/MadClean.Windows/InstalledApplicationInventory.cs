@@ -19,7 +19,10 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
     private const int MaximumDisplayedIssues = 20;
 
     private static int activeWorker;
-    public bool HasPendingNativeRead => Volatile.Read(ref activeWorker) != 0;
+    internal static bool TryBeginRead() => Interlocked.CompareExchange(ref activeWorker, 1, 0) == 0;
+    internal static void EndRead() => Volatile.Write(ref activeWorker, 0);
+    internal static bool PendingRead => Volatile.Read(ref activeWorker) != 0;
+    public bool HasPendingNativeRead => PendingRead;
 
     public async Task<CheckResult<InstalledApplication>> ScanAsync(CancellationToken token)
     {
@@ -27,7 +30,7 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
         if (!OperatingSystem.IsWindows())
             return CheckResult<InstalledApplication>.Empty(CheckState.Unsupported,
                 "Add/Remove Programs inventory is supported on Windows only.");
-        if (Interlocked.CompareExchange(ref activeWorker, 1, 0) != 0)
+        if (!TryBeginRead())
             return CheckResult<InstalledApplication>.Empty(CheckState.Unknown,
                 "A previous native registry inventory is still pending; wait before retrying. No new inventory started, and no complete baseline or absence was established.");
         // Never pass the caller token as a scheduling token: even pre-start cancellation must
@@ -41,7 +44,7 @@ public sealed class InstalledApplicationInventory : IInstalledApplicationInvento
             catch (InventoryBudgetExceededException)
             { return CheckResult<InstalledApplication>.Empty(CheckState.Unknown,
                 "The registry worker's cooperative 20-second budget elapsed; no completed inventory, baseline or registration-absence conclusion is shown. Retry when the system is responsive."); }
-            finally { Volatile.Write(ref activeWorker, 0); }
+            finally { EndRead(); }
         }, CancellationToken.None);
         // Observe late faults without logging registry/provider text or abandoning key ownership.
         _ = worker.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
