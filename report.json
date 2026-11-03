@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "bfa9c48277877b2d730f3ea45d6e42d4eefdae8c",
-  "runId": "41683692694",
+  "sourceCommit": "2e0c0160099e92d7871d9bea71f38390a53ecef9",
+  "runId": "41686453518",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T17:29:26.666242+00:00",
-  "completedUtc": "2026-11-03T17:30:48.6623374+00:00",
+  "startedUtc": "2026-11-03T17:44:45.5000346+00:00",
+  "completedUtc": "2026-11-03T17:45:21.9919918+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -186,7 +186,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=15; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -436,7 +436,7 @@
     {
       "name": "update-discovery-provider-contract",
       "state": "inconclusive",
-      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=1/software=1/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
+      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=0/software=0/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
     },
     {
       "name": "winget-query-observation-contract",
@@ -445,8 +445,8 @@
     },
     {
       "name": "wua-offer-metadata-contract",
-      "state": "passed",
-      "detail": "WUA source=Available; accepted=True; availableRows=1; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
+      "state": "inconclusive",
+      "detail": "WUA source=Available; accepted=True; availableRows=0; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
     }
   ],
   "screenshots": [
