@@ -413,3 +413,10 @@ The shared controller now accepts exactly two immutable kinds: RecordedFlags and
 A separate disposable scan job qualifies the backend first. Report v3 keeps kind/source/finding separate and explicitly distinguishes backend-only qualification from actual public UI qualification; ordinary inspection and passive tests never confirm a scan. The previously qualified recorded-flags route remains independently exercised.
 
 Independent combined review passed after clearing stale current assessments on kind changes. Full local solution build: zero warnings/errors; 1,389 portable .NET tests passed; Python 206 total, 205 passed and one Windows-only skip. No Windows scan, repair, uninstall or personal-PC action ran in this Linux workspace. New shared-protocol regression and fresh-scan runtime findings await this source's Windows evidence.
+
+
+## MSI fixture selector correction
+
+Current official Microsoft UI Automation contracts state that clients must not assume another application's AutomationId values. The actual ff52039e report observed the owned live installer's visible generic window and exact question, but no numeric-ID6 Yes element. The fixture now uses exactly one Button named Yes, with a fresh same-element/role/name/window/prompt/live-client/visibility recheck before Invoke. Missing or ambiguous controls remain unverified; generic Yes is invoked once. Production commands and the MSI dispatch guard are unchanged.
+
+Report v5 pairs the new selector kind and bounded actual candidate count with the observed invoke chain. Legacy v2/v3/v4 validation and historical meanings remain unchanged. Authored Remove consent, actual client exit, post-registration/payload absence and settled ownership remain mandatory. Independent static review passed; full local solution build has zero warnings/errors and Python 212 total/211 passed/one Windows-only skip. Core is unchanged from its 1,389 passing portable tests. The corrected fixture still needs its own source-bound Windows outcome.

@@ -21,7 +21,7 @@ internal static class MsiRequestQualificationFixture
 
     private sealed class Report
     {
-        public int FormatVersion { get; } = 4;
+        public int FormatVersion { get; } = 5;
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -87,6 +87,8 @@ internal static class MsiRequestQualificationFixture
         public bool? YesControlVisibleEnabled { get; set; }
         public bool? YesPatternSeen { get; set; }
         public bool? YesInvoked { get; set; }
+        public string? YesSelectionKind { get; set; }
+        public int? YesCandidateCount { get; set; }
         public bool? EnumerationFailed { get; set; }
         public int? PollCount { get; set; }
         public int? ManagedExceptionHResult { get; set; }
@@ -370,23 +372,55 @@ internal static class MsiRequestQualificationFixture
                             facts.GenericWindowVisibleEnabled = Sticky(facts.GenericWindowVisibleEnabled, visible);
                             if (visible)
                             {
-                                // Same exact live borrowed client and fixed English question;
-                                // authored Remove remains required. No new consent route.
+                                // The same exact live borrowed client and fixed English
+                                // question are required. AutomationId values from another
+                                // application are not a decimal Win32 control-ID contract.
                                 var texts = Enumerate(window, TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
                                 bool ownText = texts.Cast<AutomationElement>().Any(item => item.Current.Name == "Are you sure you want to uninstall this product?");
                                 facts.GenericPromptMatched = Sticky(facts.GenericPromptMatched, ownText);
-                                var yes = window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "6"));
-                                facts.YesControlSeen = Sticky(facts.YesControlSeen, yes != null);
-                                if (ownText && yes != null)
+                                // Once the exact Yes control has been invoked, preserve its
+                                // count/kind evidence and wait only for authored Remove.
+                                // Never accept a repeated generic confirmation.
+                                if (ownText && facts.YesInvoked != true)
                                 {
-                                    bool yesVisible = VisibleAndEnabled(yes);
-                                    facts.YesControlVisibleEnabled = Sticky(facts.YesControlVisibleEnabled, yesVisible);
-                                    if (yesVisible && client.HasExited == false)
+                                    var candidates = Enumerate(window, TreeScope.Descendants, new AndCondition(
+                                        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                                        new PropertyCondition(AutomationElement.NameProperty, "Yes")));
+                                    facts.YesSelectionKind = "UniqueButtonName";
+                                    facts.YesCandidateCount = candidates.Count <= 64 ? candidates.Count : null;
+                                    facts.YesControlSeen = Sticky(facts.YesControlSeen, candidates.Count > 0);
+                                    if (candidates.Count == 1)
                                     {
-                                        bool patternSeen = yes.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern);
-                                        facts.YesPatternSeen = Sticky(facts.YesPatternSeen, patternSeen);
-                                        if (patternSeen)
-                                            facts.YesInvoked = Sticky(facts.YesInvoked, client.TryInvokeIfRunning(() => ((InvokePattern)pattern!).Invoke()));
+                                        var yes = candidates[0];
+                                        bool yesVisible = VisibleAndEnabled(yes);
+                                        facts.YesControlVisibleEnabled = Sticky(facts.YesControlVisibleEnabled, yesVisible);
+                                        if (yesVisible && client.HasExited == false)
+                                        {
+                                            bool patternSeen = yes.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern);
+                                            facts.YesPatternSeen = Sticky(facts.YesPatternSeen, patternSeen);
+                                            if (patternSeen)
+                                            {
+                                                // Recheck the actual owned window, exact
+                                                // question and selected control immediately
+                                                // before using the retained Invoke pattern.
+                                                var currentTexts = Enumerate(window, TreeScope.Descendants,
+                                                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+                                                bool currentPrompt = currentTexts.Cast<AutomationElement>().Any(item =>
+                                                    item.Current.Name == "Are you sure you want to uninstall this product?");
+                                                var currentCandidates = Enumerate(window, TreeScope.Descendants, new AndCondition(
+                                                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                                                    new PropertyCondition(AutomationElement.NameProperty, "Yes")));
+                                                facts.YesCandidateCount = currentCandidates.Count <= 64 ? currentCandidates.Count : null;
+                                                facts.YesControlSeen = Sticky(facts.YesControlSeen, currentCandidates.Count > 0);
+                                                if (client.HasExited == false && window.Current.ProcessId == processId &&
+                                                    window.Current.Name == "Windows Installer" && VisibleAndEnabled(window) && currentPrompt &&
+                                                    currentCandidates.Count == 1 && Automation.Compare(yes, currentCandidates[0]) &&
+                                                    yes.Current.ProcessId == processId && yes.Current.ControlType == ControlType.Button &&
+                                                    yes.Current.Name == "Yes" && VisibleAndEnabled(yes))
+                                                    facts.YesInvoked = Sticky(facts.YesInvoked,
+                                                        client.TryInvokeIfRunning(() => ((InvokePattern)pattern!).Invoke()));
+                                            }
+                                        }
                                     }
                                 }
                             }

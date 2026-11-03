@@ -106,6 +106,93 @@ class MsiRequestEvidenceTests(unittest.TestCase):
             removeButtonVisibleEnabled=True, removePatternSeen=True, removeInvoked=True,
             enumerationFailed=False, pollCount=3, managedExceptionHResult=None)
 
+    def use_consent_v5(self, with_yes=False):
+        self.use_consent_v4()
+        self.report['formatVersion'] = 5
+        self.report['consentObservation'].update(yesSelectionKind=None, yesCandidateCount=None)
+        if with_yes:
+            self.report['consentObservation'].update(genericTitleSeen=True, genericWindowVisibleEnabled=True,
+                genericPromptMatched=True, yesControlSeen=True, yesControlVisibleEnabled=True,
+                yesPatternSeen=True, yesInvoked=True, yesSelectionKind='UniqueButtonName', yesCandidateCount=1)
+
+    def test_v5_unique_named_yes_chain_keeps_authored_and_client_proof_mandatory(self):
+        self.use_consent_v5(with_yes=True); self.save()
+        self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
+        for field, wrong in [('visibleConsentObserved', False), ('clientExited', None),
+                             ('clientExitCode', None), ('postCodeAbsent', None), ('workerSettled', False)]:
+            previous = self.report[field]; self.report[field] = wrong; self.save()
+            with self.subTest(field=field, wrong=wrong):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report[field] = previous
+        self.report['consentObservation']['removeInvoked'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-pass-consent'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v5_no_missing_ambiguous_or_unbounded_count_can_claim_yes_invocation(self):
+        self.use_consent_v5(with_yes=True)
+        for field, wrong in [('yesCandidateCount', None), ('yesCandidateCount', 0), ('yesCandidateCount', 2),
+                             ('yesCandidateCount', 65), ('yesCandidateCount', True),
+                             ('yesSelectionKind', None), ('yesSelectionKind', '6'),
+                             ('yesSelectionKind', 'uniquebuttonname')]:
+            previous = self.report['consentObservation'][field]
+            self.report['consentObservation'][field] = wrong; self.save()
+            with self.subTest(field=field, wrong=wrong):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['consentObservation'][field] = previous
+
+    def test_v5_zero_multiple_or_overflow_candidate_observation_is_not_an_action(self):
+        self.use_consent_v5(with_yes=True)
+        self.report.update(state='inconclusive', stage='VisibleConsentUnverified', visibleConsentObserved=False,
+            clientExited=None, clientExitCode=None, postCodeAbsent=None, payloadAbsent=None,
+            workerSettled=False, ownedTeardown=None)
+        facts = self.report['consentObservation']
+        facts.update(authoredTitleSeen=False, authoredWindowVisibleEnabled=None, removeButtonSeen=None,
+            removeButtonVisibleEnabled=None, removePatternSeen=None, removeInvoked=None,
+            yesControlVisibleEnabled=None, yesPatternSeen=None, yesInvoked=None)
+        for count in (0, 2, 64, None):
+            facts.update(yesCandidateCount=count, yesControlSeen=count != 0); self.save()
+            with self.subTest(count=count):
+                actual = p.validate_msi_report(self.root, self.context)
+                self.assertEqual(count, actual['consentObservation']['yesCandidateCount'])
+                self.assertIsNone(actual['consentObservation']['yesInvoked'])
+                self.assertIsNone(actual['clientExited'])
+
+    def test_v5_selector_requires_the_observed_owned_question_scope(self):
+        self.use_consent_v5(with_yes=True)
+        for field in ('ownClientPidObserved', 'ownedWindowSeen', 'genericTitleSeen',
+                      'genericWindowVisibleEnabled', 'genericPromptMatched'):
+            previous = self.report['consentObservation'][field]
+            self.report['consentObservation'][field] = False; self.save()
+            with self.subTest(field=field):
+                with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['consentObservation'][field] = previous
+        facts = self.report['consentObservation']
+        facts.update(yesInvoked=None, yesControlVisibleEnabled=None, yesPatternSeen=None,
+                     yesSelectionKind=None, yesCandidateCount=None)
+        self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-consent-selector-unobserved'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_v5_supports_direct_authored_consent_without_inventing_generic_lookup(self):
+        self.use_consent_v5(); self.save()
+        actual = p.validate_msi_report(self.root, self.context)
+        self.assertIsNone(actual['consentObservation']['yesSelectionKind'])
+        self.assertIsNone(actual['consentObservation']['yesCandidateCount'])
+        self.assertIsNone(actual['consentObservation']['yesInvoked'])
+        self.assertEqual('passed', actual['state'])
+
+    def test_v5_versioned_selector_schema_preserves_legacy_and_rejects_raw_ui_data(self):
+        self.use_consent_v5(with_yes=True)
+        self.report['consentObservation']['buttonName'] = 'TEST-ONLY'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-consent-schema'):
+            p.validate_msi_report(self.root, self.context)
+        del self.report['consentObservation']['buttonName']
+        self.report['formatVersion'] = 4; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-consent-schema'):
+            p.validate_msi_report(self.root, self.context)
+        self.use_consent_v4(); self.save()
+        self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
+
     def test_v4_authored_consent_requires_actual_owned_visible_invoke_chain(self):
         self.use_consent_v4(); self.save()
         self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])

@@ -327,10 +327,13 @@ MSI_CONSENT_BOOLEANS = {
 }
 
 
-def validate_msi_consent(value):
+def validate_msi_consent(value, version=4):
     if value is None:
         return False
-    reject_unless(isinstance(value, dict) and set(value) == MSI_CONSENT_BOOLEANS | {"pollCount", "managedExceptionHResult"}, "msi-consent-schema")
+    fields = MSI_CONSENT_BOOLEANS | {"pollCount", "managedExceptionHResult"}
+    if version >= 5:
+        fields |= {"yesSelectionKind", "yesCandidateCount"}
+    reject_unless(isinstance(value, dict) and set(value) == fields, "msi-consent-schema")
     for field in MSI_CONSENT_BOOLEANS:
         reject_unless(value[field] is None or type(value[field]) is bool, "msi-consent-fact")
     reject_unless(value["pollCount"] is None or type(value["pollCount"]) is int and 0 <= value["pollCount"] <= 4096, "msi-consent-count")
@@ -346,6 +349,20 @@ def validate_msi_consent(value):
     }
     for field, previous in prerequisites.items():
         reject_unless(value[field] is not True or all(value[name] is True for name in previous), "msi-consent-order")
+    if version >= 5:
+        selection, count = value["yesSelectionKind"], value["yesCandidateCount"]
+        reject_unless(selection is None or type(selection) is str and selection == "UniqueButtonName", "msi-consent-selector")
+        reject_unless(count is None or type(count) is int and 0 <= count <= 64, "msi-consent-candidates")
+        yes_fields = ("yesControlSeen", "yesControlVisibleEnabled", "yesPatternSeen", "yesInvoked")
+        if selection is None:
+            reject_unless(count is None and all(value[name] is None for name in yes_fields), "msi-consent-selector-unobserved")
+        else:
+            reject_unless(value["genericPromptMatched"] is True and value["genericWindowVisibleEnabled"] is True, "msi-consent-selector-scope")
+        if count is not None:
+            reject_unless(selection == "UniqueButtonName" and value["yesControlSeen"] is not None, "msi-consent-candidate-scope")
+            reject_unless(count == 0 or value["yesControlSeen"] is True, "msi-consent-candidate-presence")
+        if value["yesInvoked"] is True:
+            reject_unless(selection == "UniqueButtonName" and count == 1, "msi-consent-unique-yes")
     if value["pollCount"] == 0:
         reject_unless(all(value[field] is None for field in MSI_CONSENT_BOOLEANS - {"ownClientPidObserved"}), "msi-consent-unpolled")
     return value["enumerationFailed"] is False and value["managedExceptionHResult"] is None and all(value[field] is True for field in ("ownClientPidObserved", "ownedWindowSeen", "authoredTitleSeen", "authoredWindowVisibleEnabled", "removeButtonSeen", "removeButtonVisibleEnabled", "removePatternSeen", "removeInvoked"))
@@ -359,11 +376,11 @@ def validate_msi_report(directory, context):
         return None
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult", "bindingReason", "bindingChangedFields", "selectionNoRemove", "bindingNoRemove", "bindingInstanceCount", "expectedMask", "observedContext"} | MSI_FACTS
-    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3, 4}, "msi-report-schema")
+    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3, 4, 5}, "msi-report-schema")
     version = value["formatVersion"]
-    reject_unless(set(value) == fields | ({"targetPreparation"} if version >= 3 else set()) | ({"consentObservation"} if version == 4 else set()), "msi-report-schema")
+    reject_unless(set(value) == fields | ({"targetPreparation"} if version >= 3 else set()) | ({"consentObservation"} if version >= 4 else set()), "msi-report-schema")
     target_qualified = validate_msi_target(value["targetPreparation"]) if version >= 3 else False
-    consent_qualified = validate_msi_consent(value["consentObservation"]) if version == 4 else False
+    consent_qualified = validate_msi_consent(value["consentObservation"], version) if version >= 4 else False
     reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
     reject_unless(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"} and isinstance(value["stage"], str) and value["stage"] in MSI_STAGES, "msi-report-state")
     for name in MSI_FACTS:
@@ -430,7 +447,7 @@ def validate_msi_report(directory, context):
             and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed"
             and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0
             and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
-    if version == 4:
+    if version >= 4:
         consent = value["consentObservation"]
         if consent is not None:
             reject_unless(value["clientStarted"] is True, "msi-consent-client")
