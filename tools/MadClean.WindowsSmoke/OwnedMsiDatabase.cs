@@ -62,7 +62,9 @@ internal sealed class OwnedMsiDatabase : IDisposable
             foreach (var action in execute) Sql($"INSERT INTO `InstallExecuteSequence` (`Action`, `Sequence`) VALUES ('{action.Name}', {action.Sequence})");
             foreach (var action in new[] { ("CostInitialize", 800), ("FileCost", 900), ("CostFinalize", 1000), ("ExecuteAction", 1300) })
                 Sql($"INSERT INTO `InstallUISequence` (`Action`, `Sequence`) VALUES ('{action.Item1}', {action.Item2})");
-            Sql("INSERT INTO `InstallUISequence` (`Action`, `Condition`, `Sequence`) VALUES ('OwnedRemoveConfirm', 'REMOVE=\"ALL\"', 1100)");
+            // REMOVE=ALL is not guaranteed until InstallValidate. This dialog runs
+            // after CostFinalize, where the fixed feature's action state is defined.
+            Sql("INSERT INTO `InstallUISequence` (`Action`, `Condition`, `Sequence`) VALUES ('OwnedRemoveConfirm', 'Installed AND (&FixtureFeature=2)', 1100)");
             Sql("INSERT INTO `TextStyle` (`TextStyle`, `FaceName`, `Size`, `StyleBits`) VALUES ('DefaultFont', 'Tahoma', 8, 0)");
             Sql($"INSERT INTO `Dialog` (`Dialog`, `HCentering`, `VCentering`, `Width`, `Height`, `Attributes`, `Title`, `Control_First`, `Control_Default`, `Control_Cancel`) VALUES ('OwnedRemoveConfirm', 50, 50, 280, 95, 3, '{DialogTitle}', 'Remove', 'Remove', 'Cancel')");
             Sql("INSERT INTO `Control` (`Dialog_`, `Control`, `Type`, `X`, `Y`, `Width`, `Height`, `Attributes`, `Text`) VALUES ('OwnedRemoveConfirm', 'Text', 'Text', 10, 10, 260, 35, 3, 'Remove only the newly generated MadClean validation product?')");
@@ -117,7 +119,7 @@ internal sealed class OwnedMsiDatabase : IDisposable
             ["PublishFeatures", null, "6300"], ["PublishProduct", null, "6400"], ["InstallFinalize", null, "6600"]];
         VerifyRows("InstallExecuteSequence", ["Action", "Condition", "Sequence"], [3], execution);
         VerifyRows("InstallUISequence", ["Action", "Condition", "Sequence"], [3],
-            [["CostInitialize", null, "800"], ["FileCost", null, "900"], ["CostFinalize", null, "1000"], ["ExecuteAction", null, "1300"], ["OwnedRemoveConfirm", "REMOVE=\"ALL\"", "1100"]]);
+            [["CostInitialize", null, "800"], ["FileCost", null, "900"], ["CostFinalize", null, "1000"], ["ExecuteAction", null, "1300"], ["OwnedRemoveConfirm", "Installed AND (&FixtureFeature=2)", "1100"]]);
         VerifyRows("Dialog", ["Dialog", "HCentering", "VCentering", "Width", "Height", "Attributes", "Title", "Control_First", "Control_Default", "Control_Cancel"], [2, 3, 4, 5, 6],
             [["OwnedRemoveConfirm", "50", "50", "280", "95", "3", DialogTitle, "Remove", "Remove", "Cancel"]]);
         VerifyRows("Control", ["Dialog_", "Control", "Type", "X", "Y", "Width", "Height", "Attributes", "Property", "Text", "Control_Next", "Help"], [4, 5, 6, 7, 8],
