@@ -61,7 +61,7 @@ Diagnostics also shows [independent WER store counts](docs/WER-STORE-COUNTS.md) 
 
 Diagnostics now includes [inspection evidence from this session](docs/DIAGNOSTIC-INSPECTION-EVIDENCE.md): the disk-capacity and Defender observations already collected by Inspect this PC, with source, collection time, coverage, uncertainty, possible impact and next step. Selecting rows starts no query; these observations are not a health score.
 
-Diagnostics also offers a separate [recorded component-store status preview](docs/COMPONENT-STORE-STATUS.md). It describes the fixed inbox `Repair-WindowsImage -Online -CheckHealth -NoRestart` request, required existing administrator access, Windows log writes and cooperative stop limits. This is an existing-flag check, never a fresh scan, repair or overall health verdict. Its fixed backend passed dedicated disposable Windows qualification and independent review. The actual public Prepare/acknowledgement/Confirm workflow is being validated separately; ordinary inspection does not invoke it.
+Diagnostics also offers a separate [recorded component-store status preview](docs/COMPONENT-STORE-STATUS.md). It describes the fixed inbox `Repair-WindowsImage -Online -CheckHealth -NoRestart` request, required existing administrator access, Windows log writes and cooperative stop limits. This is an existing-flag check, never a fresh scan, repair or overall health verdict. Its fixed backend passed dedicated disposable Windows qualification and independent review. The real public Prepare/acknowledgement/Confirm workflow also passed on the disposable Windows runner. Ordinary inspection does not invoke it; broader Windows policy and mid-operation stop scenarios remain in the validation matrix.
 
 ## Interface
 

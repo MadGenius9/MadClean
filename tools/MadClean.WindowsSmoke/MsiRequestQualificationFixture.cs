@@ -21,7 +21,7 @@ internal static class MsiRequestQualificationFixture
 
     private sealed class Report
     {
-        public int FormatVersion { get; } = 3;
+        public int FormatVersion { get; } = 4;
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -37,6 +37,7 @@ internal static class MsiRequestQualificationFixture
         public bool? InstalledContextObserved { get; set; }
         public bool? PayloadObserved { get; set; }
         public bool? VisibleConsentObserved { get; set; }
+        public ConsentObservation? ConsentObservation { get; set; }
         public bool? ClientStarted { get; set; }
         public bool? ClientExited { get; set; }
         public int? ClientExitCode { get; set; }
@@ -67,6 +68,28 @@ internal static class MsiRequestQualificationFixture
         public int? FailureCode { get; set; }
         public bool? WorkerSettled { get; set; }
         public bool? OwnedTeardown { get; set; }
+    }
+
+    private sealed class ConsentObservation
+    {
+        public bool? OwnClientPidObserved { get; set; }
+        public bool? OwnedWindowSeen { get; set; }
+        public bool? AuthoredTitleSeen { get; set; }
+        public bool? AuthoredWindowVisibleEnabled { get; set; }
+        public bool? RemoveButtonSeen { get; set; }
+        public bool? RemoveButtonVisibleEnabled { get; set; }
+        public bool? RemovePatternSeen { get; set; }
+        public bool? RemoveInvoked { get; set; }
+        public bool? GenericTitleSeen { get; set; }
+        public bool? GenericWindowVisibleEnabled { get; set; }
+        public bool? GenericPromptMatched { get; set; }
+        public bool? YesControlSeen { get; set; }
+        public bool? YesControlVisibleEnabled { get; set; }
+        public bool? YesPatternSeen { get; set; }
+        public bool? YesInvoked { get; set; }
+        public bool? EnumerationFailed { get; set; }
+        public int? PollCount { get; set; }
+        public int? ManagedExceptionHResult { get; set; }
     }
 
     private sealed record TargetPreparationFacts(string ResultState, string? State, string? Reason,
@@ -220,13 +243,7 @@ internal static class MsiRequestQualificationFixture
                 report.ClientRequestState = Enum.IsDefined(resultObservation.State) ? resultObservation.State.ToString() : null;
                 if (resultObservation.ClientStartObserved.HasValue) report.ClientStarted = resultObservation.ClientStartObserved;
                 else if (resultObservation.State is MsiUninstallRequestState.ClientStarted or MsiUninstallRequestState.ClientExited) report.ClientStarted = true;
-                if (resultObservation.ToolIdentity is { } identity)
-                {
-                    report.ToolIdentityStage = Enum.IsDefined(identity.Stage) ? identity.Stage.ToString() : null;
-                    report.ToolIdentityReason = Enum.IsDefined(identity.Reason) ? identity.Reason.ToString() : null;
-                    report.ToolNativeTrustResult = identity.NativeTrustResult; report.ToolFileTrustResult = identity.FileNativeTrustResult;
-                    report.ToolCatalogTrustResult = identity.CatalogNativeTrustResult; report.ToolCleanupTrustResult = identity.TrustCleanupNativeResult;
-                }
+                ProjectToolIdentity(resultObservation.ToolIdentity);
                 report.ClientExited = resultObservation.ExitedUtc.HasValue;
                 report.ClientExitCode = resultObservation.ExitCode;
                 report.WorkerSettled = !MsiUninstallRequestLauncher.HasPendingRequest && !MsiUninstallRequestLauncher.RequiresRetention;
@@ -266,40 +283,126 @@ internal static class MsiRequestQualificationFixture
                 // The host VM eventually expires; this is not MadClean rollback/recovery.
             }
         }
+        private void ProjectToolIdentity(SystemToolIdentityDiagnostic? identity)
+        {
+            if (identity == null) return;
+            report.ToolIdentityStage = Enum.IsDefined(identity.Stage) ? identity.Stage.ToString() : null;
+            report.ToolIdentityReason = Enum.IsDefined(identity.Reason) ? identity.Reason.ToString() : null;
+            report.ToolNativeTrustResult = identity.NativeTrustResult; report.ToolFileTrustResult = identity.FileNativeTrustResult;
+            report.ToolCatalogTrustResult = identity.CatalogNativeTrustResult; report.ToolCleanupTrustResult = identity.TrustCleanupNativeResult;
+        }
         private Task ObserveConsent(MsiUninstallFixtureClient client) => Task.Run(async () =>
         {
             var started = DateTimeOffset.UtcNow;
-            bool authored = false;
+            var lastSaved = started;
+            bool authored = false, countOverflowed = false;
+            var facts = new ConsentObservation { PollCount = 0 };
+            report.ConsentObservation = facts;
+            ProjectToolIdentity(client.ToolIdentity);
             report.ClientStarted = true; report.WorkerSettled = false; Save();
-            if (client.ProcessId is not int processId) { report.Stage = "VisibleConsentUnverified"; Save(); return; }
-            while (client.HasExited == false && DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(90))
+            static bool Sticky(bool? previous, bool observed) => previous == true || observed;
+            AutomationElementCollection Enumerate(AutomationElement element, TreeScope tree, Condition condition)
             {
-                foreach (AutomationElement window in AutomationElement.RootElement.FindAll(TreeScope.Children,
-                    new PropertyCondition(AutomationElement.ProcessIdProperty, processId)))
+                try
                 {
-                    if (client.HasExited != false) break;
-                    string title = window.Current.Name;
-                    if (title == OwnedMsiDatabase.DialogTitle && VisibleAndEnabled(window))
-                    {
-                        var button = window.FindFirst(TreeScope.Descendants, new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button), new PropertyCondition(AutomationElement.NameProperty, "Remove")));
-                        if (button != null && VisibleAndEnabled(button) && client.HasExited == false && button.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern))
-                        { if (client.TryInvokeIfRunning(() => ((InvokePattern)pattern).Invoke())) { authored = true; report.VisibleConsentObserved = true; Save(); return; } }
-                    }
-                    else if (title == "Windows Installer" && VisibleAndEnabled(window))
-                    {
-                        // The generic /x confirmation is accepted only for this exact live
-                        // borrowed client, with exactly the known confirmation text. The own
-                        // authored fixed Remove dialog is still required for qualification.
-                        var texts = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
-                        bool ownText = texts.Cast<AutomationElement>().Any(item => item.Current.Name == "Are you sure you want to uninstall this product?");
-                        var yes = window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "6"));
-                        if (ownText && yes != null && VisibleAndEnabled(yes) && client.HasExited == false && yes.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern))
-                            client.TryInvokeIfRunning(() => ((InvokePattern)pattern).Invoke());
-                    }
+                    var found = element.FindAll(tree, condition);
+                    facts.EnumerationFailed = Sticky(facts.EnumerationFailed, false);
+                    return found;
                 }
-                await Task.Delay(100);
+                catch
+                {
+                    facts.EnumerationFailed = true;
+                    throw;
+                }
             }
-            if (!authored) { report.VisibleConsentObserved = false; report.Stage = "VisibleConsentUnverified"; Save(); }
+            try
+            {
+                if (client.ProcessId is not int processId || processId <= 0)
+                { facts.OwnClientPidObserved = false; report.Stage = "VisibleConsentUnverified"; Save(); return; }
+                facts.OwnClientPidObserved = processId > 0;
+                while (client.HasExited == false && DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(90))
+                {
+                    if (!countOverflowed)
+                    {
+                        if (facts.PollCount is int count && count < 4096) facts.PollCount = count + 1;
+                        else { facts.PollCount = null; countOverflowed = true; }
+                    }
+                    var windows = Enumerate(AutomationElement.RootElement, TreeScope.Children,
+                        new PropertyCondition(AutomationElement.ProcessIdProperty, processId));
+                    facts.OwnedWindowSeen = Sticky(facts.OwnedWindowSeen, windows.Count > 0);
+                    foreach (AutomationElement window in windows)
+                    {
+                        if (client.HasExited != false) break;
+                        string title = window.Current.Name;
+                        bool authoredTitle = title == OwnedMsiDatabase.DialogTitle;
+                        bool genericTitle = title == "Windows Installer";
+                        facts.AuthoredTitleSeen = Sticky(facts.AuthoredTitleSeen, authoredTitle);
+                        facts.GenericTitleSeen = Sticky(facts.GenericTitleSeen, genericTitle);
+                        if (authoredTitle)
+                        {
+                            bool visible = VisibleAndEnabled(window);
+                            facts.AuthoredWindowVisibleEnabled = Sticky(facts.AuthoredWindowVisibleEnabled, visible);
+                            if (visible)
+                            {
+                                var button = window.FindFirst(TreeScope.Descendants, new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button), new PropertyCondition(AutomationElement.NameProperty, "Remove")));
+                                facts.RemoveButtonSeen = Sticky(facts.RemoveButtonSeen, button != null);
+                                if (button != null)
+                                {
+                                    bool buttonVisible = VisibleAndEnabled(button);
+                                    facts.RemoveButtonVisibleEnabled = Sticky(facts.RemoveButtonVisibleEnabled, buttonVisible);
+                                    if (buttonVisible && client.HasExited == false)
+                                    {
+                                        bool patternSeen = button.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern);
+                                        facts.RemovePatternSeen = Sticky(facts.RemovePatternSeen, patternSeen);
+                                        if (patternSeen)
+                                        {
+                                            bool invoked = client.TryInvokeIfRunning(() => ((InvokePattern)pattern!).Invoke());
+                                            facts.RemoveInvoked = Sticky(facts.RemoveInvoked, invoked);
+                                            if (invoked) { authored = true; report.VisibleConsentObserved = true; Save(); return; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (genericTitle)
+                        {
+                            bool visible = VisibleAndEnabled(window);
+                            facts.GenericWindowVisibleEnabled = Sticky(facts.GenericWindowVisibleEnabled, visible);
+                            if (visible)
+                            {
+                                // Same exact live borrowed client and fixed English question;
+                                // authored Remove remains required. No new consent route.
+                                var texts = Enumerate(window, TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+                                bool ownText = texts.Cast<AutomationElement>().Any(item => item.Current.Name == "Are you sure you want to uninstall this product?");
+                                facts.GenericPromptMatched = Sticky(facts.GenericPromptMatched, ownText);
+                                var yes = window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "6"));
+                                facts.YesControlSeen = Sticky(facts.YesControlSeen, yes != null);
+                                if (ownText && yes != null)
+                                {
+                                    bool yesVisible = VisibleAndEnabled(yes);
+                                    facts.YesControlVisibleEnabled = Sticky(facts.YesControlVisibleEnabled, yesVisible);
+                                    if (yesVisible && client.HasExited == false)
+                                    {
+                                        bool patternSeen = yes.TryGetCurrentPattern(InvokePattern.Pattern, out object? pattern);
+                                        facts.YesPatternSeen = Sticky(facts.YesPatternSeen, patternSeen);
+                                        if (patternSeen)
+                                            facts.YesInvoked = Sticky(facts.YesInvoked, client.TryInvokeIfRunning(() => ((InvokePattern)pattern!).Invoke()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (DateTimeOffset.UtcNow - lastSaved >= TimeSpan.FromSeconds(1)) { Save(); lastSaved = DateTimeOffset.UtcNow; }
+                    await Task.Delay(100);
+                }
+                if (!authored) { report.VisibleConsentObserved = false; report.Stage = "VisibleConsentUnverified"; Save(); }
+            }
+            catch (Exception exception)
+            {
+                facts.ManagedExceptionHResult = exception.HResult;
+                try { Save(); } catch { }
+                throw;
+            }
         });
         private void Release()
         {

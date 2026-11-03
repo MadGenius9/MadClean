@@ -36,7 +36,7 @@ REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-component-store-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "duplicate-pair-review-fixture", "duplicate-pair-recheck-fixture", "shortcut-directory-sharing-observation", "system-tool-process-observation-fixture", "system-tool-journal-store-fixture", "system-tool-journal-cross-instance-fixture", "system-tool-journal-lifecycle-fixture", "system-tool-private-journal-scope", "owned-relative-directory-create-control", "owned-private-parent-security-preflight", "published-executable-startup", "update-discovery-provider-contract", "wua-offer-metadata-contract", "winget-query-observation-contract", "device-driver-properties-contract", "ui-device-driver-inventory-interaction", "dism-powershell-capability-contract", "dism-builtin-import-control-contract", "cleanup-file-evidence-fixture", "cleanup-disposition-owned-probe", "cleanup-mapped-disposition-owned-probe", "cleanup-confirmation-owned-protocol", "ui-cleanup-file-evidence", "ui-cleanup-file-evidence-interaction", "ui-cleanup-selection-review-interaction", "ui-cleanup-file-evidence-selection-race", "ui-cleanup-file-evidence-cancellation", "ui-diagnostic-channel-coverage-interaction", "ui-msi-action-binding-interaction", "startup-transaction-namespace-observation", "shortcut-existing-local-fixture",
-    "shortcut-missing-local-fixture", "shortcut-no-mutation", "shortcut-rename-handle-probe", "shortcut-rename-cpp-control", "shortcut-rename-nt-control", "shortcut-rename-source-guard", "shortcut-rename-destination-guard", "shortcut-rename-ancestor-guard", "shortcut-mapped-write-witness", "shortcut-selected-recheck-fixture", "shortcut-file-evidence-fixture", "shortcut-dacl-fixture", "diagnostics-metadata-contract", "fixture-teardown",
+    "shortcut-missing-local-fixture", "shortcut-no-mutation", "shortcut-rename-handle-probe", "shortcut-rename-win32-absolute-control", "shortcut-rename-cpp-control", "shortcut-rename-nt-control", "shortcut-rename-source-guard", "shortcut-rename-destination-guard", "shortcut-rename-ancestor-guard", "shortcut-mapped-write-witness", "shortcut-selected-recheck-fixture", "shortcut-file-evidence-fixture", "shortcut-dacl-fixture", "diagnostics-metadata-contract", "fixture-teardown",
 }
 RESULTS = {"success", "failure", "cancelled", "skipped"}
 class EvidenceError(ValueError):
@@ -320,6 +320,37 @@ def validate_msi_target(value):
         and value["nativeIssueCount"] == 0 and value["nativeInstanceCount"] == 1 and value["observedContext"] == 2)
 
 
+MSI_CONSENT_BOOLEANS = {
+    "ownClientPidObserved", "ownedWindowSeen", "authoredTitleSeen", "authoredWindowVisibleEnabled", "removeButtonSeen",
+    "removeButtonVisibleEnabled", "removePatternSeen", "removeInvoked", "genericTitleSeen", "genericWindowVisibleEnabled",
+    "genericPromptMatched", "yesControlSeen", "yesControlVisibleEnabled", "yesPatternSeen", "yesInvoked", "enumerationFailed",
+}
+
+
+def validate_msi_consent(value):
+    if value is None:
+        return False
+    reject_unless(isinstance(value, dict) and set(value) == MSI_CONSENT_BOOLEANS | {"pollCount", "managedExceptionHResult"}, "msi-consent-schema")
+    for field in MSI_CONSENT_BOOLEANS:
+        reject_unless(value[field] is None or type(value[field]) is bool, "msi-consent-fact")
+    reject_unless(value["pollCount"] is None or type(value["pollCount"]) is int and 0 <= value["pollCount"] <= 4096, "msi-consent-count")
+    reject_unless(value["managedExceptionHResult"] is None or type(value["managedExceptionHResult"]) is int and -(2**31) <= value["managedExceptionHResult"] < 2**31, "msi-consent-code")
+    prerequisites = {
+        "ownedWindowSeen": ("ownClientPidObserved",), "authoredTitleSeen": ("ownedWindowSeen",),
+        "authoredWindowVisibleEnabled": ("authoredTitleSeen",), "removeButtonSeen": ("authoredWindowVisibleEnabled",),
+        "removeButtonVisibleEnabled": ("removeButtonSeen",), "removePatternSeen": ("removeButtonVisibleEnabled",),
+        "removeInvoked": ("removePatternSeen",), "genericTitleSeen": ("ownedWindowSeen",),
+        "genericWindowVisibleEnabled": ("genericTitleSeen",), "genericPromptMatched": ("genericWindowVisibleEnabled",),
+        "yesControlSeen": ("genericWindowVisibleEnabled",), "yesControlVisibleEnabled": ("yesControlSeen", "genericPromptMatched"),
+        "yesPatternSeen": ("yesControlVisibleEnabled",), "yesInvoked": ("yesPatternSeen",),
+    }
+    for field, previous in prerequisites.items():
+        reject_unless(value[field] is not True or all(value[name] is True for name in previous), "msi-consent-order")
+    if value["pollCount"] == 0:
+        reject_unless(all(value[field] is None for field in MSI_CONSENT_BOOLEANS - {"ownClientPidObserved"}), "msi-consent-unpolled")
+    return value["enumerationFailed"] is False and value["managedExceptionHResult"] is None and all(value[field] is True for field in ("ownClientPidObserved", "ownedWindowSeen", "authoredTitleSeen", "authoredWindowVisibleEnabled", "removeButtonSeen", "removeButtonVisibleEnabled", "removePatternSeen", "removeInvoked"))
+
+
 def validate_msi_report(directory, context):
     if directory is None:
         return None
@@ -328,10 +359,11 @@ def validate_msi_report(directory, context):
         return None
     value = read_json(path, 8192)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult", "bindingReason", "bindingChangedFields", "selectionNoRemove", "bindingNoRemove", "bindingInstanceCount", "expectedMask", "observedContext"} | MSI_FACTS
-    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3}, "msi-report-schema")
+    reject_unless(isinstance(value, dict) and type(value.get("formatVersion")) is int and value["formatVersion"] in {2, 3, 4}, "msi-report-schema")
     version = value["formatVersion"]
-    reject_unless(set(value) == fields | ({"targetPreparation"} if version == 3 else set()), "msi-report-schema")
-    target_qualified = validate_msi_target(value["targetPreparation"]) if version == 3 else False
+    reject_unless(set(value) == fields | ({"targetPreparation"} if version >= 3 else set()) | ({"consentObservation"} if version == 4 else set()), "msi-report-schema")
+    target_qualified = validate_msi_target(value["targetPreparation"]) if version >= 3 else False
+    consent_qualified = validate_msi_consent(value["consentObservation"]) if version == 4 else False
     reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
     reject_unless(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"} and isinstance(value["stage"], str) and value["stage"] in MSI_STAGES, "msi-report-state")
     for name in MSI_FACTS:
@@ -391,13 +423,20 @@ def validate_msi_report(directory, context):
         reject_unless(value["workerSettled"] is True and value["postCodeAbsent"] is True and value["payloadAbsent"] is True, "msi-teardown-coherence")
     if value["state"] == "passed" and version == 2:
         reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["bindingReason"] == "Bound" and value["bindingChangedFields"] == 0 and value["selectionNoRemove"] is False and value["bindingNoRemove"] is False and value["bindingInstanceCount"] == 1 and value["expectedMask"] == 3 and value["observedContext"] == 2 and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
-    if value["state"] == "passed" and version == 3:
+    if value["state"] == "passed" and version >= 3:
         reject_unless(target_qualified and value["selectionSourceState"] == value["targetPreparation"]["historicalGlobalState"]
             and value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS)
             and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True
             and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed"
             and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0
             and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
+    if version == 4:
+        consent = value["consentObservation"]
+        if consent is not None:
+            reject_unless(value["clientStarted"] is True, "msi-consent-client")
+            reject_unless(consent["removeInvoked"] is not True or value["visibleConsentObserved"] is True, "msi-consent-invoked")
+        if value["visibleConsentObserved"] is True or value["state"] == "passed":
+            reject_unless(consent_qualified, "msi-pass-consent")
     return value
 
 def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped"):

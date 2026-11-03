@@ -97,6 +97,84 @@ class MsiRequestEvidenceTests(unittest.TestCase):
         self.report['targetPreparation']['lookupCount'] = True; self.save()
         with self.assertRaisesRegex(p.EvidenceError, 'msi-target-count'): p.validate_msi_report(self.root, self.context)
 
+    def use_consent_v4(self):
+        self.use_target_v3()
+        self.report['formatVersion'] = 4
+        self.report['consentObservation'] = {name: None for name in p.MSI_CONSENT_BOOLEANS}
+        self.report['consentObservation'].update(ownClientPidObserved=True, ownedWindowSeen=True,
+            authoredTitleSeen=True, authoredWindowVisibleEnabled=True, removeButtonSeen=True,
+            removeButtonVisibleEnabled=True, removePatternSeen=True, removeInvoked=True,
+            enumerationFailed=False, pollCount=3, managedExceptionHResult=None)
+
+    def test_v4_authored_consent_requires_actual_owned_visible_invoke_chain(self):
+        self.use_consent_v4(); self.save()
+        self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
+        for field in ('ownClientPidObserved', 'ownedWindowSeen', 'authoredTitleSeen', 'authoredWindowVisibleEnabled',
+                      'removeButtonSeen', 'removeButtonVisibleEnabled', 'removePatternSeen', 'removeInvoked'):
+            for wrong in (None, False):
+                self.report['consentObservation'][field] = wrong; self.save()
+                with self.subTest(field=field, wrong=wrong):
+                    with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['consentObservation'][field] = True
+        self.report['consentObservation'] = None; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-pass-consent'): p.validate_msi_report(self.root, self.context)
+
+    def test_v4_callback_failure_cannot_qualify_a_successful_consent_chain(self):
+        self.use_consent_v4()
+        for field, wrong in [('enumerationFailed', True), ('enumerationFailed', None),
+                             ('managedExceptionHResult', -2146233088)]:
+            previous = self.report['consentObservation'][field]
+            self.report['consentObservation'][field] = wrong; self.save()
+            with self.subTest(field=field, wrong=wrong):
+                with self.assertRaisesRegex(p.EvidenceError, 'msi-pass-consent'):
+                    p.validate_msi_report(self.root, self.context)
+            self.report['consentObservation'][field] = previous
+
+    def test_v4_timeout_keeps_unknown_exit_and_observed_branch_without_claiming_cancellation(self):
+        self.use_consent_v4()
+        self.report.update(state='inconclusive', stage='VisibleConsentUnverified', visibleConsentObserved=False,
+                           clientExited=None, clientExitCode=None, postCodeAbsent=None, payloadAbsent=None,
+                           workerSettled=False, ownedTeardown=None, toolIdentityStage=None, toolIdentityReason=None,
+                           toolNativeTrustResult=None, toolFileTrustResult=None)
+        self.report['consentObservation'].update(authoredTitleSeen=False, authoredWindowVisibleEnabled=None,
+            removeButtonSeen=None, removeButtonVisibleEnabled=None, removePatternSeen=None, removeInvoked=None,
+            genericTitleSeen=True, genericWindowVisibleEnabled=True, genericPromptMatched=False,
+            yesControlSeen=False, pollCount=700)
+        self.save(); observed = p.validate_msi_report(self.root, self.context)
+        self.assertFalse(observed['consentObservation']['genericPromptMatched'])
+        self.assertIsNone(observed['consentObservation']['removePatternSeen'])
+        self.assertIsNone(observed['clientExited'])
+        self.assertFalse(observed['workerSettled'])
+        self.assertIsNone(observed['ownedTeardown'])
+        self.report['consentObservation']['pollCount'] = None; self.save()
+        self.assertIsNone(p.validate_msi_report(self.root, self.context)['consentObservation']['pollCount'])
+
+    def test_v4_enumeration_failure_preserves_nullable_unreached_branches_and_actual_hresult(self):
+        self.use_consent_v4()
+        self.report.update(state='inconclusive', stage='VisibleRequest', visibleConsentObserved=None,
+                           clientExited=None, clientExitCode=None, postCodeAbsent=None, payloadAbsent=None,
+                           workerSettled=False, ownedTeardown=None)
+        facts = {name: None for name in p.MSI_CONSENT_BOOLEANS}
+        facts.update(ownClientPidObserved=True, enumerationFailed=True, pollCount=1, managedExceptionHResult=-2146233088)
+        self.report['consentObservation'] = facts; self.save()
+        actual = p.validate_msi_report(self.root, self.context)
+        self.assertTrue(actual['consentObservation']['enumerationFailed'])
+        self.assertIsNone(actual['consentObservation']['ownedWindowSeen'])
+        self.report['consentObservation']['pollCount'] = 0; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-consent-unpolled'): p.validate_msi_report(self.root, self.context)
+
+    def test_v4_fixed_diagnostics_reject_raw_ui_data_and_invalid_counts(self):
+        self.use_consent_v4()
+        for field, wrong in [('pollCount', True), ('pollCount', 4097), ('pollCount', -1),
+                             ('managedExceptionHResult', True), ('enumerationFailed', 1)]:
+            original = self.report['consentObservation'][field]; self.report['consentObservation'][field] = wrong; self.save()
+            with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report['consentObservation'][field] = original
+        self.report['consentObservation']['windowTitle'] = 'TEST-ONLY-NO-REAL-WINDOW'; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-consent-schema'): p.validate_msi_report(self.root, self.context)
+        del self.report['consentObservation']['windowTitle']; self.report['formatVersion'] = 3; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-report-schema'): p.validate_msi_report(self.root, self.context)
+
     def test_owned_success_requires_every_actual_fact_not_only_an_exit_code(self):
         self.assertEqual('passed', p.validate_msi_report(self.root, self.context)['state'])
         for field in p.MSI_FACTS:

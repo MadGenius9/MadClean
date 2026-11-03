@@ -51,6 +51,9 @@ class PublisherTests(unittest.TestCase):
         before = {f.name:f.read_bytes() for f in self.root.iterdir() if f.is_file()}
         with self.assertRaises(p.EvidenceError): self.prepare()
         self.assertEqual(before,{f.name:f.read_bytes() for f in self.root.iterdir() if f.is_file()})
+    def test_absolute_shortcut_control_cannot_be_omitted_from_passed_evidence(self):
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'shortcut-rename-win32-absolute-control']
+        self.save(); self.rejected()
     def test_component_store_preview_check_cannot_be_omitted_from_passed_evidence(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'ui-component-store-preview-interaction']
         self.save(); self.rejected()

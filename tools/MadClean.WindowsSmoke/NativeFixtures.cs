@@ -147,6 +147,14 @@ internal static partial class NativeFixtures
             }
             if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
             {
+                // Independent full-name/NULL-root Win32 experiment on a fresh owned child.
+                // This never retries or changes the earlier relative Win32/C++/NT checks.
+                shortcutProbeTeardownCompleted = false;
+                shortcutProbeTeardownCompleted = ShortcutRenameHandles(fixture, marker, report, token, absoluteControl: true);
+            }
+            else report.Unknown("shortcut-rename-win32-absolute-control", "Prior probe ownership/teardown uncertain; no independent absolute-name control started and the marked tree is retained.");
+            if (shortcutProbeTeardownCompleted && !ShortcutRenameProbe.HasPendingNativeProbe)
+            {
                 ShortcutDirectorySharingFixture(fixture, report, token);
                 shortcutProbeTeardownCompleted = ShortcutDirectorySharingCleanupConfirmed;
             }

@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.WindowsSmoke;
 
-internal enum ShortcutRenameProbeBackend { ManagedWin32, CppWin32, NativeNt }
+internal enum ShortcutRenameProbeBackend { ManagedWin32, CppWin32, NativeNt, ManagedWin32AbsoluteControl }
 internal enum ShortcutRenameProbeFileSystem { Unknown, Ntfs, Refs }
 internal enum ShortcutRenameGuardProfile { Baseline, SourceParentShareRead, DestinationParentShareRead, FixtureAncestorShareRead }
 internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObserved, bool RestoreObserved,
@@ -23,6 +23,9 @@ internal sealed record ShortcutRenameProbeResult(CheckState State, bool MoveObse
     internal bool? ScalarDiagRootDirValid { get; init; }
     internal bool? ScalarDiagSameVolume { get; init; }
     internal ShortcutRenameProbeFileSystem FileSystem { get; init; }
+    internal bool? NullRootObserved { get; init; }
+    internal bool? AbsoluteNameValidated { get; init; }
+    internal bool? HeldDestinationParentValidated { get; init; }
     internal bool MappingReadOnlyOpenRequested { get; init; }
     internal int? MappedNativeErrorCode { get; init; }
     internal int NtApiCalls { get; init; }
@@ -55,6 +58,10 @@ internal static class ShortcutRenameProbe
         Action<string, string> createOwnedShortcut, CancellationToken token)
         => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.CppWin32, ShortcutRenameGuardProfile.Baseline, token);
 
+    internal static Task<ShortcutRenameProbeResult> RunWin32AbsoluteControlAsync(string ownedFixtureRoot, string ownerMarker,
+        Action<string, string> createOwnedShortcut, CancellationToken token)
+        => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.ManagedWin32AbsoluteControl, ShortcutRenameGuardProfile.Baseline, token);
+
     internal static Task<ShortcutRenameProbeResult> RunNtControlAsync(string ownedFixtureRoot, string ownerMarker,
         Action<string, string> createOwnedShortcut, CancellationToken token)
         => StartAsync(ownedFixtureRoot, ownerMarker, createOwnedShortcut, ShortcutRenameProbeBackend.NativeNt, ShortcutRenameGuardProfile.Baseline, token);
@@ -67,7 +74,9 @@ internal static class ShortcutRenameProbe
         Action<string, string> createOwnedShortcut, ShortcutRenameProbeBackend backend, ShortcutRenameGuardProfile profile, CancellationToken token)
     {
         if (token.IsCancellationRequested) return Empty(CheckState.Cancelled, "cancelled-before-start", backend, profile);
-        if (!Enum.IsDefined(profile)) return Empty(CheckState.Unsupported, "guard-profile-unsupported", backend, profile);
+        if (!Enum.IsDefined(profile) || !Enum.IsDefined(backend) ||
+            backend == ShortcutRenameProbeBackend.ManagedWin32AbsoluteControl && profile != ShortcutRenameGuardProfile.Baseline)
+            return Empty(CheckState.Unsupported, "guard-profile-unsupported", backend, profile);
         if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess) return Empty(CheckState.Unsupported, "windows-x64-required", backend, profile);
         if (Interlocked.CompareExchange(ref active, 1, 0) != 0) return Empty(CheckState.Unavailable, "previous-native-worker-pending", backend, profile);
         var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -120,6 +129,7 @@ internal static class ShortcutRenameProbe
         private int? diagnosticBufferBytes, diagnosticNameBytes;
         private bool? diagnosticRoot, diagnosticVolume;
         private ShortcutRenameProbeFileSystem fileSystem;
+        private bool? nullRootObserved, absoluteNameValidated, heldDestinationParentValidated;
         private bool mappingReadOnlyOpenRequested;
         private int? mappedNativeError;
         private int ntCalls, ntSuccessfulRenames;
@@ -137,7 +147,7 @@ internal static class ShortcutRenameProbe
                 int initialized = CoInitializeEx(0, 2);
                 if (initialized < 0) { reason = "com-initialization-unavailable"; return Result(); }
                 com = true; Check();
-                if (backend != ShortcutRenameProbeBackend.ManagedWin32) LoadControl();
+                if (backend is ShortcutRenameProbeBackend.CppWin32 or ShortcutRenameProbeBackend.NativeNt) LoadControl();
                 child = Path.Combine(root, "shortcut-rename-probe-" + Guid.NewGuid().ToString("N"));
                 reason = "create-owned-child";
                 if (!CreateDirectoryW(child, 0)) throw Native();
@@ -247,6 +257,8 @@ internal static class ShortcutRenameProbe
             Backend = backend, GuardProfile = profile, ControlApiCalls = controlCalls, ScalarDiagBufferBytes = diagnosticBufferBytes,
             ScalarDiagNameBytes = diagnosticNameBytes, ScalarDiagRootDirValid = diagnosticRoot,
             ScalarDiagSameVolume = diagnosticVolume, FileSystem = fileSystem,
+            NullRootObserved = nullRootObserved, AbsoluteNameValidated = absoluteNameValidated,
+            HeldDestinationParentValidated = heldDestinationParentValidated,
             MappingReadOnlyOpenRequested = mappingReadOnlyOpenRequested, MappedNativeErrorCode = mappedNativeError,
             NtApiCalls = ntCalls, NtSuccessfulRenameCalls = ntSuccessfulRenames, ImmediateNtStatus = immediateNtStatus,
             CompletionNtStatus = completionNtStatus, CompletionNtStatusObserved = completionObserved,
@@ -392,6 +404,33 @@ internal static class ShortcutRenameProbe
             var fs = new StringBuilder(32);
             if (GetVolumeInformationByHandleW(directory, null, 0, out _, out _, out _, fs, 32))
                 fileSystem = fs.ToString() switch { "NTFS" => ShortcutRenameProbeFileSystem.Ntfs, "ReFS" => ShortcutRenameProbeFileSystem.Refs, _ => ShortcutRenameProbeFileSystem.Unknown };
+            bool absoluteControl = backend == ShortcutRenameProbeBackend.ManagedWin32AbsoluteControl;
+            string? absoluteParent = null;
+            (ulong Volume, Guid Id, uint Attributes, uint ReparseTag)? parentIdentity = null;
+            if (absoluteControl)
+            {
+                // This native call receives no RootDirectory. Keep its independent held
+                // parent qualification distinct from a claimed non-NULL native root.
+                diagnosticRoot = null;
+                var held = parents.Where(item => ReferenceEquals(item.Handle, directory)).ToArray();
+                if (held.Length != 1 || held[0].Path != child && held[0].Path != vault) throw new InvalidDataException();
+                parentIdentity = DirectoryIdentity(directory);
+                absoluteParent = FinalPath(directory);
+                if (!string.Equals(absoluteParent, Path.TrimEndingDirectorySeparator(held[0].Path), StringComparison.OrdinalIgnoreCase) ||
+                    absoluteParent.Length < 3 || !char.IsAsciiLetter(absoluteParent[0]) || absoluteParent[1] != ':' || absoluteParent[2] != '\\' ||
+                    !string.Equals(ShortcutPathPolicy.NormalizeLocalPath(absoluteParent, allowDriveRoot: false), absoluteParent, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException();
+                string destination = Path.GetFullPath(Path.Combine(absoluteParent, leaf));
+                if (destination.Length >= 1024 || destination.Length <= absoluteParent.Length ||
+                    !string.Equals(Path.GetDirectoryName(destination), absoluteParent, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(destination, absoluteParent + "\\" + leaf, StringComparison.Ordinal) ||
+                    destination.StartsWith(@"\\", StringComparison.Ordinal) || destination[2..].Contains(':') || destination.Contains('/') ||
+                    !string.Equals(ShortcutPathPolicy.NormalizeLocalPath(destination, allowDriveRoot: false), destination, StringComparison.OrdinalIgnoreCase) || DirectoryIdentity(directory) != parentIdentity.Value ||
+                    !string.Equals(FinalPath(directory), absoluteParent, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException();
+                Array.Clear(name); name = Encoding.Unicode.GetBytes(destination);
+                if (name.Length != checked(destination.Length * 2) || name.Length > 2046) throw new InvalidDataException();
+                diagnosticNameBytes = name.Length; diagnosticBufferBytes = 24 + name.Length;
+                heldDestinationParentValidated = true;
+            }
             if (backend == ShortcutRenameProbeBackend.NativeNt)
             {
                 nativeError = 0; // Not an NTSTATUS-to-Win32 conversion; this output is unused by this backend.
@@ -434,10 +473,28 @@ internal static class ShortcutRenameProbe
             {
                 Marshal.Copy(new byte[24 + name.Length], 0, buffer, 24 + name.Length);
                 directory.DangerousAddRef(ref reference);
-                Marshal.WriteIntPtr(buffer, 8, directory.DangerousGetHandle()); Marshal.WriteInt32(buffer, 16, name.Length);
+                Marshal.WriteIntPtr(buffer, 8, absoluteControl ? 0 : directory.DangerousGetHandle()); Marshal.WriteInt32(buffer, 16, name.Length);
                 Marshal.Copy(name, 0, buffer + 20, name.Length);
+                if (absoluteControl)
+                {
+                    nullRootObserved = Marshal.ReadIntPtr(buffer, 8) == 0;
+                    var packed = new byte[name.Length];
+                    try
+                    {
+                        Marshal.Copy(buffer + 20, packed, 0, packed.Length);
+                        absoluteNameValidated = nullRootObserved == true && Marshal.ReadByte(buffer, 0) == 0 &&
+                            Marshal.ReadInt32(buffer, 16) == name.Length && packed.AsSpan().SequenceEqual(name) &&
+                            DirectoryIdentity(directory) == parentIdentity!.Value &&
+                            string.Equals(FinalPath(directory), absoluteParent, StringComparison.OrdinalIgnoreCase);
+                    }
+                    finally { Array.Clear(packed); }
+                    if (absoluteNameValidated != true) throw new InvalidDataException();
+                    controlCalls++;
+                }
                 bool result = SetFileInformationByHandle(sourceHandle, 3, buffer, (uint)(24 + name.Length));
                 nativeError = result ? 0 : Marshal.GetLastWin32Error();
+                if (absoluteControl && (DirectoryIdentity(directory) != parentIdentity!.Value ||
+                    !string.Equals(FinalPath(directory), absoluteParent, StringComparison.OrdinalIgnoreCase))) throw new InvalidDataException();
                 return result;
             }
             finally { if (reference) directory.DangerousRelease(); Marshal.FreeHGlobal(buffer); }

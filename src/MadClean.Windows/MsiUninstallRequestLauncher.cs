@@ -254,7 +254,7 @@ public sealed class MsiUninstallRequestLauncher
             bool interactionFailed = false;
             if (interaction != null)
             {
-                try { await interaction(new MsiUninstallFixtureClient(process)).ConfigureAwait(false); }
+                try { await interaction(new MsiUninstallFixtureClient(process, toolIdentity)).ConfigureAwait(false); }
                 catch (Exception) { interactionFailed = true; }
             }
             // User cancellation after the committed boundary belongs to the visible Windows
@@ -283,7 +283,9 @@ public sealed class MsiUninstallRequestLauncher
 internal sealed class MsiUninstallFixtureClient
 {
     private readonly Process process;
-    internal MsiUninstallFixtureClient(Process process) => this.process = process;
+    internal MsiUninstallFixtureClient(Process process, SystemToolIdentityDiagnostic? toolIdentity)
+    { this.process = process; ToolIdentity = toolIdentity; }
+    internal SystemToolIdentityDiagnostic? ToolIdentity { get; }
     internal int? ProcessId { get { try { return process.Id; } catch (Exception) { return null; } } }
     internal bool? HasExited { get { try { return process.HasExited; } catch (Exception) { return null; } } }
     internal bool TryInvokeIfRunning(Action action)
