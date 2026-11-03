@@ -171,3 +171,5 @@ Read-only WUA offer metadata now includes independent declared installation beha
 
 
 The separate [present-device driver properties](DEVICE-DRIVERS.md) integration uses fixed read-only SetupAPI functions and five documented DEVPROPKEY values, with no hardware/instance IDs or binary paths projected. Its owning worker retains pending native calls and checks SetupDiDestroyDeviceInfoList explicitly. DriverVer version/date and INF provider are metadata, not loaded binary, signature, version ordering or WUA applicability evidence. Access denial never requests elevation.
+
+The existing WinGet adapter now has an internal immutable [same-query diagnostic projection](WINGET-QUERY-OBSERVATION.md). Public inventory results, parser acceptance and fixed query arguments are unchanged. Diagnostics distinguish actual transport/parser branches using fixed labels/nullability, never provider-message matching or a guessed cause; they do not turn Unknown inventory into source success.

@@ -2,12 +2,22 @@ using System.Text.RegularExpressions;
 
 namespace MadClean.Core;
 
+public enum WingetParseIssue
+{
+    Accepted, EmptyOutput, HeaderNotRecognized, SeparatorNotRecognized, UnsupportedDisplayCharacters, ShortRow, IncompleteFields, NoPackageRows
+}
+
+public sealed record WingetParseObservation(CheckResult<AppUpdate> Result, WingetParseIssue Issue);
+
 public static partial class WingetParser
 {
     // WinGet's table is localized and not a stable JSON API. Reject unfamiliar/truncated data.
     // Even a successfully listed package without a usable Available value remains Unknown.
-    public static CheckResult<AppUpdate> Parse(string output)
+    public static CheckResult<AppUpdate> Parse(string output) => ParseObserved(output).Result;
+
+    public static WingetParseObservation ParseObserved(string output)
     {
+        bool recognizedHeader = false;
         var lines = output.Replace("\r", "").Split('\n');
         for (int i = 0; i + 1 < lines.Length; i++)
         {
@@ -18,6 +28,7 @@ public static partial class WingetParser
             // Official WinGet TableOutput uses one space when a column is exactly as wide
             // as its header. Headers are single words; do not assume two-space separators.
             if (!KnownLayout(names)) continue;
+            recognizedHeader = true;
             if (!Separator().IsMatch(lines[i + 1].Trim())) continue;
             List<AppUpdate> apps = [];
             for (int row = i + 2; row < lines.Length; row++)
@@ -28,9 +39,9 @@ public static partial class WingetParser
                 // and its one-cell ellipsis are unambiguous here; unfamiliar Unicode/control
                 // output must not shift identifiers/versions into plausible update results.
                 if (line.Any(c => c < ' ' || (c > '~' && c != '…')))
-                    return Unknown("WinGet returned characters with unsupported display width; results were not trusted.");
+                    return Unknown(WingetParseIssue.UnsupportedDisplayCharacters, "WinGet returned characters with unsupported display width; results were not trusted.");
                 if (line.Length < columns[2].Index + 1)
-                    return Unknown("WinGet returned an unrecognized row; results were not trusted.");
+                    return Unknown(WingetParseIssue.ShortRow, "WinGet returned an unrecognized row; results were not trusted.");
                 string Cell(int index)
                 {
                     int start = columns[index].Index;
@@ -41,7 +52,7 @@ public static partial class WingetParser
                 string name = Cell(0), id = Cell(1), version = Cell(2);
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(id) || id.Any(char.IsWhiteSpace) ||
                     IsTruncated(id) || string.IsNullOrWhiteSpace(version))
-                    return Unknown("WinGet returned incomplete identifiers; results were not trusted.");
+                    return Unknown(WingetParseIssue.IncompleteFields, "WinGet returned incomplete identifiers; results were not trusted.");
                 int availableIndex = Array.IndexOf(names, "Available"), sourceIndex = Array.IndexOf(names, "Source");
                 string available = availableIndex < 0 ? "" : Cell(availableIndex);
                 var status = IsUsableVersion(version) && IsUsableVersion(available) ? CheckState.Available : CheckState.Unknown;
@@ -49,10 +60,12 @@ public static partial class WingetParser
                     sourceIndex < 0 ? "winget" : Cell(sourceIndex), status));
             }
             if (apps.Count == 0)
-                return Unknown("WinGet returned a table without package rows; no inventory determination was made.");
-            return new(CheckState.Available, "WinGet inventory returned. Unknown means no verified update determination; coverage is limited to matched packages.", apps);
+                return Unknown(WingetParseIssue.NoPackageRows, "WinGet returned a table without package rows; no inventory determination was made.");
+            return new(new(CheckState.Available, "WinGet inventory returned. Unknown means no verified update determination; coverage is limited to matched packages.", apps), WingetParseIssue.Accepted);
         }
-        return Unknown("WinGet output was empty, localized, or unrecognized. No up-to-date claim can be made.");
+        return Unknown(string.IsNullOrWhiteSpace(output) ? WingetParseIssue.EmptyOutput
+            : recognizedHeader ? WingetParseIssue.SeparatorNotRecognized : WingetParseIssue.HeaderNotRecognized,
+            "WinGet output was empty, localized, or unrecognized. No up-to-date claim can be made.");
     }
 
     private static bool KnownLayout(string[] names) =>
@@ -64,7 +77,8 @@ public static partial class WingetParser
     private static bool IsTruncated(string value) => value.Contains('…') || value.Contains("...", StringComparison.Ordinal);
     private static bool IsUsableVersion(string value) => !string.IsNullOrWhiteSpace(value) &&
         !value.Equals("Unknown", StringComparison.OrdinalIgnoreCase) && !IsTruncated(value);
-    private static CheckResult<AppUpdate> Unknown(string message) => CheckResult<AppUpdate>.Empty(CheckState.Unknown, message);
+    private static WingetParseObservation Unknown(WingetParseIssue issue, string message) =>
+        new(CheckResult<AppUpdate>.Empty(CheckState.Unknown, message), issue);
 
     [GeneratedRegex(@"[^ ]+")]
     private static partial Regex Columns();

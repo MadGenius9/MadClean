@@ -97,19 +97,39 @@ public sealed class WindowsInventory : IComputerInventory
         return WindowsResponseParser.Defender(result.Output);
     }, "Defender", token);
 
-    public Task<CheckResult<AppUpdate>> AppsAsync(CancellationToken token) => QueryAsync(async () =>
+    public async Task<CheckResult<AppUpdate>> AppsAsync(CancellationToken token) =>
+        (await AppsObservedAsync(token).ConfigureAwait(false)).Result;
+
+    internal async Task<WingetQueryObservation> AppsObservedAsync(CancellationToken token)
     {
-        // App execution alias: never resolve winget from a writable working-directory/PATH entry.
-        var profile = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!Path.IsPathFullyQualified(profile))
-            return CheckResult<AppUpdate>.Empty(CheckState.Unavailable, "The Windows local application-data folder could not be resolved. Check the user profile; WinGet was not executed.");
-        var winget = Path.Combine(profile, @"Microsoft\WindowsApps\winget.exe");
-        if (!File.Exists(winget)) return CheckResult<AppUpdate>.Empty(CheckState.Unavailable, "WinGet is unavailable for this user. Install or repair Microsoft's App Installer, then retry.");
-        var result = await runner.RunAsync(winget, ["list", "--source", "winget", "--disable-interactivity"], TimeSpan.FromSeconds(90), token);
-        if (result.ExitCode != 0) return Failure<AppUpdate>("WinGet", result.ExitCode,
-            "Open WinGet manually to review source agreements, network access or version compatibility; MadClean never accepts agreements silently.");
-        return WingetParser.Parse(result.Output);
-    }, "WinGet", token);
+        token.ThrowIfCancellationRequested();
+        WingetQueryObservation Unreturned(WingetQueryOutcome outcome, CheckState state, string message) =>
+            new(CheckResult<AppUpdate>.Empty(state, message), new(outcome, null, null, null));
+        try
+        {
+            // App execution alias: never resolve winget from a writable working-directory/PATH entry.
+            var profile = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!Path.IsPathFullyQualified(profile))
+                return Unreturned(WingetQueryOutcome.ProfileUnavailable, CheckState.Unavailable,
+                    "The Windows local application-data folder could not be resolved. Check the user profile; WinGet was not executed.");
+            var winget = Path.Combine(profile, @"Microsoft\WindowsApps\winget.exe");
+            if (!File.Exists(winget)) return Unreturned(WingetQueryOutcome.AliasUnavailable, CheckState.Unavailable,
+                "WinGet is unavailable for this user. Install or repair Microsoft's App Installer, then retry.");
+            var result = await runner.RunAsync(winget, ["list", "--source", "winget", "--disable-interactivity"], TimeSpan.FromSeconds(90), token).ConfigureAwait(false);
+            bool content = !string.IsNullOrWhiteSpace(result.Output);
+            if (result.ExitCode != 0) return new(Failure<AppUpdate>("WinGet", result.ExitCode,
+                "Open WinGet manually to review source agreements, network access or version compatibility; MadClean never accepts agreements silently."),
+                new(WingetQueryOutcome.NonzeroExit, result.ExitCode, content, null));
+            var parsed = WingetParser.ParseObserved(result.Output);
+            return new(parsed.Result, new(WingetQueryOutcome.ParsedOutput, result.ExitCode, content, parsed.Issue));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (TimeoutException) { return Unreturned(WingetQueryOutcome.TimedOut, CheckState.Failed, "WinGet timed out. Check the provider service/network and retry."); }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        { return Unreturned(WingetQueryOutcome.UnexpectedResponse, CheckState.Unknown, "WinGet returned an unexpected response. Update the provider or report a compatibility issue; no successful check is claimed."); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or System.Security.SecurityException)
+        { return Unreturned(WingetQueryOutcome.QueryFailed, CheckState.Failed, $"WinGet could not be queried (code 0x{ex.HResult:X8}). Check provider availability and access; no elevation was requested."); }
+    }
 
     public Task<CheckResult<SystemUpdate>> SystemUpdatesAsync(CancellationToken token) => QueryAsync(async () =>
     {
