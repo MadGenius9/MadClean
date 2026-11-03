@@ -117,8 +117,13 @@ public sealed class MsiUninstallRequestLauncher
             if (authorization != null && !authorization.TransferToWorker(intent))
                 return Task.FromResult(Blocked(intent, requested,
                     "The exact owned qualification product was not established. No installer started."));
-            if (authorization == null && publicFixtureObservation is { } observer && observer.TryClaim(intent))
+            if (authorization == null && publicFixtureObservation is { } observer)
             {
+                // While a disposable UI fixture is attached, a mistaken selection
+                // must not fall through to an ordinary unrelated product request.
+                if (!observer.TryClaim(intent))
+                    return Task.FromResult(Blocked(intent, requested,
+                        "The active owned UI qualification does not match this exact product. No request started."));
                 owner.ObservePublicFixture(observer);
                 publicFixtureObservation = null;
             }
