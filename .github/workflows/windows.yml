@@ -171,8 +171,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  windows-component-store-status:
+    needs: build-test-package
+    if: >-
+      ${{ success() && github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked recorded-status qualification dependencies
+        run: dotnet restore MadClean.sln --locked-mode
+      - name: Build the separate recorded component-store flag mode
+        run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Qualify one explicit inbox non-repair CheckHealth request
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+          MADCLEAN_COMPONENT_STORE_STATUS_VALIDATION: '1'
+        run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --component-store-status-validation
+      - name: Preserve only source-bound component-store flag facts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-Component-store-status-validation
+          path: artifacts/component-store-status-validation/report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   publish-verification:
-    needs: [build-test-package, windows-verification, windows-msi-request]
+    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
           github.ref == 'refs/heads/feat/phase-one-foundation' &&
@@ -233,8 +268,18 @@ jobs:
           name: MadClean-MSI-request-validation
           path: downloaded-msi
           digest-mismatch: error
+      - name: Retrieve this run's separate component-store status facts
+        id: component_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-Component-store-status-validation
+          path: downloaded-component-store
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
+          MADCLEAN_COMPONENT_RESULT: ${{ needs.windows-component-store-status.result }}
+          MADCLEAN_COMPONENT_DOWNLOAD_RESULT: ${{ steps.component_evidence.outcome }}
           MADCLEAN_MSI_RESULT: ${{ needs.windows-msi-request.result }}
           MADCLEAN_MSI_DOWNLOAD_RESULT: ${{ steps.msi_evidence.outcome }}
           MADCLEAN_BUILD_RESULT: ${{ needs.build-test-package.result }}
@@ -265,3 +310,6 @@ jobs:
           --msi-request-reports downloaded-msi
           --msi-download-result "$MADCLEAN_MSI_DOWNLOAD_RESULT"
           --msi-result "$MADCLEAN_MSI_RESULT"
+          --component-store-reports downloaded-component-store
+          --component-store-download-result "$MADCLEAN_COMPONENT_DOWNLOAD_RESULT"
+          --component-store-result "$MADCLEAN_COMPONENT_RESULT"

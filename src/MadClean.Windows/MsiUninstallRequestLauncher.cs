@@ -136,7 +136,7 @@ public sealed class MsiUninstallRequestLauncher
                         "The owned request could not be observed conclusively. Windows Installer may continue; no cancellation, rollback or completed uninstall is claimed. Ownership is retained and another request is blocked.");
                 }
                 else result = Blocked(intent, requested,
-                    "Preparation or the direct Windows process start failed. No alternate command, elevated caller, silent mode or retry was used; no completed uninstall is claimed.");
+                    "Preparation or the direct Windows process start failed. No alternate command, caller change, elevation request, silent mode or retry was used; no completed uninstall is claimed.");
             }
             catch (Exception)
             {

@@ -12,6 +12,12 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
         Closing += (_, args) =>
         {
+            if (model.HasPendingComponentStoreStatus)
+            {
+                args.Cancel = true;
+                model.ExplainComponentStoreCloseBlock();
+                return;
+            }
             if (!model.HasPendingMsiUninstallRequest) return;
             args.Cancel = true;
             model.ExplainMsiUninstallCloseBlock();

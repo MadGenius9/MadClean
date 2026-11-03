@@ -41,6 +41,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeAdditionalDiscovery();
         InitializeGuidedWindowsTools();
         InitializeSystemTools();
+        InitializeComponentStoreStatus();
         InitializeStartupActions();
         InitializeWerMetadata();
         InitializeManufacturerServiceFacts();
@@ -73,11 +74,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string LogMessage { get => logMessage; private set => Set(ref logMessage, value); }
     public void Cancel()
     {
+        if (TryRequestComponentStoreStopFromUi()) return;
         if (ExplainCommittedMsiUninstallCancel()) return;
         cancellation?.Cancel();
     }
     public void Shutdown()
     {
+        ShutdownComponentStoreStatusUi();
         ShutdownMsiUninstallRequestUi();
         Cancel();
         // The service owns in-flight handles; disposal only cancels work before commit and

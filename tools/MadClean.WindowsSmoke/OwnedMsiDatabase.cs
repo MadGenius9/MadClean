@@ -74,7 +74,7 @@ internal sealed class OwnedMsiDatabase : IDisposable
             uint summaryCode = MsiGetSummaryInformationW(database, null, 6, out uint summary); ObserveHandle(summaryCode, summary);
             SetSummary(summary, 1, 2, 1252, null); SetSummary(summary, 2, 30, 0, ProductName);
             SetSummary(summary, 7, 30, 0, "x64;1033"); SetSummary(summary, 9, 30, 0, packageCode.ToString("B").ToUpperInvariant());
-            SetSummary(summary, 14, 3, 200, null); SetSummary(summary, 15, 3, 0, null);
+            SetSummary(summary, 14, 3, 200, null); SetSummary(summary, 15, 3, 8, null);
             Check(MsiSummaryInfoPersist(summary)); Close(summary); LastOperation = "Commit"; Check(MsiDatabaseCommit(database));
         }
         catch { Dispose(); throw; }
@@ -137,7 +137,7 @@ internal sealed class OwnedMsiDatabase : IDisposable
                 Check(MsiSummaryInfoGetPropertyW(summary, expected.Item1, out uint type, out _, 0, value, ref size));
                 if (type != 30 || value.ToString() != expected.Item2) FailInvariant();
             }
-            foreach (var expected in new[] { (14u, 200), (15u, 0) })
+            foreach (var expected in new[] { (14u, 200), (15u, 8) })
             {
                 uint size = 0;
                 Check(MsiSummaryInfoGetPropertyW(summary, expected.Item1, out uint type, out int value, 0, null, ref size));

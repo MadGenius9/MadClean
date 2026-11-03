@@ -23,13 +23,17 @@ _diagnostic_spec = importlib.util.spec_from_file_location("madclean_ci_diagnosti
 ci_diagnostics = importlib.util.module_from_spec(_diagnostic_spec)
 _diagnostic_spec.loader.exec_module(ci_diagnostics)
 
+_component_spec = importlib.util.spec_from_file_location("madclean_component_store_evidence", Path(__file__).with_name("component_store_evidence.py"))
+component_store_evidence = importlib.util.module_from_spec(_component_spec)
+_component_spec.loader.exec_module(component_store_evidence)
+
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", *IMAGES)
 REQUIRED_CHECKS = {
-    "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
+    "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-component-store-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
     "duplicate-content-fixtures", "duplicate-hardlink-fixture", "duplicate-pair-review-fixture", "duplicate-pair-recheck-fixture", "shortcut-directory-sharing-observation", "system-tool-process-observation-fixture", "system-tool-journal-store-fixture", "system-tool-journal-cross-instance-fixture", "system-tool-journal-lifecycle-fixture", "system-tool-private-journal-scope", "owned-relative-directory-create-control", "owned-private-parent-security-preflight", "published-executable-startup", "update-discovery-provider-contract", "wua-offer-metadata-contract", "winget-query-observation-contract", "device-driver-properties-contract", "ui-device-driver-inventory-interaction", "dism-powershell-capability-contract", "dism-builtin-import-control-contract", "cleanup-file-evidence-fixture", "cleanup-disposition-owned-probe", "cleanup-mapped-disposition-owned-probe", "cleanup-confirmation-owned-protocol", "ui-cleanup-file-evidence", "ui-cleanup-file-evidence-interaction", "ui-cleanup-selection-review-interaction", "ui-cleanup-file-evidence-selection-race", "ui-cleanup-file-evidence-cancellation", "ui-diagnostic-channel-coverage-interaction", "ui-msi-action-binding-interaction", "startup-transaction-namespace-observation", "shortcut-existing-local-fixture",
     "shortcut-missing-local-fixture", "shortcut-no-mutation", "shortcut-rename-handle-probe", "shortcut-rename-cpp-control", "shortcut-rename-nt-control", "shortcut-rename-source-guard", "shortcut-rename-destination-guard", "shortcut-rename-ancestor-guard", "shortcut-mapped-write-witness", "shortcut-selected-recheck-fixture", "shortcut-file-evidence-fixture", "shortcut-dacl-fixture", "diagnostics-metadata-contract", "fixture-teardown",
@@ -343,7 +347,7 @@ def validate_msi_report(directory, context):
         reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["bindingReason"] == "Bound" and value["bindingChangedFields"] == 0 and value["selectionNoRemove"] is False and value["bindingNoRemove"] is False and value["bindingInstanceCount"] == 1 and value["expectedMask"] == 3 and value["observedContext"] == 2 and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
     return value
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped"):
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped"):
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -374,6 +378,13 @@ def prepare(root, download, build_result, verification_result, environment, core
         # A rejected optional action qualification report must not suppress independent
         # passive/core evidence or turn absence into a successful qualification.
         msi_report, msi_error = None, "msi-evidence-rejected"
+    reject_unless(component_download_result in RESULTS and component_result in RESULTS, "component-job-result")
+    component_error = None
+    try:
+        component_report = component_store_evidence.collect(component_directory, context, read_json, safe_path, reject_unless) if component_download_result == "success" else None
+    except (ValueError, OSError):
+        # Optional D2 qualification cannot suppress independent passive/MSI/core facts.
+        component_report, component_error = None, "component-evidence-rejected"
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -399,6 +410,12 @@ def prepare(root, download, build_result, verification_result, environment, core
         "nativeLogArtifactOutcome": native_log_download_result,
         "nativeDiagnosticsPresent": native_diagnostics is not None,
         "nativeDiagnosticsError": native_diagnostics_error,
+        "componentStoreStatusScope": "Separate explicit disposable-runner recorded-flag check; Windows-managed DISM log/archive writes, no fresh scan or repair.",
+        "componentStoreStatusResult": component_result,
+        "componentStoreStatusArtifactOutcome": component_download_result,
+        "componentStoreStatusReportPresent": component_report is not None,
+        "componentStoreStatusQualified": component_result == "success" and component_report is not None and component_report["state"] == "passed",
+        "componentStoreStatusError": component_error,
         "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
         "msiRequestResult": msi_result,
         "msiRequestArtifactOutcome": msi_download_result,
@@ -418,6 +435,8 @@ def prepare(root, download, build_result, verification_result, environment, core
         files["native-ci-diagnostics.json"] = (json.dumps(native_diagnostics, indent=2) + "\n").encode()
     if msi_report is not None:
         files["msi-request.json"] = (json.dumps(msi_report, indent=2) + "\n").encode()
+    if component_report is not None:
+        files["component-store.json"] = (json.dumps(component_report, indent=2) + "\n").encode()
     return root, summary, files
 
 def publish(root, files, source_commit):
@@ -457,10 +476,13 @@ def main():
     parser.add_argument("--msi-request-reports", type=Path)
     parser.add_argument("--msi-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--msi-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--component-store-reports", type=Path)
+    parser.add_argument("--component-store-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--component-store-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

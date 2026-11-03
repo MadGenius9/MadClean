@@ -378,6 +378,10 @@ internal static partial class UiCapture
                 else
                     report.Unknown("ui-diagnostic-channel-coverage-interaction", "A prior GUI failure or pending query prevents a separate Event Log interaction; no channel coverage proof claimed.");
                 if (!report.Failed && !model.IsBusy && DiagnosticChannelInteractionSettled)
+                    await CheckComponentStorePreviewInteraction(window, model, report);
+                else
+                    report.Unknown("ui-component-store-preview-interaction", "Earlier GUI preparation or pending work prevented passive recorded-status preview interaction. No host, check or servicing operation was requested.");
+                if (!report.Failed && !model.IsBusy && DiagnosticChannelInteractionSettled)
                     await CheckMsiActionBindingInteraction(window, model, report);
                 else
                     report.Unknown("ui-msi-action-binding-interaction", "A previous GUI query or invariant is unsettled; no selected MSI interaction started.");
@@ -399,6 +403,8 @@ internal static partial class UiCapture
             {
                 if (!report.HasCheck("ui-packaged-settings-preview-interaction"))
                     report.Unknown("ui-packaged-settings-preview-interaction", "Earlier GUI preparation or an invariant failure did not complete the passive package preview interaction. No successful preview, extra query or Settings handoff is claimed.");
+                if (!report.HasCheck("ui-component-store-preview-interaction"))
+                    report.Unknown("ui-component-store-preview-interaction", "Earlier GUI preparation or an invariant failure did not complete passive recorded-status preview interaction. No host or Windows servicing operation was requested.");
                 window?.Close();
                 application.Shutdown(report.Failed ? 1 : 0);
             }

@@ -61,6 +61,8 @@ Diagnostics also shows [independent WER store counts](docs/WER-STORE-COUNTS.md) 
 
 Diagnostics now includes [inspection evidence from this session](docs/DIAGNOSTIC-INSPECTION-EVIDENCE.md): the disk-capacity and Defender observations already collected by Inspect this PC, with source, collection time, coverage, uncertainty, possible impact and next step. Selecting rows starts no query; these observations are not a health score.
 
+Diagnostics also offers a separate [recorded component-store status preview](docs/COMPONENT-STORE-STATUS.md). It describes the fixed inbox `Repair-WindowsImage -Online -CheckHealth -NoRestart` request, required existing administrator access, Windows log writes and cooperative stop limits. This is an existing-flag check, never a fresh scan, repair or overall health verdict. Production confirmation remains disabled until its dedicated disposable Windows qualification and review pass; ordinary inspection does not invoke it.
+
 ## Interface
 
 The supplied concept is implemented as a native navy/blue WPF workspace: horizontal Overview/Cleanup/Security/Startup/Updates navigation, an Inspect this PC hero, four inspection rows, a per-drive storage ring, Before you start guidance and an Activity footer. More tools retains every additional module. Inspect this PC runs local inventory only; online update discovery remains explicit. The ring uses real returned capacity or a neutral unchecked/unknown state, never the concept’s sample numbers. [UI structure and visual validation](docs/UI.md) records the inspected reference and remaining Windows rendering, keyboard/DPI and visual-comparison checks. Linux compilation does not verify visual fidelity.

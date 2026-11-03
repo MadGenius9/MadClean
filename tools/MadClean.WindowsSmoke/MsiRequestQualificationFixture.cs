@@ -143,7 +143,7 @@ internal static class MsiRequestQualificationFixture
                     if (previous == 0) throw new InvalidOperationException();
                     try
                     {
-                        uint result = MsiInstallProductW(package, "ALLUSERS=\"\" MSIINSTALLPERUSER=1 REBOOT=ReallySuppress");
+                        uint result = MsiInstallProductW(package, "ALLUSERS=\"\" REBOOT=ReallySuppress");
                         report.InstallCode = unchecked((int)result); report.InstallReturned = true;
                     }
                     finally { if (MsiSetInternalUI(previous, 0) == 0) throw new InvalidOperationException(); }

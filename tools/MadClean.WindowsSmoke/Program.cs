@@ -30,6 +30,10 @@ internal static class Program
         // passive harness watchdog and can touch only its fresh inert owned MSI product.
         if (args.Length == 1 && args[0] == "--msi-request-validation")
             return MsiRequestQualificationFixture.Run(repository);
+        // Separate explicit non-repair recorded component-store flag qualification.
+        // It is outside the passive watchdog; no query-process kill runner is reused.
+        if (args.Length == 1 && args[0] == "--component-store-status-validation")
+            return ComponentStoreStatusQualification.Run(repository);
         // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
         if (args.Length == 1 && args[0] == "--update-discovery")
         {

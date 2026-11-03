@@ -51,6 +51,9 @@ internal sealed class SystemToolTrustedLease : IDisposable
     internal static SystemToolTrustedLease OpenWindowsInstaller(CancellationToken token) =>
         Open(SystemToolExecutableTarget.WindowsInstaller, token);
 
+    internal static SystemToolTrustedLease OpenWindowsPowerShell(CancellationToken token) =>
+        Open(SystemToolExecutableTarget.WindowsPowerShell, token);
+
     private static SystemToolTrustedLease Open(SystemToolExecutableTarget target, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -62,8 +65,8 @@ internal sealed class SystemToolTrustedLease : IDisposable
                 new(SystemToolIdentityStage.SystemDirectory, SystemToolIdentityReason.IdentityBoundsOrPath, null));
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
         string fileName = SystemToolExecutableTargets.FileName(target);
-        string path = Path.Combine(system, fileName);
-        var leases = SystemToolTrustNative.LockDirectoryChain(system);
+        string path = Path.Combine(system, SystemToolExecutableTargets.RelativePath(target));
+        var leases = SystemToolTrustNative.LockDirectoryChain(Path.GetDirectoryName(path)!);
         FileStream? stream = null;
         SafeFileHandle? handle = null;
         try

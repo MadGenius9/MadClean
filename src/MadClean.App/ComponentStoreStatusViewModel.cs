@@ -1,0 +1,263 @@
+using System.Globalization;
+using System.Windows.Input;
+using System.Windows.Threading;
+using MadClean.Core;
+using MadClean.Windows;
+
+namespace MadClean.App;
+
+public sealed partial class MainViewModel
+{
+    private readonly IComponentStoreStatusProvider componentStoreStatus = new ComponentStoreStatusProvider();
+    private ComponentStoreStatusPreview? componentStorePreview;
+    private ComponentStoreStatusIntent? componentStoreIntent;
+    private IComponentStoreStatusSession? componentStoreSession;
+    private Task<ComponentStoreStatusResult>? componentStoreCompletion;
+    private CancellationTokenSource? componentStorePreparationStop;
+    private DispatcherTimer? componentStoreUiTimer;
+    private bool componentStoreAcknowledged, componentStoreRunActive, componentStoreOwnsBusy, componentStoreCallerStopRequested;
+    private bool componentStoreDispatchObservedByUi;
+    private string componentStoreMessage = "Not checked. Preparing this separate operation shows its scope only; nothing starts with inventory.";
+    private string componentStorePreviewDetails = "Prepare the fixed recorded-flags-only operation to review its source, permissions, log writes and stop limitations.";
+    private string componentStoreCurrentAssessment = "Not checked. No recorded component-store assessment is available in this session.";
+    private string componentStoreLastObservation = "No returned observation. The previous scan/flag date, broader Windows integrity and crash causes are unknown.";
+
+    public ICommand PrepareComponentStoreStatusCommand { get; private set; } = null!;
+    public ICommand ConfirmComponentStoreStatusCommand { get; private set; } = null!;
+    public ICommand RequestComponentStoreStopCommand { get; private set; } = null!;
+    public string ComponentStoreMessage { get => componentStoreMessage; private set => Set(ref componentStoreMessage, value); }
+    public string ComponentStorePreviewDetails { get => componentStorePreviewDetails; private set => Set(ref componentStorePreviewDetails, value); }
+    public string ComponentStoreCurrentAssessment { get => componentStoreCurrentAssessment; private set => Set(ref componentStoreCurrentAssessment, value); }
+    public string ComponentStoreLastObservation { get => componentStoreLastObservation; private set => Set(ref componentStoreLastObservation, value); }
+    public bool HasPendingComponentStoreStatus => componentStoreRunActive || componentStoreCompletion is { IsCompleted: false } ||
+        componentStoreSession?.HasPendingWork == true || componentStoreSession?.RequiresRetention == true ||
+        componentStoreStatus.HasPendingWork || componentStoreStatus.RequiresRetention;
+    public bool CanAcknowledgeComponentStoreStatus => ComponentStorePreviewCurrent && !IsBusy &&
+        !HasPendingComponentStoreStatus && !HasPendingMsiUninstallRequest;
+    public bool ComponentStoreAcknowledged
+    {
+        get => componentStoreAcknowledged;
+        set
+        {
+            bool accepted = value && ComponentStorePreviewCurrent;
+            Set(ref componentStoreAcknowledged, accepted);
+            if (accepted != value) PropertyChanged?.Invoke(this, new(nameof(ComponentStoreAcknowledged)));
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+    public string ComponentStoreQualification => componentStoreStatus.ProductionCheckValidated
+        ? "This separately confirmed path checks recorded flags only. The provider rechecks current effective administrator access before starting the fixed Windows host; unavailable access starts no check."
+        : "Confirmation is unavailable until this separate path passes its disposable Windows qualification. A preview starts no host or check, and no setting bypasses the qualification gate.";
+    private bool ComponentStorePreviewCurrent => componentStorePreview is { } preview &&
+        DateTimeOffset.UtcNow >= preview.PreparedUtc && DateTimeOffset.UtcNow < preview.ExpiresUtc;
+
+    private void InitializeComponentStoreStatus()
+    {
+        PrepareComponentStoreStatusCommand = new ActionCommand(PrepareComponentStoreStatus,
+            () => !IsBusy && !HasPendingComponentStoreStatus && !HasPendingMsiUninstallRequest);
+        ConfirmComponentStoreStatusCommand = new AsyncCommand(ConfirmComponentStoreStatus,
+            () => !IsBusy && !HasPendingComponentStoreStatus && !HasPendingMsiUninstallRequest &&
+                ComponentStorePreviewCurrent && ComponentStoreAcknowledged && componentStoreStatus.ProductionCheckValidated);
+        RequestComponentStoreStopCommand = new ActionCommand(RequestComponentStoreStop,
+            () => componentStoreOwnsBusy && !componentStoreCallerStopRequested && HasPendingComponentStoreStatus);
+    }
+
+    private void PrepareComponentStoreStatus()
+    {
+        if (IsBusy || HasPendingComponentStoreStatus || HasPendingMsiUninstallRequest) return;
+        componentStorePreview?.Invalidate(); componentStorePreview = null; ComponentStoreAcknowledged = false;
+        var result = ComponentStoreStatusPolicy.CreatePreview(DateTimeOffset.UtcNow);
+        componentStorePreview = result.Items.SingleOrDefault();
+        ComponentStoreMessage = result.Message;
+        if (componentStorePreview is { } preview)
+            ComponentStorePreviewDetails = $"Source: the fixed inbox Windows PowerShell / DISM module on this PC.\nFixed command: {preview.CommandPreview}\nPrepared UTC: {preview.PreparedUtc:u}\nExpires UTC: {preview.ExpiresUtc:u}\n\nEffect: {preview.ExactEffect}\n\nPermissions: {preview.Permissions}\n\nStop behavior: {preview.Cancellation}\n\nLimits: {preview.Limitations}\n\nA confirmed host-identity check can use Windows certificate/revocation metadata under existing Windows policy. This preview itself performs no host, module or servicing query. No ScanHealth, RestoreHealth, SFC, repair, cleanup or restart option is selected.";
+        else ComponentStorePreviewDetails = "No current fixed-operation preview. Prepare again before selecting any check.";
+        StartComponentStoreUiTimer(); NotifyComponentStoreStatus();
+    }
+
+    private async Task ConfirmComponentStoreStatus()
+    {
+        if (IsBusy || HasPendingComponentStoreStatus || HasPendingMsiUninstallRequest || !ComponentStoreAcknowledged ||
+            !componentStoreStatus.ProductionCheckValidated || !ComponentStorePreviewCurrent || componentStorePreview is not { } preview) return;
+        var confirmed = ComponentStoreStatusPolicy.Confirm(preview, true, DateTimeOffset.UtcNow);
+        if (confirmed.Items.Count != 1)
+        { ComponentStoreMessage = confirmed.Message; componentStorePreview = null; ComponentStoreAcknowledged = false; NotifyComponentStoreStatus(); return; }
+        var intent = confirmed.Items[0];
+        componentStorePreview = null; ComponentStoreAcknowledged = false;
+        componentStoreIntent = intent; componentStoreSession = null; componentStoreCompletion = null;
+        componentStoreCallerStopRequested = false; componentStoreDispatchObservedByUi = false;
+        componentStorePreparationStop = new CancellationTokenSource(); cancellation = componentStorePreparationStop;
+        componentStoreOwnsBusy = true; componentStoreRunActive = true; IsBusy = true;
+        ComponentStorePreviewDetails = "This one-shot preview was confirmed. A new attempt requires a fresh preview and acknowledgement.";
+        ComponentStoreCurrentAssessment = "Unknown — this requested check has not returned a qualified current assessment. Any earlier observation below is historical.";
+        ComponentStoreMessage = "Preparing the explicitly confirmed recorded-flags check. Current administrator and fixed-host qualification are still required; no completed check is claimed.";
+        Status = "Preparing the selected recorded component-store status check…";
+        Event(ActivityArea.ComponentStoreStatus, ActivityOutcome.Started);
+        StartComponentStoreUiTimer(); NotifyComponentStoreStatus();
+        try
+        {
+            componentStoreSession = await componentStoreStatus.StartAsync(intent, componentStorePreparationStop.Token);
+            if (componentStoreSession == null || componentStoreSession.RequestId != intent.RequestId)
+                throw new InvalidOperationException("Component-store session identity is inconsistent.");
+            if (componentStoreCallerStopRequested || componentStorePreparationStop.IsCancellationRequested)
+            {
+                componentStoreCallerStopRequested = true;
+                // Stop-delivery failure must not abandon the actual owner's completion task.
+                RequestComponentStoreStop();
+            }
+            componentStoreCompletion = componentStoreSession.Completion;
+            NotifyComponentStoreStatus();
+            var actual = await componentStoreCompletion;
+            // No post-await token throw: actual pipeline/client/cleanup facts survive a stop request.
+            var now = DateTimeOffset.UtcNow;
+            if (actual.RequestId != intent.RequestId || !Enum.IsDefined(actual.State) || !Enum.IsDefined(actual.Flag) ||
+                actual.AttemptedUtc == default || actual.AttemptedUtc.Offset != TimeSpan.Zero ||
+                actual.AttemptedUtc < intent.PreparedUtc || actual.AttemptedUtc > now || actual.Transport == null ||
+                actual.CompletedUtc is { } ended && (ended.Offset != TimeSpan.Zero || ended < actual.AttemptedUtc || ended > now))
+                throw new InvalidOperationException("Component-store observations are inconsistent.");
+            var assessed = ComponentStoreStatusPolicy.Assess(intent, actual.Evidence, actual.Transport,
+                actual.AttemptedUtc, actual.CompletedUtc, componentStoreCallerStopRequested || componentStoreSession.StopRequested);
+            ComponentStoreLastObservation = DescribeComponentStoreObservation(assessed);
+            ComponentStoreMessage = assessed.Message;
+            ComponentStoreCurrentAssessment = DescribeComponentStoreAssessment(assessed);
+            Status = "Recorded component-store check returned; review its source, coverage and stop/ownership observations.";
+            bool actualFailureObserved = assessed.Evidence?.Outcome == ComponentStoreStatusOutcome.InvocationFailed ||
+                assessed.Transport.HostExitObserved == true && assessed.Transport.HostExitCode is { } hostCode && hostCode != 0;
+            Event(ActivityArea.ComponentStoreStatus, actualFailureObserved || assessed.State == CheckState.Failed ? ActivityOutcome.Failed :
+                assessed.State == CheckState.Available && assessed.Flag != ComponentStoreRecordedFlag.Unknown ? ActivityOutcome.Completed : ActivityOutcome.Partial);
+        }
+        catch (OperationCanceledException)
+        {
+            ComponentStoreCurrentAssessment = "Unknown — preparation or observation was interrupted. No Windows servicing stop, rollback or health result is established.";
+            ComponentStoreMessage = "A stop was requested or preparation was interrupted. Any pending work remains with its owner; wait for actual completion. No process or service was killed.";
+            Status = ComponentStoreMessage;
+            Event(ActivityArea.ComponentStoreStatus, ActivityOutcome.Partial);
+        }
+        catch (Exception)
+        {
+            ComponentStoreCurrentAssessment = "Unknown — no qualified current result was accepted. Earlier returned observations below remain historical.";
+            ComponentStoreMessage = "The selected check could not return a qualified observation. Any pending host, pipeline or cleanup remains owned; no servicing completion, rollback, repair or health verdict is inferred.";
+            Status = ComponentStoreMessage;
+            Event(ActivityArea.ComponentStoreStatus, ActivityOutcome.Failed);
+        }
+        finally
+        {
+            componentStoreRunActive = false;
+            ReleaseComponentStoreUiOwnershipIfSettled();
+            NotifyComponentStoreStatus();
+        }
+    }
+
+    private static string DescribeComponentStoreAssessment(ComponentStoreStatusResult result)
+    {
+        string assessment = result.Flag switch
+        {
+            ComponentStoreRecordedFlag.NoRecordedCorruptionFlag => "No recorded corruption flag reported by this check. No fresh scan was performed; previous scan/flag date and overall Windows health remain unknown.",
+            ComponentStoreRecordedFlag.RecordedRepairable => "A recorded repairable component-store flag was reported. Its relationship to crashes or other symptoms is unknown; no repair was requested.",
+            ComponentStoreRecordedFlag.RecordedNonRepairable => "A recorded non-repairable component-store flag was reported. This is a component-store assessment, not overall PC health or an automatic repair recommendation.",
+            _ => "Unknown — no accepted current recorded-flag assessment. Any returned source flags below are historical if a stop was requested or evidence/ownership is incomplete."
+        };
+        return assessment + $"\nAttempt recorded UTC: {result.AttemptedUtc:u}; owner result completion UTC: {result.CompletedUtc?.ToString("u") ?? "Unobserved"}. These are not the prior corruption-flag time.";
+    }
+
+    private static string DescribeComponentStoreObservation(ComponentStoreStatusResult result)
+    {
+        static string Flag(bool? value) => value?.ToString() ?? "Unobserved";
+        static string Number(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "Unobserved";
+        static string Code(int? value) => value is { } actual ? $"0x{unchecked((uint)actual):X8}" : "Unobserved";
+        var transport = result.Transport;
+        string source = result.Evidence is { } evidence
+            ? $"Fixed source stage: {evidence.Stage}; outcome: {evidence.Outcome}\nHost/module/cmdlet/output contract qualified: {Flag(evidence.HostQualified)} / {Flag(evidence.ModuleBound)} / {Flag(evidence.CmdletQualified)} / {Flag(evidence.OutputContractQualified)}\nInvocation started: {Flag(evidence.InvocationStarted)}; pipeline state: {evidence.PipelineState?.ToString() ?? "Unobserved"}; EndInvoke returned: {Flag(evidence.EndInvokeReturned)}\nReported image-state member: {evidence.HealthState ?? "Unobserved"} — retained as source evidence, not overall PC health.\nReturned output/error/warning counts: {Number(evidence.OutputCount)} / {Number(evidence.ErrorCount)} / {Number(evidence.WarningCount)}\nPrivate stop event observed: {Flag(evidence.CancelEventObserved)}; BeginStop called: {Flag(evidence.BeginStopCalled)}; EndStop returned: {Flag(evidence.EndStopReturned)}\nPowerShell/runspace/cancel handle released: {Flag(evidence.PowerShellDisposed)} / {Flag(evidence.RunspaceClosed)} / {Flag(evidence.CancelHandleDisposed)}\nManaged exception HRESULT: {Code(evidence.ManagedExceptionHResult)} (managed wrapper metadata, not a DISM native HRESULT)."
+            : "No accepted fixed source evidence. Unobserved or malformed fields were not substituted; transport observations remain separate.";
+        return $"Latest returned observation (historical while another attempt is active or after a stop)\nAttempt recorded UTC: {result.AttemptedUtc:u}\nOwner result completion UTC: {result.CompletedUtc?.ToString("u") ?? "Unobserved"}\nObservation coverage: {result.State}\nAccepted recorded flag: {result.Flag}\n\n{source}\n\nTransport fields consistent: {ComponentStoreStatusPolicy.IsTransportConsistent(transport)}; contradictory observations grant no current assessment.\nEffective administrator observed: {Flag(transport.AdministratorObserved)}\nHost start attempted/returned: {Flag(transport.HostStartAttempted)} / {Flag(transport.HostStartObserved)}\nHost exit observed/code: {Flag(transport.HostExitObserved)} / {Number(transport.HostExitCode)}\nStdout/stderr drained: {Flag(transport.StdoutDrained)} / {Flag(transport.StderrDrained)}; output bound exceeded: {Flag(transport.OutputBoundExceeded)}; stderr character count: {Number(transport.StderrCharacterCount)}\nStop signal result/native code: {Flag(transport.StopSignalSucceeded)} / {Code(transport.StopSignalNativeError)}\nHost/transport ownership released: {Flag(transport.OwnershipReleased)}\n\n{DescribeComponentStoreHostIdentity(transport.HostIdentity)}\n\nWindows default DISM logs/archives may have been written; their contents were not read. No fresh scan, repair or restart was requested. Previous scan/flag date and Windows servicing stop/rollback remain unknown.";
+    }
+
+    private static string DescribeComponentStoreHostIdentity(SystemToolIdentityDiagnostic? diagnostic)
+    {
+        if (diagnostic == null) return "Fixed Windows host identity observation: Unobserved.";
+        if (!Enum.IsDefined(diagnostic.Stage) || !Enum.IsDefined(diagnostic.Reason) || !Enum.IsDefined(diagnostic.TrustRoute) ||
+            diagnostic.EmbeddedVersionState is { } embedded && !Enum.IsDefined(embedded))
+            return "Fixed Windows host identity observation: Unknown; inconsistent sidecar diagnostics were withheld without discarding independent pipeline or transport facts.";
+        string code = diagnostic.NativeTrustResult is { } actual ? $"0x{unchecked((uint)actual):X8}" : "Unobserved";
+        return $"Fixed Windows host identity diagnostic: {diagnostic.Stage} / {diagnostic.Reason}; route: {diagnostic.TrustRoute}; native trust code: {code}. This metadata does not grant execution permission or establish Windows integrity.";
+    }
+
+    private void RequestComponentStoreStop()
+    {
+        if (!componentStoreOwnsBusy) return;
+        componentStoreCallerStopRequested = true;
+        ComponentStoreCurrentAssessment = "Unknown — stop requested. Any returned image-state member remains historical; Windows servicing stop or rollback is not established.";
+        try
+        {
+            if (componentStoreSession != null) componentStoreSession.RequestStop();
+            else componentStorePreparationStop?.Cancel();
+            ComponentStoreMessage = "Stop requested for this owned pipeline/preparation. It may wait for Windows; keep MadClean open for actual completion. No process or service is killed, and no servicing cancellation or rollback is claimed.";
+        }
+        catch (Exception)
+        {
+            ComponentStoreMessage = "Stop delivery could not be confirmed. Work and ownership remain pending until actually observed; no process/service kill, servicing cancellation or rollback is inferred.";
+        }
+        Status = ComponentStoreMessage; NotifyComponentStoreStatus();
+    }
+    private bool TryRequestComponentStoreStopFromUi()
+    {
+        if (!componentStoreOwnsBusy) return false;
+        if (!componentStoreCallerStopRequested) RequestComponentStoreStop();
+        else
+        {
+            ComponentStoreMessage = "A stop is already requested. Wait for the actual owned pipeline, host and cleanup observations; this does not prove Windows servicing stopped or rolled back.";
+            Status = ComponentStoreMessage;
+        }
+        return true;
+    }
+    public void ExplainComponentStoreCloseBlock()
+    {
+        ComponentStoreMessage = componentStoreIntent?.IsDispatchReserved == true
+            ? "The recorded-status host, pipeline or cleanup is still pending/unconfirmed. Request pipeline stop if needed and wait for actual completion; MadClean will not kill processes or infer servicing cancellation/rollback."
+            : "Read-only recorded-status preparation or native identity work is still pending. Request stop and wait for its owner to return; no DISM invocation is inferred.";
+        Status = ComponentStoreMessage;
+    }
+    private void ReleaseComponentStoreUiOwnershipIfSettled()
+    {
+        if (!componentStoreOwnsBusy || componentStoreRunActive || HasPendingComponentStoreStatus) return;
+        if (ReferenceEquals(cancellation, componentStorePreparationStop)) cancellation = null;
+        componentStorePreparationStop?.Dispose(); componentStorePreparationStop = null;
+        componentStoreOwnsBusy = false; IsBusy = false;
+    }
+    private void ShutdownComponentStoreStatusUi()
+    {
+        componentStorePreview?.Invalidate(); componentStoreIntent?.Invalidate();
+        componentStoreUiTimer?.Stop();
+        if (!HasPendingComponentStoreStatus) ReleaseComponentStoreUiOwnershipIfSettled();
+    }
+    private void StartComponentStoreUiTimer()
+    {
+        if (componentStoreUiTimer == null)
+        {
+            componentStoreUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            componentStoreUiTimer.Tick += (_, _) =>
+            {
+                if (componentStoreIntent?.IsDispatchReserved == true && componentStoreRunActive && !componentStoreDispatchObservedByUi && !componentStoreCallerStopRequested)
+                {
+                    componentStoreDispatchObservedByUi = true;
+                    ComponentStoreMessage = "The fixed-host dispatch boundary was crossed; no completed recorded-flag result is observed yet. A stop request targets only the owned pipeline and may wait for Windows.";
+                }
+                if (componentStorePreview is { } preview && DateTimeOffset.UtcNow >= preview.ExpiresUtc)
+                {
+                    preview.Invalidate(); componentStorePreview = null; ComponentStoreAcknowledged = false;
+                    ComponentStorePreviewDetails = "The operation preview expired. Prepare and acknowledge a new preview before selecting a check.";
+                }
+                ReleaseComponentStoreUiOwnershipIfSettled(); NotifyComponentStoreStatus();
+                if (!componentStoreOwnsBusy && !HasPendingComponentStoreStatus && componentStorePreview == null)
+                    componentStoreUiTimer.Stop();
+            };
+        }
+        componentStoreUiTimer.Start();
+    }
+    private void NotifyComponentStoreStatus()
+    {
+        foreach (string property in new[] { nameof(HasPendingComponentStoreStatus), nameof(CanAcknowledgeComponentStoreStatus), nameof(ComponentStoreQualification) })
+            PropertyChanged?.Invoke(this, new(property));
+        CommandManager.InvalidateRequerySuggested();
+    }
+}

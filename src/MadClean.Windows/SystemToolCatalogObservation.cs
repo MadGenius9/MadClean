@@ -126,7 +126,6 @@ internal static class SystemToolCatalogObservation
     {
         if (target == null || !Enum.IsDefined(target.Value))
             return observation.Result(CheckState.Unsupported, SystemToolCatalogReason.UnqualifiedScope);
-        string fileName = SystemToolExecutableTargets.FileName(target.Value);
         observation.Stage = SystemToolCatalogStage.ToolLease;
         string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
         if (!Path.IsPathFullyQualified(system) || system.Length is < 4 or > 1024 || !char.IsAsciiLetter(system[0]) || system[1] != ':' || system[2] != '\\')
@@ -134,8 +133,8 @@ internal static class SystemToolCatalogObservation
         system = Path.TrimEndingDirectorySeparator(Path.GetFullPath(system));
         if (borrowed && !string.Equals(system, expectedOSsystemdir, StringComparison.OrdinalIgnoreCase))
             return observation.Result(CheckState.Unknown, SystemToolCatalogReason.UnqualifiedScope);
-        string toolPath = Path.Combine(system, fileName);
-        var toolDirectories = SystemToolTrustNative.LockDirectoryChain(system);
+        string toolPath = Path.Combine(system, SystemToolExecutableTargets.RelativePath(target.Value));
+        var toolDirectories = SystemToolTrustNative.LockDirectoryChain(Path.GetDirectoryName(toolPath)!);
         FileStream? ownedStream = null;
         try
         {
