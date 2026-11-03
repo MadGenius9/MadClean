@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "97f2a837d5ac02834fa629bcb5eba86027fcadad",
-  "runId": "41712046696",
+  "sourceCommit": "bc42d61198dc50d8d2f11ef4efdd81112ced0cd7",
+  "runId": "41713698292",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-03T20:42:39.508225+00:00",
+  "updatedUtc": "2026-11-03T21:01:36.509205+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -40,10 +40,10 @@
   "componentStoreScanPublicUiQualified": true,
   "componentStoreScanError": null,
   "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
-  "msiRequestResult": "failure",
+  "msiRequestResult": "success",
   "msiRequestArtifactOutcome": "success",
   "msiRequestReportPresent": true,
-  "msiRequestQualified": false,
+  "msiRequestQualified": true,
   "msiRequestError": null,
   "images": [
     {
