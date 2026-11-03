@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "a69598ce569ddd4168613d02d8309dbaacc44c17",
-  "runId": "41643164912",
+  "sourceCommit": "61e34a3a032c7fd08ed34d9b3548d290bc1c7f46",
+  "runId": "41644441782",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T13:23:05.4266082+00:00",
-  "completedUtc": "2026-11-03T13:23:36.8459894+00:00",
+  "startedUtc": "2026-11-03T13:31:57.8527599+00:00",
+  "completedUtc": "2026-11-03T13:32:32.544253+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -176,7 +176,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=14; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -427,6 +427,11 @@
       "name": "update-discovery-provider-contract",
       "state": "inconclusive",
       "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=1/software=1/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
+    },
+    {
+      "name": "winget-query-observation-contract",
+      "state": "passed",
+      "detail": "outcome=ParsedOutput; processResultReturned=True; exitCode=0; stdoutHasNonWhitespace=True; parserIssue=HeaderNotRecognized; sourceState=Unknown. Same single fixed WinGet list call only. Header/layout rejection does not establish localization, source agreements, network failure or another cause. Stdout observations say nothing about stderr; absent process result does not prove no process started. No raw output, names, identifiers, versions, messages or source labels exported; diagnostic compatibility is not source success or an up-to-date verdict."
     },
     {
       "name": "wua-offer-metadata-contract",
