@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "a8c91a2765454b953f4fbfd21fdca70533f4d96b",
-  "runId": "41676650921",
+  "sourceCommit": "bfa9c48277877b2d730f3ea45d6e42d4eefdae8c",
+  "runId": "41683692694",
   "runAttempt": 1,
-  "startedUtc": "2026-11-03T16:45:54.2732018+00:00",
-  "completedUtc": "2026-11-03T16:46:32.0674721+00:00",
+  "startedUtc": "2026-11-03T17:29:26.666242+00:00",
+  "completedUtc": "2026-11-03T17:30:48.6623374+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -104,6 +104,11 @@
       "detail": "actualChannelRows=2; queriedSourceCount=2; positiveSourceCount=2; selectedActualRows=2; sourceStates=Available,Available; actualGridDetailsStatusBindings=true; selectionStartsNoQuery=true; changedRangeClearsCoverageAndSelection=true. One explicit production passive Event Log query only. Unknown counts were not treated as zero; no raw counts, source explanations, dates, providers, event records or identifiers exported. No WER, integrity command, repair, UAC, fixture injection or post-query screenshot occurred."
     },
     {
+      "name": "ui-component-store-preview-interaction",
+      "state": "passed",
+      "detail": "Actual production Prepare and acknowledgement controls were exercised through their own WPF automation peers. Fixed recorded-flags scope, permissions/log writes/stop limits, acknowledgement reset and the disabled confirmation boundary were observed. Existing activity, source rows, diagnostic window and current/historical assessment remained unchanged, with no pending component owner. Confirm and Stop were never invoked; no source injection, screenshot after data, host, DISM invocation, scan, repair, elevation or restart was requested. Native checks, physical keyboard and enabled-production interaction remain separate validation."
+    },
+    {
       "name": "ui-msi-action-binding-interaction",
       "state": "passed",
       "detail": "bindingState=Bound; observedContextCount=1; enumerationComplete=true; actualSelectionAndDetailsBindings=true; selectionClearInvalidates=true; noAdditionalQueryActivity=true; visibleDesktopRowsAndBaselineMessageUnchanged=true; querySettled=true; canExecute=false. Exactly one explicit production binding workflow used the previously loaded genuine selection and fresh native ARP/MSI reads. No raw metadata, identities, flags, values or source text exported; no fixture injection, refresh command, update, uninstall, process, UAC, journal write or later screenshot occurred. No private baseline-object or global-absence claim is made."
@@ -181,7 +186,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 9 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=15; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -426,7 +431,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=54/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=53/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
@@ -533,13 +538,13 @@
       "file": "tool-25.png",
       "width": 1404,
       "height": 961,
-      "sha256": "5f70d91e4a6f8d538562d4f3a9c7fd1963d1989aea2980e39a2c8364191fc7cc"
+      "sha256": "e0644c8033ebf0ce7ce5c301a85a406845b7a1d1a459af2d42f37cabb5cfd126"
     },
     {
       "file": "tool-14.png",
       "width": 1404,
       "height": 961,
-      "sha256": "460850dd83b4e30e59312101aeec4b7e6fda796b5525ac0a8ddc038675ec9822"
+      "sha256": "20beb3c13bb7a83e5b7e9b739f65fba1bf2af10745b30a0094c78c28fc63c87a"
     },
     {
       "file": "tool-15.png",

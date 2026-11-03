@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "a8c91a2765454b953f4fbfd21fdca70533f4d96b",
-  "runId": "41676650921",
+  "sourceCommit": "bfa9c48277877b2d730f3ea45d6e42d4eefdae8c",
+  "runId": "41683692694",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-03T16:46:56.700808+00:00",
+  "updatedUtc": "2026-11-03T17:31:18.809396+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -26,6 +26,12 @@
   "nativeLogArtifactOutcome": "success",
   "nativeDiagnosticsPresent": true,
   "nativeDiagnosticsError": null,
+  "componentStoreStatusScope": "Separate explicit disposable-runner recorded-flag check; Windows-managed DISM log/archive writes, no fresh scan or repair.",
+  "componentStoreStatusResult": "failure",
+  "componentStoreStatusArtifactOutcome": "success",
+  "componentStoreStatusReportPresent": true,
+  "componentStoreStatusQualified": false,
+  "componentStoreStatusError": null,
   "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
   "msiRequestResult": "failure",
   "msiRequestArtifactOutcome": "success",
@@ -91,11 +97,11 @@
     },
     {
       "name": "tool-25.png",
-      "sha256": "5f70d91e4a6f8d538562d4f3a9c7fd1963d1989aea2980e39a2c8364191fc7cc"
+      "sha256": "e0644c8033ebf0ce7ce5c301a85a406845b7a1d1a459af2d42f37cabb5cfd126"
     },
     {
       "name": "tool-14.png",
-      "sha256": "460850dd83b4e30e59312101aeec4b7e6fda796b5525ac0a8ddc038675ec9822"
+      "sha256": "20beb3c13bb7a83e5b7e9b739f65fba1bf2af10745b30a0094c78c28fc63c87a"
     },
     {
       "name": "tool-15.png",
