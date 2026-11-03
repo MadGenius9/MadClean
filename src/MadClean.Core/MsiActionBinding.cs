@@ -1,6 +1,20 @@
 namespace MadClean.Core;
 
 public enum MsiActionBindingState { Bound, Blocked, Unknown }
+
+// Observation diagnostics only. These values never grant action permission.
+public enum MsiActionBindingReason
+{
+    Unknown, SourceUnavailable, SelectionChanged, RemovalRestricted, RemovalRestrictionUnknown,
+    CoverageIncomplete, MultipleContexts, SourceContextMismatch, MetadataNotMatched, Bound
+}
+
+[Flags]
+public enum MsiActionBindingChangedFields
+{
+    None = 0, Name = 1, Version = 2, Publisher = 4, Identity = 8, Source = 16,
+    ProductCode = 32, ContextMask = 64, WindowsInstaller = 128, RegisteredUninstaller = 256, NoRemove = 512
+}
 public sealed class MsiActionBindingScope
 {
     public InstalledApplication Application { get; }
@@ -21,6 +35,9 @@ public sealed record MsiActionBindingReport(MsiActionBindingState State, string 
     IReadOnlyList<string> Coverage)
 {
     public bool CanExecute => false;
+    public MsiActionBindingReason Reason { get; init; }
+    // Null means the complete source comparison was not reached (or legacy report).
+    public MsiActionBindingChangedFields? ChangedFields { get; init; }
 }
 public interface IMsiActionBindingInventory
 {
@@ -68,29 +85,40 @@ public static class MsiActionBindingPolicy
         var current = fresh != null && freshSnapshot != null
             ? MsiRegistrationReview.CreateScope(freshSnapshot, fresh.Identity, checkedUtc, token).Items.SingleOrDefault() : null;
         var state = MsiActionBindingState.Unknown;
+        var reasonCode = MsiActionBindingReason.MetadataNotMatched;
+        MsiActionBindingChangedFields? changedFields = null;
         string reason = "A complete fresh exact-selection/current-user/machine binding was not established.";
         if (!freshBounded || current == null || fresh == null ||
             fresh.RegistrationEvidence is not { } evidence || evidence.ObservedUtc < scope.ValidatedUtc)
+        {
+            reasonCode = MsiActionBindingReason.SourceUnavailable;
             reason = "The fresh ARP registration is absent, ambiguous, unqualified or not observed after this selection; no absence or completed-uninstall inference is made.";
-        else if (fresh.Name != scope.Application.Name || fresh.Version != scope.Application.Version || fresh.Publisher != scope.Application.Publisher ||
-            fresh.Identity != scope.Application.Identity || fresh.Source != scope.Application.Source || current.ProductCode != scope.ProductCode ||
-            current.ExpectedContextMask != scope.ExpectedContextMask || evidence.WindowsInstaller != scope.Application.RegistrationEvidence?.WindowsInstaller ||
-            evidence.HasRegisteredUninstaller != scope.Application.RegistrationEvidence?.HasRegisteredUninstaller || evidence.NoRemove != scope.Application.RegistrationEvidence?.NoRemove)
-        { state = MsiActionBindingState.Blocked; reason = "Selected registration identity, source, display or mechanism/restriction evidence changed; select and review the current registration again."; }
-        else if (evidence.NoRemove == true)
-        { state = MsiActionBindingState.Blocked; reason = "Fresh registration declares NoRemove; read-only MSI observations cannot override that restriction."; }
-        else if (evidence.NoRemove == null)
-            reason = "Fresh removal restriction is unknown; no selection/context binding was accepted for future action review.";
-        else if (malformed || !enumerationComplete || issues.Count != 0)
-            reason = "Full current-user/machine context enumeration or property coverage is incomplete/malformed; no unique binding was inferred.";
-        else if (rows.Count > 1)
-        { state = MsiActionBindingState.Blocked; reason = "The selected product code was observed in multiple current-user/machine contexts; no single selected-context binding was accepted."; }
-        else if (rows.Count == 1 && ((int)rows[0].Context & scope.ExpectedContextMask) == 0)
-        { state = MsiActionBindingState.Blocked; reason = "The observed MSI context does not match the selected ARP source."; }
-        else if (rows.Count == 1 && rows[0].ProductState == MsiObservedProductState.Installed &&
-            Known(fresh.Name) && Known(fresh.Version) && Known(fresh.Publisher) &&
-            rows[0].Name == fresh.Name && rows[0].Version == fresh.Version && rows[0].Publisher == fresh.Publisher)
-        { state = MsiActionBindingState.Bound; reason = "Selection/context binding observed within current-user and machine scope only; no dispatch permission or removal eligibility is established."; }
+        }
+        else
+        {
+            // Evaluate these managed comparisons independently for diagnostics. The original
+            // acceptance conditions below remain unchanged and do not consume diagnostic fields.
+            changedFields = CompareSelectionFields(scope, fresh, current, evidence);
+            if (fresh.Name != scope.Application.Name || fresh.Version != scope.Application.Version || fresh.Publisher != scope.Application.Publisher ||
+                fresh.Identity != scope.Application.Identity || fresh.Source != scope.Application.Source || current.ProductCode != scope.ProductCode ||
+                current.ExpectedContextMask != scope.ExpectedContextMask || evidence.WindowsInstaller != scope.Application.RegistrationEvidence?.WindowsInstaller ||
+                evidence.HasRegisteredUninstaller != scope.Application.RegistrationEvidence?.HasRegisteredUninstaller || evidence.NoRemove != scope.Application.RegistrationEvidence?.NoRemove)
+            { state = MsiActionBindingState.Blocked; reasonCode = MsiActionBindingReason.SelectionChanged; reason = "Selected registration identity, source, display or mechanism/restriction evidence changed; select and review the current registration again."; }
+            else if (evidence.NoRemove == true)
+            { state = MsiActionBindingState.Blocked; reasonCode = MsiActionBindingReason.RemovalRestricted; reason = "Fresh registration declares NoRemove; read-only MSI observations cannot override that restriction."; }
+            else if (evidence.NoRemove == null)
+            { reasonCode = MsiActionBindingReason.RemovalRestrictionUnknown; reason = "Fresh removal restriction is unknown; no selection/context binding was accepted for future action review."; }
+            else if (malformed || !enumerationComplete || issues.Count != 0)
+            { reasonCode = MsiActionBindingReason.CoverageIncomplete; reason = "Full current-user/machine context enumeration or property coverage is incomplete/malformed; no unique binding was inferred."; }
+            else if (rows.Count > 1)
+            { state = MsiActionBindingState.Blocked; reasonCode = MsiActionBindingReason.MultipleContexts; reason = "The selected product code was observed in multiple current-user/machine contexts; no single selected-context binding was accepted."; }
+            else if (rows.Count == 1 && ((int)rows[0].Context & scope.ExpectedContextMask) == 0)
+            { state = MsiActionBindingState.Blocked; reasonCode = MsiActionBindingReason.SourceContextMismatch; reason = "The observed MSI context does not match the selected ARP source."; }
+            else if (rows.Count == 1 && rows[0].ProductState == MsiObservedProductState.Installed &&
+                Known(fresh.Name) && Known(fresh.Version) && Known(fresh.Publisher) &&
+                rows[0].Name == fresh.Name && rows[0].Version == fresh.Version && rows[0].Publisher == fresh.Publisher)
+            { state = MsiActionBindingState.Bound; reasonCode = MsiActionBindingReason.Bound; reason = "Selection/context binding observed within current-user and machine scope only; no dispatch permission or removal eligibility is established."; }
+        }
         var coverage = Array.AsReadOnly(new[]
         {
             reason,
@@ -105,7 +133,23 @@ public static class MsiActionBindingPolicy
         return new(resultState, reason, [new(state, scope.Application.Identity, scope.ProductCode, scope.SnapshotState,
             freshSnapshot != null && Enum.IsDefined(freshSnapshot.State) ? freshSnapshot.State : CheckState.Unknown,
             fresh?.RegistrationEvidence?.NoRemove, scope.ExpectedContextMask,
-            Array.AsReadOnly(malformed ? Array.Empty<MsiRegistrationObservation>() : rows.ToArray()), enumerationComplete && !malformed, checkedUtc, coverage)]);
+            Array.AsReadOnly(malformed ? Array.Empty<MsiRegistrationObservation>() : rows.ToArray()), enumerationComplete && !malformed, checkedUtc, coverage) { Reason = reasonCode, ChangedFields = changedFields }]);
+    }
+    private static MsiActionBindingChangedFields CompareSelectionFields(MsiActionBindingScope scope,
+        InstalledApplication fresh, MsiRegistrationScope current, InstalledAppRegistrationEvidence evidence)
+    {
+        var fields = MsiActionBindingChangedFields.None;
+        if (fresh.Name != scope.Application.Name) fields |= MsiActionBindingChangedFields.Name;
+        if (fresh.Version != scope.Application.Version) fields |= MsiActionBindingChangedFields.Version;
+        if (fresh.Publisher != scope.Application.Publisher) fields |= MsiActionBindingChangedFields.Publisher;
+        if (fresh.Identity != scope.Application.Identity) fields |= MsiActionBindingChangedFields.Identity;
+        if (fresh.Source != scope.Application.Source) fields |= MsiActionBindingChangedFields.Source;
+        if (current.ProductCode != scope.ProductCode) fields |= MsiActionBindingChangedFields.ProductCode;
+        if (current.ExpectedContextMask != scope.ExpectedContextMask) fields |= MsiActionBindingChangedFields.ContextMask;
+        if (evidence.WindowsInstaller != scope.Application.RegistrationEvidence?.WindowsInstaller) fields |= MsiActionBindingChangedFields.WindowsInstaller;
+        if (evidence.HasRegisteredUninstaller != scope.Application.RegistrationEvidence?.HasRegisteredUninstaller) fields |= MsiActionBindingChangedFields.RegisteredUninstaller;
+        if (evidence.NoRemove != scope.Application.RegistrationEvidence?.NoRemove) fields |= MsiActionBindingChangedFields.NoRemove;
+        return fields;
     }
     private static bool Known(string value) => Text(value, 1024) && !value.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
     private static bool Text(string? value, int limit) => !string.IsNullOrWhiteSpace(value) && value.Length <= limit && ShortcutPathPolicy.HasSafeUnicode(value);

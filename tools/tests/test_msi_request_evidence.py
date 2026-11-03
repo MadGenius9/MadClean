@@ -21,11 +21,11 @@ class MsiRequestEvidenceTests(unittest.TestCase):
         self.context = ('a' * 40, '1234', 1)
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         self.report = {
-            'formatVersion': 1, 'sourceCommit': self.context[0], 'runId': self.context[1], 'runAttempt': 1,
+            'formatVersion': 2, 'sourceCommit': self.context[0], 'runId': self.context[1], 'runAttempt': 1,
             'startedUtc': now, 'observedUtc': now, 'state': 'passed', 'stage': 'Complete',
             'installCode': 0, 'clientExitCode': 0, **{name: True for name in p.MSI_FACTS},
             'selectionSourceState': 'Available', 'bindingResultState': 'Available', 'bindingReportState': 'Bound',
-            'currentSnapshotState': 'Available', 'previewPrepared': True, 'clientRequestState': 'ClientExited', 'failureKind': None, 'failureCode': None, 'databaseOperation': 'SummaryRead',
+            'currentSnapshotState': 'Available', 'bindingReason': 'Bound', 'bindingChangedFields': 0, 'selectionNoRemove': False, 'bindingNoRemove': False, 'bindingInstanceCount': 1, 'expectedMask': 3, 'observedContext': 2, 'previewPrepared': True, 'clientRequestState': 'ClientExited', 'failureKind': None, 'failureCode': None, 'databaseOperation': 'SummaryRead',
             'toolIdentityStage': 'Completed', 'toolIdentityReason': 'Observed', 'toolNativeTrustResult': 0, 'toolFileTrustResult': 0, 'toolCatalogTrustResult': None, 'toolCleanupTrustResult': None,
         }
         self.save()
@@ -55,6 +55,43 @@ class MsiRequestEvidenceTests(unittest.TestCase):
                            payloadAbsent=None, workerSettled=None, ownedTeardown=None, visibleConsentObserved=None, clientRequestState='Blocked')
         self.save()
         self.assertEqual('inconclusive', p.validate_msi_report(self.root, self.context)['state'])
+
+    def test_changed_selection_exports_only_fixed_cause_bits_without_authorizing_a_request(self):
+        self.report.update(state='inconclusive', stage='SelectionUnknown', selectionSourceState='Partial',
+                           bindingResultState='Unavailable', bindingReportState='Blocked', currentSnapshotState='Partial',
+                           bindingReason='SelectionChanged', bindingChangedFields=256, previewPrepared=False,
+                           clientRequestState=None, clientStarted=None, clientExited=None, clientExitCode=None,
+                           visibleConsentObserved=None, postCodeAbsent=None, payloadAbsent=None, workerSettled=None, ownedTeardown=None,
+                           toolIdentityStage=None, toolIdentityReason=None, toolNativeTrustResult=None, toolFileTrustResult=None)
+        self.save()
+        observed = p.validate_msi_report(self.root, self.context)
+        self.assertEqual('SelectionChanged', observed['bindingReason'])
+        self.assertEqual(256, observed['bindingChangedFields'])
+        self.assertFalse(observed['previewPrepared'])
+        self.assertIsNone(observed['clientStarted'])
+        for field, wrong in [('bindingChangedFields', 0), ('bindingChangedFields', 1024),
+                             ('bindingChangedFields', True), ('bindingInstanceCount', 2), ('selectionNoRemove', 1)]:
+            original = self.report[field]; self.report[field] = wrong; self.save()
+            with self.assertRaises(p.EvidenceError): p.validate_msi_report(self.root, self.context)
+            self.report[field] = original
+
+    def test_unobserved_comparisons_remain_null_rather_than_claiming_no_changes(self):
+        self.report.update(state='inconclusive', stage='SelectionUnknown', bindingReportState='Unknown',
+                           bindingReason='SourceUnavailable', bindingChangedFields=None, bindingInstanceCount=0, observedContext=None,
+                           currentSnapshotState='Partial', bindingResultState='Unknown', bindingNoRemove=None,
+                           previewPrepared=False, clientRequestState=None, clientStarted=None, clientExited=None, clientExitCode=None,
+                           visibleConsentObserved=None, postCodeAbsent=None, payloadAbsent=None, workerSettled=None, ownedTeardown=None,
+                           toolIdentityStage=None, toolIdentityReason=None, toolNativeTrustResult=None, toolFileTrustResult=None)
+        self.save()
+        self.assertIsNone(p.validate_msi_report(self.root, self.context)['bindingChangedFields'])
+        self.report['observedContext'] = 2; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-binding-context-coherence'):
+            p.validate_msi_report(self.root, self.context)
+
+    def test_pre_release_v1_evidence_cannot_supply_v2_binding_proof(self):
+        self.report['formatVersion'] = 1; self.save()
+        with self.assertRaisesRegex(p.EvidenceError, 'msi-report-schema'):
+            p.validate_msi_report(self.root, self.context)
 
     def test_pending_observations_are_not_filled_with_success_or_false_completion(self):
         self.report.update(state='inconclusive', stage='VisibleRequest', visibleConsentObserved=None,

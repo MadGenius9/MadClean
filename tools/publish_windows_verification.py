@@ -280,18 +280,24 @@ def validate_msi_report(directory, context):
     if not path.exists():
         return None
     value = read_json(path, 8192)
-    fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult"} | MSI_FACTS
-    reject_unless(isinstance(value, dict) and set(value) == fields and type(value["formatVersion"]) is int and value["formatVersion"] == 1, "msi-report-schema")
+    fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage", "installCode", "clientExitCode", "selectionSourceState", "bindingResultState", "bindingReportState", "currentSnapshotState", "previewPrepared", "clientRequestState", "failureKind", "failureCode", "databaseOperation", "toolIdentityStage", "toolIdentityReason", "toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult", "bindingReason", "bindingChangedFields", "selectionNoRemove", "bindingNoRemove", "bindingInstanceCount", "expectedMask", "observedContext"} | MSI_FACTS
+    reject_unless(isinstance(value, dict) and set(value) == fields and type(value["formatVersion"]) is int and value["formatVersion"] == 2, "msi-report-schema")
     reject_unless((value["sourceCommit"], value["runId"], value["runAttempt"]) == context and type(value["runAttempt"]) is int, "msi-report-context")
     reject_unless(isinstance(value["state"], str) and value["state"] in {"passed", "failed", "inconclusive"} and isinstance(value["stage"], str) and value["stage"] in MSI_STAGES, "msi-report-state")
     for name in MSI_FACTS:
         reject_unless(value[name] is None or type(value[name]) is bool, "msi-report-fact")
+    for name in ("selectionNoRemove", "bindingNoRemove"):
+        reject_unless(value[name] is None or type(value[name]) is bool, "msi-restriction-fact")
+    for name, allowed in (("bindingInstanceCount", {0, 1, 2, 3}), ("expectedMask", {3, 4}), ("observedContext", {1, 2, 4})):
+        reject_unless(value[name] is None or type(value[name]) is int and value[name] in allowed, "msi-binding-count-mask")
+    reject_unless(value["bindingChangedFields"] is None or type(value["bindingChangedFields"]) is int and 0 <= value["bindingChangedFields"] <= 1023, "msi-binding-flags")
     reject_unless(value["previewPrepared"] is None or type(value["previewPrepared"]) is bool, "msi-preview-fact")
     labels = {
         "selectionSourceState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
         "bindingResultState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
         "currentSnapshotState": {"Available", "Partial", "Unknown", "Unavailable", "Unsupported", "Failed", "Cancelled"},
         "bindingReportState": {"Bound", "Blocked", "Unknown"},
+        "bindingReason": {"Unknown", "SourceUnavailable", "SelectionChanged", "RemovalRestricted", "RemovalRestrictionUnknown", "CoverageIncomplete", "MultipleContexts", "SourceContextMismatch", "MetadataNotMatched", "Bound"},
         "clientRequestState": {"NotStarted", "Blocked", "Preparing", "ClientStarted", "ClientExited", "MonitoringUnknown"},
         "failureKind": {"NativeWin32", "OwnedEvidenceUnavailable", "ObservationUnavailable", "OwnedInvariantFailed"},
         "toolIdentityStage": {"Unknown", "SystemDirectory", "FileLease", "Signature", "Fingerprint", "VersionMetadata", "Completed"},
@@ -311,6 +317,15 @@ def validate_msi_report(directory, context):
         except ValueError:
             raise EvidenceError("msi-report-time") from None
     reject_unless(times[0] <= times[1] <= dt.datetime.now(dt.timezone.utc) and times[1] - times[0] <= dt.timedelta(minutes=20), "msi-report-time-order")
+    if value["bindingReportState"] is None:
+        reject_unless(all(value[name] is None for name in ("bindingReason", "bindingChangedFields", "bindingNoRemove", "bindingInstanceCount", "observedContext")), "msi-binding-unobserved")
+    else:
+        reject_unless(value["bindingReason"] is not None and value["bindingInstanceCount"] is not None and value["expectedMask"] is not None, "msi-binding-observed")
+        reject_unless((value["bindingInstanceCount"] == 1) == (value["observedContext"] is not None), "msi-binding-context-coherence")
+        if value["bindingReason"] == "SelectionChanged":
+            reject_unless(value["bindingReportState"] == "Blocked" and value["bindingChangedFields"] is not None and value["bindingChangedFields"] > 0, "msi-binding-change-coherence")
+        elif value["bindingChangedFields"] is not None:
+            reject_unless(value["bindingChangedFields"] == 0, "msi-binding-change-coherence")
     reject_unless((value["toolIdentityStage"] is None) == (value["toolIdentityReason"] is None), "msi-tool-coherence")
     if value["toolIdentityStage"] is None:
         reject_unless(all(value[name] is None for name in ("toolNativeTrustResult", "toolFileTrustResult", "toolCatalogTrustResult", "toolCleanupTrustResult")), "msi-tool-coherence")
@@ -325,7 +340,7 @@ def validate_msi_report(directory, context):
     if value["ownedTeardown"] is True:
         reject_unless(value["workerSettled"] is True and value["postCodeAbsent"] is True and value["payloadAbsent"] is True, "msi-teardown-coherence")
     if value["state"] == "passed":
-        reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
+        reject_unless(value["stage"] == "Complete" and all(value[name] is True for name in MSI_FACTS) and value["installCode"] == 0 and value["clientExitCode"] == 0 and value["previewPrepared"] is True and value["clientRequestState"] == "ClientExited" and value["toolIdentityStage"] == "Completed" and value["toolIdentityReason"] == "Observed" and value["toolNativeTrustResult"] == 0 and value["bindingReportState"] == "Bound" and value["bindingReason"] == "Bound" and value["bindingChangedFields"] == 0 and value["selectionNoRemove"] is False and value["bindingNoRemove"] is False and value["bindingInstanceCount"] == 1 and value["expectedMask"] == 3 and value["observedContext"] == 2 and value["currentSnapshotState"] == "Available" and value["failureKind"] is None and value["failureCode"] is None, "msi-pass-coherence")
     return value
 
 def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped"):

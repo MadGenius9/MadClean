@@ -21,7 +21,7 @@ internal static class MsiRequestQualificationFixture
 
     private sealed class Report
     {
-        public int FormatVersion { get; } = 1;
+        public int FormatVersion { get; } = 2;
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -45,6 +45,13 @@ internal static class MsiRequestQualificationFixture
         public string? SelectionSourceState { get; set; }
         public string? BindingResultState { get; set; }
         public string? BindingReportState { get; set; }
+        public string? BindingReason { get; set; }
+        public int? BindingChangedFields { get; set; }
+        public bool? SelectionNoRemove { get; set; }
+        public bool? BindingNoRemove { get; set; }
+        public int? BindingInstanceCount { get; set; }
+        public int? ExpectedMask { get; set; }
+        public int? ObservedContext { get; set; }
         public string? CurrentSnapshotState { get; set; }
         public bool? PreviewPrepared { get; set; }
         public string? ClientRequestState { get; set; }
@@ -151,15 +158,24 @@ internal static class MsiRequestQualificationFixture
                 var snapshot = await new InstalledApplicationInventory().ScanAsync(CancellationToken.None);
                 report.SelectionSourceState = Enum.IsDefined(snapshot.State) ? snapshot.State.ToString() : null; Save();
                 var selected = snapshot.Items.SingleOrDefault(row => row.RegistrationEvidence?.ProductCode == product.ToString("B").ToUpperInvariant());
+                report.SelectionNoRemove = selected?.RegistrationEvidence?.NoRemove; Save();
                 if (selected == null || selected.Name != OwnedMsiDatabase.ProductName || selected.Version != OwnedMsiDatabase.ProductVersion || selected.Publisher != OwnedMsiDatabase.Publisher)
                 { report.Stage = "SelectionUnknown"; Save(); return 2; }
                 var scopeResult = MsiActionBindingPolicy.CreateScope(snapshot, selected, DateTimeOffset.UtcNow);
                 if (scopeResult.Items.Count != 1) { report.Stage = "SelectionUnknown"; Save(); return 2; }
+                report.ExpectedMask = scopeResult.Items[0].ExpectedContextMask; Save();
                 var binding = await new WindowsMsiActionBindingInventory().VerifyAsync(scopeResult.Items[0], CancellationToken.None);
                 report.BindingResultState = Enum.IsDefined(binding.State) ? binding.State.ToString() : null;
                 if (binding.Items.Count == 1)
                 {
-                    report.BindingReportState = Enum.IsDefined(binding.Items[0].State) ? binding.Items[0].State.ToString() : null;
+                    var actualBinding = binding.Items[0];
+                    report.BindingReportState = Enum.IsDefined(actualBinding.State) ? actualBinding.State.ToString() : null;
+                    report.BindingReason = Enum.IsDefined(actualBinding.Reason) ? actualBinding.Reason.ToString() : null;
+                    report.BindingChangedFields = actualBinding.ChangedFields is { } changed ? (int)changed : null;
+                    report.BindingNoRemove = actualBinding.NoRemove;
+                    report.BindingInstanceCount = actualBinding.Instances?.Count;
+                    report.ExpectedMask = actualBinding.ExpectedContextMask;
+                    if (actualBinding.Instances is { Count: 1 } instances && Enum.IsDefined(instances[0].Context)) report.ObservedContext = (int)instances[0].Context;
                     report.CurrentSnapshotState = Enum.IsDefined(binding.Items[0].CurrentSnapshotState) ? binding.Items[0].CurrentSnapshotState.ToString() : null;
                 }
                 Save();
