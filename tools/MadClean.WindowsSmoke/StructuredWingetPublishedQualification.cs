@@ -17,6 +17,13 @@ internal static class StructuredWingetPublishedQualification
     private static readonly object Gate = new();
     private static Task<Summary>? parentOwner;
     private static readonly List<object> Retained = [];
+    // Closed development diagnostics only. Never use provider/exception text as a label.
+    private enum Role { Parent, Child, Reader }
+    private enum Stage { Context, ScopeDirectories, ScopeDescriptor, ScopeMarker, ScopePublish,
+        ExecutableLease, FreshScope, Launch, WaitExit, WaitExitDrain, CallerWait, ParentCompletion,
+        ChildReport, ChildReportValidation, ChildIdentity, Query, Drain, QueryValidation,
+        PublishChildReport, PublishSummary, ReadSummary, SummaryValidation, Completed }
+
     private sealed record Context(string SourceCommit, string RunId, int RunAttempt);
     private sealed record Descriptor(string SourceCommit, string RunId, int RunAttempt, string ScopeId, string OwnerMarker);
     private sealed record Child(string SourceCommit, string RunId, int RunAttempt, string ScopeId, string OwnerMarker,
@@ -30,7 +37,7 @@ internal static class StructuredWingetPublishedQualification
     {
         Context context;
         try { context = Current(repository); }
-        catch (Exception) { return 1; }
+        catch (Exception error) { Diagnostic(Role.Parent, Stage.Context, error); return 1; }
         if (token.IsCancellationRequested) return 2;
         Task<Summary> task;
         lock (Gate)
@@ -43,19 +50,22 @@ internal static class StructuredWingetPublishedQualification
         try { summary = await task.WaitAsync(TimeSpan.FromSeconds(150), token).ConfigureAwait(false); }
         catch (Exception error) when (error is TimeoutException or OperationCanceledException)
         {
+            Diagnostic(Role.Parent, Stage.CallerWait, error);
             // Actual process owner continues waiting; never kill or drop its leases.
             // Main must await WaitForParentCompletionAsync before allowing the CLR to exit.
             // No summary is fabricated: launch/exit facts belong to the still-running
             // owner. A missing final report remains Unknown in passive publication.
             return 2;
         }
-        catch (Exception) { return 1; }
+        catch (Exception error) { Diagnostic(Role.Parent, Stage.ParentCompletion, error); return 1; }
+        var publicationStage = Stage.ScopeDirectories;
         try
         {
-            using var output = new Scope(repository, context);
+            using var output = new Scope(repository, context, stage => publicationStage = stage);
+            publicationStage = Stage.PublishSummary;
             WriteNew(Path.Combine(repository, "artifacts", SummaryName), summary);
         }
-        catch (Exception) { return 1; }
+        catch (Exception error) { Diagnostic(Role.Parent, publicationStage, error); return 1; }
         return summary.State == "passed" ? 0 : summary.State == "failed" ? 1 : 2;
     }
 
@@ -63,7 +73,8 @@ internal static class StructuredWingetPublishedQualification
     {
         Task<Summary>? owner;
         lock (Gate) owner = parentOwner;
-        if (owner is not null) try { await owner.ConfigureAwait(false); } catch (Exception) { }
+        if (owner is not null) try { await owner.ConfigureAwait(false); }
+            catch (Exception error) { Diagnostic(Role.Parent, Stage.ParentCompletion, error); }
     }
 
     private static Summary Parent(string repository, Context context)
@@ -76,11 +87,14 @@ internal static class StructuredWingetPublishedQualification
         int? code = null;
         StructuredWingetProbe.Observation? observation = null;
         string state = "inconclusive";
+        var stage = Stage.ScopeDirectories;
         try
         {
-            scope = new Scope(repository, context);
+            scope = new Scope(repository, context, value => stage = value);
             descriptor = true;
+            stage = Stage.ExecutableLease;
             scope.LeaseExecutable(); leased = true;
+            stage = Stage.FreshScope;
             if (Directory.EnumerateFileSystemEntries(scope.Cache).Any() || File.Exists(scope.ChildPath)) throw new InvalidDataException();
             var info = new ProcessStartInfo(scope.Executable) { UseShellExecute = false, WorkingDirectory = repository, CreateNoWindow = true };
             info.ArgumentList.Add("--structured-winget-published-validation");
@@ -93,13 +107,17 @@ internal static class StructuredWingetPublishedQualification
             info.Environment["MADCLEAN_WINDOWS_VALIDATION"] = "1";
             info.Environment["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = scope.Cache;
             process = new Process { StartInfo = info };
+            stage = Stage.Launch;
             launch = true;
             if (!process.Start()) throw new InvalidOperationException();
             started = true;
             _ = process.SafeHandle; // Keep the handle of this exact spawn; no PID reopening.
+            stage = Stage.WaitExit;
             process.WaitForExit(); // No timeout/kill; caller wait and actual process lifetime are separate.
             exit = true; code = process.ExitCode;
+            stage = Stage.ChildReport;
             using var document = JsonDocument.Parse(scope.Read(scope.ChildPath, 16384));
+            stage = Stage.ChildReportValidation;
             var element = document.RootElement;
             if (!Fields(element, ["sourceCommit", "runId", "runAttempt", "scopeId", "ownerMarker", "ownExecutableObserved",
                 "pendingNativeReadAtExit", "observation"]) || !StructuredWingetProbe.ValidJson(element.GetProperty("observation"))) throw new InvalidDataException();
@@ -112,9 +130,11 @@ internal static class StructuredWingetPublishedQualification
             int expected = observation.State == "passed" ? 0 : observation.State == "failed" ? 1 : 2;
             if (code != expected) { state = "failed"; }
             else state = observation.State;
+            stage = Stage.Completed;
         }
-        catch (Exception)
+        catch (Exception error)
         {
+            Diagnostic(Role.Parent, stage, error);
             // No raw exception/provider data is exported. A failed apphost start or missing
             // source-bound report never becomes a successful projection/query qualification.
             if (launch && !started || started && exit != true) retained = true;
@@ -125,10 +145,15 @@ internal static class StructuredWingetPublishedQualification
             {
                 // An observation error does not authorize dropping the actual spawned
                 // process. Keep Main's owner alive until the same owned process exits.
+                bool failureReported = false;
                 while (exit != true)
                 {
                     try { process.WaitForExit(); code = process.ExitCode; exit = true; retained = false; }
-                    catch (Exception) { Thread.Sleep(250); }
+                    catch (Exception error)
+                    {
+                        if (!failureReported) { Diagnostic(Role.Parent, Stage.WaitExitDrain, error); failureReported = true; }
+                        Thread.Sleep(250);
+                    }
                 }
             }
             if (retained)
@@ -148,35 +173,50 @@ internal static class StructuredWingetPublishedQualification
 
     internal static async Task<int> RunChildAsync(string repository, CancellationToken token)
     {
+        var stage = Stage.Context;
         try
         {
             var context = Current(repository);
-            using var scope = new Scope(repository, context);
+            using var scope = new Scope(repository, context, value => stage = value);
+            stage = Stage.ExecutableLease;
             scope.LeaseExecutable();
+            stage = Stage.ChildIdentity;
             if (!string.Equals(Environment.ProcessPath, scope.Executable, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(Environment.GetEnvironmentVariable("DOTNET_BUNDLE_EXTRACT_BASE_DIR"), scope.Cache, StringComparison.OrdinalIgnoreCase) ||
-                File.Exists(scope.ChildPath)) return 1;
+                File.Exists(scope.ChildPath)) throw new InvalidDataException();
             StructuredWingetProbe.Observation observation;
+            stage = Stage.Query;
             try { observation = await StructuredWingetProbe.ObserveAsync(token).ConfigureAwait(false); }
-            finally { await StructuredWingetProbe.WaitForOwnedCompletionAsync().ConfigureAwait(false); }
-            if (!StructuredWingetProbe.Valid(observation)) return 1;
+            finally
+            {
+                var priorStage = stage;
+                stage = Stage.Drain;
+                await StructuredWingetProbe.WaitForOwnedCompletionAsync().ConfigureAwait(false);
+                stage = priorStage;
+            }
+            stage = Stage.QueryValidation;
+            if (!StructuredWingetProbe.Valid(observation)) throw new InvalidDataException();
             bool pending = new MadClean.Windows.WinGet.StructuredWingetInventory().HasPendingNativeRead;
             if (pending) return 2;
+            stage = Stage.PublishChildReport;
             WriteNew(scope.ChildPath, new Child(context.SourceCommit, context.RunId, context.RunAttempt,
                 scope.Descriptor.ScopeId, scope.Descriptor.OwnerMarker, true, pending, observation));
             return observation.State == "passed" ? 0 : observation.State == "failed" ? 1 : 2;
         }
-        catch (Exception) { return 1; }
+        catch (Exception error) { Diagnostic(Role.Child, stage, error); return 1; }
     }
 
     internal static void ReadIntoReport(string repository, string expectedSourceCommit, SmokeReport report)
     {
+        var stage = Stage.Context;
         try
         {
             var context = Current(repository);
             if (context.SourceCommit != expectedSourceCommit) throw new InvalidDataException();
-            using var scope = new Scope(repository, context);
+            using var scope = new Scope(repository, context, value => stage = value);
+            stage = Stage.ReadSummary;
             using var document = JsonDocument.Parse(scope.Read(Path.Combine(repository, "artifacts", SummaryName), 16384));
+            stage = Stage.SummaryValidation;
             var root = document.RootElement;
             if (!Fields(root, ["formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "state",
                 "descriptorValidated", "executableLeased", "launchAttempted", "processStarted", "exitObserved", "exitCode", "requiresRetention",
@@ -200,7 +240,11 @@ internal static class StructuredWingetPublishedQualification
             else if (value.State == "failed") report.Fail(Check, detail);
             else report.Unknown(Check, detail);
         }
-        catch (Exception) { report.Unknown(Check, "No accepted source/run/attempt-bound published SDK child query and actual owned process exit. Compilation/startup alone do not qualify this path; no query or synthetic result substituted."); }
+        catch (Exception error)
+        {
+            Diagnostic(Role.Reader, stage, error);
+            report.Unknown(Check, $"Published SDK evidence unavailable at stage={stage}; hresult=0x{error.HResult.ToString("X8", CultureInfo.InvariantCulture)}. No accepted source/run/attempt-bound child query and actual owned process exit. Compilation/startup alone do not qualify this path; no query or synthetic result substituted. No raw messages or paths exported.");
+        }
     }
 
     private static Context Current(string repository)
@@ -225,21 +269,25 @@ internal static class StructuredWingetPublishedQualification
         internal string Executable { get; }
         internal string Cache { get; }
         internal string ChildPath { get; }
-        internal Scope(string repository, Context context)
+        internal Scope(string repository, Context context, Action<Stage>? observeStage = null)
         {
             try
             {
+                observeStage?.Invoke(Stage.ScopeDirectories);
                 string artifacts = Path.Combine(repository, "artifacts");
                 leases.AddRange(SystemToolTrustNative.LockDirectoryChain(artifacts));
+                observeStage?.Invoke(Stage.ScopeDescriptor);
                 using var document = JsonDocument.Parse(Read(Path.Combine(artifacts, DescriptorName), 512));
                 if (!Fields(document.RootElement, ["sourceCommit", "runId", "runAttempt", "scopeId", "ownerMarker"])) throw new InvalidDataException();
                 Descriptor = document.RootElement.Deserialize<Descriptor>(Json) ?? throw new InvalidDataException();
                 if (Descriptor.SourceCommit != context.SourceCommit || Descriptor.RunId != context.RunId || Descriptor.RunAttempt != context.RunAttempt ||
                     !Guid.TryParseExact(Descriptor.ScopeId, "N", out var id) || id == Guid.Empty || Descriptor.ScopeId != id.ToString("N") ||
                     !Guid.TryParseExact(Descriptor.OwnerMarker, "N", out var marker) || marker == Guid.Empty || Descriptor.OwnerMarker != marker.ToString("N")) throw new InvalidDataException();
+                observeStage?.Invoke(Stage.ScopeMarker);
                 string owned = Path.Combine(artifacts, "structured-winget-published-" + Descriptor.ScopeId);
                 leases.AddRange(SystemToolTrustNative.LockDirectoryChain(owned));
                 if (!Read(Path.Combine(owned, ".madclean-structured-winget-owner"), 32).AsSpan().SequenceEqual(System.Text.Encoding.ASCII.GetBytes(Descriptor.OwnerMarker))) throw new InvalidDataException();
+                observeStage?.Invoke(Stage.ScopePublish);
                 string publish = Path.Combine(owned, "publish"); Cache = Path.Combine(owned, "bundle-cache");
                 leases.AddRange(SystemToolTrustNative.LockDirectoryChain(publish));
                 leases.AddRange(SystemToolTrustNative.LockDirectoryChain(Cache));
@@ -264,6 +312,12 @@ internal static class StructuredWingetPublishedQualification
         }
         public void Dispose() { foreach (var lease in leases.AsEnumerable().Reverse()) lease.Dispose(); leases.Clear(); }
     }
+    private static void Diagnostic(Role role, Stage stage, Exception error)
+    {
+        try { Console.WriteLine($"MadClean published SDK {role} stage={stage} hresult=0x{error.HResult.ToString("X8", CultureInfo.InvariantCulture)}"); }
+        catch (Exception) { /* A closed output pipe must not interrupt ownership settlement. */ }
+    }
+
     private static void WriteNew<T>(string path, T value)
     {
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(value, Json);

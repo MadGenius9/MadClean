@@ -45,6 +45,18 @@ class CiDiagnosticsTests(unittest.TestCase):
         self.assertNotIn("passed", result)
         self.assertEqual({"label", "exitCode", "truncated", "excerpt"}, set(result["stages"][0]))
 
+    def test_sdk_publish_and_query_failures_remain_separate_source_bound_diagnostics(self):
+        self.stage('structured-winget-publish', 'TEST-ONLY publish completed\n', exitCode=0)
+        self.stage('structured-winget-published', 'MadClean published SDK Parent stage=ScopeDescriptor hresult=0x80070005\n', exitCode=1)
+        stages = {stage['label']: stage for stage in self.collect()['stages']}
+        self.assertEqual(0, stages['structured-winget-publish']['exitCode'])
+        self.assertEqual(1, stages['structured-winget-published']['exitCode'])
+        self.assertIn('0x80070005', stages['structured-winget-published']['excerpt'])
+        self.assertNotIn('passed', stages['structured-winget-published'])
+        self.stage('structured-winget-published', 'untrusted output', sourceCommit='b' * 40)
+        with self.assertRaisesRegex(ValueError, '^ci-metadata-context$'):
+            self.collect()
+
     def test_failed_skipped_or_cancelled_download_never_reads_even_valid_leftovers(self):
         self.stage()
         with patch.object(c, "_safe", side_effect=AssertionError("No filesystem probe allowed")):

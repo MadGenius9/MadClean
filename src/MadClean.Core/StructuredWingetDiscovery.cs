@@ -1,6 +1,6 @@
 namespace MadClean.Core;
 
-public enum StructuredWingetStage { NotStarted, Activation, SourceValidation, Connect, Find, Projection, Completed }
+public enum StructuredWingetStage { NotStarted, Activation, SourceValidation, Connect, Find, Projection, Completed, ActivationClass, ActivationProjection }
 public enum StructuredWingetOutcome { NotStarted, Completed, Partial, Unavailable, Unsupported, Failed, Cancelled, TimedOut, Busy }
 public sealed record StructuredWingetDiagnostic(
     StructuredWingetStage Stage, StructuredWingetOutcome Outcome, int? HResult,

@@ -116,7 +116,7 @@ public sealed class StructuredWingetInventory
         {
             CheckStop();
             Update(d => d with { Stage = StructuredWingetStage.Activation, Attempted = true, StartedUtc = DateTimeOffset.UtcNow });
-            var manager = Keep(FixedFactory.Manager());
+            var manager = Keep(FixedFactory.Manager(stage => Update(d => d with { Stage = stage })));
             CheckStop();
             Update(d => d with { Stage = StructuredWingetStage.SourceValidation });
             var source = Keep(manager.GetPackageCatalogByName(StructuredWingetPolicy.SourceName)
@@ -232,19 +232,22 @@ public sealed class StructuredWingetInventory
     private static class FixedFactory
     {
         // Microsoft winget-cli v1.10.340 src/Microsoft.Management.Deployment/Public/ComClsids.h, USE_PROD_CLSIDS.
-        internal static PackageManager Manager() => Create<PackageManager>(new("C53A4F16-787E-42A4-B304-29EFFB4BF597"));
+        internal static PackageManager Manager(Action<StructuredWingetStage> observeStage) =>
+            Create<PackageManager>(new("C53A4F16-787E-42A4-B304-29EFFB4BF597"), observeStage);
         internal static FindPackagesOptions Find() => Create<FindPackagesOptions>(new("572DED96-9C60-4526-8F92-EE7D91D38C1A"));
         internal static CreateCompositePackageCatalogOptions Composite() => Create<CreateCompositePackageCatalogOptions>(new("526534B8-7E46-47C8-8416-B1685C327D37"));
         internal static AuthenticationArguments Authentication() => Create<AuthenticationArguments>(new("BA580786-BDE3-4F6C-B8F3-44698AC8711A"));
-        private static T Create<T>(Guid classId)
+        private static T Create<T>(Guid classId, Action<StructuredWingetStage>? observeStage = null)
         {
             Guid inspectable = new("AF86E2E0-B12D-4C6A-9C5A-D7AA65101E90");
             IntPtr acquired = IntPtr.Zero;
             try
             {
+                observeStage?.Invoke(StructuredWingetStage.ActivationClass);
                 int hr = Native.CoCreateInstance(ref classId, IntPtr.Zero, 0x4 | 0x400, ref inspectable, out acquired);
                 Marshal.ThrowExceptionForHR(hr);
                 if (acquired == IntPtr.Zero) throw new COMException("Activation returned no interface.");
+                observeStage?.Invoke(StructuredWingetStage.ActivationProjection);
                 return WinRT.MarshalInspectable<T>.FromAbi(acquired);
             }
             finally { if (acquired != IntPtr.Zero) WinRT.MarshalInspectable<T>.DisposeAbi(acquired); }
