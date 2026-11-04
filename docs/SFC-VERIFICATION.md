@@ -1,0 +1,31 @@
+# Selected SFC verification contract
+
+The portable policy and boundary tests are paired with a separate, dormant fixed backend. Its public immutable-false guard returns before platform, administrator, token, queue or reservation access. No Windows client is started, execution gate enabled or inventory hook added. Actual Windows/public UI qualification remains separate work. The legacy system-tool launch gate and production journal-creation gate remain false; the unsafe legacy log creator is not used.
+
+## Official semantics checked on 2026-11-04
+
+The [Microsoft SFC command reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/sfc) rendered endpoint returned HTTP403 in this environment. Its [public official MicrosoftDocs source](https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/administration/windows-commands/sfc.md) returned HTTP200 and was read in full. The fetched source declares `ms.date: 10/19/2022`; its SHA256 is `dc86c66fbf42ec366fc55fb988764b1fb628629cb72f6468f0f953823e1ede1a`. This records the actual consulted bytes, not a claim that Microsoft revised the article today.
+
+Its exact `/verifyonly` description is: “Scans the integrity of all protected system files, without performing repairs.” It requires Administrators-group membership. `/scannow` instead repairs files when possible and is excluded. The article supplies no complete exit-code-to-integrity mapping and no safe cancellation semantics. No undocumented mapping or localized-output parser is introduced.
+
+## Architecture and API boundary
+
+- `src/MadClean.Core/SfcVerification.cs` owns immutable preview/intent data, one-shot confirmation/reservation, actual transport observations and conservative assessment.
+- `src/MadClean.Windows/SfcVerificationProvider.cs` owns the separate dormant fixed SFC backend, reusing `SystemToolTrustedLease` and retaining the original `Process` through actual exit. It does not modify or enter the legacy `SystemToolActionsProvider` launcher. There is no candidate execution entrypoint, runtime override or bypass of its public immutable-false guard.
+- The proposed later explicit Prepare/acknowledgement/Confirm workflow belongs in the existing `src/MadClean.App/SystemToolsViewModel.cs`; pending-owner close protection and rendered-result qualification must accompany it. No UI is implemented here.
+
+`CreatePreview` accepts only the exact fresh trusted SFC verify-only identity descriptor. Identity comes from the future real held executable lease; portable tests use explicitly synthetic metadata. This independent read-only preview ignores the legacy descriptor's disabled `CanLaunch` permission flag while preserving exact descriptor/path/version/hash/trust validation. It does not enable that legacy route. Preview expiry cannot extend the original identity lifetime, which is bounded to two minutes.
+
+`Confirm` requires both explicit selection and effects acknowledgement. Confirmation and dispatch reservation are each one-shot under a lock; expired, cancelled or invalidated unreserved intents cannot be revived. Request ID, identity-preview ID, exact fixed path, version and SHA256 remain bound for renewed real backend verification. No caller-supplied command, arguments, source, offline image, log destination, elevation override, restart or repair option exists.
+
+The dormant private owner is constrained to already-effective administrator rights and refuses impersonation without requesting UAC or relaunch. Its fixed command is only the genuine held inbox `sfc.exe` with the single literal `/verifyonly`. The public guard prevents reaching this owner. Windows diagnostic/CBS log or metadata writes are disclosed for any separately qualified future execution. Personal/application-file coverage, successful repair and whole-PC health are never claimed. Ordinary inspection must never invoke this operation.
+
+## Observation and result limits
+
+`ISfcVerificationSession` exposes pending/retained ownership, observation-stop request and completion separately. Cancelling a caller wait or requesting observation stop does not stop SFC or a service. The dormant rooted owner must retain the original client, executable/ancestor leases and admission slot through actual exit, never kill a process or reopen a persisted PID as proof. Ambiguous dispatch/cleanup blocks reuse. Actual shared servicing admission is a blocker before any activation: component-store `GlobalGate` and legacy `ActionWorker` are separate private owners, so a local SFC gate cannot establish mutual exclusion across those routes. No shared admission is claimed here.
+
+The passive synthetic gate contract in `NativeFixtures.SystemToolGate` belongs to the coordinator. It tests the closed public boundary only; it is not an actual SFC invocation or runtime verification. No candidate qualification switch, environment variable, fixture or request enables execution.
+
+Transport preserves actual nullable administrator, dispatch, PID, start, exit, timestamp and ownership facts. Null means unobserved. A complete reserved, elevated, exited and released client can produce `Available` **client evidence** for any numeric exit code. This says nothing about verification success: `Integrity` is get-only `Unknown`. Observation stop retains actual facts as historical and does not promote the interrupted check. Contradictory facts remain Unknown.
+
+The protected `%windir%\Logs\CBS\CBS.log` path is a reference only: this increment reads, copies and exports no log content. Raw localized output, package/user paths and provider text must not enter activity logs, screenshots or CI artifacts. Actual Windows output/log interpretation remains a separate explicitly reviewed feature. Tests exercise boundary policy only; compilation or portable passes cannot establish SFC runtime behavior.

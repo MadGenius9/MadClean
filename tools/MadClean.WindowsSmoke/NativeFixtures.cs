@@ -328,7 +328,45 @@ internal static partial class NativeFixtures
         var result = Query(ct => actions.LaunchAsync(request, ct), token);
         if (result.State != SystemToolRunState.Unavailable || result.ElevationRequested || result.ProcessId != null || result.ClientExitCode != null)
             report.Fail("system-tool-execution-gate", "The dummy request did not remain an unavailable, non-elevated, process-free result.");
-        else report.Pass("system-tool-execution-gate", "The hard gate rejects an acknowledged dummy repair descriptor with Unavailable/no elevation/no PID. The harness did not Prepare a tool identity, start servicing or request UAC; actual execution remains unverified and disabled.");
+        else
+        {
+            // Synthetic descriptor exercises the new early gate without a Windows identity,
+            // privilege query, servicing client, or execution override.
+            ISfcVerificationProvider sfc = new SfcVerificationProvider();
+            if (sfc.ProductionExecutionValidated)
+            {
+                report.Fail("system-tool-execution-gate", "The SFC production gate unexpectedly reports enabled; no request was called.");
+                return;
+            }
+            var now = DateTimeOffset.UtcNow;
+            var identity = new SystemToolActionPreview(Guid.NewGuid(),
+                SystemToolActionsCatalog.Find(SystemToolOperation.SfcVerifyOnly)!,
+                @"C:\Windows\System32", @"C:\Windows\System32\sfc.exe", "Synthetic-not-observed", new string('0', 64),
+                SystemToolTrustState.MicrosoftSignatureVerified, "Synthetic metadata only", now,
+                now.AddMinutes(2), false, "Production disabled");
+            var prepared = SfcVerificationPolicy.CreatePreview(identity, now);
+            var confirmed = prepared.Items.Count == 1
+                ? SfcVerificationPolicy.Confirm(prepared.Items[0], true, true, now) : null;
+            if (confirmed?.Items.Count != 1)
+            {
+                report.Fail("system-tool-execution-gate", "The synthetic SFC gate descriptor could not be prepared; no request was called.");
+                return;
+            }
+            var intent = confirmed.Items[0];
+            var session = Query(ct => sfc.StartAsync(intent, ct), token);
+            var observation = Query(_ => session.Completion, token);
+            if (observation.State != CheckState.Unavailable || observation.Integrity != SfcIntegrityAssessment.Unknown ||
+                observation.RequestId != intent.RequestId || session.RequestId != intent.RequestId ||
+                observation.Transport.AdministratorObserved != null || observation.Transport.ClientStartAttempted != false ||
+                observation.Transport.ClientStartObserved == true || observation.Transport.ProcessId != null ||
+                observation.Transport.ClientStartedUtc != null || observation.Transport.ClientExitObserved == true ||
+                observation.Transport.ClientExitCode != null || observation.Transport.ClientExitedUtc != null ||
+                observation.Transport.OwnershipReleased != true || observation.Transport.StopObservationRequested ||
+                session.HasPendingWork || session.RequiresRetention || sfc.HasPendingWork || sfc.RequiresRetention ||
+                intent.IsDispatchReserved)
+                report.Fail("system-tool-execution-gate", "The disabled SFC route did not remain unavailable, unreserved, process-free and settled.");
+            else report.Pass("system-tool-execution-gate", "The legacy repair and new selected SFC gates reject acknowledged synthetic requests without identity/privilege queries, dispatch reservation, elevation or a process. Actual SFC execution remains unverified and disabled.");
+        }
     }
 
     private static void Diagnostics(SmokeReport report, CancellationToken token)

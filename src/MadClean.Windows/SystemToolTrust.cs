@@ -54,6 +54,9 @@ internal sealed class SystemToolTrustedLease : IDisposable
     internal static SystemToolTrustedLease OpenWindowsPowerShell(CancellationToken token) =>
         Open(SystemToolExecutableTarget.WindowsPowerShell, token);
 
+    internal static SystemToolTrustedLease OpenSfc(CancellationToken token) =>
+        Open(SystemToolExecutableTarget.Sfc, token);
+
     private static SystemToolTrustedLease Open(SystemToolExecutableTarget target, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
