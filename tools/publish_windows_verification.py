@@ -31,11 +31,15 @@ _published_app_spec = importlib.util.spec_from_file_location("madclean_published
 published_app_update_evidence = importlib.util.module_from_spec(_published_app_spec)
 _published_app_spec.loader.exec_module(published_app_update_evidence)
 
+_sfc_client_spec = importlib.util.spec_from_file_location("madclean_sfc_client_evidence", Path(__file__).with_name("sfc_client_evidence.py"))
+sfc_client_evidence = importlib.util.module_from_spec(_sfc_client_spec)
+_sfc_client_spec.loader.exec_module(sfc_client_evidence)
+
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-component-store-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
@@ -525,7 +529,7 @@ def validate_msi_report(directory, context):
             reject_unless(consent_qualified, "msi-pass-consent")
     return value
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped"):
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped", sfc_client_directory=None, sfc_client_download_result="skipped", sfc_client_result="skipped"):
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -576,6 +580,15 @@ def prepare(root, download, build_result, verification_result, environment, core
     except (ValueError, OSError):
         published_app_report, published_app_error = None, "published-app-evidence-rejected"
 
+    reject_unless(sfc_client_download_result in RESULTS and sfc_client_result in RESULTS, "sfc-client-job-result")
+    sfc_client_error = None
+    try:
+        sfc_client_report = sfc_client_evidence.collect(sfc_client_directory, context, read_json, safe_path) if sfc_client_download_result == "success" else None
+    except (ValueError, OSError):
+        # Optional client-lifecycle evidence can neither suppress independent proof
+        # nor establish Windows integrity, even when its own job completed.
+        sfc_client_report, sfc_client_error = None, "sfc-client-evidence-rejected"
+
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -620,6 +633,12 @@ def prepare(root, download, build_result, verification_result, environment, core
         "publishedAppUpdateReportPresent": published_app_report is not None,
         "publishedAppUpdateQualified": published_app_result == "success" and published_app_report is not None and published_app_report["state"] == "passed",
         "publishedAppUpdateError": published_app_error,
+        "sfcClientLifecycleScope": "Separate disposable-runner fixed SFC verify-only client lifecycle; Windows-managed diagnostic writes, no repair and no Windows integrity verdict.",
+        "sfcClientLifecycleResult": sfc_client_result,
+        "sfcClientLifecycleArtifactOutcome": sfc_client_download_result,
+        "sfcClientLifecycleReportPresent": sfc_client_report is not None,
+        "sfcClientLifecycleQualified": sfc_client_result == "success" and sfc_client_download_result == "success" and sfc_client_report is not None and sfc_client_report["state"] == "passed",
+        "sfcClientLifecycleError": sfc_client_error,
         "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
         "msiRequestResult": msi_result,
         "msiRequestArtifactOutcome": msi_download_result,
@@ -630,6 +649,8 @@ def prepare(root, download, build_result, verification_result, environment, core
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
     files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
+    if sfc_client_report is not None:
+        files["sfc-client.json"] = (json.dumps(sfc_client_report, indent=2) + "\n").encode()
     if published_app_report is not None:
         files["published-app-update.json"] = (json.dumps(published_app_report, indent=2) + "\n").encode()
 
@@ -695,10 +716,13 @@ def main():
     parser.add_argument("--published-app-update-reports", type=Path)
     parser.add_argument("--published-app-update-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--published-app-update-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--sfc-client-reports", type=Path)
+    parser.add_argument("--sfc-client-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--sfc-client-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result, args.published_app_update_reports, args.published_app_update_download_result, args.published_app_update_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result, args.published_app_update_reports, args.published_app_update_download_result, args.published_app_update_result, args.sfc_client_reports, args.sfc_client_download_result, args.sfc_client_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

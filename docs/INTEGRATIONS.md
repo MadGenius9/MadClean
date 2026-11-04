@@ -189,3 +189,6 @@ The separate [selected SFC verification contract](SFC-VERIFICATION.md) fixes `/v
 
 
 [Shared diagnostic admission](SYSTEM-TOOL-ADMISSION.md) now coordinates the selected DISM routes and dormant SFC within this process. An exact capability stays held until actual cleanup; uncertain terminal release permanently blocks cooperating operations. It adds no native call or execution permission, leaves SFC and the legacy executor disabled, and does not coordinate other processes. The changed DISM integration requires new Windows regression evidence.
+
+
+The [separate SFC client-lifecycle qualification](SFC-CLIENT-VALIDATION.md) requests only fixed `/verifyonly` on an explicitly configured disposable runner with held exact proof. It exercises actual client/drain/cleanup ownership while keeping integrity Unknown and the normal public SFC gate false. It is not a passive inventory action, repair, public UI qualification or automatic production activation.

@@ -10,8 +10,8 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
     private static readonly object GlobalGate = new();
     private static readonly List<Session> Rooted = [];
 
-    // No development entry point or configuration override. This candidate shares
-    // in-process admission with the selected DISM routes.
+    // The separate disposable-CI proof cannot change this public boundary. This
+    // candidate shares in-process admission with the selected DISM routes.
     // Legacy-executor integration, cross-process reconciliation and independent
     // Windows/public-UI qualification still block activation.
     public bool ProductionExecutionValidated => false;
@@ -26,20 +26,39 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
         if (!ProductionExecutionValidated)
             return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
                 "SFC verification execution is not enabled in this build. No administrator query, executable identity check, elevation or client launch was requested."));
-        return StartOwnedAsync(intent, prelaunchToken);
+        return StartOwnedAsync(intent, null, prelaunchToken);
     }
 
-    private static Task<ISfcVerificationSession> StartOwnedAsync(SfcVerificationIntent intent, CancellationToken token)
+    internal Task<ISfcVerificationSession> StartCandidateAsync(SfcVerificationIntent intent,
+        SfcClientFixtureAuthorization authorization, CancellationToken prelaunchToken)
     {
-        // Unreachable candidate only. The shared slot coordinates these selected
-        // in-process routes; it is not cross-process exclusion or activation proof.
+        ArgumentNullException.ThrowIfNull(intent); ArgumentNullException.ThrowIfNull(authorization);
+        // Pure exact-binding refusal before admission, scheduling or native work.
+        if (!authorization.MatchesRequest(intent.RequestId))
+            return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
+                "The exact disposable SFC request was not matched. No admission, identity query or client was requested."));
+        return StartOwnedAsync(intent, authorization, prelaunchToken);
+    }
+
+    private static Task<ISfcVerificationSession> StartOwnedAsync(SfcVerificationIntent intent,
+        SfcClientFixtureAuthorization? authorization, CancellationToken token)
+    {
+        if (token.IsCancellationRequested)
+        {
+            intent.Invalidate();
+            return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
+                "Cancelled before worker preparation. No administrator query, proof transfer, identity query or SFC client was requested.",
+                CheckState.Cancelled, stopRequested: true));
+        }
+        // The shared slot coordinates these selected in-process routes only; it
+        // is not cross-process exclusion, production activation or integrity proof.
         lock (GlobalGate)
         {
             Rooted.RemoveAll(owner => !owner.HasPendingWork && !owner.RequiresRetention);
             if (Rooted.Count != 0 || SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty)
                 return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
                     "Earlier tool ownership is pending or uncertain. No additional SFC client was requested."));
-            var owner = new Session(intent, token);
+            var owner = new Session(intent, authorization, token);
             var returned = Task.FromResult<ISfcVerificationSession>(owner);
             Rooted.EnsureCapacity(Rooted.Count + 1);
             var admission = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.SfcVerifyOnly, intent.RequestId);
@@ -47,6 +66,22 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                 return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
                     "Another cooperating servicing owner is pending or retained. No SFC client or identity query was requested."));
             owner.AttachAdmission(admission);
+            bool proofTransferred;
+            try { proofTransferred = authorization == null || authorization.TransferToWorker(intent.RequestId); }
+            catch
+            {
+                // The exact proof reference remains rooted when transfer ownership
+                // is uncertain; never close a possibly differently owned proof.
+                Rooted.Add(owner);
+                owner.BeforeWorkerFailed(proofOwnershipUncertain: true);
+                return returned;
+            }
+            if (!proofTransferred)
+            {
+                admission.Complete(ownershipReleased: true);
+                return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
+                    "The exact disposable SFC proof was not transferred. No worker, identity query or client was requested."));
+            }
             Rooted.Add(owner);
             try { _ = Task.Run(owner.RunAsync); }
             catch { owner.BeforeWorkerFailed(); }
@@ -56,24 +91,28 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
 
     private sealed class CompletedSession : ISfcVerificationSession
     {
-        internal CompletedSession(SfcVerificationIntent intent, string message)
+        internal CompletedSession(SfcVerificationIntent intent, string message,
+            CheckState state = CheckState.Unavailable, bool stopRequested = false)
         {
             RequestId = intent.RequestId;
             var now = DateTimeOffset.UtcNow;
-            Completion = Task.FromResult(new SfcVerificationResult(RequestId, CheckState.Unavailable, now, now, message,
-                new() { ClientStartAttempted = false, ClientStartObserved = false, OwnershipReleased = true }));
+            StopObservationRequested = stopRequested;
+            Completion = Task.FromResult(new SfcVerificationResult(RequestId, state, now, now, message,
+                new() { ClientStartAttempted = false, ClientStartObserved = false, OwnershipReleased = true,
+                    StopObservationRequested = stopRequested }));
         }
         public Guid RequestId { get; }
         public bool HasPendingWork => false;
         public bool RequiresRetention => false;
-        public bool StopObservationRequested => false;
+        public bool StopObservationRequested { get; }
         public void RequestStopObservation() { }
         public Task<SfcVerificationResult> Completion { get; }
     }
 
-    // Deliberately private: no test permission switch, fixture launch or other caller
-    // can reach this candidate while the public immutable production gate is false.
-    private sealed class Session(SfcVerificationIntent intent, CancellationToken token) : ISfcVerificationSession
+    // The normal application reaches this owner only through its immutable public
+    // gate. The separate disposable-CI entry must transfer the held exact proof.
+    private sealed class Session(SfcVerificationIntent intent, SfcClientFixtureAuthorization? authorization,
+        CancellationToken token) : ISfcVerificationSession
     {
         private readonly object sync = new();
         private readonly TaskCompletionSource<SfcVerificationResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -106,13 +145,24 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
         }
         private bool StopBeforeLaunch => token.IsCancellationRequested || StopObservationRequested || intent.IsInvalidated;
 
-        internal void BeforeWorkerFailed()
+        internal void BeforeWorkerFailed(bool proofOwnershipUncertain = false)
         {
             lock (sync)
             {
-                startAttempted = false; started = false; released = true;
-                admission?.Complete(ownershipReleased: true);
-                Publish("The owner could not be scheduled. No SFC client launch was attempted.");
+                startAttempted = false; started = false;
+                if (proofOwnershipUncertain) retained = true;
+                else
+                {
+                    try
+                    {
+                        authorization?.ReleaseFromWorker();
+                        if (authorization != null && !authorization.IsReleased) retained = true;
+                    }
+                    catch { retained = true; }
+                }
+                released = !retained;
+                admission?.Complete(ownershipReleased: released == true);
+                Publish("The owner could not be scheduled. No SFC client launch was attempted; any uncertain proof remains retained.");
             }
         }
 
@@ -192,7 +242,12 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                         SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty) retained = true;
                     if (!retained)
                     {
-                        try { child?.Dispose(); child = null; lease?.Dispose(); lease = null; }
+                        try
+                        {
+                            child?.Dispose(); child = null; lease?.Dispose(); lease = null;
+                            authorization?.ReleaseFromWorker();
+                            if (authorization != null && !authorization.IsReleased) retained = true;
+                        }
                         catch { retained = true; }
                     }
                     released = !retained;

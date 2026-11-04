@@ -292,8 +292,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  windows-sfc-client:
+    needs: build-test-package
+    if: >-
+      ${{ success() && github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked client qualification dependencies
+        run: dotnet restore MadClean.sln --locked-mode
+      - name: Build the separate non-repair SFC client mode
+        run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Observe one fixed SFC verify-only client (no repair or integrity verdict)
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+          MADCLEAN_SFC_CLIENT_VALIDATION: '1'
+        run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --sfc-client-validation
+      - name: Preserve fixed client lifecycle observations only
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-SFC-client-validation
+          path: artifacts/sfc-client-validation/report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   publish-verification:
-    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published]
+    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published, windows-sfc-client]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
           github.ref == 'refs/heads/feat/phase-one-foundation' &&
@@ -378,8 +413,18 @@ jobs:
           name: MadClean-published-app-update-validation
           path: downloaded-published-app
           digest-mismatch: error
+      - name: Retrieve this run's separate SFC client lifecycle facts
+        id: sfc_client_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-SFC-client-validation
+          path: downloaded-sfc-client
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
+          MADCLEAN_SFC_CLIENT_RESULT: ${{ needs.windows-sfc-client.result }}
+          MADCLEAN_SFC_CLIENT_DOWNLOAD_RESULT: ${{ steps.sfc_client_evidence.outcome }}
           MADCLEAN_PUBLISHED_APP_RESULT: ${{ needs.windows-app-update-published.result }}
           MADCLEAN_PUBLISHED_APP_DOWNLOAD_RESULT: ${{ steps.published_app_evidence.outcome }}
           MADCLEAN_SCAN_RESULT: ${{ needs.windows-component-store-scan.result }}
@@ -425,3 +470,6 @@ jobs:
           --published-app-update-reports downloaded-published-app
           --published-app-update-download-result "$MADCLEAN_PUBLISHED_APP_DOWNLOAD_RESULT"
           --published-app-update-result "$MADCLEAN_PUBLISHED_APP_RESULT"
+          --sfc-client-reports downloaded-sfc-client
+          --sfc-client-download-result "$MADCLEAN_SFC_CLIENT_DOWNLOAD_RESULT"
+          --sfc-client-result "$MADCLEAN_SFC_CLIENT_RESULT"

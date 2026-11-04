@@ -38,6 +38,10 @@ internal static class Program
         // Separate explicit fresh component-store scan; never passive inventory or a repair.
         if (args.Length == 1 && args[0] == "--component-store-scan-validation")
             return ComponentStoreStatusQualification.Run(repository, MadClean.Core.ComponentStoreCheckKind.ScanHealth);
+        // Separate hosted-runner client-lifecycle test of the fixed non-repair
+        // SFC operation. Public App execution remains disabled; no passive hook.
+        if (args.Length == 1 && args[0] == "--sfc-client-validation")
+            return SfcClientQualification.Run(repository);
         // Published-layout SDK qualification is separate from passive fixtures and does not distribute a package.
         if (args.Length == 1 && args[0] == "--structured-winget-published-parent")
         {
