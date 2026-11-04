@@ -10,12 +10,13 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
     private static readonly object GlobalGate = new();
     private static readonly List<Session> Rooted = [];
 
-    // No development entry point or configuration override. Before activation this
-    // candidate also needs atomic shared servicing admission with DISM and the legacy
-    // executor, cross-instance reconciliation, and independent Windows qualification.
+    // No development entry point or configuration override. This candidate shares
+    // in-process admission with the selected DISM routes.
+    // Legacy-executor integration, cross-process reconciliation and independent
+    // Windows/public-UI qualification still block activation.
     public bool ProductionExecutionValidated => false;
-    public bool HasPendingWork { get { lock (GlobalGate) return Rooted.Any(owner => owner.HasPendingWork); } }
-    public bool RequiresRetention { get { lock (GlobalGate) return Rooted.Any(owner => owner.RequiresRetention); } }
+    public bool HasPendingWork { get { lock (GlobalGate) return SystemToolServicingAdmission.HasPendingWork || Rooted.Any(owner => owner.HasPendingWork); } }
+    public bool RequiresRetention { get { lock (GlobalGate) return SystemToolServicingAdmission.RequiresRetention || Rooted.Any(owner => owner.RequiresRetention); } }
 
     public Task<ISfcVerificationSession> StartAsync(SfcVerificationIntent intent, CancellationToken prelaunchToken)
     {
@@ -30,8 +31,8 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
 
     private static Task<ISfcVerificationSession> StartOwnedAsync(SfcVerificationIntent intent, CancellationToken token)
     {
-        // Unreachable candidate only. This private local admission is deliberately
-        // NOT represented as shared servicing exclusion or activation readiness.
+        // Unreachable candidate only. The shared slot coordinates these selected
+        // in-process routes; it is not cross-process exclusion or activation proof.
         lock (GlobalGate)
         {
             Rooted.RemoveAll(owner => !owner.HasPendingWork && !owner.RequiresRetention);
@@ -41,6 +42,11 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
             var owner = new Session(intent, token);
             var returned = Task.FromResult<ISfcVerificationSession>(owner);
             Rooted.EnsureCapacity(Rooted.Count + 1);
+            var admission = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.SfcVerifyOnly, intent.RequestId);
+            if (admission == null)
+                return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
+                    "Another cooperating servicing owner is pending or retained. No SFC client or identity query was requested."));
+            owner.AttachAdmission(admission);
             Rooted.Add(owner);
             try { _ = Task.Run(owner.RunAsync); }
             catch { owner.BeforeWorkerFailed(); }
@@ -73,6 +79,8 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
         private readonly TaskCompletionSource<SfcVerificationResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly DateTimeOffset attempted = DateTimeOffset.UtcNow;
         private SystemToolTrustedLease? lease;
+        private SystemToolAdmissionLease? admission;
+        internal void AttachAdmission(SystemToolAdmissionLease value) => admission = value;
         private Process? child;
         private bool retained;
         private int stopState; // bit 1: request accepted; bit 2: publication boundary
@@ -101,6 +109,7 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
             lock (sync)
             {
                 startAttempted = false; started = false; released = true;
+                admission?.Complete(ownershipReleased: true);
                 Publish("The owner could not be scheduled. No SFC client launch was attempted.");
             }
         }
@@ -170,6 +179,9 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                         catch { retained = true; }
                     }
                     released = !retained;
+                    // Observation stop is not release. The exact client and lease
+                    // have settled before this slot can admit another route.
+                    admission?.Complete(ownershipReleased: released == true);
                     Publish(blocker);
                 }
                 if (!RequiresRetention) { lock (GlobalGate) Rooted.Remove(this); }

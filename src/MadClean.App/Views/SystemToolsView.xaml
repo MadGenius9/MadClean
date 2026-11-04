@@ -9,13 +9,20 @@
             </ComboBox>
             <TextBox Text="{Binding SystemToolDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="400" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Exact Microsoft tool descriptor and trust observation"/>
             <TextBlock Text="Signature verification may retrieve certificate/revocation metadata through Windows and write its normal certificate cache. Offline or unverifiable identity stays Unknown; there is no bypass." Style="{StaticResource Caption}"/>
-            <Button Content="Verify selected tool identity only" Command="{Binding VerifySystemToolCommand}" HorizontalAlignment="Left" Margin="0,8,0,12"/>
+            <Button Content="Verify selected tool identity only" Command="{Binding VerifySystemToolCommand}" HorizontalAlignment="Left" Margin="0,8,0,12" AutomationProperties.AutomationId="SystemToolVerifyIdentity" AutomationProperties.Name="Verify selected Microsoft tool identity only"/>
             <TextBlock Text="{Binding SystemToolMessage}" Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite"/>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
                 <TextBlock Text="Identity evidence and Windows integrity are separate" FontSize="20"/>
                 <TextBlock Text="{Binding SystemToolIdentitySummary}" Style="{StaticResource Caption}" AutomationProperties.Name="Microsoft tool identity observation summary" AutomationProperties.LiveSetting="Polite"/>
             </StackPanel></Border>
-            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, Windows elevation consent, actual result evidence and separate validation. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
+                <TextBlock Text="SFC verification preview" FontSize="20"/>
+                <TextBlock Text="Review the fixed non-repair operation after verifying the selected SFC identity. This creates a historical preview only; there is no run or confirmation action here." Style="{StaticResource Caption}"/>
+                <Button Content="Review SFC verification preview" Command="{Binding PrepareSfcVerificationPreviewCommand}" HorizontalAlignment="Left" Margin="0,8,0,12" AutomationProperties.AutomationId="SfcVerificationPreviewButton" AutomationProperties.Name="Review SFC verify-only preview without running a command"/>
+                <TextBox Text="{Binding SfcVerificationPreviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SfcVerificationPreviewDetails" AutomationProperties.Name="Read-only SFC verification preview snapshot and limits"/>
+                <TextBlock Text="{Binding SfcVerificationPreviewMessage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="SfcVerificationPreviewMessage" AutomationProperties.Name="SFC verification preview status" AutomationProperties.LiveSetting="Polite"/>
+            </StackPanel></Border>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, the operation's documented permissions, actual result evidence and separate validation. The separate SFC candidate requires already-effective administrator rights and never requests elevation consent. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -226,6 +226,33 @@ internal static partial class UiCapture
                             position.X + identitySummary.ActualWidth > client.ActualWidth + 1 ||
                             position.Y + identitySummary.ActualHeight > client.ActualHeight + 1)
                             throw new SmokeAssertionException("ui-system-tool-identity-summary-bounds");
+                        var sfcButton = Descendants<Button>(window).Single(button => AutomationProperties.GetAutomationId(button) == "SfcVerificationPreviewButton");
+                        var sfcDetails = Descendants<TextBox>(window).Single(box => AutomationProperties.GetAutomationId(box) == "SfcVerificationPreviewDetails");
+                        var sfcMessage = Descendants<TextBlock>(window).Single(block => AutomationProperties.GetAutomationId(block) == "SfcVerificationPreviewMessage");
+                        if (!ReferenceEquals(sfcButton.Command, model.PrepareSfcVerificationPreviewCommand) || sfcButton.IsEnabled ||
+                            model.PrepareSfcVerificationPreviewCommand.CanExecute(null) || !sfcDetails.IsReadOnly ||
+                            sfcDetails.Text != model.SfcVerificationPreviewDetails || sfcMessage.Text != model.SfcVerificationPreviewMessage ||
+                            sfcDetails.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.SfcVerificationPreviewDetails) ||
+                            sfcMessage.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path != nameof(MainViewModel.SfcVerificationPreviewMessage) ||
+                            !sfcMessage.Text.StartsWith("Not prepared", StringComparison.Ordinal))
+                            throw new SmokeAssertionException("ui-sfc-preview-unchecked-binding");
+                        // A fixed operation selection without accepted identity must
+                        // never enable this review action; no identity query is run.
+                        model.SelectedSystemTool = SystemToolActionsCatalog.Find(SystemToolOperation.SfcVerifyOnly);
+                        await Idle(window);
+                        if (model.PrepareSfcVerificationPreviewCommand.CanExecute(null) || sfcButton.IsEnabled)
+                            throw new SmokeAssertionException("ui-sfc-preview-missing-identity");
+                        model.SelectedSystemTool = null;
+                        sfcMessage.BringIntoView();
+                        await Idle(window);
+                        foreach (FrameworkElement element in new FrameworkElement[] { sfcButton, sfcDetails, sfcMessage })
+                        {
+                            Point location = element.TranslatePoint(new Point(), client);
+                            if (!element.IsVisible || !ValidSize(element) || !double.IsFinite(location.X) || !double.IsFinite(location.Y) ||
+                                location.X < -1 || location.Y < -1 || location.X + element.ActualWidth > client.ActualWidth + 1 ||
+                                location.Y + element.ActualHeight > client.ActualHeight + 1)
+                                throw new SmokeAssertionException("ui-sfc-preview-bounds");
+                        }
                         AssertNoInventory(model);
                     }
                     if (link.Page == 14)
@@ -336,7 +363,7 @@ internal static partial class UiCapture
                     }
                     AssertNoInventory(model);
                 }
-                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation.");
+                report.Pass("ui-tool-navigation", $"All {links.Length} secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation. The new SFC preview has actual empty/read-only bindings, visible controls and remains disabled after selecting SFC without accepted identity; populated preview/expiry behavior remains separately unverified.");
 
                 model.SelectedPage = 0;
                 await Idle(window);

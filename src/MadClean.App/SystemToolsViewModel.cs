@@ -23,6 +23,7 @@ public sealed partial class MainViewModel
         {
             if (IsBusy || value != null && !SystemToolDefinitions.Contains(value)) return;
             Set(ref selectedSystemTool, value); systemToolPreview = null;
+            ClearSfcVerificationPreview();
             SystemToolMessage = "Selection changed. No new identity check or Windows command has been requested.";
             SystemToolIdentitySummary = "Tool identity: not checked for this selection. Windows integrity: not checked. Execution remains disabled.";
             PropertyChanged?.Invoke(this, new(nameof(SystemToolDetails)));
@@ -43,11 +44,13 @@ public sealed partial class MainViewModel
     private void InitializeSystemTools()
     {
         VerifySystemToolCommand = new AsyncCommand(VerifySystemTool, () => !IsBusy && selectedSystemTool != null);
+        InitializeSfcVerificationPreview();
     }
     private Task VerifySystemTool() => RunDiscoveryAsync(ActivityArea.SystemToolIdentity, "Verifying selected Microsoft tool identity", async token =>
     {
         if (selectedSystemTool is not { } action) return CheckState.Unknown;
         systemToolPreview = null;
+        ClearSfcVerificationPreview();
         SystemToolIdentitySummary = "Tool identity: checking. No completed observation is claimed. Windows integrity: not checked.";
         PropertyChanged?.Invoke(this, new(nameof(SystemToolDetails)));
         SystemToolMessage = "Checking only the selected executable and signature. Windows certificate verification may retrieve certificate metadata; no SFC/DISM command is run.";
@@ -70,6 +73,7 @@ public sealed partial class MainViewModel
     }, error =>
     {
         systemToolPreview = null;
+        ClearSfcVerificationPreview();
         SystemToolIdentitySummary = "Tool identity: no completed observation from this attempt. Windows integrity: not checked. No command was requested.";
         PropertyChanged?.Invoke(this, new(nameof(SystemToolDetails)));
         SystemToolMessage = error + " No integrity or repair command was requested.";

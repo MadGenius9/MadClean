@@ -19,3 +19,8 @@ A pass requires the real app result to be Available or Partial with all supporte
 ## Remaining validation
 
 This workflow requires its own source-matched Windows result. SDK-only development/published-harness success and neutral MadClean executable startup do not qualify this app-control flow. Linux compilation cannot establish WPF interaction, actual source access, cancellation or physical accessibility/DPI behavior. The actual published MadClean executable's selected update workflow is a separate validation increment; the in-process helper does not claim to have exercised that executable path. The test reports no performance benchmark or installation eligibility.
+
+
+## Observed qualification
+
+Source `b670db51`, immutable evidence `d257f165b9a02b5b3a66c19eb09e741c0b015cb3`, [run 41784447861](https://github.com/MadGenius9/MadClean/actions/runs/41784447861): the actual command, fresh Partial result, rendered counts, settled ownership and closed App window passed. There were 68 catalog rows, 19 Available and 49 Unknown. No package identities, raw provider output or loaded-data screenshots were exported. This qualifies the observed disposable-runner workflow, not every platform/policy, cancellation timing, complete software coverage or a physical-input accessibility audit.

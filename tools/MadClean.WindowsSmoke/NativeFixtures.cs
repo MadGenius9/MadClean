@@ -365,8 +365,47 @@ internal static partial class NativeFixtures
                 session.HasPendingWork || session.RequiresRetention || sfc.HasPendingWork || sfc.RequiresRetention ||
                 intent.IsDispatchReserved)
                 report.Fail("system-tool-execution-gate", "The disabled SFC route did not remain unavailable, unreserved, process-free and settled.");
-            else report.Pass("system-tool-execution-gate", "The legacy repair and new selected SFC gates reject acknowledged synthetic requests without identity/privilege queries, dispatch reservation, elevation or a process. Actual SFC execution remains unverified and disabled.");
+            else if (!SharedServicingAdmissionIsCoherent())
+                report.Fail("system-tool-execution-gate", "The managed shared servicing slot did not expose exact-owner pending/settled state across provider instances. No DISM/SFC request was invoked for this composition check.");
+            else report.Pass("system-tool-execution-gate", "The legacy repair and selected SFC gates reject acknowledged synthetic requests without identity/privilege queries, dispatch reservation, elevation or a process. The managed shared slot blocks a second route and exposes pending/released state across actual provider instances without invoking DISM/SFC. Actual SFC execution remains unverified and disabled.");
         }
+    }
+
+    private static bool SharedServicingAdmissionIsCoherent()
+    {
+        // Only a managed development admission capability is held. Never call an
+        // enabled DISM entry point merely to test rejection: a regression could
+        // otherwise dispatch a real check from this passive harness.
+        var component = new ComponentStoreStatusProvider();
+        var sfc = new SfcVerificationProvider();
+        if (SystemToolServicingAdmission.HasPendingWork || SystemToolServicingAdmission.RequiresRetention ||
+            component.HasPendingWork || sfc.HasPendingWork) return false;
+        // Independent native trust cleanup can already be uncertain. Preserve
+        // those pre-existing provider flags; managed admission does not clear them.
+        bool componentRetained = component.RequiresRetention, sfcRetained = sfc.RequiresRetention;
+        var lease = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.DismCheckHealth, Guid.NewGuid());
+        if (lease == null) return false;
+        bool consistent;
+        SystemToolAdmissionLease? competingSfc = null, competingScan = null;
+        try
+        {
+            competingSfc = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.SfcVerifyOnly, Guid.NewGuid());
+            competingScan = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.DismScanHealth, Guid.NewGuid());
+            consistent = SystemToolServicingAdmission.HasPendingWork && !SystemToolServicingAdmission.RequiresRetention &&
+                component.HasPendingWork && sfc.HasPendingWork &&
+                component.RequiresRetention == componentRetained && sfc.RequiresRetention == sfcRetained &&
+                competingSfc == null && competingScan == null;
+        }
+        finally
+        {
+            // Preserve and release any unexpected fixture-owned capabilities too.
+            competingScan?.Complete(ownershipReleased: true);
+            competingSfc?.Complete(ownershipReleased: true);
+            lease.Complete(ownershipReleased: true);
+        }
+        return consistent && !SystemToolServicingAdmission.HasPendingWork && !SystemToolServicingAdmission.RequiresRetention &&
+            !component.HasPendingWork && component.RequiresRetention == componentRetained &&
+            !sfc.HasPendingWork && sfc.RequiresRetention == sfcRetained;
     }
 
     private static void Diagnostics(SmokeReport report, CancellationToken token)

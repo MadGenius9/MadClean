@@ -22,8 +22,8 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
         ComponentStoreCheckKind.ScanHealth => true,
         _ => false
     };
-    public bool HasPendingWork { get { lock (GlobalGate) return Rooted.Any(session => session.HasPendingWork); } }
-    public bool RequiresRetention { get { lock (GlobalGate) return SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty || Rooted.Any(session => session.RequiresRetention); } }
+    public bool HasPendingWork { get { lock (GlobalGate) return SystemToolServicingAdmission.HasPendingWork || Rooted.Any(session => session.HasPendingWork); } }
+    public bool RequiresRetention { get { lock (GlobalGate) return SystemToolServicingAdmission.RequiresRetention || SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty || Rooted.Any(session => session.RequiresRetention); } }
 
     public Task<IComponentStoreStatusSession> StartAsync(ComponentStoreStatusIntent intent, CancellationToken prelaunchToken)
     {
@@ -62,12 +62,41 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
             if (Rooted.Any(session => session.HasPendingWork || session.RequiresRetention))
                 return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
                     "An earlier component-store owner is pending or retained. No additional host was requested.", null));
+            // Allocate the managed owner/result and root capacity before acquiring
+            // a shared slot or transferring any fixture proof ownership.
             var owner = new Session(intent, authorization, prelaunchToken);
             var returned = Task.FromResult<IComponentStoreStatusSession>(owner);
             Rooted.EnsureCapacity(Rooted.Count + 1);
-            if (authorization != null && !authorization.TransferToWorker(intent.RequestId, intent.Kind))
+            var operation = intent.Kind switch
+            {
+                ComponentStoreCheckKind.RecordedFlags => SystemToolOperation.DismCheckHealth,
+                ComponentStoreCheckKind.ScanHealth => SystemToolOperation.DismScanHealth,
+                _ => (SystemToolOperation)(-1)
+            };
+            var admission = SystemToolServicingAdmission.TryAcquire(operation, intent.RequestId);
+            if (admission == null)
+                return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
+                    "Another cooperating servicing owner is pending or retained, or this check kind is unsupported. No host or identity query was requested.", null));
+            owner.AttachAdmission(admission);
+            bool proofTransferred;
+            try { proofTransferred = authorization == null || authorization.TransferToWorker(intent.RequestId, intent.Kind); }
+            catch
+            {
+                // A transfer exception cannot establish which proof owner remains.
+                // Root that exact reference and retain the shared slot, without
+                // attempting to close a possibly foreign/current proof owner.
+                Rooted.Add(owner);
+                owner.BeforeWorkerFailed(proofOwnershipUncertain: true);
+                return returned;
+            }
+            if (!proofTransferred)
+            {
+                // A refused transfer leaves the fixture with its existing owner;
+                // only this newly acquired, never-dispatched slot is released.
+                admission.Complete(ownershipReleased: true);
                 return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
                     "The exact source-bound disposable-CI authorization was not transferred. No host was requested.", null));
+            }
             Rooted.Add(owner);
             try { _ = Task.Run(owner.RunAsync); }
             catch { owner.BeforeWorkerFailed(); }
@@ -98,6 +127,8 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
         private readonly TaskCompletionSource<ComponentStoreStatusResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly DateTimeOffset attempted = DateTimeOffset.UtcNow;
         private SystemToolTrustedLease? lease;
+        private SystemToolAdmissionLease? admission;
+        internal void AttachAdmission(SystemToolAdmissionLease value) => admission = value;
         private PrivateCancellationEvent? cancel;
         private Process? child;
         private Task<DrainResult>? stdout, stderr;
@@ -136,12 +167,17 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
             }
         }
         private bool StopBeforeLaunch => prelaunchToken.IsCancellationRequested || StopRequested || intent.IsInvalidated;
-        internal void BeforeWorkerFailed()
+        internal void BeforeWorkerFailed(bool proofOwnershipUncertain = false)
         {
             lock (sync)
             {
-                try { authorization?.ReleaseFromWorker(); ownership = true; }
-                catch { retained = true; ownership = false; }
+                if (proofOwnershipUncertain) { retained = true; ownership = false; }
+                else
+                {
+                    try { authorization?.ReleaseFromWorker(); ownership = true; }
+                    catch { retained = true; ownership = false; }
+                }
+                admission?.Complete(ownershipReleased: ownership == true);
                 completion.TrySetResult(new(RequestId, CheckState.Unknown, ComponentStoreRecordedFlag.Unknown, attempted, DateTimeOffset.UtcNow,
                     "The owner could not be scheduled. No host launch was attempted; any uncertain proof remains retained.")
                     { Kind = intent.Kind, Transport = Transport(null, null) });
@@ -266,6 +302,10 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
                         catch { retained = true; }
                     }
                     ownership = !retained;
+                    // Caller cancellation/publication never releases admission.
+                    // Complete only after actual process/drain/proof/lease cleanup;
+                    // any retained ownership permanently blocks cooperating routes.
+                    admission?.Complete(ownershipReleased: ownership == true);
                     var transport = Transport(output, error);
                     Interlocked.Or(ref stopState, 2);
                     var result = ComponentStoreStatusPolicy.Assess(intent, evidence, transport, attempted, DateTimeOffset.UtcNow, StopRequested);

@@ -27,3 +27,8 @@ The bounded atomic report contains only source/run/attempt, observation times, f
 A pass requires the neutral and runtime proof, metadata lease, actual command, fresh positive query/counts, settled query ownership, actual owned client exit zero, confirmed cleanup and no retention. Missing files, failed jobs, malformed reports, stale context or compilation alone cannot qualify it. Standard-user/policy/offline and mid-native cancellation scenarios require their own applicable evidence.
 
 This implementation has not yet run on Windows. Local compilation and portable tests are not a published-query result.
+
+
+## Observed qualification
+
+Source `b670db51`, immutable evidence `d257f165b9a02b5b3a66c19eb09e741c0b015cb3`, [run 41784447861](https://github.com/MadGenius9/MadClean/actions/runs/41784447861): the separately owned actual published MadClean executable passed this workflow. It reported Partial with 68 rows, 19 Available and 49 Unknown after the real update command; runtime/metadata ownership, fresh result, settled query, graceful window close, actual exit zero and owned cleanup were observed. No retention remained. This is development runtime evidence, not signing, distribution, complete app coverage or all Windows-policy qualification. No executable artifact or ZIP was distributed.
