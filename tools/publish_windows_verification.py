@@ -150,7 +150,7 @@ def validate_report(download, context):
         return None, {}
     report = read_json(path, 262_144)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "passed", "state", "checks", "screenshots", "limits"}
-    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3, 4}, "report-schema")
+    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3, 4, 5}, "report-schema")
     times = []
     for field in ("startedUtc", "completedUtc"):
         value = report[field]
@@ -179,6 +179,8 @@ def validate_report(download, context):
             required |= {"structured-winget-published-query-contract"}
         if report["formatVersion"] >= 4:
             required |= {"app-update-public-ui-contract"}
+        if report["formatVersion"] >= 5:
+            required |= {"ui-sfc-preview-interaction"}
         reject_unless(required <= names, "missing-required-check")
     images = report.get("screenshots")
     reject_unless(isinstance(images, list) and len(images) <= 32, "report-images")

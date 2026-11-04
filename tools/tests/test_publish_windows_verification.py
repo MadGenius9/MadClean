@@ -585,6 +585,45 @@ class PublisherTests(unittest.TestCase):
         _, summary, _ = self.prepare()
         self.assertTrue(summary['passed'])
 
+    def test_v5_cannot_substitute_identity_or_update_proofs_for_sfc_preview_interaction(self):
+        self.report['formatVersion'] = 5
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.save(); self.rejected()
+
+    def test_v5_accepts_separate_sfc_preview_proof_without_requiring_it_from_v4(self):
+        self.report['formatVersion'] = 5
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY fixed workflow proof'})
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertTrue(summary['passed'])
+        self.assertEqual(5, json.loads(files['report.json'])['formatVersion'])
+        self.report['formatVersion'] = 4
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'ui-sfc-preview-interaction']
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
+    def test_v5_unknown_sfc_preview_cannot_be_claimed_as_passed(self):
+        self.report['formatVersion'] = 5
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.report['checks'].append({'name': 'ui-sfc-preview-interaction', 'state': 'inconclusive', 'detail': 'TEST-ONLY missing accepted identity; no preview result'})
+        self.save(); self.rejected()
+        self.report.update(passed=False, state='inconclusive')
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertFalse(summary['passed'])
+        published = json.loads(files['report.json'])
+        self.assertEqual('inconclusive', next(check for check in published['checks'] if check['name'] == 'ui-sfc-preview-interaction')['state'])
+
+    def test_standard_report_versions_are_closed_and_strictly_integer(self):
+        for value in (0, 6, True, '5', 5.0, None):
+            with self.subTest(version=value):
+                self.report['formatVersion'] = value
+                self.save(); self.rejected()
+
     def test_passed_report_requires_same_query_winget_observation(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'winget-query-observation-contract']
         self.save(); self.rejected()

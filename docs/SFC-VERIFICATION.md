@@ -32,3 +32,12 @@ The protected `%windir%\Logs\CBS\CBS.log` path is a reference only: this increme
 
 
 The new UI snapshot shows its actual identity observation/preparation/expiry times, fixed command, permissions and Windows log-write/stop/result limitations. It is labeled historical and has no run control; expiry cannot silently authorize a later action. The passive initial-view check validates actual bindings, readable bounds and disabled state both without selection and after SFC selection without an identity query. Populated fresh identity, expiry and cancellation workflows remain unverified until separately exercised on Windows.
+
+
+## Real read-only preview qualification
+
+The standard Windows report version5 adds `ui-sfc-preview-interaction`. After all screenshots, the harness selects the actual verify-only operation, invokes the real identity button, waits for actual ownership settlement, invokes the real read-only preview control, and checks source IDs, original expiry, actual rendered scope and unchanged activity. A real selection change must clear both identity and preview; returning to SFC cannot revive them. Provider values, paths, hashes, versions and arbitrary messages are never exported by this check. Missing, incomplete, interrupted or expired real identity remains inconclusive; no mock identity, clock override, new certificate query fallback or canned success is substituted. Timed-expiry and cancellation-race runtime cases remain separate limits.
+
+The App exposes actual shared identity-worker admission independently from caller completion. A timeout/cancelled identity read retains App busy/close protection until its native worker returns; the original result is preserved, with no late promotion. Synchronous signature/revocation work is never aborted. The qualifier's final wait does not call layout or dispatcher methods that may have raised the original exception. Its outer process-lifetime guard also waits on the same managed shared admission if the dispatcher ends unexpectedly, keeps that run failed, and performs no native retry, force close or process kill. This is development qualification only; SFC execution remains immutably false and no SFC command is run.
+
+Standard publisher acceptance preserves exact versions1–4 and requires the new check only for a version5 report claiming all checks passed. Missing proof, Unknown or failed checks cannot become successful qualification. This new workflow is implemented but unverified until source-matched Windows evidence is received.

@@ -15,6 +15,7 @@ public sealed class SystemToolActionsProvider : ISystemToolActions
     private readonly ConcurrentDictionary<Guid, SystemToolActionPreview> previews = new();
     private static volatile bool monitoringBecameUncertain;
     public bool ProductionExecutionValidated => false;
+    public bool HasPendingIdentityWork => IdentityWorker.CurrentCount == 0;
 
     public async Task<CheckResult<SystemToolActionPreview>> PrepareAsync(SystemToolOperation operation, CancellationToken token)
     {

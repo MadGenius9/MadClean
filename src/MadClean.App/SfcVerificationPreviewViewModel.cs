@@ -10,6 +10,8 @@ public sealed partial class MainViewModel
     private string sfcVerificationPreviewDetails = "No SFC verification preview. Select SFC: verify protected Windows files, verify its identity, then review this separate preview. No SFC command has run.";
     private string sfcVerificationPreviewMessage = "Not prepared. SFC execution is disabled; Windows protected-file integrity is not checked.";
 
+    public SfcVerificationPreview? SfcVerificationLastPreview => sfcVerificationPreview;
+
     public ICommand PrepareSfcVerificationPreviewCommand { get; private set; } = null!;
     public string SfcVerificationPreviewDetails
     { get => sfcVerificationPreviewDetails; private set => Set(ref sfcVerificationPreviewDetails, value); }

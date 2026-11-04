@@ -12,6 +12,12 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
         Closing += (_, args) =>
         {
+            if (model.HasPendingSystemToolIdentity)
+            {
+                args.Cancel = true;
+                model.ExplainSystemToolIdentityCloseBlock();
+                return;
+            }
             if (model.HasPendingAppUpdateDiscovery)
             {
                 args.Cancel = true;

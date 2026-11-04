@@ -52,6 +52,9 @@ public sealed record SystemToolRunRecord(Guid ExecutionId, SystemToolOperation O
 public interface ISystemToolActions
 {
     bool ProductionExecutionValidated { get; }
+    // Actual shared identity-worker admission; a bounded/cancelled caller wait
+    // does not mean native signature work or its owned leases have settled.
+    bool HasPendingIdentityWork { get; }
     Task<CheckResult<SystemToolActionPreview>> PrepareAsync(SystemToolOperation operation, CancellationToken token);
     Task<SystemToolRunRecord> LaunchAsync(SystemToolLaunchRequest request, CancellationToken observationToken);
 }
