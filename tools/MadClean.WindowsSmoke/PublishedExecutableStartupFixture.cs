@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -31,12 +32,24 @@ internal sealed record PublishedExecutableStartupReport(PublishedExecutableStart
     public bool? RuntimeCoreClrObserved { get; init; }
     public bool? RuntimeClrJitObserved { get; init; }
     public bool? RuntimeWpfNativeObserved { get; init; }
+    public bool? MetadataSidecarLeased { get; init; }
+    public bool? AppUpdateCommandInvoked { get; init; }
+    public bool? AppUpdateResultObserved { get; init; }
+    public bool? AppUpdateFreshResult { get; init; }
+    public bool? AppUpdateOwnershipSettled { get; init; }
+    public string? AppUpdateResultState { get; init; }
+    public int? AppUpdateAvailableRows { get; init; }
+    public int? AppUpdateUnknownRows { get; init; }
+    public int? AppUpdateItemCount { get; init; }
+    public DateTimeOffset? AppUpdateCheckedUtc { get; init; }
+    public int? RequestedUpdateCommandInvocations { get; init; }
     public int InventoryInvocations => 0;
     public int Captures => 0;
 }
 
-// Actual separately published apphost startup only. No query commands, UI invocations,
-// environment permission flag, sample data, capture or distribution upload is provided.
+// Normal RunAsync is startup-only and never invokes a query. The separate explicit
+// RunAppUpdateQueryAsync profile reuses the same owner for an actual read-only UI action.
+// Neither profile supplies an app permission/test switch, samples, captures or distribution.
 internal static class PublishedExecutableStartupFixture
 {
     private static int active, retention;
@@ -46,7 +59,12 @@ internal static class PublishedExecutableStartupFixture
     private const uint ReadAttributes = 0x80, NoFollow = 0x00200000, NoRecall = 0x00100000, Backup = 0x02000000;
     private const uint Unsafe = 0x400 | 0x1000 | 0x4000 | 0x40000 | 0x400000;
 
-    internal static async Task<PublishedExecutableStartupReport> RunAsync(string repository, string expectedSourceCommit, CancellationToken token)
+    internal static Task<PublishedExecutableStartupReport> RunAsync(string repository, string expectedSourceCommit, CancellationToken token) =>
+        RunCoreAsync(repository, expectedSourceCommit, token, queryMode: false);
+    internal static Task<PublishedExecutableStartupReport> RunAppUpdateQueryAsync(string repository, string expectedSourceCommit, CancellationToken token) =>
+        RunCoreAsync(repository, expectedSourceCommit, token, queryMode: true);
+
+    private static async Task<PublishedExecutableStartupReport> RunCoreAsync(string repository, string expectedSourceCommit, CancellationToken token, bool queryMode)
     {
         if (token.IsCancellationRequested) return Empty(PublishedExecutableStartupState.CancelledBeforeStart, "cancelled-before-start");
         if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess || RequiresRetention)
@@ -57,11 +75,18 @@ internal static class PublishedExecutableStartupFixture
         _ = Task.Run(() =>
         {
             PublishedExecutableStartupReport result;
-            try { result = new Worker(repository, expectedSourceCommit, stop.Token).Run(); }
+            try { result = new Worker(repository, expectedSourceCommit, stop.Token, queryMode).Run(); }
             catch (Exception) { Retain(); result = Empty(PublishedExecutableStartupState.Inconclusive, "worker-unexpected-failure"); }
             finally { stop.Dispose(); Volatile.Write(ref active, 0); }
             completion.TrySetResult(result);
         }, CancellationToken.None);
+        if (queryMode)
+        {
+            // The explicit query owner cannot be abandoned by a bounded caller wait.
+            // Its worker budget is cooperative; an external CI VM limit is separate.
+            var observed = await completion.Task.ConfigureAwait(false);
+            return token.IsCancellationRequested ? observed with { State = PublishedExecutableStartupState.Inconclusive, Stage = "stop-at-publication" } : observed;
+        }
         try
         {
             var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(45), token).ConfigureAwait(false);
@@ -77,7 +102,7 @@ internal static class PublishedExecutableStartupFixture
     private static PublishedExecutableStartupReport Empty(PublishedExecutableStartupState state, string stage) =>
         new(state, false, false, false, false, false, false, false, false, null, null, false, stage, null);
 
-    private sealed class Worker(string repository, string expectedCommit, CancellationToken token)
+    private sealed class Worker(string repository, string expectedCommit, CancellationToken token, bool queryMode)
     {
         private readonly Stopwatch watch = Stopwatch.StartNew();
         private readonly List<OwnedHandle> handles = [];
@@ -98,11 +123,17 @@ internal static class PublishedExecutableStartupFixture
         private bool hostFxrSeen, hostPolicySeen, coreClrSeen, clrJitSeen, wpfNativeSeen, appHostSeen;
         private string runtimeRoute = "Unobserved", staticHostMetadataStage = "not-attempted";
         private bool? staticHostMetadataObserved;
+        private bool? metadataSidecarLeased, appUpdateCommandInvoked, appUpdateResultObserved, appUpdateFreshResult, appUpdateOwnershipSettled;
+        private string? appUpdateResultState;
+        private int? appUpdateAvailableRows, appUpdateUnknownRows, appUpdateItemCount;
+        private DateTimeOffset? appUpdateCheckedUtc;
+        private int requestedUpdateCommandInvocations;
+        private bool queryInvocationAttempted;
 
         internal PublishedExecutableStartupReport Run()
         {
-            bool failed = false;
-            try { Execute(); }
+            bool failed = false, observationCompleted = false;
+            try { Execute(); observationCompleted = true; }
             catch (Invariant failure) { failed = true; stage = failure.Stage; }
             catch (Unavailable failure) { stage = failure.Stage; nativeError = failure.Code; }
             catch (OperationCanceledException) { stage = "worker-stop-after-start"; }
@@ -132,7 +163,10 @@ internal static class PublishedExecutableStartupFixture
             if (exited == true && exitCode is not null && exitCode != 0)
             { failed = true; stage = "published-process-observed-nonzero-exit"; }
             var state = failed ? PublishedExecutableStartupState.Failed : descriptorValid && executableLeased && started && ownedWindow && neutral && noData && bundled &&
-                closeRequested && exited == true && exitCode == 0 && cleaned && !RequiresRetention ? PublishedExecutableStartupState.Observed : PublishedExecutableStartupState.Inconclusive;
+                closeRequested && exited == true && exitCode == 0 && cleaned && !RequiresRetention &&
+                (!queryMode || observationCompleted && nativeError is null && metadataSidecarLeased == true && appUpdateCommandInvoked == true && appUpdateResultObserved == true &&
+                    appUpdateFreshResult == true && appUpdateOwnershipSettled == true && appUpdateResultState is "Available" or "Partial")
+                ? PublishedExecutableStartupState.Observed : PublishedExecutableStartupState.Inconclusive;
             return new(state, descriptorValid, executableLeased, started, ownedWindow, neutral, noData, bundled,
                 closeRequested, exited, exitCode, cleaned && !RequiresRetention, stage, nativeError)
             {
@@ -142,7 +176,13 @@ internal static class PublishedExecutableStartupFixture
                 OverviewStage = overviewStage, OverviewNativeError = overviewNativeError,
                 RuntimeNeededModuleCount = runtimeNeededModuleCount, RuntimeSnapshotComplete = runtimeSnapshotComplete, RuntimePathsComplete = runtimePathsComplete,
                 RuntimeHostFxrObserved = RuntimeFlag(hostFxrSeen), RuntimeHostPolicyObserved = RuntimeFlag(hostPolicySeen),
-                RuntimeCoreClrObserved = RuntimeFlag(coreClrSeen), RuntimeClrJitObserved = RuntimeFlag(clrJitSeen), RuntimeWpfNativeObserved = RuntimeFlag(wpfNativeSeen)
+                RuntimeCoreClrObserved = RuntimeFlag(coreClrSeen), RuntimeClrJitObserved = RuntimeFlag(clrJitSeen), RuntimeWpfNativeObserved = RuntimeFlag(wpfNativeSeen),
+                MetadataSidecarLeased = metadataSidecarLeased, AppUpdateCommandInvoked = appUpdateCommandInvoked,
+                AppUpdateResultObserved = appUpdateResultObserved, AppUpdateFreshResult = appUpdateFreshResult,
+                AppUpdateOwnershipSettled = appUpdateOwnershipSettled, AppUpdateResultState = appUpdateResultState,
+                AppUpdateAvailableRows = appUpdateAvailableRows, AppUpdateUnknownRows = appUpdateUnknownRows,
+                AppUpdateItemCount = appUpdateItemCount, AppUpdateCheckedUtc = appUpdateCheckedUtc,
+                RequestedUpdateCommandInvocations = queryMode ? requestedUpdateCommandInvocations : null
             };
         }
         private bool? RuntimeFlag(bool seen) => seen ? true : runtimePathsComplete == true ? false : null;
@@ -184,7 +224,17 @@ internal static class PublishedExecutableStartupFixture
             executable = Open(exe, 0x80000000 | ReadAttributes, 1);
             executableStamp = Observe(executable, exe, false);
             if (executableStamp.Bytes is < 1 or > 536_870_912) throw new Unavailable("published-executable-size-unsupported", null);
-            executableLeased = true; RecheckGuards();
+            executableLeased = true;
+            if (queryMode)
+            {
+                stage = "lease-sdk-metadata-sidecar";
+                string metadataPath = Path.Combine(publish, "Microsoft.Management.Deployment.winmd");
+                var metadata = Open(metadataPath, 0x80000000 | ReadAttributes, 1);
+                var metadataStamp = Observe(metadata, metadataPath, false);
+                if (metadataStamp.Bytes is < 1 or > 1048576) throw new Unavailable("sdk-metadata-sidecar-bound", null);
+                metadataSidecarLeased = true;
+            }
+            RecheckGuards();
             stage = "start-published-apphost";
             var start = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = publish };
             start.Environment.Clear();
@@ -224,6 +274,12 @@ internal static class PublishedExecutableStartupFixture
             catch (Unavailable failure) { overviewStage = failure.Stage; overviewNativeError = failure.Code; }
             RequireSettledObservationOwnership();
             stage = bundled && neutral && noData ? "published-neutral-startup-observed" : "independent-startup-observations-incomplete";
+            if (queryMode && bundled && neutral && noData)
+            {
+                ObserveAppUpdateQuery();
+                RequireSettledObservationOwnership();
+                stage = "published-app-update-observed";
+            }
         }
         private void ObserveNeutralOverview()
         {
@@ -255,6 +311,102 @@ internal static class PublishedExecutableStartupFixture
             if (!drive.TryGetCurrentPattern(SelectionPattern.Pattern, out var selection) || ((SelectionPattern)selection).Current.GetSelection().Length != 0)
                 throw new Invariant("published-startup-drive-selected");
             // No InvokePattern, SelectionItemPattern, navigation, selector expansion or query.
+        }
+        private void ObserveAppUpdateQuery()
+        {
+            stage = "observe-app-update-controls";
+            var root = OwnAutomationRoot();
+            var navigation = Unique(root, new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.List),
+                new PropertyCondition(AutomationElement.NameProperty, "Main navigation")), "app-update-navigation");
+            var updates = Unique(navigation, new AndCondition(new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty, "Updates")), "app-update-navigation-item");
+            if (!updates.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var select))
+                throw new Unavailable("app-update-navigation-pattern-unavailable", null);
+            RequireSettledObservationOwnership();
+            ((SelectionItemPattern)select).Select();
+            AutomationElement? command = null;
+            while (command == null)
+            {
+                Check(); root = OwnAutomationRoot();
+                var matches = root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "AppCheckUpdates"));
+                if (matches.Count > 1) throw new Unavailable("app-update-command-multiple", null);
+                if (matches.Count == 1 && matches[0].Current.ProcessId == process!.Id && matches[0].Current.ControlType == ControlType.Button &&
+                    !matches[0].Current.IsOffscreen && matches[0].Current.IsEnabled) command = matches[0];
+                else Thread.Sleep(50);
+            }
+            // Confirm the initial product status is unchecked before requesting a fresh
+            // actual operation. No package rows/names/provider text are inspected.
+            root = OwnAutomationRoot();
+            if (Text(root, "AppUpdateQueryState") != "Not checked" || Text(root, "AppUpdateCheckedUtc") != "Not checked")
+                throw new Unavailable("app-update-initial-state-not-neutral", null);
+            if (!command.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+                throw new Unavailable("app-update-command-pattern-unavailable", null);
+            DateTimeOffset invokedUtc = DateTimeOffset.UtcNow;
+            RequireSettledObservationOwnership();
+            requestedUpdateCommandInvocations = 1; queryInvocationAttempted = true;
+            ((InvokePattern)invoke).Invoke();
+            appUpdateCommandInvoked = true;
+            stage = "observe-app-update-result";
+            while (true)
+            {
+                Check(); root = OwnAutomationRoot();
+                string state = Text(root, "AppUpdateQueryState");
+                string stamp = Text(root, "AppUpdateCheckedUtc");
+                string ownership = Text(root, "AppUpdateOwnership");
+                if (state is "Available" or "Partial" or "Failed" or "Unknown" or "Unavailable" or "Unsupported" or "Cancelled")
+                {
+                    if (!DateTimeOffset.TryParseExact(stamp, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkedUtc) ||
+                        checkedUtc.Offset != TimeSpan.Zero || checkedUtc < invokedUtc || checkedUtc > DateTimeOffset.UtcNow)
+                        throw new Unavailable("app-update-result-time-unverified", null);
+                    int? count = null, available = null, unknown = null;
+                    if (state is "Available" or "Partial")
+                    {
+                        count = Count(Text(root, "AppUpdateCatalogCount"));
+                        available = Count(Text(root, "AppUpdateAvailableCount"));
+                        unknown = Count(Text(root, "AppUpdateUnknownCount"));
+                        if (available + unknown != count) throw new Invariant("app-update-result-counts-inconsistent");
+                    }
+                    else if (Text(root, "AppUpdateCatalogCount") != "Unknown" || Text(root, "AppUpdateAvailableCount") != "Unknown" ||
+                        Text(root, "AppUpdateUnknownCount") != "Unknown") throw new Invariant("app-update-failure-retains-current-counts");
+                    // Publish only the fully read and checked scalar snapshot; a partial
+                    // UIA/property failure must not fabricate a completed result.
+                    appUpdateResultObserved = true; appUpdateFreshResult = true; appUpdateResultState = state; appUpdateCheckedUtc = checkedUtc;
+                    appUpdateItemCount = count; appUpdateAvailableRows = available; appUpdateUnknownRows = unknown;
+                    if (ownership == "No app-update query is pending.")
+                    { appUpdateOwnershipSettled = true; return; }
+                }
+                Thread.Sleep(50);
+            }
+        }
+        private AutomationElement OwnAutomationRoot()
+        {
+            RequireSettledObservationOwnership();
+            var root = AutomationElement.FromHandle(window);
+            if (root.Current.ProcessId != process!.Id || root.Current.ControlType != ControlType.Window || root.Current.AutomationId != "MadClean.MainWindow")
+                throw new Unavailable("app-update-window-association-unconfirmed", null);
+            return root;
+        }
+        private AutomationElement Unique(AutomationElement root, Condition condition, string label)
+        {
+            Check(); var found = root.FindAll(TreeScope.Descendants, condition);
+            if (found.Count != 1 || found[0].Current.ProcessId != process!.Id)
+                throw new Unavailable(label + "-unavailable", null);
+            RequireSettledObservationOwnership();
+            return found[0];
+        }
+        private string Text(AutomationElement root, string id)
+        {
+            var element = Unique(root, new PropertyCondition(AutomationElement.AutomationIdProperty, id), "app-update-status-control");
+            if (element.Current.ControlType != ControlType.Text) throw new Unavailable("app-update-status-control-type-unavailable", null);
+            string value = element.Current.Name;
+            if (value.Length is < 1 or > 160 || value.Any(char.IsControl)) throw new Unavailable("app-update-status-value-bound", null);
+            return value;
+        }
+        private static int Count(string text)
+        {
+            if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) || value is < 0 or > 256 ||
+                text != value.ToString(CultureInfo.InvariantCulture)) throw new Unavailable("app-update-count-unverified", null);
+            return value;
         }
         private void ObserveBundledRuntime()
         {
@@ -363,6 +515,11 @@ internal static class PublishedExecutableStartupFixture
                 if (launchAttempted) { Retain(); throw new Unavailable("process-start-outcome-unconfirmed", null); }
                 process.Dispose(); process = null; return;
             }
+            if (queryMode && queryInvocationAttempted)
+            {
+                CloseQueryProcess(process);
+                return;
+            }
             if (!process.HasExited)
             {
                 // WM_CLOSE is only a request to this observed own window, never a kill.
@@ -375,6 +532,47 @@ internal static class PublishedExecutableStartupFixture
             else exited = true;
             if (exited != true) throw new Unavailable("owned-process-exit-unconfirmed", null);
             exitCode = process.ExitCode; process.Dispose(); process = null;
+        }
+        private void CloseQueryProcess(Process owned)
+        {
+            Unavailable? firstFailure = null;
+            void Preserve(string failureStage, int? error)
+            {
+                firstFailure ??= new Unavailable(failureStage, error);
+                // Retention records uncertainty even if a later retry observes exit.
+                // It must never turn a failed close into a passing qualification.
+                Retain();
+            }
+            while (true)
+            {
+                try
+                {
+                    if (owned.HasExited) { exited = true; break; }
+                    owned.Refresh();
+                    nint current = owned.MainWindowHandle;
+                    if (OwnsWindow(current))
+                    {
+                        if (PostMessageW(current, 0x10, 0, 0)) closeRequested = true;
+                        else Preserve("owned-window-close-request-failed", Marshal.GetLastWin32Error());
+                    }
+                    else if (!closeRequested) Preserve("owned-close-window-unobserved", null);
+                    // A window disappearing after our successful close request may
+                    // be ordinary process shutdown; keep waiting on the actual handle.
+                    // This is the original exact spawn/handle. Never reopen a PID,
+                    // post to an unassociated window, or terminate a process/service.
+                    if (owned.WaitForExit(250) && owned.HasExited) { exited = true; break; }
+                }
+                catch (Exception error)
+                {
+                    Preserve("owned-process-exit-unconfirmed", error is Win32Exception native ? native.NativeErrorCode : null);
+                    // Keep this worker, process and all leases alive until actual exit
+                    // can be observed. The independent disposable CI VM limit remains.
+                    Thread.Sleep(250);
+                }
+            }
+            exitCode = owned.ExitCode;
+            owned.Dispose(); process = null;
+            if (firstFailure is not null) throw firstFailure;
         }
         private void CleanupScope()
         {
@@ -419,7 +617,12 @@ internal static class PublishedExecutableStartupFixture
             try { if (Encoding.ASCII.GetString(value) != marker) throw new Unavailable("published-owner-marker-mismatch", null); }
             finally { Array.Clear(value); Close(file); }
         }
-        private void Check() { token.ThrowIfCancellationRequested(); if (watch.Elapsed >= TimeSpan.FromSeconds(35)) throw new Unavailable("startup-cooperative-budget", null); }
+        private void Check()
+        {
+            token.ThrowIfCancellationRequested();
+            if (watch.Elapsed >= (queryMode ? TimeSpan.FromMinutes(4) : TimeSpan.FromSeconds(35)))
+                throw new Unavailable(queryMode ? "app-update-cooperative-budget" : "startup-cooperative-budget", null);
+        }
         private OwnedHandle Open(string path, uint access, uint share = 3, uint flags = 0)
         {
             Check(); var handle = CreateFileW(path, access, share, 0, 3, NoFollow | NoRecall | flags, 0); int? error = handle.IsInvalid ? Marshal.GetLastWin32Error() : null; handles.Add(handle);

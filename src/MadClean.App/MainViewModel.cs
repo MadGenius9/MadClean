@@ -30,7 +30,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public MainViewModel()
     {
         ScanCommand = new AsyncCommand(() => RunAsync(false), () => !IsBusy);
-        UpdatesCommand = new AsyncCommand(() => RunAsync(true), () => !IsBusy);
+        UpdatesCommand = new AsyncCommand(() => RunAsync(true), () => !IsBusy && !HasPendingAppUpdateDiscovery);
         CancelCommand = new ActionCommand(Cancel, () => IsBusy && !MsiUninstallDispatchReserved);
         InitializeMadCleanUpdates();
         InitializeDiscovery();
@@ -92,7 +92,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private async Task RunAsync(bool online)
     {
-        if (IsBusy) return;
+        if (IsBusy || online && HasPendingAppUpdateDiscovery) return;
         using var source = new CancellationTokenSource(); cancellation = source; IsBusy = true;
         Status = online ? "Checking configured update providers…" : "Reading local inventory…";
         Event(ActivityArea.Session, ActivityOutcome.Started);
@@ -101,6 +101,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             if (online)
             {
                 BeginAppUpdateOffersQuery(DateTimeOffset.UtcNow);
+                BeginStructuredAppUpdateCheck();
                 AppRows.Clear(); SystemRows.Clear(); ResetUpdateCategoryResults(); UpdateSummary = "Checking…";
                 AppsMessage = SystemMessage = "Checking…";
                 await Task.WhenAll(LoadApps(source.Token), LoadSystem(source.Token));
@@ -121,7 +122,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException) { if (online) UpdateSummary = "Cancelled"; else FinishPendingInspectionEvidence(CheckState.Cancelled); Status = "Cancelled · completed results remain; unfinished checks are marked Cancelled."; Event(ActivityArea.Session, ActivityOutcome.Cancelled); }
         catch (Exception) { if (online) UpdateSummary = "Failed"; else FinishPendingInspectionEvidence(CheckState.Failed); Status = "An unexpected query failure occurred. Retry the check; no successful result is claimed."; Event(ActivityArea.Session, ActivityOutcome.Failed); }
-        finally { cancellation = null; IsBusy = false; }
+        finally
+        {
+            // A bounded caller result does not release a still-running WinGet call.
+            // Keep the UI owner and close guard until the actual worker returns.
+            if (online) await DrainAppUpdateDiscoveryAsync();
+            cancellation = null; IsBusy = false;
+        }
     }
     private async Task LoadDisks(CancellationToken token) => await Guard(ActivityArea.Disks, async () =>
     {
@@ -186,11 +193,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }, text => { SecurityMessage = text; SecuritySummary = text; });
     private async Task LoadApps(CancellationToken token) => await Guard(ActivityArea.Apps, async () =>
     {
-        var result = await inventory.AppsAsync(token); token.ThrowIfCancellationRequested();
+        var result = await ReadStructuredAppUpdatesAsync(token); token.ThrowIfCancellationRequested();
         PublishAppUpdateOffersQuery(result, DateTimeOffset.UtcNow);
         foreach (var a in result.Items) AppRows.Add(new(a.Name, $"{a.Id} · {a.InstalledVersion} → {a.AvailableVersion}", $"{a.Status} · {a.Source}"));
-        AppsMessage = Stamp(result.State, result.Message); Event(ActivityArea.Apps, Outcome(result.State));
-    }, text => { InterruptAppUpdateOffersQuery(DateTimeOffset.UtcNow); AppsMessage = text; });
+        string code = AppUpdateLastObservation?.Diagnostic.HResult is { } error
+            ? $" Error code: 0x{unchecked((uint)error):X8}." : string.Empty;
+        AppsMessage = Stamp(result.State, result.Message + code); Event(ActivityArea.Apps, Outcome(result.State));
+    }, text => { InterruptAppUpdateOffersQuery(DateTimeOffset.UtcNow); InterruptStructuredAppUpdateCheck(text); AppsMessage = text; });
     private async Task LoadSystem(CancellationToken token) => await Guard(ActivityArea.SystemUpdates, async () =>
     {
         var result = await inventory.SystemUpdatesAsync(token); token.ThrowIfCancellationRequested();

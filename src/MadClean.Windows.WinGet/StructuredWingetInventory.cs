@@ -4,8 +4,8 @@ using Microsoft.Management.Deployment;
 
 namespace MadClean.Windows.WinGet;
 
-/// <summary>Explicit, read-only SDK query candidate. Not wired into production inventory.</summary>
-public sealed class StructuredWingetInventory
+/// <summary>Explicit read-only SDK query used by the App and separately qualified development harness.</summary>
+public sealed class StructuredWingetInventory : IStructuredWingetInventory
 {
     private static readonly object Gate = new();
     private static QueryOwner? pending;

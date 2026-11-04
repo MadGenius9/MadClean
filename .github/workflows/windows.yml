@@ -113,6 +113,12 @@ jobs:
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'
         run: python tools/ci_command.py update-discovery -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --update-discovery
+      - name: Qualify the actual read-only app update controls
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+        run: python tools/ci_command.py app-update-ui -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --app-update-ui-validation
       - name: Prepare owned self-contained SDK harness (no distribution)
         run: python tools/prepare_structured_winget_publish.py
       - name: Observe actual published structured SDK query
@@ -249,8 +255,45 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  windows-app-update-published:
+    needs: build-test-package
+    if: >-
+      ${{ github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked development dependencies
+        run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
+      - name: Build the development observer
+        run: python tools/ci_command.py build -- dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Prepare the owned published MadClean app (no distribution)
+        run: python tools/prepare_published_startup.py
+      - name: Query updates using the actual published app controls
+        timeout-minutes: 5
+        env:
+          MADCLEAN_WINDOWS_VALIDATION: '1'
+        run: python tools/ci_command.py published-app-updates -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --published-app-update-validation
+      - name: Preserve fixed published-app query observations
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-published-app-update-validation
+          path: artifacts/published-app-update-validation/report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   publish-verification:
-    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan]
+    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
           github.ref == 'refs/heads/feat/phase-one-foundation' &&
@@ -327,8 +370,18 @@ jobs:
           name: MadClean-Component-store-scan-validation
           path: downloaded-component-scan
           digest-mismatch: error
+      - name: Retrieve this run's published MadClean update-query facts
+        id: published_app_evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-published-app-update-validation
+          path: downloaded-published-app
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
+          MADCLEAN_PUBLISHED_APP_RESULT: ${{ needs.windows-app-update-published.result }}
+          MADCLEAN_PUBLISHED_APP_DOWNLOAD_RESULT: ${{ steps.published_app_evidence.outcome }}
           MADCLEAN_SCAN_RESULT: ${{ needs.windows-component-store-scan.result }}
           MADCLEAN_SCAN_DOWNLOAD_RESULT: ${{ steps.scan_evidence.outcome }}
           MADCLEAN_COMPONENT_RESULT: ${{ needs.windows-component-store-status.result }}
@@ -369,3 +422,6 @@ jobs:
           --component-scan-reports downloaded-component-scan
           --component-scan-download-result "$MADCLEAN_SCAN_DOWNLOAD_RESULT"
           --component-scan-result "$MADCLEAN_SCAN_RESULT"
+          --published-app-update-reports downloaded-published-app
+          --published-app-update-download-result "$MADCLEAN_PUBLISHED_APP_DOWNLOAD_RESULT"
+          --published-app-update-result "$MADCLEAN_PUBLISHED_APP_RESULT"

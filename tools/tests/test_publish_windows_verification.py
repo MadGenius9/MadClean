@@ -63,7 +63,7 @@ class PublisherTests(unittest.TestCase):
     def test_complete_evidence_binds_real_files_and_changes_nothing_during_validation(self):
         _, summary, files = self.prepare()
         self.assertTrue(summary['passed'])
-        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json"},set(files))
+        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
     def test_another_existing_directory_cannot_impersonate_the_checkout_root(self):
         actual_git = p.git
@@ -566,6 +566,20 @@ class PublisherTests(unittest.TestCase):
     def test_v3_accepts_both_sdk_checks_without_changing_legacy_acceptance(self):
         self.report['formatVersion'] = 3
         for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY fixed proof'})
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
+    def test_v4_cannot_substitute_direct_sdk_proofs_for_actual_app_controls(self):
+        self.report['formatVersion'] = 4
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY SDK path'})
+        self.save(); self.rejected()
+
+    def test_v4_accepts_separate_actual_app_check_and_preserves_legacy_versions(self):
+        self.report['formatVersion'] = 4
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract'):
             self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY fixed proof'})
         self.save()
         _, summary, _ = self.prepare()

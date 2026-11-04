@@ -4,12 +4,12 @@ A personal Windows desktop utility for understanding storage, startup entries, M
 
 ## Stack and architecture
 
-C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. The UI uses the Windows desktop framework. An isolated development-only WinGet bridge pins Microsoft’s Windows Package Manager projection; it is not yet used by the production app.
+C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. The UI uses the Windows desktop framework. The Apps update check uses Microsoft’s pinned Windows Package Manager projection through an isolated read-only adapter. Its backend and published harness query passed Windows qualification; actual App UI and published-App integration have separate validation.
 
 - `src/MadClean.App`: dark WPF UI, navigation, dashboard, background-operation orchestration and cancellation. Default state is unchecked; all production data comes from Windows. No sample/design data is injected.
-- `src/MadClean.Core`: platform-independent models, conservative filesystem inventory, WinGet table parser, bounded cancellable process execution, and privacy-limited activity log.
+- `src/MadClean.Core`: platform-independent models, conservative filesystem inventory, structured WinGet observation policy and legacy table parser, bounded cancellable process execution, and privacy-limited activity log.
 - `src/MadClean.Windows`: read-only registry, disk, Windows PowerShell/Defender, WinGet, and Windows Update Agent adapters.
-- `src/MadClean.Windows.WinGet`: isolated Windows 11/x64 structured WinGet SDK reader under qualification; only the development harness references it. Production discovery remains unchanged until actual runtime qualification.
+- `src/MadClean.Windows.WinGet`: isolated Windows 11/x64 structured WinGet SDK reader used by the App and explicit development qualification. It never installs software or accepts source agreements; pending native calls remain owned after cancellation.
 - `tests/MadClean.Tests`: core boundary tests. Windows-only runtime behavior is tracked separately in [validation](docs/VALIDATION.md).
 - `.github/workflows`: Windows build/test/package workflow and a separate disposable-runner qualification for one freshly generated inert MSI product. No automatic release, signing or deployment; the ordinary validation harness does not install applications.
 
@@ -29,7 +29,7 @@ dotnet test tests/MadClean.Tests -c Release --no-build
 dotnet run --project src/MadClean.App -c Release --no-build
 ```
 
-Click **Inspect this PC** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query WinGet and Windows Update. Update Center separates Apps, Drivers and BIOS / Firmware; **Read BIOS / PC identity** is a separate local read-only action. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
+Click **Inspect this PC** for disks, cleanup preview (with saved exclusions), startup inventory and Defender status. Click **Check updates** to query the exact supported official WinGet catalog and Windows Update. App rows separately show Available and Unknown counts and the last attempt UTC. Unknown never means up to date. Update Center separates Apps, Drivers and BIOS / Firmware; **Read BIOS / PC identity** is a separate local read-only action. Online checks may refresh provider metadata and contact configured sources. **Cancel** stops unfinished inventory and terminates query child processes; provider-owned Windows services may finish an already-dispatched read-only search. Completed results remain timestamped. Switching tabs does not restart checks.
 
 ### Produce a Windows executable
 
@@ -161,3 +161,6 @@ Cleanup now includes a [selected metadata worksheet](docs/CLEANUP-SELECTION-REVI
 
 
 The Drivers page also offers a separate explicit [present-device driver-property inventory](docs/DEVICE-DRIVERS.md). It reports Windows device-property versions, INF dates and providers with independent missing/denied/invalid states. It never matches those rows to update offers or establishes loaded-binary versions, signatures or update eligibility.
+
+
+The app-update SDK query uses a bounded caller wait, but its native operation may finish later. Cancellation preserves an Unknown/Cancelled result and keeps ownership visible. MadClean waits for its actual native worker before allowing another app check or closing the window; it never kills the shared WinGet server or promotes a timeout after it settles. The legacy CLI observation remains development evidence, with no silent fallback from a failed SDK query. [App UI validation](docs/APP-UPDATE-UI-VALIDATION.md) and [published App validation](docs/PUBLISHED-APP-UPDATE-VALIDATION.md) are separate from the already qualified SDK harness.

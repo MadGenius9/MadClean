@@ -27,11 +27,15 @@ _component_spec = importlib.util.spec_from_file_location("madclean_component_sto
 component_store_evidence = importlib.util.module_from_spec(_component_spec)
 _component_spec.loader.exec_module(component_store_evidence)
 
+_published_app_spec = importlib.util.spec_from_file_location("madclean_published_app_update_evidence", Path(__file__).with_name("published_app_update_evidence.py"))
+published_app_update_evidence = importlib.util.module_from_spec(_published_app_spec)
+_published_app_spec.loader.exec_module(published_app_update_evidence)
+
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-component-store-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
@@ -146,7 +150,7 @@ def validate_report(download, context):
         return None, {}
     report = read_json(path, 262_144)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "passed", "state", "checks", "screenshots", "limits"}
-    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3}, "report-schema")
+    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3, 4}, "report-schema")
     times = []
     for field in ("startedUtc", "completedUtc"):
         value = report[field]
@@ -173,6 +177,8 @@ def validate_report(download, context):
         required = REQUIRED_CHECKS | ({"structured-winget-discovery-contract"} if report["formatVersion"] >= 2 else set())
         if report["formatVersion"] >= 3:
             required |= {"structured-winget-published-query-contract"}
+        if report["formatVersion"] >= 4:
+            required |= {"app-update-public-ui-contract"}
         reject_unless(required <= names, "missing-required-check")
     images = report.get("screenshots")
     reject_unless(isinstance(images, list) and len(images) <= 32, "report-images")
@@ -517,7 +523,7 @@ def validate_msi_report(directory, context):
             reject_unless(consent_qualified, "msi-pass-consent")
     return value
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped"):
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped"):
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -561,6 +567,13 @@ def prepare(root, download, build_result, verification_result, environment, core
         scan_report = component_store_evidence.collect(scan_directory, context, read_json, safe_path, reject_unless, expected_kind="ScanHealth") if scan_download_result == "success" else None
     except (ValueError, OSError):
         scan_report, scan_error = None, "component-scan-evidence-rejected"
+    reject_unless(published_app_download_result in RESULTS and published_app_result in RESULTS, "published-app-job-result")
+    published_app_error = None
+    try:
+        published_app_report = published_app_update_evidence.collect(published_app_directory, context, read_json, safe_path, reject_unless) if published_app_download_result == "success" else None
+    except (ValueError, OSError):
+        published_app_report, published_app_error = None, "published-app-evidence-rejected"
+
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -599,6 +612,12 @@ def prepare(root, download, build_result, verification_result, environment, core
         "componentStoreScanBackendQualified": scan_result == "success" and scan_report is not None and scan_report["state"] == "passed",
         "componentStoreScanPublicUiQualified": scan_result == "success" and scan_report is not None and scan_report["state"] == "passed" and scan_report["uiRequired"] is True,
         "componentStoreScanError": scan_error,
+        "publishedAppUpdateScope": "Separate owned published MadClean UI query; metadata discovery only, no installation or package identities.",
+        "publishedAppUpdateResult": published_app_result,
+        "publishedAppUpdateArtifactOutcome": published_app_download_result,
+        "publishedAppUpdateReportPresent": published_app_report is not None,
+        "publishedAppUpdateQualified": published_app_result == "success" and published_app_report is not None and published_app_report["state"] == "passed",
+        "publishedAppUpdateError": published_app_error,
         "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
         "msiRequestResult": msi_result,
         "msiRequestArtifactOutcome": msi_download_result,
@@ -609,6 +628,9 @@ def prepare(root, download, build_result, verification_result, environment, core
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
     files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
+    if published_app_report is not None:
+        files["published-app-update.json"] = (json.dumps(published_app_report, indent=2) + "\n").encode()
+
     if report is not None:
         files["report.json"] = (json.dumps(report, indent=2) + "\n").encode()
     if core is not None:
@@ -668,10 +690,13 @@ def main():
     parser.add_argument("--component-scan-reports", type=Path)
     parser.add_argument("--component-scan-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--component-scan-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--published-app-update-reports", type=Path)
+    parser.add_argument("--published-app-update-download-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--published-app-update-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result, args.published_app_update_reports, args.published_app_update_download_result, args.published_app_update_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

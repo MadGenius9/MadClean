@@ -22,3 +22,6 @@ Windows Installer controls package-defined changes and prompts. Not every packag
 Automatic approval review rejected the proposed literal activation because the public WPF workflow has not yet qualified and backend evidence alone does not authorize exposing an irreversible uninstall action to users. The rejected command did not run; source and remote branch retain the closed guard. No indirect activation or runtime bypass has been added.
 
 Explicit approval is needed for that development-branch activation before requesting the real public qualification run. It does not authorize uninstalling anything on the user's PC, installing updates, distributing a ZIP or claiming the full roadmap finished.
+
+
+On 2026-11-04 the user responded “Keep going” to the activation question. A normal approval-reviewed attempt was rejected again because that wording did not clearly authorize the exact irreversible feature. The command did not execute; the guard remains false. No indirect enablement was attempted. Read-only SDK adoption and qualification continued independently. Explicit approval naming the per-user MSI uninstall activation remains the unresolved decision.

@@ -36,7 +36,7 @@
             <WrapPanel Grid.Column="2" VerticalAlignment="Center">
                 <WrapPanel.Style><Style TargetType="WrapPanel"><Style.Triggers><DataTrigger Binding="{Binding SelectedPage}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></WrapPanel.Style>
                 <Button Content="Inspect this PC" Command="{Binding ScanCommand}" AutomationProperties.HelpText="Read local disks, temporary-file candidates, startup entries and Defender status"/>
-                <Button Content="Check updates" Command="{Binding UpdatesCommand}" Background="#244159" Foreground="White" AutomationProperties.HelpText="Contact configured WinGet and Windows Update services for discovery only"/>
+                <Button Content="Check updates" Command="{Binding UpdatesCommand}" Background="#244159" Foreground="White" AutomationProperties.AutomationId="AppCheckUpdates" AutomationProperties.HelpText="Contact configured WinGet and Windows Update services for discovery only"/>
             </WrapPanel>
         </Grid>
         <Border Grid.Row="1" BorderBrush="#294256" BorderThickness="0,0,0,1">

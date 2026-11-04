@@ -2,6 +2,23 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
             <TextBlock Text="Matched installed-app updates" FontSize="20"/>
+            <Border Background="#172F42" BorderBrush="#35516B" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,8">
+                <StackPanel>
+                    <WrapPanel>
+                        <TextBlock Text="Check: " Foreground="#AFC4D8"/>
+                        <TextBlock Text="{Binding AppUpdateQueryState}" Margin="0,0,18,0" AutomationProperties.AutomationId="AppUpdateQueryState"/>
+                        <TextBlock Text="Available: " Foreground="#AFC4D8"/>
+                        <TextBlock Text="{Binding AppUpdateAvailableCount}" Margin="0,0,18,0" AutomationProperties.AutomationId="AppUpdateAvailableCount"/>
+                        <TextBlock Text="Unknown: " Foreground="#AFC4D8"/>
+                        <TextBlock Text="{Binding AppUpdateUnknownCount}" Margin="0,0,18,0" AutomationProperties.AutomationId="AppUpdateUnknownCount"/>
+                        <TextBlock Text="Catalog rows: " Foreground="#AFC4D8"/>
+                        <TextBlock Text="{Binding AppUpdateCatalogCount}" AutomationProperties.AutomationId="AppUpdateCatalogCount"/>
+                    </WrapPanel>
+                    <TextBlock Text="Last attempt (UTC)" Foreground="#AFC4D8" Margin="0,8,0,2"/>
+                    <TextBlock Text="{Binding AppUpdateCheckedUtc}" AutomationProperties.AutomationId="AppUpdateCheckedUtc"/>
+                    <TextBlock Text="{Binding AppUpdateOwnershipStatus}" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="#AFC4D8" AutomationProperties.AutomationId="AppUpdateOwnership" AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+            </Border>
             <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
                 <TextBlock Text="{Binding AppsMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="WinGet matched package source status" AutomationProperties.LiveSetting="Polite"/>
             </ScrollViewer>

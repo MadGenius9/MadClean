@@ -10,6 +10,12 @@ public sealed record StructuredWingetDiagnostic(
     bool? NativeLimitExceeded, bool? ProjectionLimitExceeded);
 public sealed record StructuredWingetObservation(CheckResult<AppUpdate> Result, StructuredWingetDiagnostic Diagnostic);
 
+public interface IStructuredWingetInventory
+{
+    bool HasPendingNativeRead { get; }
+    Task<StructuredWingetObservation> ReadObservedAsync(CancellationToken token);
+}
+
 // These are observed primitive facts, never activation or installation capabilities.
 public sealed record StructuredWingetCatalogFacts(string? Name, string? Type, string? Argument,
     string? Identifier, bool? IsComposite, bool? AgreementsDisabled, bool? AuthenticationNone);

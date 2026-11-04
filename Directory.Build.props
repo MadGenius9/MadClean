@@ -12,8 +12,8 @@
     </PropertyGroup>
     <!-- The optional structured WinGet bridge consumes Microsoft's prebuilt projection.
          Never import or copy the SDK's default native activation factory. Keep this
-         explicit for its development consumer as well as the integration library. -->
-    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'MadClean.Windows.WinGet' Or '$(MSBuildProjectName)' == 'MadClean.WindowsSmoke'">
+         explicit for the app, development consumer and integration library. -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'MadClean.Windows.WinGet' Or '$(MSBuildProjectName)' == 'MadClean.WindowsSmoke' Or '$(MSBuildProjectName)' == 'MadClean.App'">
         <MicrosoftManagementDeployment-FactoryLinkage>none</MicrosoftManagementDeployment-FactoryLinkage>
         <MicrosoftManagementDeployment-OutputWinMD>false</MicrosoftManagementDeployment-OutputWinMD>
         <CsWinRTEnabled>false</CsWinRTEnabled>

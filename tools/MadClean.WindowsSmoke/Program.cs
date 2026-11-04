@@ -45,6 +45,12 @@ internal static class Program
         }
         if (args.Length == 1 && args[0] == "--structured-winget-published-validation")
             return StructuredWingetPublishedQualification.RunChildAsync(repository, CancellationToken.None).GetAwaiter().GetResult();
+        // Separate actual published MadClean app, using its normal UI only.
+        if (args.Length == 1 && args[0] == "--published-app-update-validation")
+            return PublishedAppUpdateQualification.RunAsync(repository).GetAwaiter().GetResult();
+        // Actual app controls and provider, explicit read-only qualification only.
+        if (args.Length == 1 && args[0] == "--app-update-ui-validation")
+            return AppUpdateUiQualification.RunAsync(repository).GetAwaiter().GetResult();
         // Fixed development read-only online mode, separate from GUI/native fixture lifetime.
         if (args.Length == 1 && args[0] == "--update-discovery")
         {
@@ -113,6 +119,7 @@ internal static class Program
             }
             else report.Unknown(startupCheck, "Earlier validation failed or native tree teardown is uncertain; no published executable was started.");
             UpdateDiscoveryFixture.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
+            AppUpdateUiQualification.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
             StructuredWingetPublishedQualification.ReadIntoReport(repository, Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", report);
         }
         catch (Exception ex)

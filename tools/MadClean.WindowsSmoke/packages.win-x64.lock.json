@@ -22,7 +22,8 @@
         "type": "Project",
         "dependencies": {
           "MadClean.Core": "[1.0.0, )",
-          "MadClean.Windows": "[1.0.0, )"
+          "MadClean.Windows": "[1.0.0, )",
+          "MadClean.Windows.WinGet": "[1.0.0, )"
         }
       },
       "madclean.core": {
