@@ -1,10 +1,10 @@
 {
   "formatVersion": 4,
-  "sourceCommit": "b670db51d1eeea704093bc752eb67852926f9bbc",
-  "runId": "41784447861",
+  "sourceCommit": "2ee4dec65d4f89872cb5b073978eb53ff8efe4bb",
+  "runId": "41896905146",
   "runAttempt": 1,
-  "startedUtc": "2026-11-04T06:22:37.2703183+00:00",
-  "completedUtc": "2026-11-04T06:22:57.9555164+00:00",
+  "startedUtc": "2026-11-04T19:33:33.6118072+00:00",
+  "completedUtc": "2026-11-04T19:34:00.4547036+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -46,7 +46,7 @@
     {
       "name": "ui-tool-navigation",
       "state": "passed",
-      "detail": "All 13 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation."
+      "detail": "All 13 secondary tools select their preserved pages through the actual ComboBox binding without starting inventory. Actual unchecked MSI and current-user package subviews were captured with production command/empty-row bindings; the desktop source was restored without queries before later search validation. The new SFC preview has actual empty/read-only bindings, visible controls and remains disabled after selecting SFC without accepted identity; populated preview/expiry behavior remains separately unverified."
     },
     {
       "name": "ui-tool-popup",
@@ -116,7 +116,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=64; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=59; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "cleanup-file-evidence-fixture",
@@ -186,7 +186,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=4. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -256,7 +256,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=64; nameAvailable=16; descriptionAvailable=61; providerAvailable=61; installedVersionAvailable=61; driverDateAvailable=61; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=59; nameAvailable=15; descriptionAvailable=56; providerAvailable=56; installedVersionAvailable=56; driverDateAvailable=56; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -306,7 +306,7 @@
     {
       "name": "system-tool-execution-gate",
       "state": "passed",
-      "detail": "The legacy repair and new selected SFC gates reject acknowledged synthetic requests without identity/privilege queries, dispatch reservation, elevation or a process. Actual SFC execution remains unverified and disabled."
+      "detail": "The legacy repair and selected SFC gates reject acknowledged synthetic requests without identity/privilege queries, dispatch reservation, elevation or a process. The managed shared slot blocks a second route and exposes pending/released state across actual provider instances without invoking DISM/SFC. Actual SFC execution remains unverified and disabled."
     },
     {
       "name": "system-tool-process-observation-fixture",
@@ -436,7 +436,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=54/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
@@ -576,7 +576,7 @@
       "file": "tool-16.png",
       "width": 1404,
       "height": 961,
-      "sha256": "1f9b7b280224090c43d3a42c60304d886effdf8594458c14c0bfe160780a06ae"
+      "sha256": "3a167bc4d6c772730cdf55714e8e7dd365a3d38a60e714da34c91dafd869c7c5"
     },
     {
       "file": "tool-17.png",
