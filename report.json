@@ -1,10 +1,10 @@
 {
-  "formatVersion": 4,
-  "sourceCommit": "2ee4dec65d4f89872cb5b073978eb53ff8efe4bb",
-  "runId": "41896905146",
+  "formatVersion": 5,
+  "sourceCommit": "3d30c5ae79545396cf87a6a9c97bf71c52d16385",
+  "runId": "41898499448",
   "runAttempt": 1,
-  "startedUtc": "2026-11-04T19:33:33.6118072+00:00",
-  "completedUtc": "2026-11-04T19:34:00.4547036+00:00",
+  "startedUtc": "2026-11-04T19:51:28.5972388+00:00",
+  "completedUtc": "2026-11-04T19:52:02.2840165+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -117,6 +117,11 @@
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
       "detail": "observedRows=59; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+    },
+    {
+      "name": "ui-sfc-preview-interaction",
+      "state": "passed",
+      "detail": "identityAccepted=True; actualPreviewControlInvoked=True; sourceBindingVerified=True; originalExpiryPreserved=True; renderedScopeVerified=True; previewActivityUnchanged=True; selectionInvalidated=True; staleIdentityRefused=True; querySettled=True. Actual identity and read-only preview controls only. No SFC/DISM client, confirmation, intent, elevation, provider values or post-query screenshots. Timed expiry and refresh/cancellation race behavior remain separately unverified."
     },
     {
       "name": "cleanup-file-evidence-fixture",
@@ -436,7 +441,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=54/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
@@ -451,7 +456,7 @@
     {
       "name": "structured-winget-discovery-contract",
       "state": "passed",
-      "detail": "task=Returned; preCancellationVerified=True; schema=True; result=Partial; rows=68; availableRows=19; unknownRows=49; pendingNativeRead=False; stage=Completed; outcome=Partial; exceptionHResult=unobserved; sourceMatched=True; agreementsDisabled=True; authNone=True; connect=True; find=True; propertyFailures=0. Query completion does not prove data freshness or all software up to date."
+      "detail": "task=Returned; preCancellationVerified=True; schema=True; result=Partial; rows=68; availableRows=14; unknownRows=54; pendingNativeRead=False; stage=Completed; outcome=Partial; exceptionHResult=unobserved; sourceMatched=True; agreementsDisabled=True; authNone=True; connect=True; find=True; propertyFailures=0. Query completion does not prove data freshness or all software up to date."
     },
     {
       "name": "wua-offer-metadata-contract",
@@ -461,7 +466,7 @@
     {
       "name": "app-update-public-ui-contract",
       "state": "passed",
-      "detail": "control=True; invoked=True; result=True/Partial; fresh=True; renderedCounts=True; settled=True; windowClosed=True; schema=True; rows=68/available=19/unknown=49; pending=False; stage=Completed; outcome=Partial. Actual app controls and returned WinGet observations only; no package identities, provider text or screenshots exported. Partial remains Partial; zero rows never means all software is up to date. No installation, source agreements or restart requested."
+      "detail": "control=True; invoked=True; result=True/Partial; fresh=True; renderedCounts=True; settled=True; windowClosed=True; schema=True; rows=68/available=14/unknown=54; pending=False; stage=Completed; outcome=Partial. Actual app controls and returned WinGet observations only; no package identities, provider text or screenshots exported. Partial remains Partial; zero rows never means all software is up to date. No installation, source agreements or restart requested."
     },
     {
       "name": "structured-winget-published-query-contract",
