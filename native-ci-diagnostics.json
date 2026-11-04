@@ -5,13 +5,13 @@
       "label": "restore",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 585 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 585 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 3 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 5 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 6 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 3 ms)."
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 281 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 220 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 559 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 2 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 9 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 9 ms)."
     },
     {
       "label": "build",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:30.60"
+      "excerpt": "  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:43.72"
     },
     {
       "label": "smoke",
@@ -35,7 +35,7 @@
       "label": "startup-publish",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  All projects are up-to-date for restore.\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows\\win-x64\\MadClean.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\artifacts\\published-startup-d5f3360c56cd417992b395c92d5a8d30\\publish\\"
+      "excerpt": "  Determining projects to restore...\n  All projects are up-to-date for restore.\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\\MadClean.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\artifacts\\published-startup-1d590ab9480943bba4fdc53ccdc7eb07\\publish\\"
     },
     {
       "label": "update-discovery",
@@ -46,11 +46,17 @@
     {
       "label": "structured-winget-publish",
       "exitCode": 0,
-      "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 7.91 sec).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 7.9 sec).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 13 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 6 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 8 ms).\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows\\win-x64\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\\MadClean.WindowsSmoke.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\artifacts\\structured-winget-published-ed72dc3d52ee456abd55e132d28e1188\\publish\\"
+      "truncated": true,
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 9.46 sec).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 9.46 sec).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 8 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 15 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 9 ms).\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  0 IID calculations/fetches patched\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x6\n[Excerpt truncated.]"
     },
     {
       "label": "structured-winget-published",
+      "exitCode": 0,
+      "truncated": false,
+      "excerpt": "No command output was captured. Exit code alone does not establish tests or Windows verification."
+    },
+    {
+      "label": "app-update-ui",
       "exitCode": 0,
       "truncated": false,
       "excerpt": "No command output was captured. Exit code alone does not establish tests or Windows verification."
