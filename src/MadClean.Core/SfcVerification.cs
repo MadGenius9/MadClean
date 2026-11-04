@@ -14,6 +14,8 @@ public sealed record SfcVerificationTransport
     public bool? ClientExitObserved { get; init; }
     public int? ClientExitCode { get; init; }
     public DateTimeOffset? ClientExitedUtc { get; init; }
+    public bool? StdoutDrained { get; init; }
+    public bool? StderrDrained { get; init; }
     public bool? OwnershipReleased { get; init; }
     public bool StopObservationRequested { get; init; }
 }
@@ -64,7 +66,7 @@ public sealed class SfcVerificationPreview
     public string ExactEffect => "Verify protected Windows system files without requesting repairs. Windows may write diagnostic/CBS logs and metadata. This is not zero-write passive inventory; personal and application files are outside this check's scope.";
     public string Permissions => "Already-effective administrator rights are required. MadClean does not request elevation, UAC, credentials or an administrator relaunch.";
     public string Cancellation => "Stop observation does not stop SFC or a Windows service. The owner retains its client and executable leases until actual exit; no process is killed and no rollback is claimed.";
-    public string Limitations => "Actual client exit and its numeric code do not establish protected-file integrity or successful verification. Integrity remains Unknown; inspect genuine Windows output and the protected CBS log separately. No repair, offline image, custom source, log destination or restart option is accepted.";
+    public string Limitations => "Actual client exit and its numeric code do not establish protected-file integrity or successful verification. Integrity remains Unknown. Client output is not retained; review the protected Windows CBS log separately. No repair, offline image, custom source, log destination or restart option is accepted.";
     public void Invalidate() { lock (sync) invalidated = true; }
     internal SfcVerificationIntent? Confirm(DateTimeOffset nowUtc)
     {
@@ -162,10 +164,11 @@ public static class SfcVerificationPolicy
         else if (transport.AdministratorObserved == false)
         { state = CheckState.Unavailable; message = "The caller was not effectively elevated. No elevation was requested; protected-file integrity remains Unknown."; }
         else if (intent.IsDispatchReserved && transport.AdministratorObserved == true && transport.ClientStartObserved == true &&
-            transport.ClientExitObserved == true && transport.ClientExitCode.HasValue && transport.OwnershipReleased == true && completedUtc.HasValue)
+            transport.ClientExitObserved == true && transport.ClientExitCode.HasValue && transport.StdoutDrained == true &&
+            transport.StderrDrained == true && transport.OwnershipReleased == true && completedUtc.HasValue)
         {
             state = CheckState.Available;
-            message = $"The selected SFC client exited with code {transport.ClientExitCode.Value}. This is a client observation, not proof of successful verification or protected-file integrity. Integrity remains Unknown; inspect genuine Windows output and the protected CBS log separately.";
+            message = $"The selected SFC client exited with code {transport.ClientExitCode.Value}. This is a client observation, not proof of successful verification or protected-file integrity. Integrity remains Unknown. Client output is not retained; review the protected Windows CBS log separately.";
         }
         return new(intent.RequestId, state, attemptedUtc, completedUtc, message, transport);
     }
@@ -176,6 +179,7 @@ public static class SfcVerificationPolicy
             transport.ClientStartedUtc is { } start && !ValidUtc(start) || transport.ClientExitedUtc is { } end && !ValidUtc(end)) return false;
         if (transport.ClientStartObserved == true && (transport.ClientStartAttempted != true || transport.AdministratorObserved != true || !transport.ProcessId.HasValue)) return false;
         if ((transport.ProcessId.HasValue || transport.ClientStartedUtc.HasValue) && transport.ClientStartObserved != true) return false;
+        if ((transport.StdoutDrained.HasValue || transport.StderrDrained.HasValue) && transport.ClientStartObserved != true) return false;
         if (transport.ClientExitObserved == true && (transport.ClientStartObserved != true || !transport.ClientExitCode.HasValue || !transport.ClientExitedUtc.HasValue)) return false;
         if ((transport.ClientExitCode.HasValue || transport.ClientExitedUtc.HasValue) && transport.ClientExitObserved != true) return false;
         if (transport.ClientStartedUtc.HasValue && transport.ClientExitedUtc < transport.ClientStartedUtc) return false;

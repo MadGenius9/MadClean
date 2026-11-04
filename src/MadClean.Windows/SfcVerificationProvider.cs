@@ -82,6 +82,8 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
         private SystemToolAdmissionLease? admission;
         internal void AttachAdmission(SystemToolAdmissionLease value) => admission = value;
         private Process? child;
+        private Task<bool>? stdoutDrain, stderrDrain;
+        private bool? stdoutDrained, stderrDrained;
         private bool retained;
         private int stopState; // bit 1: request accepted; bit 2: publication boundary
         private bool? admin, startAttempted, started, exited, released;
@@ -139,9 +141,9 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName = lease.ToolPath, UseShellExecute = false, CreateNoWindow = false,
+                        FileName = lease.ToolPath, UseShellExecute = false, CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Normal, WorkingDirectory = lease.SystemDirectory,
-                        RedirectStandardInput = false, RedirectStandardOutput = false, RedirectStandardError = false
+                        RedirectStandardInput = false, RedirectStandardOutput = true, RedirectStandardError = true
                     }
                 };
                 child.StartInfo.ArgumentList.Add("/verifyonly");
@@ -160,18 +162,33 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                     try { startedUtc = new DateTimeOffset(child.StartTime.ToUniversalTime()); } catch { }
                     try { processId = child.Id; } catch { }
                 }
+                EnsureOutputDrains();
                 await ObserveActualExitAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException) { blocker = "Preparation was interrupted. No successful verification or SFC cancellation is claimed."; }
             catch (Exception) { /* Never export provider output, paths or exception text. */ }
             finally
             {
+                // Even partial setup keeps both actual pipe reads and the original
+                // process owned. Observation stop never cancels or closes either.
+                if (started == true && child != null) EnsureOutputDrains();
                 if (started == true && exited != true && child != null)
                     await ObserveActualExitAsync().ConfigureAwait(false);
+                if (stdoutDrain != null)
+                {
+                    try { stdoutDrained = await stdoutDrain.ConfigureAwait(false); }
+                    catch (Exception) { lock (sync) retained = true; }
+                }
+                if (stderrDrain != null)
+                {
+                    try { stderrDrained = await stderrDrain.ConfigureAwait(false); }
+                    catch (Exception) { lock (sync) retained = true; }
+                }
                 lock (sync)
                 {
                     if (startAttempted == null) { startAttempted = false; started = false; }
-                    if (startAttempted == true && started != true || started == true && exited != true ||
+                    if (startAttempted == true && started != true || started == true &&
+                        (exited != true || stdoutDrained != true || stderrDrained != true) ||
                         SystemToolTrustNative.HasCleanupUncertainty || SystemToolCatalogObservation.HasCleanupUncertainty) retained = true;
                     if (!retained)
                     {
@@ -185,6 +202,23 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
                     Publish(blocker);
                 }
                 if (!RequiresRetention) { lock (GlobalGate) Rooted.Remove(this); }
+            }
+        }
+
+        private void EnsureOutputDrains()
+        {
+            if (started != true || child == null) return;
+            // Each task reads only its actual owned raw pipe. A missing getter or
+            // setup is uncertain; never fall back to inherited console output.
+            if (stdoutDrain == null)
+            {
+                try { stdoutDrain = SystemToolOutputDrain.DiscardAsync(child.StandardOutput.BaseStream); }
+                catch (Exception) { lock (sync) retained = true; }
+            }
+            if (stderrDrain == null)
+            {
+                try { stderrDrain = SystemToolOutputDrain.DiscardAsync(child.StandardError.BaseStream); }
+                catch (Exception) { lock (sync) retained = true; }
             }
         }
 
@@ -215,7 +249,8 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
             {
                 AdministratorObserved = admin, ClientStartAttempted = startAttempted, ClientStartObserved = started,
                 ProcessId = processId, ClientStartedUtc = startedUtc, ClientExitObserved = exited,
-                ClientExitCode = exitCode, ClientExitedUtc = exitedUtc, OwnershipReleased = released,
+                ClientExitCode = exitCode, ClientExitedUtc = exitedUtc, StdoutDrained = stdoutDrained,
+                StderrDrained = stderrDrained, OwnershipReleased = released,
                 StopObservationRequested = StopObservationRequested || token.IsCancellationRequested
             };
             var result = SfcVerificationPolicy.Assess(intent, transport, attempted, DateTimeOffset.UtcNow);

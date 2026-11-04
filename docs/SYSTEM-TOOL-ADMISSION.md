@@ -9,3 +9,8 @@ The single Windows facade supplies this same gate to every cooperating provider 
 SFC's immutable false production boundary still precedes this admission and all actual Windows work. Adding a shared capability does not enable it. Legacy integration, cross-process/recovery design, actual SFC qualification and its public confirmation workflow remain separate gates. The existing selected DISM workflows require regression evidence for this changed source; older runtime passes are not silently reused.
 
 Portable tests exercise mixed-route concurrent admission, repairs/unknown kinds/empty IDs, terminal uncertainty, stale callbacks, GUID reuse and separate-instance scope. The passive Windows composition check holds only a managed development capability, verifies actual provider pending/retention projections and competing admission refusal, then releases its own capabilities. It never calls an enabled DISM route merely to test rejection: a guard regression must not start servicing from passive validation. No native operation is invoked by this composition check.
+
+
+## Observed Windows regression
+
+At source `2ee4dec6`, immutable evidence `f2b92a489ef1996ebc13981e5716bc893deb6507`, [run 41896905146](https://github.com/MadGenius9/MadClean/actions/runs/41896905146), the managed composition check passed across the actual provider instances. Both existing selected DISM backend/public UI workflows also passed with settled ownership and no retention. SFC production remained disabled. This qualifies the observed cooperating in-process integration, not a cross-process/native servicing lock or actual SFC client.

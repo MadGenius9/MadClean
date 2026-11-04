@@ -543,3 +543,25 @@ Standard reportv5 requires this read-only interaction only when claiming a passe
 
 
 Independent combined review cleared the real UI/source/expiry/invalidation/privacy paths and strict v5/legacy schemas after the ownership fix. Full solution compilation passed with zero warnings/errors; all 1,451 portable tests passed with no skips. Python evidence tooling ran 245 tests: 244 passed and one Windows-only test was skipped. These are local build/policy results; the actual new Windows workflow remains unverified until matching evidence arrives.
+
+
+## Shared admission and initial SFC preview passed Windows regression
+
+Immutable evidence `f2b92a489ef1996ebc13981e5716bc893deb6507`, [run 41896905146](https://github.com/MadGenius9/MadClean/actions/runs/41896905146), matches source `2ee4dec65d4f89872cb5b073978eb53ff8efe4bb`. The managed shared-admission composition passed across actual provider instances without invoking DISM/SFC. Initial SFC preview bindings, readable controls and missing-identity refusal passed separately. Both actual component-store backend/public UI workflows passed their regression with settled provider/session ownership and no retention. The published App query again returned Partial with 68 rows, 19 Available and 49 Unknown, actual exit zero and owned cleanup.
+
+Windows core reconciled 1,441 Passed plus 10 NotExecuted, total 1,451. Passive validation was 82 passed, 10 inconclusive and zero failed; overall verification remains failed because inconclusive checks exit two. The older Unknown source families remain unverified. This proves the initial preview and changed admission scope, not populated SFC preview, timed expiry, native stop, cross-process exclusion, actual SFC execution or repair. Source `3d30c5ae`'s separate real preview interaction still needs its own evidence. Independent evidence review confirmed these boundaries. No ZIP or executable distribution occurred.
+
+
+## Passive deadline and identity/catalog process lifetime
+
+Review of the real-preview harness found that its old four-minute `Environment.Exit(1)` watchdog could bypass actual native identity ownership. The passive budget now records failure without terminating the process. A serialized one-shot deadline recorder and final monotonic observation prevent duplicate check names and a delayed timer's false pass. The timer remains active while covered owners settle, and in-flight callbacks finish before final publication.
+
+Main now retains actual shared identity admission beyond both UI and native identity checks and drains the exact fixed-catalog/held-catalog worker tasks. Caller timeouts remain historical Unknown; only the worker cleans up its native resources. Task completion/fault observation never promotes old evidence or establishes native cleanup by itself. The new fence covers these worker families only, not every legacy native owner. Existing explicit qualification modes and the eighteen-minute disposable-job limit retain their separate scope; no SFC client, repair, elevation, installation or personal-PC action is introduced. See [the policy](VALIDATION-LIFETIME.md). New Windows regression remains required.
+
+
+The dormant SFC candidate also no longer inherits console output: it redirects and discards raw stdout/stderr through fixed zeroed buffers, without retaining or exporting provider text. Actual independent stream completion is required alongside client exit/ownership before Available client evidence. The preview explains that output is not retained and the protected CBS log is a separate reference. No SFC client was invoked; production remains false and actual backend qualification remains open.
+
+
+The actual source2ee `tool-16.png` client capture was inspected: the scrolled SFC preview card, explanatory text and read-only details are visible, with the review button disabled without identity. This is an initial-view readability observation only; full-page, populated preview, physical input/DPI and accessibility remain separate.
+
+Independent combined source review cleared the passive deadline/lifetime and private-output changes after tightening impossible unstarted drain facts. The final full solution built with zero warnings/errors. All 1,466 portable tests passed with no skips, including nine deadline/task-lifetime cases and six output/transport cases added in this increment. No Python source changed. Actual native SFC execution remains unverified and disabled, and the new passive lifetime integration needs source-matched Windows regression. No personal-PC operation or ZIP occurred.

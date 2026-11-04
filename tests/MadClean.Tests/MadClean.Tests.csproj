@@ -16,5 +16,7 @@
         <ProjectReference Include="../../src/MadClean.Core/MadClean.Core.csproj"/>
         <!-- Exercise the same fixture-only portable reader without referencing WPF or shipping it in Core. -->
         <Compile Include="../../tools/MadClean.WindowsSmoke/SingleFileStaticHostMetadata.cs" Link="FixtureMetadata/SingleFileStaticHostMetadata.cs"/>
+        <Compile Include="../../tools/MadClean.WindowsSmoke/ValidationLifetime.cs" Link="FixtureMetadata/ValidationLifetime.cs"/>
+        <Compile Include="../../src/MadClean.Windows/SystemToolOutputDrain.cs" Link="WindowsPortable/SystemToolOutputDrain.cs"/>
     </ItemGroup>
 </Project>

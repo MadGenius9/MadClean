@@ -7,6 +7,19 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
+    private static ValidationWorkerLifetime? catalogWorkerLifetime;
+
+    // Main calls this only after all fixture invocations have returned. These
+    // exact worker references preserve CLR lifetime after a bounded caller wait;
+    // they do not seal future registration or cover other native fixture owners.
+    internal static async Task DrainCatalogWorkersAsync()
+    {
+        var catalog = catalogWorkerLifetime;
+        var held = heldCatalogWorkerLifetime;
+        if (catalog != null) await catalog.DrainAsync().ConfigureAwait(false);
+        if (held != null) await held.DrainAsync().ConfigureAwait(false);
+    }
+
     private static void SystemToolCatalogs(SmokeReport report, CancellationToken token)
     {
         const string check = "system-tool-catalog-observation";
@@ -45,6 +58,9 @@ internal static partial class NativeFixtures
                     try { return SystemToolCatalogObservation.Read(operation, stop.Token); }
                     finally { stop.Dispose(); }
                 }, CancellationToken.None);
+                // Retain this actual worker before the bounded wait. A timeout
+                // returns without replacing it, and Main drains it before exit.
+                catalogWorkerLifetime = new ValidationWorkerLifetime(worker);
                 _ = worker.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
                     TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                 SystemToolCatalogObservationResult result;

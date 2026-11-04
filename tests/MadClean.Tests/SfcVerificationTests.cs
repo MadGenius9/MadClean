@@ -23,7 +23,8 @@ public sealed class SfcVerificationTests
     {
         AdministratorObserved = true, ClientStartAttempted = true, ClientStartObserved = true,
         ProcessId = 123, ClientStartedUtc = Now.AddSeconds(1), ClientExitObserved = true,
-        ClientExitCode = code, ClientExitedUtc = Now.AddSeconds(2), OwnershipReleased = true
+        ClientExitCode = code, ClientExitedUtc = Now.AddSeconds(2), StdoutDrained = true,
+        StderrDrained = true, OwnershipReleased = true
     };
 
     [Fact]
@@ -125,6 +126,47 @@ public sealed class SfcVerificationTests
         Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(intent, pending, Now, null).State);
         Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(intent, Exited() with { OwnershipReleased = null }, Now, Now.AddSeconds(3)).State);
         Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(Intent(false), Exited(), Now, Now.AddSeconds(3)).State);
+    }
+
+    [Fact]
+    public void MissingOrFailedOutputDrainCannotBecomeAvailableClientEvidence()
+    {
+        var completed = Exited();
+        foreach (var facts in new[]
+        {
+            completed with { StdoutDrained = null }, completed with { StderrDrained = null },
+            completed with { StdoutDrained = false }, completed with { StderrDrained = false }
+        })
+        {
+            var result = SfcVerificationPolicy.Assess(Intent(), facts, Now, Now.AddSeconds(3));
+            Assert.Equal(CheckState.Unknown, result.State);
+            Assert.Equal(facts, result.Transport);
+            Assert.Equal(SfcIntegrityAssessment.Unknown, result.Integrity);
+        }
+    }
+
+    [Fact]
+    public void DrainFactsRequireAnObservedClientButEofCanPrecedeItsExit()
+    {
+        foreach (bool observedDrain in new[] { true, false })
+        {
+            var denied = new SfcVerificationTransport
+            {
+                AdministratorObserved = false, ClientStartAttempted = false, ClientStartObserved = false,
+                OwnershipReleased = true, StdoutDrained = observedDrain
+            };
+            Assert.False(SfcVerificationPolicy.IsTransportConsistent(denied));
+            Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(Intent(false), denied, Now, Now.AddSeconds(3)).State);
+            var otherPipe = denied with { StdoutDrained = null, StderrDrained = observedDrain };
+            Assert.False(SfcVerificationPolicy.IsTransportConsistent(otherPipe));
+            Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(Intent(false), otherPipe, Now, Now.AddSeconds(3)).State);
+        }
+        var running = Exited() with
+        {
+            ClientExitObserved = null, ClientExitCode = null, ClientExitedUtc = null, OwnershipReleased = false
+        };
+        Assert.True(SfcVerificationPolicy.IsTransportConsistent(running));
+        Assert.Equal(CheckState.Unknown, SfcVerificationPolicy.Assess(Intent(), running, Now, null).State);
     }
 
     [Fact]

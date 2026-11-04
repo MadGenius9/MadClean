@@ -8,6 +8,8 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
+    private static ValidationWorkerLifetime? heldCatalogWorkerLifetime;
+
     private sealed record HeldCatalogCheck(SystemToolCatalogObservationResult Result, bool PreCancelled,
         bool StreamOpen, bool SameHandle, bool PositionRestored);
 
@@ -26,6 +28,9 @@ internal static partial class NativeFixtures
                 try { return ObserveHeldCatalog(operation, stop.Token); }
                 finally { stop.Dispose(); }
             }, CancellationToken.None);
+            // Preserve the actual held-resource worker through caller timeout.
+            // Only its own finally releases leases; Main waits without doing so.
+            heldCatalogWorkerLifetime = new ValidationWorkerLifetime(worker);
             _ = worker.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             HeldCatalogCheck held;

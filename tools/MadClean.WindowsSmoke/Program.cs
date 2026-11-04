@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Interop;
@@ -74,13 +75,19 @@ internal static class Program
             return 1;
         }
         var report = new SmokeReport(output);
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(4));
-        using var watchdog = new Timer(_ =>
+        // Managed observer only: every instance sees the same actual identity
+        // admission, including identity reads from later native fixtures.
+        MadClean.Core.ISystemToolActions identityOwnership = new MadClean.Windows.SystemToolActionsProvider();
+        var observationBudget = TimeSpan.FromMinutes(4);
+        var elapsed = Stopwatch.StartNew();
+        using var deadline = new CancellationTokenSource(observationBudget);
+        var deadlineFailure = new ValidationDeadline(observationBudget, () =>
         {
-            report.Fail("harness-deadline", "The development harness exceeded its four-minute deadline. Native/provider/GUI completion is not claimed.");
+            report.Fail("harness-deadline", "The development harness exceeded its four-minute observation budget. Actual owned identity/catalog workers remain held until return; native/provider/GUI completion is not claimed. The separate disposable job limit remains in effect.");
             try { report.Save(); } catch (Exception) { }
-            Environment.Exit(1);
-        }, null, TimeSpan.FromMinutes(4), Timeout.InfiniteTimeSpan);
+        });
+        var watchdog = new Timer(_ => deadlineFailure.ObserveElapsed(elapsed.Elapsed),
+            null, observationBudget, Timeout.InfiniteTimeSpan);
         try
         {
             // This setting affects only this development process and does not change Windows graphics policy.
@@ -128,6 +135,17 @@ internal static class Program
         }
         finally
         {
+            // A caller timeout/cancellation and a static root do not keep the CLR
+            // alive. Preserve these exact identity/catalog owners, without using a
+            // departed dispatcher, terminating a process, or promoting late facts.
+            // Other passive fixture owner families are not qualified by this fence.
+            while (identityOwnership.HasPendingIdentityWork)
+                Thread.Sleep(100);
+            NativeFixtures.DrainCatalogWorkersAsync().GetAwaiter().GetResult();
+            // Keep the timer active during actual-owner waits, then finish any
+            // in-flight callback before the final clock check, save and exit code.
+            watchdog.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            deadlineFailure.ObserveElapsed(elapsed.Elapsed);
             try { report.Save(); }
             catch (Exception ex) { Console.Error.WriteLine($"Could not write verification report (0x{ex.HResult:X8})."); Environment.ExitCode = 1; }
         }
