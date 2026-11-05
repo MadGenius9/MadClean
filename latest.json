@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "c55084b8cc896df50956dc3abf3f5ac4d379e6d6",
-  "runId": "42061247237",
+  "sourceCommit": "c6b90855dedbb43b78aefd8586c3dcd2691e3478",
+  "runId": "42069137177",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-05T16:20:21.292844+00:00",
+  "updatedUtc": "2026-11-05T17:13:02.713225+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -118,11 +118,11 @@
     },
     {
       "name": "tool-25.png",
-      "sha256": "699629a1ece0ea61853861df9a971c76c9acdbad4df0292d8e9ab8e27e8075a2"
+      "sha256": "d50ebe6143dc32248ab250bc7a869e267eafdd6883e8e6d89b1bc8caece9226e"
     },
     {
       "name": "tool-14.png",
-      "sha256": "ebd8bd3622fbc4624ea743de8d1ac9f6e61c52a03080196fcdd463e59ade2990"
+      "sha256": "fab23b0de01457876532b1fdcf76178512e880f8d3000f698008bd6b86c491f8"
     },
     {
       "name": "tool-15.png",
