@@ -602,11 +602,12 @@
                             <TextBlock Text="Hardware Upgrades" Style="{StaticResource SectionTitle}"/>
                             <TextBlock Text="Detected facts first. Compatibility needs separate evidence." FontSize="19" Margin="0,0,0,12"/>
                             <TextBlock Text="Read-only PC, motherboard, CPU, RAM, GPU and storage observations. Windows/firmware may report incomplete or inaccurate values; detected hardware is not proof an upgrade is supported." Style="{StaticResource Caption}"/>
-                            <Button Content="Read hardware inventory" Command="{Binding ReadHardwareCommand}" HorizontalAlignment="Left" Margin="0,12,0,12"/>
+                            <Button Content="Read hardware inventory" Command="{Binding ReadHardwareCommand}" HorizontalAlignment="Left" Margin="0,12,0,12" AutomationProperties.AutomationId="HardwareReadInventory" AutomationProperties.Name="Read local hardware inventory without compatibility or upgrade actions"/>
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding HardwareMessage}" Style="{StaticResource Caption}"/>
-                                    <TextBlock Text="{Binding HardwareAttemptTime, StringFormat='Last local query attempt: {0}'}" FontSize="12" Margin="0,8,0,0"/>
+                                    <TextBlock Text="{Binding HardwareMessage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="HardwareQueryStatus" AutomationProperties.Name="Hardware inventory query status and coverage" AutomationProperties.LiveSetting="Polite"/>
+                                    <TextBlock Text="{Binding HardwareAttemptedUtc, StringFormat='Shared query attempt UTC: {0:O}', TargetNullValue='Not checked'}" FontSize="12" Margin="0,8,0,0" AutomationProperties.AutomationId="HardwareQueryAttemptUtc" AutomationProperties.Name="Shared hardware query attempt UTC"/>
+                                    <TextBlock Text="{Binding HardwareCompletedUtc, StringFormat='Response received UTC: {0:O}', TargetNullValue='Not received'}" FontSize="12" Margin="0,4,0,0" AutomationProperties.AutomationId="HardwareQueryCompletedUtc" AutomationProperties.Name="Hardware response receipt UTC, not per-class completion"/>
                                 </StackPanel>
                             </Border>
                             <DataGrid ItemsSource="{Binding HardwareFacts}" SelectedItem="{Binding SelectedHardwareFact, Mode=TwoWay}" Height="310" AutomationProperties.Name="Detected hardware facts">

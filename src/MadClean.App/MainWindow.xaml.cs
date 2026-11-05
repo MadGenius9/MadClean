@@ -18,6 +18,12 @@ public partial class MainWindow : Window
                 model.ExplainSystemToolIdentityCloseBlock();
                 return;
             }
+            if (model.HasPendingHardwareQuery)
+            {
+                args.Cancel = true;
+                model.ExplainHardwareQueryCloseBlock();
+                return;
+            }
             if (model.HasPendingAppUpdateDiscovery)
             {
                 args.Cancel = true;

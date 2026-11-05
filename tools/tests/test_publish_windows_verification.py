@@ -618,8 +618,43 @@ class PublisherTests(unittest.TestCase):
         published = json.loads(files['report.json'])
         self.assertEqual('inconclusive', next(check for check in published['checks'] if check['name'] == 'ui-sfc-preview-interaction')['state'])
 
+    def test_v6_cannot_substitute_hardware_metadata_for_actual_inventory_interaction(self):
+        self.report['formatVersion'] = 6
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.assertTrue(any(check['name'] == 'hardware-metadata-contract' for check in self.report['checks']))
+        self.save(); self.rejected()
+
+    def test_v6_accepts_actual_hardware_interaction_without_requiring_it_from_v5(self):
+        self.report['formatVersion'] = 6
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction', 'ui-hardware-inventory-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY fixed workflow proof'})
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertTrue(summary['passed'])
+        self.assertEqual(6, json.loads(files['report.json'])['formatVersion'])
+        self.report['formatVersion'] = 5
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'ui-hardware-inventory-interaction']
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertTrue(summary['passed'])
+        self.assertEqual(5, json.loads(files['report.json'])['formatVersion'])
+
+    def test_v6_unknown_hardware_workflow_cannot_be_claimed_as_passed(self):
+        self.report['formatVersion'] = 6
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.report['checks'].append({'name': 'ui-hardware-inventory-interaction', 'state': 'inconclusive', 'detail': 'TEST-ONLY hardware provider unavailable; no populated result'})
+        self.save(); self.rejected()
+        self.report.update(passed=False, state='inconclusive')
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertFalse(summary['passed'])
+        published = json.loads(files['report.json'])
+        self.assertEqual('inconclusive', next(check for check in published['checks'] if check['name'] == 'ui-hardware-inventory-interaction')['state'])
+
     def test_standard_report_versions_are_closed_and_strictly_integer(self):
-        for value in (0, 6, True, '5', 5.0, None):
+        for value in (0, 7, True, '6', 6.0, None):
             with self.subTest(version=value):
                 self.report['formatVersion'] = value
                 self.save(); self.rejected()

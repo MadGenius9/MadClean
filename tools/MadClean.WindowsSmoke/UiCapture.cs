@@ -18,6 +18,7 @@ internal static partial class UiCapture
     public static void Run(string output, SmokeReport report)
     {
         bool completed = false;
+        MainViewModel? hardwareQueryOwner = null;
         // Managed construction only. Every provider observes the same static
         // identity worker, even if the App dispatcher exits unexpectedly.
         ISystemToolActions identityOwnership = new MadClean.Windows.SystemToolActionsProvider();
@@ -47,6 +48,7 @@ internal static partial class UiCapture
                 sizing.TryResize(1420, 1000, out int wideResizeError);
                 await Idle(window);
                 if (window.DataContext is not MainViewModel model) throw new SmokeAssertionException("ui-data-context");
+                hardwareQueryOwner = model;
                 AssertNoInventory(model);
                 if (window.ActualWidth < 1160)
                     report.Unknown("ui-wide-size", $"The actual window remains constrained after own-HWND resizing (Win32 code {wideResizeError}, limit messages {sizing.LimitsMessages}); the captured dimensions are actual and wide-layout validation remains inconclusive.");
@@ -424,6 +426,11 @@ internal static partial class UiCapture
                     await CheckSfcPreviewInteraction(window, model, report);
                 else
                     report.Unknown("ui-sfc-preview-interaction", "Earlier GUI work or native ownership is unsettled; no identity or SFC preview workflow was started. No command execution or populated-preview proof is claimed.");
+                if (!report.Failed && !model.IsBusy && DiagnosticChannelInteractionSettled &&
+                    MsiActionBindingInteractionSettled && DeviceDriverInteractionSettled)
+                    await CheckHardwareInventoryInteraction(window, model, report);
+                else
+                    report.Unknown("ui-hardware-inventory-interaction", "Earlier GUI work or native ownership is unsettled; no hardware read, populated selection or refresh workflow was started. No compatibility result is inferred.");
                 completed = true;
             }
             catch (SmokeAssertionException ex)
@@ -442,6 +449,8 @@ internal static partial class UiCapture
                     report.Unknown("ui-component-store-preview-interaction", "Earlier GUI preparation or an invariant failure did not complete passive recorded-status preview interaction. No host or Windows servicing operation was requested.");
                 if (!report.HasCheck("ui-sfc-preview-interaction"))
                     report.Unknown("ui-sfc-preview-interaction", "Earlier GUI preparation or an invariant failure did not complete the identity-bound SFC preview workflow. No execution, populated preview or expiry proof is claimed.");
+                if (!report.HasCheck("ui-hardware-inventory-interaction"))
+                    report.Unknown("ui-hardware-inventory-interaction", "Earlier GUI preparation or an invariant failure did not complete the real hardware inventory interaction. No populated facts, current selection or refresh proof is claimed.");
                 window?.Close();
                 application.Shutdown(report.Failed ? 1 : 0);
             }
@@ -451,9 +460,11 @@ internal static partial class UiCapture
         {
             if (identityOwnership.HasPendingIdentityWork)
                 report.Fail("ui-identity-owner-teardown", "The App dispatcher ended while an actual shared identity worker remained pending. The CLR stays alive until that owner returns; no late preview qualification, force-close or native retry is claimed.");
-            // Do not use the departed dispatcher or repeat failed UI/layout work.
-            // Static roots alone do not keep the CLR alive for native completion.
-            while (identityOwnership.HasPendingIdentityWork)
+            if (hardwareQueryOwner?.HasPendingHardwareQuery == true)
+                report.Fail("ui-hardware-owner-teardown", "The App dispatcher ended while the actual hardware query task remained pending. The CLR stays alive until the owned query/stream task returns; no late UI qualification or CIM-service completion is inferred.");
+            // Do not use the departed dispatcher, UI busy latch or failed layout.
+            // Observe only actual worker tasks/admission after dispatcher exit.
+            while (identityOwnership.HasPendingIdentityWork || hardwareQueryOwner?.HasPendingHardwareQuery == true)
                 System.Threading.Thread.Sleep(100);
         }
         if (!completed && !report.Failed) report.Fail("ui-completion", "The application exited before all scoped UI checks completed.");

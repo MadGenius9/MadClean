@@ -35,6 +35,8 @@ internal static partial class NativeFixtures
             })
         };
 
+    internal static int HardwareMetadataFactLimit => HardwareMetadataSchema.Values.Sum(definition => definition.Fields.Count) * 128;
+
     private static IReadOnlyDictionary<string, string> HardwareFields(params string[] names) => names.ToDictionary(name => name, name => name, StringComparer.Ordinal);
 
     private static void HardwareMetadata(SmokeReport report, CancellationToken token)
@@ -111,7 +113,7 @@ internal static partial class NativeFixtures
         }
     }
 
-    private static bool TryHardwareMetadata(HardwareFact fact, out string sourceClass, out string sourceProperty)
+    internal static bool TryHardwareMetadata(HardwareFact fact, out string sourceClass, out string sourceProperty)
     {
         sourceClass = sourceProperty = "";
         const string prefix = "root/cimv2:";
