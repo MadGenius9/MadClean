@@ -10,4 +10,7 @@ The standard reportv6 requires `ui-hardware-inventory-interaction` before claimi
 
 Manufacturer-source eligibility is independently derived from actual complete unique PC metadata. No online source query is invoked by this test. Missing/ambiguous/unmatched hardware does not become a supported Surface identity. Runtime Unknown/Failed/empty results stay inconclusive; a successful interaction does not establish accurate hardware values, physical free slots, soldered-memory replaceability, PSU/connectors, clearance, supported RAM/CPU/storage limits or upgrade recommendations. Hosted VM facts remain virtual provider observations, not physical-PC compatibility evidence.
 
-New source-matched Windows evidence is required for this interaction. Timed cancellation/error races, physical keyboard/screen-reader input, DPI and actual OEM-machine comparison remain separate validation work.
+The actual interaction passed at sourcec55084b, immutable evidenceededcb47, as detailed below. Timed cancellation/error races, physical keyboard/screen-reader input, DPI and actual OEM-machine comparison remain separate validation work.
+
+
+Observed source `c55084b8cc896df50956dc3abf3f5ac4d379e6d6`, immutable `ededcb47c7e410537d91d55611dc46216a1868c9`, [run42061247237](https://github.com/MadGenius9/MadClean/actions/runs/42061247237): both real reads returned Partial41facts/6classes, actual selection details and refresh/stale-reference refusal passed, no manufacturer query ran, and the query owner settled. These were hosted-VM provider observations, not physical-PC accuracy or compatibility evidence.

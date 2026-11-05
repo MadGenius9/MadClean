@@ -154,6 +154,7 @@ internal static class ComponentStoreStatusUiQualification
                 Require(status.Text == model.ComponentStoreMessage && assessment.Text == model.ComponentStoreCurrentAssessment &&
                     history.IsReadOnly && history.Text == model.ComponentStoreLastObservation && !model.ComponentStoreAcknowledged,
                     "component-ui-returned-result-bindings");
+                await CheckSessionEvidence();
             }
             catch (Exception exception) { exceptionHResult ??= exception.HResult; }
             finally
@@ -173,6 +174,46 @@ internal static class ComponentStoreStatusUiQualification
                 settled = resultReturned == true && freshResult == true && !Pending() && windowClosed;
                 application!.Shutdown(exceptionHResult == null ? 0 : 1);
             }
+        }
+
+        // Additional fresh-source invariant only: selecting the result produced by the
+        // normal request above must never manufacture an observation or dispatch work.
+        private async Task CheckSessionEvidence()
+        {
+            Require(model != null && actualResult != null && actualResult.CompletedUtc != null &&
+                ReferenceEquals(model.ComponentStoreLastResult, actualResult), "component-ui-session-actual-result");
+            var observed = actualResult!;
+            var area = (kind == ComponentStoreCheckKind.ScanHealth ? DiagnosticEvidenceArea.ComponentStoreScan : DiagnosticEvidenceArea.ComponentStoreRecordedFlags);
+            var expectedSource = (kind == ComponentStoreCheckKind.ScanHealth ? "Microsoft DISM / Repair-WindowsImage ScanHealth" : "Microsoft DISM / Repair-WindowsImage CheckHealth (recorded flags)");
+            var activity = model!.Activity.ToArray();
+            var rows = model.InspectionEvidenceRows.ToArray();
+            Require(rows.Length == 5 && rows.Select(row => row.Area).Distinct().Count() == 5 &&
+                rows.Where(row => row.Area != area).All(row => row.State == CheckState.Unknown &&
+                    row.AttemptedUtc == null && row.CompletedUtc == null), "component-ui-session-source-isolation");
+            var row = rows.Single(entry => entry.Area == area);
+            Require(row.State == observed.State && row.AttemptedUtc == observed.AttemptedUtc &&
+                row.CompletedUtc == observed.CompletedUtc && row.Source == expectedSource &&
+                new[] { row.Title, row.Observation, row.Source, row.Coverage, row.Uncertainty, row.Impact, row.NextStep }
+                    .All(value => !string.IsNullOrWhiteSpace(value)), "component-ui-session-source-time-state");
+            var host = Descendants<TabControl>(window!).Single(control => AutomationProperties.GetName(control) == "Main content");
+            host.SelectedItem = host.Items.OfType<TabItem>().Single(item => Equals(item.Header, "Windows Diagnostics"));
+            await Idle();
+            var grid = Descendants<DataGrid>(window!).Single(control => AutomationProperties.GetName(control) == "Local inspection evidence and source states");
+            var details = Descendants<TextBox>(window!).Single(control => AutomationProperties.GetName(control) == "Inspection source, time, uncertainty and impact");
+            Require(ReferenceEquals(grid.ItemsSource, model.InspectionEvidenceRows), "component-ui-session-grid-source");
+            grid.SelectedItem = row;
+            await Idle();
+            Require(ReferenceEquals(grid.SelectedItem, row) && ReferenceEquals(model.SelectedInspectionEvidence, row) &&
+                details.IsReadOnly && details.Text == model.InspectionEvidenceDetails &&
+                details.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path == nameof(MainViewModel.InspectionEvidenceDetails) &&
+                details.Text.Contains(expectedSource, StringComparison.Ordinal) &&
+                details.Text.Contains(observed.AttemptedUtc.ToString("u"), StringComparison.Ordinal) &&
+                details.Text.Contains(observed.CompletedUtc!.Value.ToString("u"), StringComparison.Ordinal) &&
+                model.Activity.SequenceEqual(activity) && !(Pending()) &&
+                ReferenceEquals(model.ComponentStoreLastResult, observed) &&
+                model.InspectionEvidenceRows.Count == rows.Length &&
+                model.InspectionEvidenceRows.Where((entry, index) => !ReferenceEquals(entry, rows[index])).Any() == false,
+                "component-ui-session-selection-no-query");
         }
 
         private bool Pending() => model != null && (model.IsBusy || model.HasPendingComponentStoreStatus || model.HasPendingMsiUninstallRequest);

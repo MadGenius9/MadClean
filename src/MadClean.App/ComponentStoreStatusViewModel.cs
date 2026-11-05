@@ -117,6 +117,8 @@ public sealed partial class MainViewModel
         Status = intent.Kind == ComponentStoreCheckKind.ScanHealth ? "Preparing the selected fresh component-store scan…" : "Preparing the selected recorded component-store status check…";
         Event(ActivityArea.ComponentStoreStatus, ActivityOutcome.Started);
         StartComponentStoreUiTimer(); NotifyComponentStoreStatus();
+        var sessionEvidenceArea = ComponentStoreEvidenceArea(intent.Kind);
+        var sessionEvidenceAttempt = BeginIntegrityEvidence(sessionEvidenceArea);
         try
         {
             componentStoreSession = await componentStoreStatus.StartAsync(intent, componentStorePreparationStop.Token);
@@ -142,6 +144,7 @@ public sealed partial class MainViewModel
             var assessed = ComponentStoreStatusPolicy.Assess(intent, actual.Evidence, actual.Transport,
                 actual.AttemptedUtc, actual.CompletedUtc, componentStoreCallerStopRequested || componentStoreSession.StopRequested);
             Set(ref componentStoreLastResult, assessed, nameof(ComponentStoreLastResult));
+            ReplaceInspectionEvidence(DiagnosticIntegrityEvidence.ComponentStore(intent, assessed, DateTimeOffset.UtcNow));
             ComponentStoreLastObservation = DescribeComponentStoreObservation(assessed);
             ComponentStoreMessage = assessed.Message;
             ComponentStoreCurrentAssessment = DescribeComponentStoreAssessment(assessed);
@@ -154,6 +157,7 @@ public sealed partial class MainViewModel
         }
         catch (OperationCanceledException)
         {
+            InterruptIntegrityEvidence(sessionEvidenceArea, CheckState.Cancelled, sessionEvidenceAttempt);
             ComponentStoreCurrentAssessment = "Unknown — preparation or observation was interrupted. No Windows servicing stop, rollback or health result is established.";
             ComponentStoreMessage = "A stop was requested or preparation was interrupted. Any pending work remains with its owner; wait for actual completion. No process or service was killed.";
             Status = ComponentStoreMessage;
@@ -161,6 +165,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception)
         {
+            InterruptIntegrityEvidence(sessionEvidenceArea, CheckState.Failed, sessionEvidenceAttempt);
             ComponentStoreCurrentAssessment = "Unknown — no qualified current result was accepted. Earlier returned observations below remain historical.";
             ComponentStoreMessage = "The selected check could not return a qualified observation. Any pending host, pipeline or cleanup remains owned; no servicing completion, rollback, repair or health verdict is inferred.";
             Status = ComponentStoreMessage;

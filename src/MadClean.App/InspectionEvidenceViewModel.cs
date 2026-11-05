@@ -9,20 +9,29 @@ public sealed partial class MainViewModel
     private DiagnosticInspectionEvidenceEntry? selectedInspectionEvidence;
     public ObservableCollection<DiagnosticInspectionEvidenceEntry> InspectionEvidenceRows { get; } =
     [DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.Storage),
-        DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.Defender)];
+        DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.Defender),
+        DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.ComponentStoreRecordedFlags),
+        DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.ComponentStoreScan),
+        DiagnosticInspectionEvidence.NotChecked(DiagnosticEvidenceArea.SystemFiles)];
 
     public DiagnosticInspectionEvidenceEntry? SelectedInspectionEvidence
     {
         get => selectedInspectionEvidence;
-        set { Set(ref selectedInspectionEvidence, value); PropertyChanged?.Invoke(this, new(nameof(InspectionEvidenceDetails))); }
+        set
+        {
+            // Selection must refer to a current row, never an old or caller-created observation.
+            if (value != null && !InspectionEvidenceRows.Any(entry => ReferenceEquals(entry, value))) return;
+            Set(ref selectedInspectionEvidence, value);
+            PropertyChanged?.Invoke(this, new(nameof(InspectionEvidenceDetails)));
+        }
     }
     public string InspectionEvidenceDetails => selectedInspectionEvidence is { } entry
-        ? $"Observation: {entry.Observation}\nSource: {entry.Source}\nState: {entry.State}\n" +
-            $"Inspection attempt UTC: {(entry.AttemptedUtc.HasValue ? entry.AttemptedUtc.Value.ToString("u") : "not checked")}\n" +
+        ? $"Area: {entry.Title}\nObservation: {entry.Observation}\nSource: {entry.Source}\nState: {entry.State}\n" +
+            $"Request attempt UTC: {(entry.AttemptedUtc.HasValue ? entry.AttemptedUtc.Value.ToString("u") : "not checked")}\n" +
             $"Collection completed UTC: {(entry.CompletedUtc.HasValue ? entry.CompletedUtc.Value.ToString("u") : "not completed")}\n" +
             $"Coverage: {entry.Coverage}\nUncertainty: {entry.Uncertainty}\nImpact: {entry.Impact}\nNext step: {entry.NextStep}\n\n" +
-            "These are in-memory observations from the last local inspection, not live monitoring, a health score or permission to change the PC. Collection time does not establish when Windows last refreshed an individual provider field."
-        : "Select an inspection observation to review its source, collection time, scope, uncertainty and next step. Choose Inspect this PC to collect local disk and Defender observations; this panel starts no additional query.";
+            "These are independent in-memory source observations from this session, not live monitoring, a combined health verdict or permission to change the PC. Each source has its own request and time. Collection time does not establish when Windows last refreshed an individual provider field."
+        : "Select an inspection observation to review its source, collection time, scope, uncertainty and next step. Inspect this PC collects disk and Defender observations. Component-store and SFC observations require their own reviewed, explicitly confirmed requests. Reading or selecting this panel starts no query.";
 
     private void BeginInspectionEvidence()
     {
@@ -48,13 +57,33 @@ public sealed partial class MainViewModel
     private void FinishPendingInspectionEvidence(CheckState state)
     {
         foreach (var entry in InspectionEvidenceRows.ToArray())
-            if (entry.AttemptedUtc == inspectionEvidenceAttempt && entry.CompletedUtc == null)
+            if ((entry.Area == DiagnosticEvidenceArea.Storage || entry.Area == DiagnosticEvidenceArea.Defender) &&
+                entry.AttemptedUtc == inspectionEvidenceAttempt && entry.CompletedUtc == null)
                 ReplaceInspectionEvidence(DiagnosticInspectionEvidence.Interrupted(entry.Area, state,
                     inspectionEvidenceAttempt, DateTimeOffset.UtcNow));
     }
+    private static DiagnosticEvidenceArea ComponentStoreEvidenceArea(ComponentStoreCheckKind kind) => kind switch
+    {
+        ComponentStoreCheckKind.RecordedFlags => DiagnosticEvidenceArea.ComponentStoreRecordedFlags,
+        ComponentStoreCheckKind.ScanHealth => DiagnosticEvidenceArea.ComponentStoreScan,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+    private DateTimeOffset BeginIntegrityEvidence(DiagnosticEvidenceArea area)
+    {
+        var attemptedUtc = DateTimeOffset.UtcNow;
+        // Confirmation is recorded here; Pending does not establish provider/client invocation.
+        ReplaceInspectionEvidence(DiagnosticInspectionEvidence.Pending(area, attemptedUtc));
+        return attemptedUtc;
+    }
+    private void InterruptIntegrityEvidence(DiagnosticEvidenceArea area, CheckState state, DateTimeOffset attemptedUtc) =>
+        ReplaceInspectionEvidence(DiagnosticInspectionEvidence.Interrupted(area, state, attemptedUtc, DateTimeOffset.UtcNow));
+
     private void ReplaceInspectionEvidence(DiagnosticInspectionEvidenceEntry entry)
     {
-        int index = entry.Area == DiagnosticEvidenceArea.Storage ? 0 : 1;
+        int index = -1;
+        for (int candidate = 0; candidate < InspectionEvidenceRows.Count; candidate++)
+            if (InspectionEvidenceRows[candidate].Area == entry.Area) { index = candidate; break; }
+        if (index < 0) return;
         bool selected = SelectedInspectionEvidence?.Area == entry.Area;
         InspectionEvidenceRows[index] = entry;
         if (selected) SelectedInspectionEvidence = entry;

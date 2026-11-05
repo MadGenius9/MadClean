@@ -552,8 +552,9 @@ internal static partial class UiCapture
 
     private static void AssertNoInventory(MainViewModel model)
     {
-        if (model.InspectionEvidenceRows.Count != 2 || model.SelectedInspectionEvidence != null ||
-            model.InspectionEvidenceRows.Select(row => row.Area).Distinct().Count() != 2 ||
+        if (model.InspectionEvidenceRows.Count != 5 || model.SelectedInspectionEvidence != null ||
+            model.InspectionEvidenceRows.Select(row => row.Area).Distinct().Count() != 5 ||
+            !model.InspectionEvidenceRows.Select(row => row.Area).Order().SequenceEqual(Enum.GetValues<MadClean.Core.DiagnosticEvidenceArea>().Order()) ||
             model.InspectionEvidenceRows.Any(row => row.State != MadClean.Core.CheckState.Unknown || row.AttemptedUtc != null || row.CompletedUtc != null ||
                 !row.Observation.StartsWith("Not checked", StringComparison.Ordinal)))
             throw new SmokeAssertionException("ui-inspection-evidence-unchecked");

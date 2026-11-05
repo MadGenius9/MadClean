@@ -2,10 +2,21 @@ using System.Globalization;
 
 namespace MadClean.Core;
 
-public enum DiagnosticEvidenceArea { Storage, Defender }
+public enum DiagnosticEvidenceArea { Storage, Defender, ComponentStoreRecordedFlags, ComponentStoreScan, SystemFiles }
 public sealed record DiagnosticInspectionEvidenceEntry(DiagnosticEvidenceArea Area, CheckState State,
     DateTimeOffset? AttemptedUtc, DateTimeOffset? CompletedUtc, string Observation, string Source,
-    string Coverage, string Uncertainty, string Impact, string NextStep);
+    string Coverage, string Uncertainty, string Impact, string NextStep)
+{
+    public string Title => Area switch
+    {
+        DiagnosticEvidenceArea.Storage => "Storage",
+        DiagnosticEvidenceArea.Defender => "Defender",
+        DiagnosticEvidenceArea.ComponentStoreRecordedFlags => "Recorded component flags",
+        DiagnosticEvidenceArea.ComponentStoreScan => "Component-store scan",
+        DiagnosticEvidenceArea.SystemFiles => "SFC client",
+        _ => "Unknown source"
+    };
+}
 
 /// <summary>Minimized in-memory evidence from explicit inspections, without provider messages or health verdicts.</summary>
 public static class DiagnosticInspectionEvidence
@@ -100,7 +111,8 @@ public static class DiagnosticInspectionEvidence
     private static DiagnosticInspectionEvidenceEntry InvalidTime(DiagnosticEvidenceArea area) =>
         Entry(area, CheckState.Unknown, null, null, "Inspection timestamps were invalid; observation unavailable.", "No dates or result values were inferred.");
     private static DiagnosticInspectionEvidenceEntry Entry(DiagnosticEvidenceArea area, CheckState state,
-        DateTimeOffset? attempted, DateTimeOffset? completed, string observation, string coverage) => new(area, state,
+        DateTimeOffset? attempted, DateTimeOffset? completed, string observation, string coverage) =>
+        area is DiagnosticEvidenceArea.Storage or DiagnosticEvidenceArea.Defender ? new(area, state,
         attempted, completed, observation,
         area == DiagnosticEvidenceArea.Storage ? "System.IO.DriveInfo / TotalSize and AvailableFreeSpace" : "Microsoft Defender / Get-MpComputerStatus",
         coverage,
@@ -110,5 +122,30 @@ public static class DiagnosticInspectionEvidence
         area == DiagnosticEvidenceArea.Storage
             ? "Lack of caller-visible free space can prevent new writes. These capacity values do not establish cause, drive failure or performance; no cleanup or repair was performed."
             : "Disabled or passive Defender settings can reflect another security provider or policy. Review the source context before deciding whether any action is needed; no scan or security change was performed.",
-        area == DiagnosticEvidenceArea.Storage ? "Review drive details in Overview." : "Review status and source limitations in Security.");
+        area == DiagnosticEvidenceArea.Storage ? "Review drive details in Overview." : "Review status and source limitations in Security.") :
+        new(area, state, attempted, completed, observation, area switch
+        {
+            DiagnosticEvidenceArea.ComponentStoreRecordedFlags => "Microsoft DISM / Repair-WindowsImage CheckHealth (recorded flags)",
+            DiagnosticEvidenceArea.ComponentStoreScan => "Microsoft DISM / Repair-WindowsImage ScanHealth",
+            DiagnosticEvidenceArea.SystemFiles => "Microsoft SFC / sfc.exe /verifyonly client",
+            _ => "Unknown source"
+        }, coverage, area switch
+        {
+            DiagnosticEvidenceArea.ComponentStoreRecordedFlags => "Recorded flags are not a fresh scan; the prior flag or scan date is unknown. They do not establish system-file integrity or overall PC health.",
+            DiagnosticEvidenceArea.ComponentStoreScan => "A fresh component-store finding is not a system-file, antivirus, disk, hardware or overall PC-health assessment. Per-file coverage and cause are unknown.",
+            DiagnosticEvidenceArea.SystemFiles => "Client exit codes and drained streams do not establish successful verification or protected-file integrity. Integrity remains Unknown; stopping observation does not establish SFC cancellation or rollback.",
+            _ => "No recognized source contract is available."
+        }, area switch
+        {
+            DiagnosticEvidenceArea.ComponentStoreRecordedFlags => "A recorded corruption flag may warrant reviewing the original servicing evidence; it does not establish current cause or performance. No repair was requested.",
+            DiagnosticEvidenceArea.ComponentStoreScan => "A reported component-store finding concerns that invocation only; impact and cause require source review. No repair or restart was requested.",
+            DiagnosticEvidenceArea.SystemFiles => "Only client observations are summarized. No file changes, corruption finding, repair result or performance effect is inferred.",
+            _ => "No impact was inferred."
+        }, area switch
+        {
+            DiagnosticEvidenceArea.ComponentStoreRecordedFlags => "Review the separately selected recorded-flags check and its limitations in Diagnostics.",
+            DiagnosticEvidenceArea.ComponentStoreScan => "Review the separately selected component-store scan and its limitations in Diagnostics.",
+            DiagnosticEvidenceArea.SystemFiles => @"Review the separately selected SFC client observation in Diagnostics; protected Windows log: %windir%\Logs\CBS\CBS.log.",
+            _ => "Review the source contract before selecting any check."
+        });
 }

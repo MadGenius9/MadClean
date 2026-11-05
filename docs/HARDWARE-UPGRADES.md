@@ -100,3 +100,8 @@ The explicit [Surface service-source checker](SURFACE-SERVICE-FACTS.md) retrieve
 ## Additional official-source access limit
 
 On 2026-11-02 at16:07:03 UTC, one read-only request to the official Lenovo [PSREF M90q Gen4 specification URL](https://psref.lenovo.com/syspool/Sys/PDF/ThinkCentre/ThinkCentre_M90q_Gen_4/ThinkCentre_M90q_Gen_4_Spec.pdf) returned HTTP403. No PDF was received; therefore no document title/revision/hash, exact machine-type/model mapping, RAM limit/type, supported CPU/required BIOS or expansion/storage claim was verified. The URL filename alone is not identity or compatibility evidence. No retry, alternate download, manufacturer recommendation or production catalog entry was added. These manufacturer limits remain Unknown. This is an environment access limitation, not evidence that the product or official document lacks specifications.
+
+
+## Observed H1 UI increment
+
+The actual populated read/select/refresh workflow passed on the disposable hosted VM at sourcec55084b/evidenceededcb47: Partial41facts from6source classes on both reads, current-row rendering, clear-on-refresh/new receipt, stale-reference refusal and scoped manufacturer eligibility, with no online query. This completes that software-interaction increment only. The H1 physical-system comparison, accuracy and accessibility gates above and the H2/H3 manufacturer/advice obligations remain open; VM firmware data is not physical-upgrade evidence.

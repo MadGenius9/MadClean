@@ -182,6 +182,7 @@ internal static class SfcPublicUiQualification
                 Require(status.Text == model.SfcVerificationMessage && assessment.Text == model.SfcVerificationAssessment &&
                     history.Text == model.SfcVerificationLastObservation && history.IsReadOnly && !model.SfcVerificationAcknowledged &&
                     assessment.Text.Contains("Unknown", StringComparison.Ordinal), "sfc-public-result-bindings");
+                await CheckSessionEvidence();
             }
             catch (Exception) { invariantFailed = true; }
             finally
@@ -204,6 +205,50 @@ internal static class SfcPublicUiQualification
                 expectedShutdown = true;
                 application!.Shutdown(invariantFailed ? 1 : 0);
             }
+        }
+
+        // Additional fresh-source invariant only: selecting the result produced by the
+        // normal request above must never manufacture an observation or dispatch work.
+        private async Task CheckSessionEvidence()
+        {
+            Require(model != null && actualResult != null && actualResult.CompletedUtc != null &&
+                ReferenceEquals(model.SfcVerificationLastResult, actualResult), "sfc-public-session-actual-result");
+            var observed = actualResult!;
+            var area = DiagnosticEvidenceArea.SystemFiles;
+            var expectedSource = "Microsoft SFC / sfc.exe /verifyonly client";
+            var activity = model!.Activity.ToArray();
+            var rows = model.InspectionEvidenceRows.ToArray();
+            Require(rows.Length == 5 && rows.Select(row => row.Area).Distinct().Count() == 5 &&
+                rows.Where(row => row.Area != area).All(row => row.State == CheckState.Unknown &&
+                    row.AttemptedUtc == null && row.CompletedUtc == null), "sfc-public-session-source-isolation");
+            var row = rows.Single(entry => entry.Area == area);
+            Require(row.State == observed.State && row.AttemptedUtc == observed.AttemptedUtc &&
+                row.CompletedUtc == observed.CompletedUtc && row.Source == expectedSource &&
+                new[] { row.Title, row.Observation, row.Source, row.Coverage, row.Uncertainty, row.Impact, row.NextStep }
+                    .All(value => !string.IsNullOrWhiteSpace(value)), "sfc-public-session-source-time-state");
+            Require(observed.Integrity == SfcIntegrityAssessment.Unknown &&
+                row.Uncertainty.Contains("Integrity remains Unknown", StringComparison.Ordinal) &&
+                (row.State != CheckState.Available || row.Observation.Contains("integrity remains Unknown", StringComparison.Ordinal)),
+                "sfc-public-session-integrity-unknown");
+            var host = Descendants<TabControl>(window!).Single(control => AutomationProperties.GetName(control) == "Main content");
+            host.SelectedItem = host.Items.OfType<TabItem>().Single(item => Equals(item.Header, "Windows Diagnostics"));
+            await Idle();
+            var grid = Descendants<DataGrid>(window!).Single(control => AutomationProperties.GetName(control) == "Local inspection evidence and source states");
+            var details = Descendants<TextBox>(window!).Single(control => AutomationProperties.GetName(control) == "Inspection source, time, uncertainty and impact");
+            Require(ReferenceEquals(grid.ItemsSource, model.InspectionEvidenceRows), "sfc-public-session-grid-source");
+            grid.SelectedItem = row;
+            await Idle();
+            Require(ReferenceEquals(grid.SelectedItem, row) && ReferenceEquals(model.SelectedInspectionEvidence, row) &&
+                details.IsReadOnly && details.Text == model.InspectionEvidenceDetails &&
+                details.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path == nameof(MainViewModel.InspectionEvidenceDetails) &&
+                details.Text.Contains(expectedSource, StringComparison.Ordinal) &&
+                details.Text.Contains(observed.AttemptedUtc.ToString("u"), StringComparison.Ordinal) &&
+                details.Text.Contains(observed.CompletedUtc!.Value.ToString("u"), StringComparison.Ordinal) &&
+                model.Activity.SequenceEqual(activity) && !(ModelPending() || NativePending()) &&
+                ReferenceEquals(model.SfcVerificationLastResult, observed) &&
+                model.InspectionEvidenceRows.Count == rows.Length &&
+                model.InspectionEvidenceRows.Where((entry, index) => !ReferenceEquals(entry, rows[index])).Any() == false,
+                "sfc-public-session-selection-no-query");
         }
 
         private bool NativePending() => identityOwner.HasPendingIdentityWork || clientOwner.HasPendingWork || clientOwner.RequiresRetention;

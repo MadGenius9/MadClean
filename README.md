@@ -94,7 +94,7 @@ The separate [fresh pair recheck](docs/DUPLICATE-PAIR-RECHECK.md) reads exactly 
 
 **Shortcut review** inspects stored `.lnk` metadata without Resolve, execution, tracking, saving, icon retrieval or installer activation. A missing supported local target is evidence for review; offline/network/access/reparse/unsupported cases remain unknown. No shortcut is removed.
 
-**Windows Diagnostics** reads existing minimized Application/System event metadata for an explicitly chosen 1/7/30-day window, grouping event records with source, time, coverage, uncertainty and impact. No records does not mean healthy; no event message/dump content, DISM/SFC or repair command is read/run. D1b/D2/D3 remain separate gated work.
+**Windows Diagnostics** shows an [in-session evidence report](docs/DIAGNOSTIC-SESSION-EVIDENCE.md) from already-collected storage, Defender and separately confirmed DISM/SFC observations, each with independent source/time/coverage/uncertainty and no health score. Reading the report starts no operation. Its event reader reads existing minimized Application/System event metadata for an explicitly chosen 1/7/30-day window, grouping event records with source, time, coverage, uncertainty and impact. No records does not mean healthy; no event message/dump content, DISM/SFC or repair command is read/run. D1b/D2/D3 remain separate gated work.
 
 Its **Observed recurrence** summary shows counts from the returned event evidence, with an optional repeated-groups-only list filter. Counts mean event records, not unique crashes. Unknown checks have unknown totals; Partial evidence retains its coverage gaps. Filtering does not query Windows again, change the UTC window or combine WER store references with event counts.
 

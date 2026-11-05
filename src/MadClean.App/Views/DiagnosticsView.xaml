@@ -6,9 +6,9 @@
             <views:ComponentStoreStatusView/>
             <Border Style="{StaticResource Card}" Margin="0,8,0,16"><StackPanel>
                 <TextBlock Text="Inspection evidence · this session" FontSize="20"/>
-                <TextBlock Text="Disk space and Defender settings already collected by Inspect this PC. This panel starts no queries. Each observation keeps its collection time and limitations; Available means a source response, not a healthy PC. Event and WER windows below are separate." Style="{StaticResource Caption}"/>
-                <DataGrid ItemsSource="{Binding InspectionEvidenceRows}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" SelectedItem="{Binding SelectedInspectionEvidence, Mode=TwoWay}" Height="150" AutomationProperties.Name="Local inspection evidence and source states"><DataGrid.Columns>
-                    <DataGridTextColumn Header="AREA" Binding="{Binding Area}" Width="120"/>
+                <TextBlock Text="Five independent sources from requests in this session: disk space and Defender from Inspect this PC, plus separately confirmed component-store recorded flags, fresh component-store scan, and SFC client observations. This panel starts no queries. Each source keeps its own time, coverage and uncertainty; Available is not a healthy-PC verdict. Event and WER windows below are separate." Style="{StaticResource Caption}"/>
+                <DataGrid ItemsSource="{Binding InspectionEvidenceRows}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" SelectedItem="{Binding SelectedInspectionEvidence, Mode=TwoWay}" Height="210" AutomationProperties.Name="Local inspection evidence and source states"><DataGrid.Columns>
+                    <DataGridTextColumn Header="AREA" Binding="{Binding Title}" Width="200"/>
                     <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="120"/>
                     <DataGridTextColumn Header="OBSERVATION" Binding="{Binding Observation}" Width="*" MinWidth="220"/>
                     <DataGridTextColumn Header="COLLECTED UTC" Binding="{Binding CompletedUtc, StringFormat=u}" Width="180"/>
@@ -69,7 +69,7 @@
                 <TextBox Text="{Binding WerDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="230" VerticalScrollBarVisibility="Auto" Margin="0,12,0,12" AutomationProperties.Name="Selected WER metadata source, time and uncertainty"/>
                 <ItemsControl ItemsSource="{Binding WerCoverage}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="#A9BDD3" Margin="0,4"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
             </StackPanel></Border>
-            <TextBlock Text="No matching records does not mean healthy. Unexpected-shutdown events alone do not diagnose a PSU, RAM or driver fault. Component-store tools separately offer recorded flags or a fresh scan after review and confirmation; neither requests repair. SFC and repairs remain disabled. Ordinary inventory never runs DISM or SFC." Style="{StaticResource Caption}"/>
+            <TextBlock Text="No matching records does not mean healthy. Unexpected-shutdown events alone do not diagnose a PSU, RAM or driver fault. Component-store tools separately offer recorded flags or a fresh scan after review and confirmation; neither requests repair. The fixed SFC verify-only request is separately available after identity review and confirmation; its client observations do not establish file integrity. Repairs remain disabled. Ordinary inventory never runs DISM or SFC." Style="{StaticResource Caption}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

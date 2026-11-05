@@ -601,3 +601,15 @@ H2 official-source research still could not retrieve specifications: the known r
 
 
 Independent combined review cleared the H1 task/close/dispatcher fence, exact-reference selection, current-response timestamps, real query/refresh proof and v6 backward compatibility. Full solution compilation passed with zero warnings/errors. Python ran271tests:270passed/one Windows-only skip. No Core implementation/test source changed; its prior1,466portable passes remain separate from this new UI. The actual new hardware workflow is unverified until source-matched Windows evidence arrives. No hardware values, loaded-data screenshots, purchases, firmware changes or executable ZIP were exported by this increment.
+
+
+## Hardware UI qualified; independent session evidence expanded
+
+Immutable evidence `ededcb47c7e410537d91d55611dc46216a1868c9`, [run42061247237](https://github.com/MadGenius9/MadClean/actions/runs/42061247237), matches source `c55084b8cc896df50956dc3abf3f5ac4d379e6d6`. Actual hardware UI reads returned Partial41facts/6classes twice; normal selection details, clearing/new receipt on refresh, stale-row refusal, scoped manufacturer eligibility/no online requests and query settlement passed. Hosted VM observations do not establish physical-PC accuracy or upgrade compatibility. SFC public-v2 regression also passed with actual client/drain/window/cleanup facts and Unknown integrity.
+
+Windows core was1,456Passed+10NotExecuted=1,466. Passive84passed/10inconclusive/zero failed; overall verification remains failed on inconclusive checks. Actual App and published App updates returned Partial68rows/19Available/49Unknown. Independent immutable-evidence review confirmed current-source counts and scope.
+
+The next increment expands the existing session evidence panel to five independent sources, adding recorded DISM flags, fresh component-store findings and SFC client observations. Pure projections revalidate actual intents/results and never promote stopped or inconsistent payloads; original raw messages/identity values are not copied. Existing explicit request callbacks update only their matching row. Ordinary Inspect remains storage/Defender-only, reading/selecting the panel starts no work, and no overall health score or new operation is supplied. Actual existing DISM/SFC UI jobs will check the callback-produced source/time/details without an extra client. New-source Windows evidence remains required; [contract](DIAGNOSTIC-SESSION-EVIDENCE.md).
+
+
+The session-evidence increment passed the full Release solution build with zero warnings/errors and all1,484 portable tests on Linux, including malformed/cross-request evidence, cancellation, timestamp and privacy boundaries. Independent combined source review found no blocking issues. Python validation code was unchanged; the prior271-test result remains separate. New summary rendering is not yet Windows-qualified. No new query, repair/action permission, personal-PC operation or executable ZIP was added.

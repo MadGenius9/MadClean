@@ -99,6 +99,7 @@ public sealed partial class MainViewModel
         Status = "Preparing the selected SFC verify-only request…";
         Event(ActivityArea.SfcVerification, ActivityOutcome.Started);
         StartSfcVerificationUiTimer(); NotifySfcVerification();
+        var sessionEvidenceAttempt = BeginIntegrityEvidence(DiagnosticEvidenceArea.SystemFiles);
         try
         {
             sfcVerificationSession = await sfcVerification.StartAsync(intent, sfcVerificationPreparationStop.Token);
@@ -130,6 +131,7 @@ public sealed partial class MainViewModel
             if (actual.State == CheckState.Available && assessed.State != CheckState.Available && assessed.State != CheckState.Cancelled)
                 throw new InvalidOperationException();
             Set(ref sfcVerificationLastResult, assessed, nameof(SfcVerificationLastResult));
+            ReplaceInspectionEvidence(DiagnosticIntegrityEvidence.Sfc(intent, assessed, DateTimeOffset.UtcNow));
             SfcVerificationLastObservation = DescribeSfcVerificationObservation(assessed);
             SfcVerificationAssessment = "Windows protected-file integrity: Unknown. " +
                 (assessed.Transport.ClientExitObserved == true
@@ -143,12 +145,14 @@ public sealed partial class MainViewModel
         }
         catch (OperationCanceledException)
         {
+            InterruptIntegrityEvidence(DiagnosticEvidenceArea.SystemFiles, CheckState.Cancelled, sessionEvidenceAttempt);
             SfcVerificationAssessment = "Windows protected-file integrity: Unknown. Preparation or observation was interrupted; no SFC cancellation, rollback or completed verification is established.";
             SfcVerificationMessage = "An observation stop or preparation interruption occurred. Actual owners remain held until completion; no process or service was killed.";
             Status = SfcVerificationMessage; Event(ActivityArea.SfcVerification, ActivityOutcome.Partial);
         }
         catch (Exception)
         {
+            InterruptIntegrityEvidence(DiagnosticEvidenceArea.SystemFiles, CheckState.Failed, sessionEvidenceAttempt);
             SfcVerificationAssessment = "Windows protected-file integrity: Unknown. No qualified current client observation was accepted; earlier results below remain historical.";
             SfcVerificationMessage = "The selected request could not return a consistent observation. Pending client, output-drain, identity and cleanup ownership remains held; no success or health verdict is inferred.";
             Status = SfcVerificationMessage; Event(ActivityArea.SfcVerification, ActivityOutcome.Failed);
