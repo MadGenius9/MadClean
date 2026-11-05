@@ -74,6 +74,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string LogMessage { get => logMessage; private set => Set(ref logMessage, value); }
     public void Cancel()
     {
+        if (TryRequestSfcObservationStopFromUi()) return;
         if (TryRequestComponentStoreStopFromUi()) return;
         if (ExplainCommittedMsiUninstallCancel()) return;
         cancellation?.Cancel();

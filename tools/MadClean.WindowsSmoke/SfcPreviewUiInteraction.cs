@@ -103,9 +103,10 @@ internal static partial class UiCapture
                 details.Text.Contains(identity.ExpiresUtc.ToString("O", CultureInfo.InvariantCulture), StringComparison.Ordinal) &&
                 details.Text.Contains(preview.ExactEffect, StringComparison.Ordinal) && details.Text.Contains(preview.Permissions, StringComparison.Ordinal) &&
                 details.Text.Contains(preview.Cancellation, StringComparison.Ordinal) && details.Text.Contains(preview.Limitations, StringComparison.Ordinal) &&
-                status.Text.Contains("execution: disabled", StringComparison.Ordinal) &&
                 status.Text.Contains("Integrity: not checked", StringComparison.Ordinal), "ui-sfc-preview-rendered-evidence");
-            Require(Quiet() && model.Activity.SequenceEqual(previewActivity) && model.Status == queryStatus,
+            Require(Quiet() && model.Activity.SequenceEqual(previewActivity) && model.Status == queryStatus &&
+                !model.SfcVerificationAcknowledged && !model.ConfirmSfcVerificationCommand.CanExecute(null) &&
+                model.SfcVerificationLastResult == null,
                 "ui-sfc-preview-extra-query-activity");
 
             // Change the real selection, then return. Neither a prior identity nor

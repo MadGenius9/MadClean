@@ -28,7 +28,7 @@ public sealed partial class MainViewModel
             Set(ref selectedSystemTool, value); systemToolPreview = null;
             ClearSfcVerificationPreview();
             SystemToolMessage = "Selection changed. No new identity check or Windows command has been requested.";
-            SystemToolIdentitySummary = "Tool identity: not checked for this selection. Windows integrity: not checked. Execution remains disabled.";
+            SystemToolIdentitySummary = "Tool identity: not checked for this selection. Identity evidence is separate from any requested integrity-tool result.";
             NotifySystemToolIdentityState();
         }
     }
@@ -36,10 +36,13 @@ public sealed partial class MainViewModel
     {
         get
         {
-            if (selectedSystemTool is not { } action) return "Select a fixed Microsoft operation. Ordinary inspection never runs these tools. Execution is blocked pending separate Windows validation; this page can verify a selected executable's identity only.";
-            string description = $"{action.Title}\nCommand descriptor: {action.FileName} {string.Join(" ", action.Arguments)}\nAction type: {action.Kind}\n\nEffect: {action.Effect}\nElevation: {action.Elevation}\nNetwork/source behavior: {action.Network}\nCancellation: {action.Cancellation}\nRestart: {action.Reboot}\nProtected Windows result log: {action.WindowsLogReference}";
+            if (selectedSystemTool is not { } action) return "Select a fixed Microsoft operation. Ordinary inspection never runs these tools. Identity verification starts no command. The separately acknowledged SFC verify-only request below has its own scope and qualification; repairs and the legacy executor remain disabled.";
+            string permissions = action.Operation == SystemToolOperation.SfcVerifyOnly
+                ? "The separate verify-only request requires already-effective administrator access and never requests elevation. Identity verification alone requires no administrator relaunch."
+                : action.Elevation;
+            string description = $"{action.Title}\nCommand descriptor: {action.FileName} {string.Join(" ", action.Arguments)}\nAction type: {action.Kind}\n\nEffect: {action.Effect}\nPermissions: {permissions}\nNetwork/source behavior: {action.Network}\nCancellation: {action.Cancellation}\nRestart: {action.Reboot}\nProtected Windows result log: {action.WindowsLogReference}";
             if (systemToolPreview is { } preview)
-                description += $"\n\nIdentity observation UTC: {preview.CheckedUtc:u}; valid before {preview.ExpiresUtc:u}\nExact tool: {preview.ToolPath}\nReported file version: {preview.ToolVersion}\nSHA-256: {preview.Sha256}\nSignature observation: {preview.TrustState}\n{preview.TrustDetail}\n\nExecution gate: {preview.Blocker}";
+                description += $"\n\nIdentity observation UTC: {preview.CheckedUtc:u}; valid before {preview.ExpiresUtc:u}\nExact tool: {preview.ToolPath}\nReported file version: {preview.ToolVersion}\nSHA-256: {preview.Sha256}\nSignature observation: {preview.TrustState}\n{preview.TrustDetail}\n\nRequest scope: {(action.Operation == SystemToolOperation.SfcVerifyOnly ? "This identity does not run SFC. Review and acknowledge the separate verify-only request below; no repair is selected." : preview.Blocker)}";
             return description;
         }
     }
@@ -66,17 +69,17 @@ public sealed partial class MainViewModel
                 (observation.State == CheckState.Partial ? "Some identity metadata remains unknown; review the details. " : "") :
                 "No accepted identity observation is available from this attempt; review the provider result. ") +
             (observation.IdentityObserved == true ? $" Checked UTC: {observation.CheckedUtc:u}; valid before {observation.ExpiresUtc:u}. Verify again for new evidence." : "") +
-            " Windows integrity: not checked. No SFC/DISM command has run; execution remains disabled.";
+            " This identity query starts no SFC/DISM command and supplies no Windows integrity or repair verdict. Review separately requested checks in their own result panels.";
         NotifySystemToolIdentityState();
         string message = observation.State == result.State ? result.Message :
             "The returned identity metadata could not be accepted. Verify again and review the selected tool and certificate access; identity remains Unknown.";
-        SystemToolMessage = Stamp(observation.State, message) + " Execution remains disabled; this observation is not an integrity or repair result.";
+        SystemToolMessage = Stamp(observation.State, message) + " This identity observation is not an integrity or repair result and starts no Windows tool command.";
         return observation.State;
     }, error =>
     {
         systemToolPreview = null;
         ClearSfcVerificationPreview();
-        SystemToolIdentitySummary = "Tool identity: no completed observation from this attempt. Windows integrity: not checked. No command was requested.";
+        SystemToolIdentitySummary = "Tool identity: no completed observation from this attempt. Windows integrity: not checked by this identity attempt. No command was requested by this attempt.";
         NotifySystemToolIdentityState();
         SystemToolMessage = error + " No integrity or repair command was requested.";
     });

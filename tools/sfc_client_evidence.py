@@ -14,6 +14,12 @@ FIELDS = FACTS | TIMES | {
     "formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "observedUtc", "state", "stage",
     "productionExecutionEnabled", "resultState", "integrity", "clientExitCode",
 }
+V2_FIELDS = FIELDS | {"uiRequired", "ui"}
+UI_FACTS = {
+    "controlBindingsObserved", "prepareObserved", "acknowledgementObserved", "confirmObserved",
+    "resultObserved", "freshResultObserved", "settled", "windowClosed",
+}
+CANDIDATE_PROOF_FACTS = {"candidateAuthorizationTransferred", "candidateAuthorizationReleased"}
 STAGES = {"Context", "Scope", "Identity", "Precancel", "Client", "Cleanup", "Completed"}
 RESULT_STATES = {"Available", "Partial", "Unknown", "Failed", "Cancelled", "Unavailable", "Unsupported"}
 PASS_FACTS = FACTS - {"providerPending", "requiresRetention"}
@@ -33,14 +39,32 @@ def timestamp(value):
 
 
 def validate_sfc_client_report(value, context):
-    require(type(value) is dict and set(value) == FIELDS and type(value["formatVersion"]) is int and value["formatVersion"] == 1, "sfc-client-schema")
+    require(type(value) is dict and type(value.get("formatVersion")) is int and value["formatVersion"] in {1, 2}, "sfc-client-schema")
+    version = value["formatVersion"]
+    require(set(value) == (FIELDS if version == 1 else V2_FIELDS), "sfc-client-schema")
+    public_ui = False
+    ui = None
+    if version == 2:
+        require(type(value["uiRequired"]) is bool, "sfc-client-ui-required")
+        public_ui = value["uiRequired"]
+        ui = value["ui"]
+        if public_ui:
+            # No private candidate proof was transferred for the sole actual
+            # client in this path: it uses the normal confirmed App entrypoint.
+            require(all(value[name] is None for name in CANDIDATE_PROOF_FACTS), "sfc-client-public-proof")
+            require(ui is None or type(ui) is dict and set(ui) == UI_FACTS, "sfc-client-ui-schema")
+            if ui is not None:
+                require(all(fact is None or type(fact) is bool for fact in ui.values()), "sfc-client-ui-fact")
+                require(ui["freshResultObserved"] is not True or ui["resultObserved"] is True, "sfc-client-ui-result")
+        else:
+            require(ui is None, "sfc-client-ui-schema")
     require(type(value["sourceCommit"]) is str and re.fullmatch(r"[a-f0-9]{40}", value["sourceCommit"]) is not None and
             type(value["runId"]) is str and re.fullmatch(r"[0-9]{1,32}", value["runId"]) is not None and int(value["runId"]) > 0 and
             type(value["runAttempt"]) is int and value["runAttempt"] > 0 and
             (value["sourceCommit"], value["runId"], value["runAttempt"]) == context, "sfc-client-context")
     require(type(value["state"]) is str and value["state"] in {"passed", "inconclusive", "failed"}, "sfc-client-state")
     require(type(value["stage"]) is str and value["stage"] in STAGES, "sfc-client-stage")
-    require(value["productionExecutionEnabled"] is False and value["integrity"] == "Unknown", "sfc-client-scope")
+    require(value["productionExecutionEnabled"] is public_ui and value["integrity"] == "Unknown", "sfc-client-scope")
     require(value["resultState"] is None or type(value["resultState"]) is str and value["resultState"] in RESULT_STATES, "sfc-client-result-state")
     for name in FACTS:
         require(value[name] is None or type(value[name]) is bool, "sfc-client-fact")
@@ -75,8 +99,13 @@ def validate_sfc_client_report(value, context):
         require(value["providerPending"] is False and value["requiresRetention"] is False and
                 (value["clientStartObserved"] is not True or settled and value["ownershipReleased"] is True), "sfc-client-cleanup")
     require(value["requiresRetention"] is not True or value["ownershipReleased"] is not True, "sfc-client-retention")
+    if ui is not None and ui["resultObserved"] is True:
+        require(value["resultState"] is not None and times["attemptedUtc"] is not None and
+                times["completedUtc"] is not None, "sfc-client-ui-result")
     if value["state"] == "passed":
-        require(value["stage"] == "Completed" and all(value[name] is True for name in PASS_FACTS) and
+        pass_facts = PASS_FACTS - CANDIDATE_PROOF_FACTS if public_ui else PASS_FACTS
+        require(not public_ui or ui is not None and all(ui[name] is True for name in UI_FACTS), "sfc-client-ui-pass")
+        require(value["stage"] == "Completed" and all(value[name] is True for name in pass_facts) and
                 value["providerPending"] is False and value["requiresRetention"] is False and
                 value["resultState"] == "Available" and value["clientExitCode"] == 0 and
                 all(times[name] is not None for name in TIMES) and times["completedUtc"] > times["attemptedUtc"] and

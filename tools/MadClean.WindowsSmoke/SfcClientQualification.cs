@@ -16,7 +16,9 @@ internal static class SfcClientQualification
 
     private sealed class Report
     {
-        public int FormatVersion => 1;
+        public int FormatVersion => 2;
+        public bool UiRequired { get; init; }
+        public UiFacts? Ui { get; set; }
         public required string SourceCommit { get; init; }
         public required string RunId { get; init; }
         public required int RunAttempt { get; init; }
@@ -50,6 +52,9 @@ internal static class SfcClientQualification
         public bool? RequiresRetention { get; set; }
         public bool? CleanupConfirmed { get; set; }
     }
+
+    private sealed record UiFacts(bool? ControlBindingsObserved, bool? PrepareObserved, bool? AcknowledgementObserved,
+        bool? ConfirmObserved, bool? ResultObserved, bool? FreshResultObserved, bool? Settled, bool? WindowClosed);
 
     private sealed class InvariantFailure : Exception { }
 
@@ -87,7 +92,8 @@ internal static class SfcClientQualification
             if (Directory.Exists(output) || File.Exists(output)) return 1;
             Directory.CreateDirectory(output); CheckAncestry(output);
             var owner = new Owner(repository, output,
-                new Report { SourceCommit = source, RunId = run, RunAttempt = attempt });
+                new Report { SourceCommit = source, RunId = run, RunAttempt = attempt,
+                    UiRequired = new SfcVerificationProvider().ProductionExecutionValidated });
             owner.Hold(guards); guards.Clear(); rootedOwner = owner;
             // No watchdog, bounded wait or process kill wraps the actual client.
             // A retained owner keeps this invocation alive until the disposable job expires.
@@ -189,7 +195,9 @@ internal static class SfcClientQualification
                 if (candidateScope?.Proof is { } proof)
                     report.CandidateAuthorizationReleased = proof.IsReleased;
                 if (report.State != "failed" && lifecycleObserved && report.CleanupConfirmed == true &&
-                    report.CandidateAuthorizationReleased == true && report.ProviderPending == false && report.RequiresRetention == false)
+                    (report.UiRequired ? report.Ui is { ControlBindingsObserved: true, PrepareObserved: true, AcknowledgementObserved: true,
+                        ConfirmObserved: true, ResultObserved: true, FreshResultObserved: true, Settled: true, WindowClosed: true } :
+                        report.CandidateAuthorizationReleased == true) && report.ProviderPending == false && report.RequiresRetention == false)
                 { report.State = "passed"; report.Stage = "Completed"; }
                 else
                 {
@@ -211,7 +219,7 @@ internal static class SfcClientQualification
             using (var current = WindowsIdentity.GetCurrent())
                 report.AdministratorObserved = new WindowsPrincipal(current).IsInRole(WindowsBuiltInRole.Administrator);
             Save();
-            if (report.ProductionExecutionEnabled || identityProvider.ProductionExecutionValidated) throw new InvariantFailure();
+            if (report.ProductionExecutionEnabled != report.UiRequired || identityProvider.ProductionExecutionValidated) throw new InvariantFailure();
             if (report.AdministratorObserved != true) return false;
 
             report.Stage = "Identity"; Save();
@@ -250,6 +258,9 @@ internal static class SfcClientQualification
             if (!cancelledScope.Proof.IsReleased) report.PreCancellationVerified = false;
             Save();
             if (report.PreCancellationVerified != true) throw new InvariantFailure();
+
+            if (report.UiRequired)
+                return await ObservePublicUiAsync().ConfigureAwait(false);
 
             var prepared = Prepare(identity);
             if (prepared == null) return false;
@@ -293,6 +304,70 @@ internal static class SfcClientQualification
                 transport.ClientStartedUtc is { } start && start.Offset == TimeSpan.Zero && start >= observed.AttemptedUtc &&
                 start < identity.ExpiresUtc && transport.ClientExitedUtc is { } exit && exit.Offset == TimeSpan.Zero && exit >= start &&
                 observed.CompletedUtc is { } end && end.Offset == TimeSpan.Zero && end >= exit && end <= DateTimeOffset.UtcNow;
+        }
+
+        private async Task<bool> ObservePublicUiAsync()
+        {
+            // The same job makes one actual request: either the private backend
+            // above or the normal public App workflow, never both. A public request
+            // has no candidate fixture proof, so those fields remain unobserved.
+            report.Stage = "Client"; Save();
+            var ui = await SfcPublicUiQualification.RunAsync().ConfigureAwait(false);
+            report.Ui = new(ui.ControlBindingsObserved, ui.PrepareObserved, ui.AcknowledgementObserved, ui.ConfirmObserved,
+                ui.ResultObserved, ui.FreshResultObserved, ui.Settled, ui.WindowClosed);
+            report.ProviderPending = provider.HasPendingWork;
+            report.RequiresRetention = provider.RequiresRetention;
+            if (ui.Identity is { } actualIdentity)
+            {
+                report.IdentityAccepted = actualIdentity.Definition.Operation == SystemToolOperation.SfcVerifyOnly &&
+                    actualIdentity.TrustState == SystemToolTrustState.MicrosoftSignatureVerified && actualIdentity.ToolVersion != "Unknown" &&
+                    !actualIdentity.CanLaunch && actualIdentity.CheckedUtc.Offset == TimeSpan.Zero && actualIdentity.CheckedUtc >= report.StartedUtc &&
+                    actualIdentity.ExpiresUtc.Offset == TimeSpan.Zero && actualIdentity.ExpiresUtc > actualIdentity.CheckedUtc &&
+                    actualIdentity.ExpiresUtc - actualIdentity.CheckedUtc <= TimeSpan.FromMinutes(2);
+                report.IdentityCheckedUtc = actualIdentity.CheckedUtc;
+                report.IdentityExpiresUtc = actualIdentity.ExpiresUtc;
+            }
+            else
+            {
+                // Initial identity belongs only to pre-cancel setup. It cannot
+                // substitute for the actual public workflow's source observation.
+                report.IdentityAccepted = null; report.IdentityCheckedUtc = null; report.IdentityExpiresUtc = null;
+            }
+            if (ui.Result is { } observed)
+            {
+                var transport = observed.Transport;
+                report.RequestMatched = ui.Preview != null && observed.RequestId == ui.Preview.RequestId;
+                report.ResultState = Enum.IsDefined(observed.State) ? observed.State.ToString() : null;
+                report.AttemptedUtc = observed.AttemptedUtc; report.CompletedUtc = observed.CompletedUtc;
+                report.AdministratorObserved = transport.AdministratorObserved;
+                report.ClientStartAttempted = transport.ClientStartAttempted; report.ClientStartObserved = transport.ClientStartObserved;
+                report.ClientStartedUtc = transport.ClientStartedUtc; report.ClientExitObserved = transport.ClientExitObserved;
+                report.ClientExitCode = transport.ClientExitCode; report.ClientExitedUtc = transport.ClientExitedUtc;
+                report.StdoutDrained = transport.StdoutDrained; report.StderrDrained = transport.StderrDrained;
+                report.OwnershipReleased = transport.OwnershipReleased;
+                if (observed.Integrity != SfcIntegrityAssessment.Unknown || !SfcVerificationPolicy.IsTransportConsistent(transport))
+                    throw new InvariantFailure();
+            }
+            Save();
+            if (ui.InvariantFailed) throw new InvariantFailure();
+            var identity = ui.Identity;
+            var preview = ui.Preview;
+            var result = ui.Result;
+            return report.Ui is { ControlBindingsObserved: true, PrepareObserved: true, AcknowledgementObserved: true,
+                    ConfirmObserved: true, ResultObserved: true, FreshResultObserved: true, Settled: true, WindowClosed: true } &&
+                report.PreCancellationVerified == true && report.IdentityAccepted == true && report.RequestMatched == true &&
+                identity != null && preview != null && result != null && preview.IdentityPreviewId == identity.PreviewId &&
+                preview.ToolPath == identity.ToolPath && preview.ToolVersion == identity.ToolVersion && preview.Sha256 == identity.Sha256 &&
+                preview.ExpiresUtc == identity.ExpiresUtc && result.RequestId == preview.RequestId &&
+                result.State == CheckState.Available && result.Integrity == SfcIntegrityAssessment.Unknown &&
+                result.Transport is { AdministratorObserved: true, ClientStartAttempted: true, ClientStartObserved: true,
+                    ClientExitObserved: true, ClientExitCode: 0, StdoutDrained: true, StderrDrained: true,
+                    OwnershipReleased: true, StopObservationRequested: false } &&
+                result.AttemptedUtc >= preview.PreparedUtc && result.AttemptedUtc >= report.StartedUtc &&
+                result.Transport.ClientStartedUtc is { } start && start.Offset == TimeSpan.Zero && start >= result.AttemptedUtc &&
+                start < identity.ExpiresUtc && result.Transport.ClientExitedUtc is { } exit && exit.Offset == TimeSpan.Zero && exit >= start &&
+                result.CompletedUtc is { } end && end.Offset == TimeSpan.Zero && end >= exit && end <= DateTimeOffset.UtcNow &&
+                !provider.HasPendingWork && !provider.RequiresRetention;
         }
     }
 

@@ -24,6 +24,12 @@ public partial class MainWindow : Window
                 model.ExplainAppUpdateCloseBlock();
                 return;
             }
+            if (model.HasPendingSfcVerification)
+            {
+                args.Cancel = true;
+                model.ExplainSfcVerificationCloseBlock();
+                return;
+            }
             if (model.HasPendingComponentStoreStatus)
             {
                 args.Cancel = true;
@@ -34,6 +40,10 @@ public partial class MainWindow : Window
             args.Cancel = true;
             model.ExplainMsiUninstallCloseBlock();
         };
-        Closed += (_, _) => model.Shutdown();
+        Closed += (_, _) =>
+        {
+            model.ShutdownSfcVerification();
+            model.Shutdown();
+        };
     }
 }

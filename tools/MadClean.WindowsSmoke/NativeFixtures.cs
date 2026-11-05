@@ -335,7 +335,11 @@ internal static partial class NativeFixtures
             ISfcVerificationProvider sfc = new SfcVerificationProvider();
             if (sfc.ProductionExecutionValidated)
             {
-                report.Fail("system-tool-execution-gate", "The SFC production gate unexpectedly reports enabled; no request was called.");
+                // Enabled non-repair requests require their separate explicit CI
+                // public-UI workflow. Passive validation must not request a client.
+                if (!SharedServicingAdmissionIsCoherent())
+                    report.Fail("system-tool-execution-gate", "The managed shared slot did not preserve cooperating provider ownership; no SFC request was called.");
+                else report.Pass("system-tool-execution-gate", "The legacy repair gate rejects the synthetic request without elevation or a process. The selected SFC non-repair backend is enabled, so this passive check invokes no SFC entry point; its public request workflow requires separate explicit qualification. Managed shared admission remains coherent.");
                 return;
             }
             var now = DateTimeOffset.UtcNow;

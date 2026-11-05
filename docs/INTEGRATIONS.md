@@ -192,3 +192,6 @@ The separate [selected SFC verification contract](SFC-VERIFICATION.md) fixes `/v
 
 
 The [separate SFC client-lifecycle qualification](SFC-CLIENT-VALIDATION.md) requests only fixed `/verifyonly` on an explicitly configured disposable runner with held exact proof. It exercises actual client/drain/cleanup ownership while keeping integrity Unknown and the normal public SFC gate false. It is not a passive inventory action, repair, public UI qualification or automatic production activation.
+
+
+The fixed SFC backend qualified at source57cd6254/evidence2c5083f9 without an integrity verdict. Its reviewed normal App candidate now requires actual fresh identity/preview, acknowledgement and explicit confirmation, retains process/stream ownership and requests no elevation or repair. The same job selects one public UI client when the source guard is enabled; version2 public evidence cannot substitute private proof for normal-control facts. Actual new public qualification remains pending. [Review and limits](SFC-PUBLIC-QUALIFICATION-REVIEW.md).

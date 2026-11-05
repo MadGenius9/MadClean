@@ -638,6 +638,7 @@ def prepare(root, download, build_result, verification_result, environment, core
         "sfcClientLifecycleArtifactOutcome": sfc_client_download_result,
         "sfcClientLifecycleReportPresent": sfc_client_report is not None,
         "sfcClientLifecycleQualified": sfc_client_result == "success" and sfc_client_download_result == "success" and sfc_client_report is not None and sfc_client_report["state"] == "passed",
+        "sfcClientPublicUiQualified": sfc_client_result == "success" and sfc_client_download_result == "success" and sfc_client_report is not None and sfc_client_report["state"] == "passed" and sfc_client_report.get("uiRequired") is True,
         "sfcClientLifecycleError": sfc_client_error,
         "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
         "msiRequestResult": msi_result,

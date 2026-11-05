@@ -3,7 +3,7 @@
         <StackPanel Margin="28,24">
             <TextBlock Text="Windows integrity tools" Style="{StaticResource SectionTitle}"/>
             <TextBlock Text="Review exact Microsoft commands and verify their identity." FontSize="19" Margin="0,0,0,10"/>
-            <TextBlock Text="Separate from passive inspection. Execution is blocked while Windows runtime validation is pending. Verifying an executable does not diagnose Windows or prove a repair succeeded. No command runs on this page." Style="{StaticResource Caption}"/>
+            <TextBlock Text="Separate from passive inspection. Verifying an executable or preparing a preview runs no SFC client and does not diagnose Windows. The fixed verify-only request requires separate acknowledgement and confirmation when its execution path is enabled; no repair is offered." Style="{StaticResource Caption}"/>
             <ComboBox ItemsSource="{Binding SystemToolDefinitions}" SelectedItem="{Binding SelectedSystemTool, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose a Windows tool operation" MinWidth="320" HorizontalAlignment="Left" Margin="0,4,0,16" AutomationProperties.Name="Windows integrity operation selection">
                 <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ComboBox.Style>
             </ComboBox>
@@ -17,10 +17,21 @@
             </StackPanel></Border>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
                 <TextBlock Text="SFC verification preview" FontSize="20"/>
-                <TextBlock Text="Review the fixed non-repair operation after verifying the selected SFC identity. This creates a historical preview only; there is no run or confirmation action here." Style="{StaticResource Caption}"/>
+                <TextBlock Text="Review the fixed non-repair operation after verifying the selected SFC identity. Preparing a historical preview starts no client. A current preview and explicit acknowledgement are required for the separate confirmation below." Style="{StaticResource Caption}"/>
                 <Button Content="Review SFC verification preview" Command="{Binding PrepareSfcVerificationPreviewCommand}" HorizontalAlignment="Left" Margin="0,8,0,12" AutomationProperties.AutomationId="SfcVerificationPreviewButton" AutomationProperties.Name="Review SFC verify-only preview without running a command"/>
                 <TextBox Text="{Binding SfcVerificationPreviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SfcVerificationPreviewDetails" AutomationProperties.Name="Read-only SFC verification preview snapshot and limits"/>
                 <TextBlock Text="{Binding SfcVerificationPreviewMessage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="SfcVerificationPreviewMessage" AutomationProperties.Name="SFC verification preview status" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock Text="{Binding SfcVerificationQualification}" Style="{StaticResource Caption}"/>
+                <CheckBox IsChecked="{Binding SfcVerificationAcknowledged, Mode=TwoWay}" IsEnabled="{Binding CanAcknowledgeSfcVerification}" Foreground="#ECF1FB" Margin="0,10,0,12" AutomationProperties.AutomationId="SfcVerificationAcknowledgement" AutomationProperties.Name="Acknowledge exact SFC verify-only scope and stop limitations">
+                    <TextBlock Text="I reviewed this exact verify-only request, existing administrator requirement, Windows log writes, potentially many-minute duration, discarded output and stop limitations. Client exit does not establish Windows integrity. No repair is selected." TextWrapping="Wrap"/>
+                </CheckBox>
+                <WrapPanel Margin="0,4,0,8">
+                    <Button Content="Confirm SFC verify-only request" Command="{Binding ConfirmSfcVerificationCommand}" Background="#244B70" AutomationProperties.AutomationId="SfcVerificationConfirm" AutomationProperties.Name="Confirm explicitly selected SFC verify-only request"/>
+                    <Button Content="Request observation stop" Command="{Binding RequestSfcObservationStopCommand}" Background="#343E52" Foreground="White" AutomationProperties.AutomationId="SfcVerificationStop" AutomationProperties.Name="Request observation stop without stopping SFC"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding SfcVerificationMessage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="SfcVerificationStatus" AutomationProperties.Name="Selected SFC request status" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock Text="{Binding SfcVerificationAssessment}" TextWrapping="Wrap" FontSize="18" Margin="0,8,0,12" AutomationProperties.AutomationId="SfcVerificationAssessment" AutomationProperties.Name="SFC integrity uncertainty and client observation"/>
+                <TextBox Text="{Binding SfcVerificationLastObservation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="105" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SfcVerificationObservation" AutomationProperties.Name="Historical SFC client and output ownership observations"/>
             </StackPanel></Border>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, the operation's documented permissions, actual result evidence and separate validation. The separate SFC candidate requires already-effective administrator rights and never requests elevation consent. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
         </StackPanel>

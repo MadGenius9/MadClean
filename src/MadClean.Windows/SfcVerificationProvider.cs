@@ -4,25 +4,25 @@ using MadClean.Core;
 
 namespace MadClean.Windows;
 
-/// <summary>A closed production boundary for separately selected, non-repair SFC verification.</summary>
+/// <summary>A fixed boundary for separately selected, non-repair SFC client observation.</summary>
 public sealed class SfcVerificationProvider : ISfcVerificationProvider
 {
     private static readonly object GlobalGate = new();
     private static readonly List<Session> Rooted = [];
 
-    // The separate disposable-CI proof cannot change this public boundary. This
-    // candidate shares in-process admission with the selected DISM routes.
-    // Legacy-executor integration, cross-process reconciliation and independent
-    // Windows/public-UI qualification still block activation.
-    public bool ProductionExecutionValidated => false;
+    // Fixed non-repair backend qualified at 57cd6254 / 2c5083f9. Independent
+    // controller review supports this literal development candidate for the real
+    // public-UI qualification; no environment/configuration permission override.
+    // Cross-process/recovery and broader runtime limits remain explicit.
+    public bool ProductionExecutionValidated => true;
     public bool HasPendingWork { get { lock (GlobalGate) return SystemToolServicingAdmission.HasPendingWork || Rooted.Any(owner => owner.HasPendingWork); } }
     public bool RequiresRetention { get { lock (GlobalGate) return SystemToolServicingAdmission.RequiresRetention || Rooted.Any(owner => owner.RequiresRetention); } }
 
     public Task<ISfcVerificationSession> StartAsync(SfcVerificationIntent intent, CancellationToken prelaunchToken)
     {
         ArgumentNullException.ThrowIfNull(intent);
-        // This must precede cancellation, platform/profile/token/native access,
-        // queue admission and intent reservation. No SFC request is made in this build.
+        // When closed, this boundary precedes cancellation, platform/profile/token/native
+        // access, queue admission and intent reservation.
         if (!ProductionExecutionValidated)
             return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
                 "SFC verification execution is not enabled in this build. No administrator query, executable identity check, elevation or client launch was requested."));
