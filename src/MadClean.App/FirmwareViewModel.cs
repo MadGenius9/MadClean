@@ -16,6 +16,9 @@ public sealed partial class MainViewModel
     private SystemUpdate? selectedFirmwareOffer;
     private string firmwareIdentityMessage = "Not checked. Choose Read BIOS / PC identity for local firmware-reported metadata; no update or flash runs.";
     private string firmwareIdentityTime = "Not checked";
+    private DateTimeOffset? firmwareIdentityAttemptedUtc, firmwareIdentityReceivedUtc, firmwareIdentityInterruptedUtc;
+    private CheckState firmwareIdentitySourceState = CheckState.Unknown;
+    private bool firmwareIdentityReading;
     private string firmwareOffersMessage = "Unknown: Windows Update firmware-related offers have not been checked.";
     private string driverOffersMessage = "Unknown: Windows Update driver offers have not been checked.";
     private string windowsSoftwareMessage = "Windows software offers have not been checked.";
@@ -30,6 +33,20 @@ public sealed partial class MainViewModel
     public ICommand OpenFirmwarePrecautionsCommand { get; private set; } = null!;
     public string FirmwareIdentityMessage { get => firmwareIdentityMessage; private set => Set(ref firmwareIdentityMessage, value); }
     public string FirmwareIdentityTime { get => firmwareIdentityTime; private set => Set(ref firmwareIdentityTime, value); }
+    public DateTimeOffset? FirmwareIdentityAttemptedUtc => firmwareIdentityAttemptedUtc;
+    public DateTimeOffset? FirmwareIdentityReceivedUtc => firmwareIdentityReceivedUtc;
+    public CheckState FirmwareIdentitySourceState => firmwareIdentitySourceState;
+    public string FirmwareIdentityQueryDetails => firmwareIdentityAttemptedUtc is not { } attempted
+        ? "Not checked. No local BIOS / PC identity request has started."
+        : $"Shared query attempt UTC: {attempted:O}\n" +
+            (firmwareIdentityReading ? "Reading local CIM metadata; no completed response from this attempt."
+                : firmwareIdentityReceivedUtc is { } received
+                    ? $"Response received UTC: {received:O}; source state: {firmwareIdentitySourceState}. " +
+                        (firmwareIdentity == null ? "No current identity was accepted." : "Current values are firmware-reported, not verified specifications.")
+                    : firmwareIdentityInterruptedUtc is { } interrupted
+                        ? $"Attempt interruption observed UTC: {interrupted:O}; state: {firmwareIdentitySourceState}. No completed identity response is displayed."
+                        : "No completed identity response is displayed.") +
+            "\nTimes cover the shared request and app response receipt, not per-class observation times or the last firmware change. No BIOS-version comparison or compatibility check is established.";
     public string FirmwareOffersMessage { get => firmwareOffersMessage; private set => Set(ref firmwareOffersMessage, value); }
     public string DriverOffersMessage { get => driverOffersMessage; private set => Set(ref driverOffersMessage, value); }
     public string WindowsSoftwareMessage { get => windowsSoftwareMessage; private set => Set(ref windowsSoftwareMessage, value); }
@@ -51,14 +68,36 @@ public sealed partial class MainViewModel
     public ResultRow? SelectedFirmwareFact
     {
         get => selectedFirmwareFact;
-        set { Set(ref selectedFirmwareFact, value); PropertyChanged?.Invoke(this, new(nameof(FirmwareFactDetails))); }
+        set
+        {
+            if (value != null && !FirmwareIdentityRows.Any(row => ReferenceEquals(row, value)))
+            {
+                PropertyChanged?.Invoke(this, new(nameof(SelectedFirmwareFact)));
+                return;
+            }
+            if (ReferenceEquals(selectedFirmwareFact, value)) return;
+            selectedFirmwareFact = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedFirmwareFact)));
+            PropertyChanged?.Invoke(this, new(nameof(FirmwareFactDetails)));
+        }
     }
     public string FirmwareFactDetails => selectedFirmwareFact == null ? "Select a reported fact to inspect/copy its value and source. These are firmware-reported strings, not manufacturer-verified specifications." :
         selectedFirmwareFact.Name + ": " + selectedFirmwareFact.Detail + "\nSource: " + selectedFirmwareFact.State + ". Firmware-reported; not an exact-model compatibility verification.";
     public SystemUpdate? SelectedFirmwareOffer
     {
         get => selectedFirmwareOffer;
-        set { Set(ref selectedFirmwareOffer, value); PropertyChanged?.Invoke(this, new(nameof(FirmwareOfferDetails))); }
+        set
+        {
+            if (value != null && !FirmwareOffers.Any(offer => ReferenceEquals(offer, value)))
+            {
+                PropertyChanged?.Invoke(this, new(nameof(SelectedFirmwareOffer)));
+                return;
+            }
+            if (ReferenceEquals(selectedFirmwareOffer, value)) return;
+            selectedFirmwareOffer = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedFirmwareOffer)));
+            PropertyChanged?.Invoke(this, new(nameof(FirmwareOfferDetails)));
+        }
     }
     public string FirmwareOfferDetails => selectedFirmwareOffer == null
         ? "No firmware-class offer selected. No returned offer does not mean the BIOS is up to date. Other driver offers may have missing class metadata."
@@ -72,12 +111,22 @@ public sealed partial class MainViewModel
     }
     private Task ReadFirmwareIdentity() => RunDiscoveryAsync(ActivityArea.FirmwareIdentity, "Reading BIOS / PC identity", async token =>
     {
-        InvalidateFirmwareHistory();
-        firmwareIdentity = null; firmwareGuide = null; FirmwareIdentityRows.Clear(); SelectedFirmwareFact = null;
-        FirmwareGuideAction = ""; NotifyFirmwareIdentity();
+        ClearCurrentFirmwareIdentity();
+        var attempted = DateTimeOffset.UtcNow;
+        firmwareIdentityAttemptedUtc = attempted;
+        firmwareIdentityReceivedUtc = null; firmwareIdentityInterruptedUtc = null;
+        firmwareIdentitySourceState = CheckState.Unknown; firmwareIdentityReading = true;
+        FirmwareIdentityTime = $"Attempt started UTC: {attempted:O}; no completed response.";
+        NotifyFirmwareIdentity();
         FirmwareIdentityMessage = "Reading supported local CIM identity classes…";
         var result = await firmwareInventory.ReadAsync(token); token.ThrowIfCancellationRequested();
-        firmwareIdentity = result.Items.SingleOrDefault();
+        var received = DateTimeOffset.UtcNow;
+        bool positive = result.State is CheckState.Available or CheckState.Partial;
+        if (!Enum.IsDefined(result.State) || received < attempted ||
+            positive && (result.Items.Count != 1 || result.Items[0] == null) ||
+            !positive && result.Items.Count != 0)
+            throw new InvalidOperationException("Firmware identity response state, count or timestamps are inconsistent.");
+        firmwareIdentity = positive ? result.Items[0] : null;
         if (firmwareIdentity != null)
         {
             var i = firmwareIdentity;
@@ -93,14 +142,34 @@ public sealed partial class MainViewModel
             firmwareGuide = FirmwareSupportPolicy.FindGuide(i);
             SelectedFirmwareFact = FirmwareIdentityRows.FirstOrDefault();
         }
-        FirmwareIdentityTime = DateTimeOffset.Now.ToString("g");
+        firmwareIdentityReceivedUtc = received; firmwareIdentityReading = false;
+        firmwareIdentitySourceState = result.State;
+        FirmwareIdentityTime = $"Response received UTC: {received:O}; state: {result.State}. " +
+            (firmwareIdentity == null ? "No current identity accepted." : "Firmware-reported values only.");
         FirmwareIdentityMessage = Stamp(result.State, result.Message + " Values are firmware-reported, not manufacturer-verified limits or firmware compatibility.");
         NotifyFirmwareIdentity();
         return result.State;
-    }, error => { FirmwareIdentityTime = DateTimeOffset.Now.ToString("g"); FirmwareIdentityMessage = error; NotifyFirmwareIdentity(); });
+    }, error =>
+    {
+        ClearCurrentFirmwareIdentity();
+        firmwareIdentityReading = false; firmwareIdentityReceivedUtc = null;
+        firmwareIdentityInterruptedUtc = DateTimeOffset.UtcNow;
+        firmwareIdentitySourceState = cancellation?.IsCancellationRequested == true ? CheckState.Cancelled : CheckState.Failed;
+        FirmwareIdentityTime = $"Attempt interrupted UTC: {firmwareIdentityInterruptedUtc:O}; state: {firmwareIdentitySourceState}. No completed identity response.";
+        FirmwareIdentityMessage = error + " No current BIOS version, PC identity or official guide remains from this attempt. Retry the local read; applicability remains Unknown.";
+        NotifyFirmwareIdentity();
+    });
+    private void ClearCurrentFirmwareIdentity()
+    {
+        InvalidateFirmwareHistory();
+        firmwareIdentity = null; firmwareGuide = null;
+        FirmwareIdentityRows.Clear(); SelectedFirmwareFact = null;
+        FirmwareGuideAction = "";
+    }
     private void NotifyFirmwareIdentity()
     {
-        foreach (var property in new[] { nameof(FirmwareInstalledVersion), nameof(FirmwareGuideStatus), nameof(FirmwareOfficialSource), nameof(FirmwarePrerequisites), nameof(FirmwareManufacturerCheckTime) })
+        foreach (var property in new[] { nameof(FirmwareInstalledVersion), nameof(FirmwareGuideStatus), nameof(FirmwareOfficialSource), nameof(FirmwarePrerequisites), nameof(FirmwareManufacturerCheckTime),
+            nameof(FirmwareIdentityAttemptedUtc), nameof(FirmwareIdentityReceivedUtc), nameof(FirmwareIdentitySourceState), nameof(FirmwareIdentityQueryDetails), nameof(FirmwareFactDetails) })
             PropertyChanged?.Invoke(this, new(property));
         CommandManager.InvalidateRequerySuggested();
     }
@@ -113,7 +182,7 @@ public sealed partial class MainViewModel
     private void PublishUpdateCategories(CheckResult<SystemUpdate> result)
     {
         PublishDriverOffersQuery(result, DateTimeOffset.UtcNow);
-        WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear();
+        WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
         foreach (var offer in result.Items)
         {
             if (offer.Kind == "Firmware") FirmwareOffers.Add(offer);
@@ -129,6 +198,7 @@ public sealed partial class MainViewModel
     }
     private void MarkUpdateCategoryFailure(string error)
     {
+        FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
         InterruptDriverOffersQuery(DateTimeOffset.UtcNow);
         FirmwareOfferTime = DateTimeOffset.Now.ToString("g");
         DriverOffersMessage = WindowsSoftwareMessage = error;

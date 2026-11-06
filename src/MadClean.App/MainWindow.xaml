@@ -351,7 +351,7 @@
                                         <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
                                             <TextBlock Text="{Binding FirmwareIdentityMessage}" Style="{StaticResource Caption}"/>
                                         </ScrollViewer>
-                                        <TextBlock Text="{Binding FirmwareIdentityTime, StringFormat='Last identity attempt: {0}'}" FontSize="12" Margin="0,0,0,8"/>
+                                        <TextBlock Text="{Binding FirmwareIdentityQueryDetails}" Style="{StaticResource Caption}" FontSize="12" Margin="0,0,0,8" AutomationProperties.Name="BIOS identity attempt, response and source state"/>
                                         <DataGrid ItemsSource="{Binding FirmwareIdentityRows}" SelectedItem="{Binding SelectedFirmwareFact, Mode=TwoWay}" Height="230">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="REPORTED FACT" Binding="{Binding Name}" Width="2*" MinWidth="170"/>
@@ -379,6 +379,7 @@
                                             <Button Content="Review official release notes" Command="{Binding ReviewFirmwareHistorySourceCommand}" Background="#244B70"/>
                                         </WrapPanel>
                                         <TextBlock Text="{Binding FirmwareHistoryMessage}" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="{Binding FirmwareHistoryQueryDetails}" Style="{StaticResource Caption}" FontSize="12" AutomationProperties.Name="Firmware history request and response provenance"/>
                                         <TextBlock Text="{Binding FirmwareManufacturerCheckTime}" FontSize="12"/>
                                         <DataGrid ItemsSource="{Binding FirmwareHistoryRows}" SelectedItem="{Binding SelectedFirmwareRelease, Mode=TwoWay}" Height="175" Margin="0,8,0,8">
                                             <DataGrid.Columns>

@@ -30,6 +30,10 @@ Further GitHub pushes are paused at your request. Local development after commit
 3. In **Hardware Upgrades**, choose **Read hardware inventory**, select/copy source details, reread and try Cancel. Compare the PC model with Windows About. Reported board version, module count, memory form-factor names and interface labels do not verify PCB revision, free slots, replaceability or compatible upgrades. Form-factor names should retain the actual reported code; an unknown raw memory-type code must not be guessed into DDR generation.
 4. If the prerequisite worksheet is included in this local build, try each area and your own budget/use case. All manufacturer/physical checks must remain Unknown. Editing an input must clear the old worksheet. **Clear planning inputs** should clear the entries. No query, recommendation or purchase should occur.
 
+## BIOS identity
+
+In Updates → **BIOS / Firmware**, choose **Read BIOS / PC identity**. Check that attempt and response UTC are separate and that a response does not imply manufacturer verification. You can compare the reported BIOS version/date with the built-in Windows System Information display; board version still is not proof of PCB revision. Reread and try Cancel: old facts, guidance and release selection must clear. Unsupported history coverage is acceptable and must not become up to date. Do not fetch firmware files or perform firmware actions.
+
 ## Explicit online checks
 
 1. Choose the update check yourself. Review Apps, Drivers and BIOS/Firmware separately. Available, Partial, Unknown, Unsupported, Unavailable and Failed must remain distinct. Unchecked/unmapped software must never be marked up to date.

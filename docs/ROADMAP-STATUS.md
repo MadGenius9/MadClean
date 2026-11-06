@@ -638,3 +638,12 @@ The local worksheet passed the complete Release solution build with zero warning
 The next local H1 parsing increment uses the freshly retrieved official Win32_PhysicalMemory FormFactor table, retaining the actual reported raw code and an explicit nonreplaceability/slot caveat. Zero, future, missing, malformed and out-of-domain values remain Unknown. SMBIOSMemoryType remains uninterpreted; its raw Type17 contract is not the adjacent CIM MemoryType table. No new provider query or property is added, and native projection labels stay unchanged.
 
 Independent source review cleared the exact mapping and unknown boundaries. The full Release solution built with zero warnings/errors; all1,544 portable tests passed, including19 new form-factor cases. Windows display/provider behavior remains unverified for these local changes. No GitHub push, new remote CI dispatch, distribution ZIP or personal-PC operation occurred.
+
+
+## Local BIOS/Firmware request provenance
+
+The existing local identity and explicitly selected official-history views now distinguish UTC application attempt, adapter response receipt and validated provider check/retrieval times. A returned Unsupported/Failed response is not proof of HTTP access or successful source retrieval. Refresh and interruption clear prior current data and dependent history; positive identity/history publication requires the expected single-result contract. Partial identity still preserves valid fields while ambiguous source fields stay Unknown.
+
+Current-reference selection now governs identity facts, firmware offers and release history; source-review dispatch also rechecks current membership, busy state and the existing pinned official URL. Failed firmware-offer publication clears its rows/selection. The capability queue now describes the already implemented local prerequisite worksheet. No provider query, URL/source coverage, privilege, firmware asset or action was added; version comparison/applicability remains Unknown.
+
+Full Release solution compilation passed with zero warnings/errors, and all146 relevant portable firmware regressions passed. Core/test source was unchanged; the prior full1,544-test result remains separate. Independent frozen-source review found no blocking issue after documentation clarified Partial identity and adapter failure receipts. Actual Windows rendering/reread/cancel/browser interactions remain unverified. Changes are local only: no push, new remote workflow or ZIP.

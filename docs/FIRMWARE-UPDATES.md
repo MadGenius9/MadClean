@@ -49,3 +49,14 @@ The explicit browser buttons open only the allowlisted guidance page; they do no
 ## Validation limits
 
 Portable tests cover placeholders, malformed/ambiguous/partial identity, invariant calendar dates, OEM-vs-board guide routing, trusted links, unsupported vendors/models, and firmware classification without title/version inference. Transport cancellation uses the existing tested bounded runner. Linux builds do not run CIM/WUA/WPF or validate real motherboard identity, OEM support matching or firmware prerequisites. Actual Windows identity/provider/browser/category-layout checks remain required before a runtime claim. Later upgrade inventory/specification/advice gates are separate in [HARDWARE-UPGRADES.md](HARDWARE-UPGRADES.md).
+
+
+## Current request provenance and selection
+
+Local identity and official-history views distinguish the application's UTC attempt from its receipt of the adapter response. A receipt may be an Unknown/Unsupported/Failed response, not successful source access, complete coverage, HTTP activity or manufacturer verification. Provider history check/retrieval times remain separate. An adapter can return a Failed response with a receipt time but no qualified source data. An interrupted or rejected attempt clears its response receipt. No old installed version, guide or current release observation should survive an unsuccessful refresh.
+
+Identity refresh invalidates its facts, selection, generic guide and dependent history before reading. Only a genuine Available/Partial response with exactly one identity can supply current facts. Nonpositive envelopes or invalid identity counts cannot supply current identity. Within a Partial identity, ambiguous/unavailable source fields stay Unknown while valid fields from other sources may survive; those missing fields cannot support exact model matching. History refresh clears prior rows/selection; nonpositive sources cannot publish embedded releases. Changing or clearing local identity also invalidates history provenance.
+
+Fact, firmware-offer and release-history selection use exact membership in the current row collection. Equal-valued or stale references cannot supply details, prerequisites or a source-review target. Source review additionally checks current membership, the existing busy gate and the fixed official URI. Failed firmware-offer publication clears its offer rows/selection; no BIOS comparison or applicability verdict follows. This changes presentation of existing read-only adapters, not provider queries, URL coverage, permissions, firmware actions or version-ordering policy.
+
+This local increment requires a real Windows read/reread/cancel/unsupported-source UI pass. Compilation and source review do not qualify CIM data accuracy, HTTP access, browser behavior or model compatibility. New GitHub workflows remain paused.
