@@ -27,7 +27,7 @@ Further GitHub pushes are paused at your request. Local development after commit
 
 1. In **Windows Diagnostics**, read event evidence, change the 1/7/30-day interval, toggle repeated observations and select source/finding details. Changing a range should invalidate old current results. Event counts are not unique-crash counts or a health score.
 2. The session summary should show already-collected storage/Defender observations; the three integrity rows should remain unchecked during ordinary inspection. Selecting a row must start no command. Optional **Read WER metadata** may honestly remain Unknown, including when independent stored-report counts are zero.
-3. In **Hardware Upgrades**, choose **Read hardware inventory**, select/copy source details, reread and try Cancel. Compare the PC model with Windows About. Reported board version, module count and interface labels do not verify PCB revision, free slots, replaceability or compatible upgrades.
+3. In **Hardware Upgrades**, choose **Read hardware inventory**, select/copy source details, reread and try Cancel. Compare the PC model with Windows About. Reported board version, module count, memory form-factor names and interface labels do not verify PCB revision, free slots, replaceability or compatible upgrades. Form-factor names should retain the actual reported code; an unknown raw memory-type code must not be guessed into DDR generation.
 4. If the prerequisite worksheet is included in this local build, try each area and your own budget/use case. All manufacturer/physical checks must remain Unknown. Editing an input must clear the old worksheet. **Clear planning inputs** should clear the entries. No query, recommendation or purchase should occur.
 
 ## Explicit online checks

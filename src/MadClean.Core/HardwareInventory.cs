@@ -20,7 +20,7 @@ public static class HardwareInventoryParser
     private const int ResponseLimit = 1_048_576;
     private const string Unknown = "Unknown";
     private const string Caveat = "Detected/provider-reported observations only; not manufacturer-verified compatibility or hardware health. " +
-        "Raw memory codes are not decoded compatibility specifications. Counts never establish free slots, replaceability, PSU/connectors or case clearance. " +
+        "SMBIOS memory-type codes remain uninterpreted. Form-factor labels are reported classifications, not supported kits or replaceability. Counts never establish free slots, replaceability, PSU/connectors or case clearance. " +
         "Disk interface reports do not establish physical connectors; drive firmware is not the system BIOS. No serial/UUID/device-instance identifiers were projected.";
     private static readonly HashSet<string> Placeholders = new(StringComparer.Ordinal)
     {
@@ -28,6 +28,14 @@ public static class HardwareInventoryParser
         "tobefilledbyoem", "systemproductname", "systemmanufacturer", "systemversion", "systemfamily", "systemsku",
         "baseboardproductname", "baseboardmanufacturer", "baseboardversion", "oem", "invalid"
     };
+    // Win32_PhysicalMemory.FormFactor's own documented table, checked 2026-11-06.
+    // Do not apply the adjacent CIM MemoryType table to raw SMBIOSMemoryType.
+    private static readonly string[] FormFactorLabels =
+    [
+        "Unknown", "Other", "SIP", "DIP", "ZIP", "SOJ", "Proprietary", "SIMM", "DIMM", "TSOP",
+        "PGA", "RIMM", "SODIMM", "SRIMM", "SMD", "SSMP", "QFP", "TQFP", "SOIC", "LCC",
+        "PLCC", "BGA", "FPBGA", "LGA"
+    ];
     private enum Kind { Text, Bytes, PositiveNumber, FormFactor, MemoryType }
     private sealed record Field(string Name, Kind Kind = Kind.Text, string? Label = null);
     private sealed record Definition(string Class, string Category, string Component, Field[] Fields);
@@ -154,8 +162,10 @@ public static class HardwareInventoryParser
             return $"Unknown meaning (reported raw SMBIOS code {number.ToString(CultureInfo.InvariantCulture)})";
         if (field.Kind == Kind.FormFactor)
         {
-            if (number == 0 || number > 23)
+            if (number == 0 || number >= (ulong)FormFactorLabels.Length)
                 return $"Unknown (reported raw code {number.ToString(CultureInfo.InvariantCulture)})";
+            known = true;
+            return $"{FormFactorLabels[(int)number]} (reported raw code {number.ToString(CultureInfo.InvariantCulture)}; not replaceability or slot availability)";
         }
         else if (number == 0) return Unknown;
         known = true; return number.ToString(CultureInfo.InvariantCulture);

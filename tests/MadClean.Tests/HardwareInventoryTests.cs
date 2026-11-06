@@ -42,6 +42,93 @@ public sealed class HardwareInventoryTests
         Assert.DoesNotContain(result.Items, fact => fact.Property.Contains("AdapterRAM", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(8, "DIMM")]
+    [InlineData(12, "SODIMM")]
+    [InlineData(21, "BGA")]
+    [InlineData(23, "LGA")]
+    public void FormFactorNamesKeepRawEvidenceSeparateFromMemoryTypeAndCompatibility(int code, string label)
+    {
+        var envelope = Envelope();
+        Record(Sources(envelope)[3])["FormFactor"] = code;
+        Record(Sources(envelope)[3])["SMBIOSMemoryType"] = code;
+
+        var result = Parse(envelope);
+        var factor = Fact(result, "Win32_PhysicalMemory", "FormFactor");
+        Assert.Contains(label + " (reported raw code " + code, factor.Value, StringComparison.Ordinal);
+        Assert.Contains("not replaceability or slot availability", factor.Value, StringComparison.Ordinal);
+        Assert.Equal("FormFactor (raw code; not replaceability)", factor.Property);
+        Assert.Contains("Unknown meaning", Fact(result, "Win32_PhysicalMemory", "SMBIOSMemoryType").Value, StringComparison.Ordinal);
+        Assert.Equal(CheckState.Partial, result.State);
+        Assert.Contains("not manufacturer-verified compatibility", result.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("24")]
+    [InlineData("4294967295")]
+    public void UnrecognizedFormFactorsRetainTheirRawCodeRatherThanGuessingDesign(string code)
+    {
+        var envelope = Envelope(); Record(Sources(envelope)[3])["FormFactor"] = code;
+        var result = Parse(envelope);
+        Assert.Equal("Unknown (reported raw code " + code + ")", Fact(result, "Win32_PhysicalMemory", "FormFactor").Value);
+        Assert.Contains("FormFactor", result.Message, StringComparison.Ordinal);
+        Assert.Equal(CheckState.Partial, result.State);
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("8.0")]
+    [InlineData("8,0")]
+    [InlineData("８")]
+    [InlineData("8\u200b")]
+    [InlineData("4294967296")]
+    [InlineData("18446744073709551616")]
+    public void MalformedOrOutOfRangeFormFactorDoesNotBecomeAKnownLabel(string code)
+    {
+        var envelope = Envelope(); Record(Sources(envelope)[3])["FormFactor"] = code;
+        var result = Parse(envelope);
+        Assert.Equal("Unknown", Fact(result, "Win32_PhysicalMemory", "FormFactor").Value);
+        Assert.Equal(CheckState.Partial, result.State);
+    }
+
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(8.5)]
+    public void NumericInvalidFormFactorsCannotBeRoundedToLabels(double code)
+    {
+        var envelope = Envelope(); Record(Sources(envelope)[3])["FormFactor"] = code;
+        Assert.Equal("Unknown", Fact(Parse(envelope), "Win32_PhysicalMemory", "FormFactor").Value);
+    }
+
+    [Theory]
+    [InlineData(1, "Other")]
+    [InlineData(6, "Proprietary")]
+    public void GenericFormFactorClassificationsDoNotEstablishAReplaceableDesign(int code, string label)
+    {
+        var envelope = Envelope(); Record(Sources(envelope)[3])["FormFactor"] = code;
+        var result = Parse(envelope);
+        Assert.Contains(label + " (reported raw code " + code, Fact(result, "Win32_PhysicalMemory", "FormFactor").Value, StringComparison.Ordinal);
+        Assert.Contains("not replaceability", Fact(result, "Win32_PhysicalMemory", "FormFactor").Value, StringComparison.Ordinal);
+        Assert.Contains("Counts never establish free slots", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MissingAndNullFormFactorRemainUnknownWithoutLosingOtherMemoryFacts()
+    {
+        var envelope = Envelope();
+        var memory = Record(Sources(envelope)[3]); memory.Remove("FormFactor");
+        var missing = Parse(envelope);
+        memory["FormFactor"] = null;
+        var absent = Parse(envelope);
+        foreach (var result in new[] { missing, absent })
+        {
+            Assert.Equal("Unknown", Fact(result, "Win32_PhysicalMemory", "FormFactor").Value);
+            Assert.Equal("17179869184", Fact(result, "Win32_PhysicalMemory", "Capacity").Value);
+            Assert.Equal(CheckState.Partial, result.State);
+        }
+    }
+
     [Fact]
     public void FailedSourceDoesNotEraseOtherSourcesOrLeakRawProviderErrors()
     {
