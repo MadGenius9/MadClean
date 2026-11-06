@@ -15,6 +15,8 @@ C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a m
 
 The app requests **asInvoker**, not administrator privileges. It reports inaccessible data rather than silently elevating. Disk space is available to the current user, not necessarily total free bytes under disk quotas.
 
+For the first personal Windows test, use the [home-test checklist](docs/HOME-TEST-CHECKLIST.md). It covers normal-account discovery, navigation, cancellation and display checks while leaving maintenance actions out of the test. Further GitHub pushes are currently paused; local changes after `e8bc6e2` are not included in that remote checkout.
+
 ## Build and run
 
 Requirements: a supported Windows 11 x64 installation, .NET SDK 10.0.403 or a compatible servicing patch, and Internet access to NuGet for the first restore. Windows PowerShell 5.1 and the local Defender provider are needed for security status; Microsoft's App Installer / WinGet and configured source agreements are needed for app discovery. Organizational policy may restrict any provider. MadClean does not accept agreements for you.

@@ -52,7 +52,11 @@ public sealed partial class MainViewModel
     public string HardwareFactDetails => selectedHardwareFact is not { } fact
         ? "Select a detected fact to inspect/copy its value and exact provider source. No manufacturer specification has been verified."
         : $"{fact.Category} · {fact.Component}\n{fact.Property}: {fact.Value}\nSource: {fact.Source}\nSource enumeration reported complete: {fact.SourceEnumerationComplete} (not proof of value accuracy or compatibility).\nDetected / firmware-reported. Shared query attempt UTC: {HardwareAttemptTime}. Response received UTC: {HardwareCompletedUtc?.ToString("O") ?? "Not received"}; this is not a per-class completion time. These values may be incomplete or inaccurate; they do not establish manufacturer-supported upgrades.";
-    private void InitializeHardwareDiscovery() => ReadHardwareCommand = new AsyncCommand(ReadHardware, () => !IsBusy && !HasPendingHardwareQuery);
+    private void InitializeHardwareDiscovery()
+    {
+        ReadHardwareCommand = new AsyncCommand(ReadHardware, () => !IsBusy && !HasPendingHardwareQuery);
+        InitializeHardwareUpgradeReview();
+    }
     private Task ReadHardware()
     {
         if (HasPendingHardwareQuery)

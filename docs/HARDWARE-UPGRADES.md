@@ -81,7 +81,7 @@ H2 acceptance gates:
 
 ## H3 — bounded advisory recommendations
 
-**Queued, not implemented.** H3 starts only after H1/H2 and their runtime/review gates pass. Before recommending products or capacity/price tiers, obtain the user's **budget and currency/region, intended use cases/workloads, current bottleneck or objective, and relevant constraints** such as noise/power/space, reliability, warranty or keeping existing parts. Do not infer these preferences from inventory. Missing preferences permit inventory and unresolved-check explanations, not personalized purchase recommendations.
+**Recommendations remain queued.** The separate [prerequisite worksheet](HARDWARE-UPGRADE-REVIEW.md) now collects optional in-memory planning inputs and lists missing evidence with every check Unknown. It is generic, not a report matched to the detected PC, and supplies no product, price or compatibility advice. Recommendations start only after H1/H2 and their runtime/review gates pass. Before recommending products or capacity/price tiers, obtain the user's **budget and currency/region, intended use cases/workloads, current bottleneck or objective, and relevant constraints** such as noise/power/space, reliability, warranty or keeping existing parts. Do not infer these preferences from inventory. Missing preferences permit inventory and unresolved-check explanations, not personalized purchase recommendations.
 
 A later recommendation must name the exact candidate/kit/variant, intended benefit for the stated use case without unsupported benchmark promises, compatibility evidence and its time/scope, additional parts/costs where known, and all manual verification still required. Prices/availability require a dated, separately authorized source; no current pricing or product recommendation is supplied by this document. Do not suggest that replacing hardware is necessary merely because it is old or because a newer part exists.
 
@@ -105,3 +105,10 @@ On 2026-11-02 at16:07:03 UTC, one read-only request to the official Lenovo [PSRE
 ## Observed H1 UI increment
 
 The actual populated read/select/refresh workflow passed on the disposable hosted VM at sourcec55084b/evidenceededcb47: Partial41facts from6source classes on both reads, current-row rendering, clear-on-refresh/new receipt, stale-reference refusal and scoped manufacturer eligibility, with no online query. This completes that software-interaction increment only. The H1 physical-system comparison, accuracy and accessibility gates above and the H2/H3 manufacturer/advice obligations remain open; VM firmware data is not physical-upgrade evidence.
+
+
+## November 6 source recheck and planning worksheet
+
+Exact-model H2 sources remain unavailable in this environment: Microsoft Learn SKU/service and Microsoft product requests failed proxy CONNECT403, while the known raw devices-docs SKU path returned HTTP404. No manufacturer upgrade limits or new compatibility catalogue entry were established. The official raw Win32_PhysicalMemory reference did return HTTP200 at2026-11-06T11:45:49Z (36,015bytes, SHA256b35f658f57b1cbf1e7f5043012bc087899105edfe1f17448da69bb42c1092ad9). Its FormFactor table is distinct from its MemoryType enum; SMBIOSMemoryType itself supplies raw SMBIOS Type17 semantics without a code table. Do not apply the adjacent CIM MemoryType mapping to raw SMBIOS codes. This source observation changes no inventory interpretation or compatibility claim in this increment.
+
+The [new worksheet](HARDWARE-UPGRADE-REVIEW.md) advances planning only. Blank preferences are not inferred; malformed budgets/codes remain explicit, and each area's manufacturer/physical prerequisites remain Unknown. No current hardware response or family service note fills those checks. Changes are local while GitHub pushes are paused; Windows worksheet interaction remains unverified.

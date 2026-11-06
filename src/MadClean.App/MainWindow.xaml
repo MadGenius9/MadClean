@@ -626,7 +626,50 @@
                                     <TextBlock Text="Upgrade compatibility limits: Unknown / not verified" FontSize="17"/>
                                     <TextBlock Text="Exact-model/revision RAM limits/types, supported CPUs and required BIOS, expansion and storage specifications are queued. Reported board version is not a verified PCB revision; reported device entries do not establish free physical slots or upgradeability." Style="{StaticResource Caption}" Margin="0,8,0,8"/>
                                     <TextBlock Text="Manual checks required" FontSize="17"/>
-                                    <TextBlock Text="PSU capacity/connectors, case/GPU clearance, free physical slots and soldered-memory upgradeability remain Unknown. Budget/use-case advice is queued until compatibility can be verified. No purchases, firmware updates or other hardware changes run here." Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                                    <TextBlock Text="PSU capacity/connectors, case/GPU clearance, free physical slots and soldered-memory upgradeability remain Unknown. The prerequisite worksheet below records planning inputs; recommendations remain queued until compatibility can be verified. No purchases, firmware updates or other hardware changes run here." Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Upgrade prerequisite worksheet" FontSize="19" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Plan what needs checking before considering an upgrade. This generic worksheet is not matched to your detected PC and does not verify manufacturer specifications, recommend products or contact any service. Every evidence requirement remains Unknown." Style="{StaticResource Caption}"/>
+                                    <Label Content="_Upgrade area" Target="{Binding ElementName=HardwareUpgradeAreaInput}" Foreground="#ECF1FB" Padding="0" Margin="0,12,0,4"/>
+                                    <ComboBox x:Name="HardwareUpgradeAreaInput" ItemsSource="{Binding UpgradeReviewAreas}" SelectedItem="{Binding UpgradeReviewArea, Mode=TwoWay}" Style="{StaticResource ToolSelector}" Tag="Choose an upgrade area" Width="250" HorizontalAlignment="Left" AutomationProperties.Name="Upgrade planning area, no selection by default"/>
+                                    <WrapPanel Margin="0,12,0,0">
+                                        <StackPanel Width="210" Margin="0,0,12,0">
+                                            <Label Content="_Budget amount" Target="{Binding ElementName=HardwareUpgradeBudgetInput}" Foreground="#ECF1FB" Padding="0" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="HardwareUpgradeBudgetInput" Text="{Binding UpgradeReviewBudgetText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="32" AutomationProperties.Name="Planning budget amount, positive decimal using a dot without separators or symbols"/>
+                                        </StackPanel>
+                                        <StackPanel Width="140" Margin="0,0,12,0">
+                                            <Label Content="_Currency code" Target="{Binding ElementName=HardwareUpgradeCurrencyInput}" Foreground="#ECF1FB" Padding="0" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="HardwareUpgradeCurrencyInput" Text="{Binding UpgradeReviewCurrency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="3" AutomationProperties.Name="Three-letter planning currency code, no default currency"/>
+                                        </StackPanel>
+                                        <StackPanel Width="140">
+                                            <Label Content="_Region code" Target="{Binding ElementName=HardwareUpgradeRegionInput}" Foreground="#ECF1FB" Padding="0" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="HardwareUpgradeRegionInput" Text="{Binding UpgradeReviewRegion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="2" AutomationProperties.Name="Two-letter planning region code, no inferred location"/>
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Text="Use a dot for decimals, without thousands separators or currency symbols. Enter a three-letter currency and two-letter region code; none is inferred from Windows. No prices or availability are checked." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                    <Label Content="_Use case" Target="{Binding ElementName=HardwareUpgradeUseCaseInput}" Foreground="#ECF1FB" Padding="0" Margin="0,12,0,4"/>
+                                    <TextBox x:Name="HardwareUpgradeUseCaseInput" Text="{Binding UpgradeReviewUseCase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="1024" AcceptsReturn="False" TextWrapping="Wrap" MinHeight="54" AutomationProperties.Name="Planning use case, stored only in memory for this session"/>
+                                    <WrapPanel Margin="0,12,0,12">
+                                        <Button Content="_Review prerequisites" Command="{Binding ReviewUpgradePrerequisitesCommand}" AutomationProperties.Name="Review missing upgrade prerequisites without querying or changing hardware"/>
+                                        <Button Content="C_lear planning inputs" Command="{Binding ResetUpgradeReviewCommand}" Background="#244159" AutomationProperties.Name="Clear upgrade planning inputs and prerequisite report"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding UpgradeReviewSummary}" Style="{StaticResource Caption}" AutomationProperties.Name="Upgrade prerequisite review status, compatibility remains unknown" AutomationProperties.LiveSetting="Polite"/>
+                                    <ItemsControl ItemsSource="{Binding UpgradeReviewReasons}" Margin="0,8,0,8" AutomationProperties.Name="Upgrade planning input and evidence limitations">
+                                        <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Caption}" Margin="0,4,0,0"/></DataTemplate></ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <DataGrid ItemsSource="{Binding UpgradeReviewRequirements}" IsReadOnly="True" Height="260" AutomationProperties.Name="Unverified upgrade evidence requirements, read only">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Required evidence" Binding="{Binding Title}" Width="210"/>
+                                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100"/>
+                                            <DataGridTextColumn Header="What remains to verify" Binding="{Binding Requirement}" Width="*">
+                                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style></DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock Text="Planning inputs stay in memory and are not saved, logged or sent anywhere. Changing any input clears this report. Exact OEM/model or board revision, applicable manufacturer and firmware evidence, and safe manual physical checks are still required. There is no verification checkbox, compatibility approval, purchase or hardware action here." Style="{StaticResource Caption}" Margin="0,12,0,0"/>
                                 </StackPanel>
                             </Border>
                             <views:ManufacturerServiceView/>
