@@ -9,12 +9,25 @@ public sealed partial class MainViewModel
         new[] { UncheckedDiagnosticChannel("Application", DiagnosticChannelCoverageReason.NotChecked, "Not checked. Read event evidence to observe this source."),
             UncheckedDiagnosticChannel("System", DiagnosticChannelCoverageReason.NotChecked, "Not checked. Read event evidence to observe this source.") });
     private DiagnosticChannelCoverage? selectedDiagnosticChannel;
+    private bool IsCurrentDiagnosticChannel(DiagnosticChannelCoverage channel) =>
+        DiagnosticChannelRows.Any(row => ReferenceEquals(row, channel));
     public DiagnosticChannelCoverage? SelectedDiagnosticChannel
     {
-        get => selectedDiagnosticChannel;
-        set { Set(ref selectedDiagnosticChannel, value); PropertyChanged?.Invoke(this, new(nameof(DiagnosticChannelDetails))); }
+        get => selectedDiagnosticChannel is { } channel && IsCurrentDiagnosticChannel(channel) ? channel : null;
+        set
+        {
+            if (value != null && !IsCurrentDiagnosticChannel(value))
+            {
+                PropertyChanged?.Invoke(this, new(nameof(SelectedDiagnosticChannel)));
+                return;
+            }
+            if (ReferenceEquals(selectedDiagnosticChannel, value)) return;
+            selectedDiagnosticChannel = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedDiagnosticChannel)));
+            PropertyChanged?.Invoke(this, new(nameof(DiagnosticChannelDetails)));
+        }
     }
-    public string DiagnosticChannelDetails => selectedDiagnosticChannel is { } row
+    public string DiagnosticChannelDetails => SelectedDiagnosticChannel is { } row
         ? $"{row.Channel} · {row.State}\n{row.Explanation}\n" +
           $"Rejected records: {Known(row.RejectedRecords)}; duplicate/ambiguous references omitted: {Known(row.DuplicateRecords)}.\n" +
           $"Whole-log retained bounds UTC: {row.OldestRetainedUtc?.ToString("u") ?? "Unknown"} to {row.NewestRetainedUtc?.ToString("u") ?? "Unknown"}. " +

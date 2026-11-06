@@ -23,6 +23,7 @@ public sealed partial class MainViewModel
     private DuplicateEntry? selectedDuplicateEntry;
     private ShortcutObservation? selectedShortcutObservation;
     private DiagnosticFinding? selectedDiagnosticFinding;
+    private long diagnosticRangeGeneration;
     private DiagnosticRangeChoice selectedDiagnosticRange = new("Last 7 days", 7);
     public ObservableCollection<DuplicateEntry> DuplicateRows { get; } = [];
     public ObservableCollection<FileReviewIssue> DuplicateIssues { get; } = [];
@@ -53,6 +54,8 @@ public sealed partial class MainViewModel
         set
         {
             if (value == null || !DiagnosticRanges.Contains(value) || selectedDiagnosticRange == value) return;
+            // Invalidate both event and WER requests before notifying range observers.
+            diagnosticRangeGeneration++;
             Set(ref selectedDiagnosticRange, value);
             InvalidateWerMetadata();
             DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
@@ -80,10 +83,25 @@ public sealed partial class MainViewModel
             InvalidateShortcutRecheckSelection();
         }
     }
+    private bool IsCurrentDiagnosticRange(long generation) => generation == diagnosticRangeGeneration;
+    private bool IsCurrentVisibleDiagnosticFinding(DiagnosticFinding finding) =>
+        DiagnosticRows.Any(row => ReferenceEquals(row, finding)) && DiagnosticFindingsView != null &&
+        DiagnosticFindingsView.Cast<DiagnosticFinding>().Any(row => ReferenceEquals(row, finding));
     public DiagnosticFinding? SelectedDiagnosticFinding
     {
-        get => selectedDiagnosticFinding;
-        set { Set(ref selectedDiagnosticFinding, value); PropertyChanged?.Invoke(this, new(nameof(DiagnosticDetails))); }
+        get => selectedDiagnosticFinding is { } finding && IsCurrentVisibleDiagnosticFinding(finding) ? finding : null;
+        set
+        {
+            if (value != null && !IsCurrentVisibleDiagnosticFinding(value))
+            {
+                PropertyChanged?.Invoke(this, new(nameof(SelectedDiagnosticFinding)));
+                return;
+            }
+            if (ReferenceEquals(selectedDiagnosticFinding, value)) return;
+            selectedDiagnosticFinding = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedDiagnosticFinding)));
+            PropertyChanged?.Invoke(this, new(nameof(DiagnosticDetails)));
+        }
     }
     public string DuplicateDetails => selectedDuplicateEntry is { } entry
         ? $"Group: {entry.GroupId}\nExact path: {entry.Path}\nObserved logical bytes: {entry.Bytes}\nFile identity: {entry.Identity}\nRelationship: {entry.Relationship}\nVerification: {entry.Verification}\nAttempt: {DuplicateAttempt}. This is an observation, not deletion eligibility or guaranteed recoverable space. No removal is implemented."
@@ -91,7 +109,7 @@ public sealed partial class MainViewModel
     public string ShortcutDetails => selectedShortcutObservation is { } entry
         ? $"Shortcut: {entry.ShortcutPath}\nStored target: {entry.TargetPath}\nState: {entry.State}\nReason: {entry.Reason}\nSource: {entry.Source}\nObserved: {entry.CheckedAt:u}\nA local missing target is evidence for review, not proof the shortcut is obsolete. No target is launched and no shortcut is removed."
         : "Select a shortcut to inspect its stored target, source and reason. Network/offline/access/reparse/unsupported contexts remain unknown, not broken.";
-    public string DiagnosticDetails => selectedDiagnosticFinding is { } finding
+    public string DiagnosticDetails => SelectedDiagnosticFinding is { } finding
         ? $"Observation: {finding.Observation}\nSource: local Windows Event Log / {finding.Channel} / {finding.Provider}, event {finding.EventId}, schema {finding.Version}, reported level {finding.Level}.\nRecord count in covered window: {finding.Count}; these are records, not unique crashes.\nFirst UTC: {finding.FirstUtc:u}; last UTC: {finding.LastUtc:u}.\nRetained record references: {string.Join(", ", finding.RecordIds)}\nUncertainty: {finding.Uncertainty}\nImpact: {finding.Impact}\nNext step: {finding.NextStep}\n{DiagnosticsWindow}"
         : "Select an observation to inspect source, time range, record references, uncertainty and impact. No records does not establish a healthy system.";
     private void InitializeAdditionalDiscovery()
@@ -175,30 +193,39 @@ public sealed partial class MainViewModel
         ShortcutMessage = error + " Any in-flight native/COM metadata read may still finish; no target is launched.";
         ShortcutCoverage = "No completed report from this attempt; unavailable targets are not confirmed broken.";
     });
-    private Task ReadDiagnostics() => RunDiscoveryAsync(ActivityArea.DiagnosticsReport, "Reading existing event evidence", async token =>
+    private Task ReadDiagnostics()
     {
-        DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-        DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
-        DiagnosticsWindow = "In progress; no completed time window is claimed.";
-        ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
-        ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.");
-        var result = await diagnosticsInventory.ReadAsync(SelectedDiagnosticRange.Days, token); token.ThrowIfCancellationRequested();
-        DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
-        foreach (var report in result.Items)
+        long generation = diagnosticRangeGeneration;
+        int chosenDays = SelectedDiagnosticRange.Days;
+        return RunDiscoveryAsync(ActivityArea.DiagnosticsReport, "Reading existing event evidence", async token =>
         {
-            foreach (var finding in report.Findings) DiagnosticRows.Add(finding);
-            foreach (var coverage in report.Coverage) DiagnosticCoverage.Add(coverage);
-            DiagnosticsWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
-        }
-        PublishDiagnosticRecurrence(result, token);
-        PublishDiagnosticChannels(result);
-        DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault();
-        return result.State;
-    }, error =>
-    {
-        DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-        DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.";
-        ResetDiagnosticRecurrence(error);
-        ResetDiagnosticChannels("This attempt did not complete. No channel count, empty-log or successful-read conclusion is available.");
-    });
+            DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
+            DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
+            DiagnosticsWindow = "In progress; no completed time window is claimed.";
+            ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
+            ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.");
+            var result = await diagnosticsInventory.ReadAsync(chosenDays, token); token.ThrowIfCancellationRequested();
+            // Changing the shared range does not abort native work. Await the original
+            // adapter response, then discard it without touching the new scope.
+            if (!IsCurrentDiagnosticRange(generation)) return CheckState.Cancelled;
+            DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
+            foreach (var report in result.Items)
+            {
+                foreach (var finding in report.Findings) DiagnosticRows.Add(finding);
+                foreach (var coverage in report.Coverage) DiagnosticCoverage.Add(coverage);
+                DiagnosticsWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
+            }
+            PublishDiagnosticRecurrence(result, token);
+            PublishDiagnosticChannels(result);
+            DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault();
+            return result.State;
+        }, error =>
+        {
+            if (!IsCurrentDiagnosticRange(generation)) return;
+            DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
+            DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.";
+            ResetDiagnosticRecurrence(error);
+            ResetDiagnosticChannels("This attempt did not complete. No channel count, empty-log or successful-read conclusion is available.");
+        });
+    }
 }

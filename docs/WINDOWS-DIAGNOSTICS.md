@@ -4,6 +4,14 @@
 
 The goal is an evidence-based system-health report explaining observed symptoms and their limits. There is no scalar health score, generic “PC needs repair” diagnosis, arbitrary DLL download, registry-cleaner recommendation or unsupported speed/repair promise.
 
+### Changing a range during a read
+
+Event and WER reads each retain their selected number of days and the shared range generation from the moment the request starts. Changing the range immediately invalidates both views. A result or error from the old generation cannot repopulate findings, coverage, recurrence, WER references or count text under the new range—even when the user changes away and back before the original read returns. The range selector remains usable during a read; read commands remain busy-gated. The new range stays unchecked until explicitly requested.
+
+This changes presentation only: it starts no new query, requests no native stop and does not release worker-owned resources. The existing adapter wait and busy/ownership rules remain in place. A discarded result is not proof of native cancellation, an empty source or a healthy system. Current event/channel/WER detail selections must refer by identity to current rows; filtered-out event findings cannot continue to supply visible details.
+
+The Windows interaction harness adds a separate actual in-flight event-query/range-change observation after its existing completed-query checks. It qualifies the race only if a pending request was actually observed and the original UI adapter wait settles; a fast or unfinished run stays Unknown. The recorded terminal branch distinguishes discarded returned responses from suppressed stale errors; neither branch proves the other was exercised. This checks event publication, not a separately unobserved WER race. No fixture records or provider values are injected or exported. New Windows execution is pending while GitHub pushes are paused.
+
 ## D1 — passive, read-only evidence report
 
 The [five-source session-evidence panel](DIAGNOSTIC-SESSION-EVIDENCE.md) adds existing disk and Defender observations plus independently confirmed recorded flags, fresh component-store findings and SFC client observations, separately from Event Log and WER time windows. It starts no additional query, retains source-specific cancellation/failure and collection times, and supplies coverage, uncertainty, impact context and next step without a health verdict. Only the existing local Inspect action updates Storage/Defender; each integrity source changes only through its own existing explicit confirmation workflow.

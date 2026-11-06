@@ -18,11 +18,12 @@
             <TextBlock Text="Read bounded local Application/System metadata for reported warning/error/critical events and supported WER records. Counts refer to event records, not unique crashes or confirmed causes. No Security log, messages, payloads, dump contents, integrity check or repair is collected or started." Style="{StaticResource Caption}"/>
             <WrapPanel Margin="0,4,0,12">
                 <ComboBox ItemsSource="{Binding DiagnosticRanges}" SelectedItem="{Binding SelectedDiagnosticRange, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose time range" Width="190" Margin="0,0,12,0" AutomationProperties.Name="Diagnostic evidence time range">
-                    <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ComboBox.Style>
+                    <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"/></ComboBox.Style>
                 </ComboBox>
                 <Button Content="Read event evidence" Command="{Binding ReadDiagnosticsCommand}"/>
             </WrapPanel>
             <TextBlock Text="{Binding DiagnosticsAttempt, StringFormat='Last attempt: {0}'}" Foreground="#A9BDD3" FontSize="12"/>
+            <TextBlock Text="Changing the time range clears old event/WER results. An existing read may still finish; choose Read again after it settles to check the new range." Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsMessage}" Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsWindow}" Style="{StaticResource Caption}"/>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
