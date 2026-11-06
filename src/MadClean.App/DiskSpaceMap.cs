@@ -70,18 +70,25 @@ public sealed class DiskSpaceMap : Canvas
                 Width = Math.Max(0, rectangle.Width - 2),
                 Height = Math.Max(0, rectangle.Height - 2),
                 Background = node == null ? new SolidColorBrush(Color.FromRgb(68, 74, 87)) : Palette[rectangle.Index % Palette.Length],
-                BorderBrush = node == SelectedNode ? Brushes.White : new SolidColorBrush(Color.FromRgb(40, 49, 65)),
-                BorderThickness = new Thickness(node == SelectedNode ? 3 : 1),
+                BorderBrush = ReferenceEquals(node, SelectedNode) ? Brushes.White : new SolidColorBrush(Color.FromRgb(40, 49, 65)),
+                BorderThickness = new Thickness(ReferenceEquals(node, SelectedNode) ? 3 : 1),
                 ToolTip = (node?.Path ?? "Aggregate of smaller measured entries; inspect individual entries in the list.") + "\n" + Display.Bytes(bytes) + " known logical bytes"
             };
             AutomationProperties.SetName(tile, label + ", " + Display.Bytes(bytes) + " known logical bytes");
             if (node != null)
             {
-                tile.Click += (_, _) => SetCurrentValue(SelectedNodeProperty, node);
+                bool IsCurrentTile() => Children.Contains(tile) &&
+                    Node?.Children.Any(child => ReferenceEquals(child, node)) == true;
+                tile.Click += (_, _) =>
+                {
+                    if (IsCurrentTile()) SetCurrentValue(SelectedNodeProperty, node);
+                };
                 tile.MouseDoubleClick += (_, _) =>
                 {
+                    if (!IsCurrentTile()) return;
                     SetCurrentValue(SelectedNodeProperty, node);
-                    if (node.IsDirectory && NavigateCommand?.CanExecute(null) == true) NavigateCommand.Execute(null);
+                    if (IsCurrentTile() && ReferenceEquals(SelectedNode, node) && node.IsDirectory &&
+                        NavigateCommand?.CanExecute(null) == true) NavigateCommand.Execute(null);
                 };
             }
             else tile.IsEnabled = false;

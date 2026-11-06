@@ -10,6 +10,10 @@ The original requested scope, attempt-start UTC and returned-report UTC/coverage
 
 The global busy gate prevents another discovery/refresh while one is running. A separate map generation and cancellation checks after background validation and scanning suppress stale publication. Cancellation/failure clears any published map/identity snapshot again, including an interruption detected by the enclosing discovery runner. The scanner owns its work until its task settles; the UI does not close worker handles or claim that cancellation completed native I/O.
 
+Tile/list selection accepts only the exact current displayed child object, or null to clear selection. Matching path text or equal record values do not accept an earlier or foreign observation. Drill checks the same current-child membership both when enabling the command and when handling it, so a delayed callback cannot navigate a prior snapshot or a sibling outside the displayed folder. Up and Reset continue to navigate the loaded snapshot only; these checks start no filesystem query and do not change the original refresh scope.
+
 ## Validation limits
 
 Existing portable `DiskUsageTests` exercise actual fixture lengths, missing/file/relative roots, cancellation, traversal limits, reparse points and inaccessible paths where the platform permits. Those tests validate scanner boundaries, not a Windows WPF refresh interaction. The full solution must compile after the UI change. A Windows interaction still needs to select a real owned folder, drill into a child, refresh the original scope, observe reset navigation/identity invalidation, and check cancellation plus missing/inaccessible retry. Linux compilation is not evidence that these WPF interactions ran.
+
+Tile callbacks also check that the rendered button still belongs to the map and its exact node is a current child. A delayed double-click cannot dispatch Drill against a different surviving selection after its old tile was removed. Highlighting uses reference identity rather than equal record values.

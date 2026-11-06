@@ -1,12 +1,12 @@
 # Windows Diagnostics — later, incremental module
 
-**D1a is implemented as a separately requested passive Event Log report; its native metadata fixture passed at f470b3b. D1b minimized WER store reading and fixed Microsoft tool-identity previews are implemented separately. Actual D2 integrity checks and D3 repairs remain disabled/gated.** Windows Diagnostics is available under More tools and never runs with ordinary Inspect this PC. It uses fixed, bounded local Application/System metadata queries, not a health score, servicing command, scheduled task or repair action. D1b store/ABI permissions and later execution still need their distinct Windows gates; D1a fixture evidence does not validate every source/policy or establish a healthy system. Linux compilation and parser tests do not establish Windows correctness. No user PC or servicing/repair command was accessed during development.
+**D1a is implemented as a separately requested passive Event Log report; its native metadata fixture passed at f470b3b. D1b minimized WER store reading and fixed Microsoft tool-identity previews are implemented separately. The separately confirmed fixed CheckHealth, ScanHealth and SFC verify-only workflows have passed scoped Windows qualification; SFC client completion never establishes protected-file integrity. D3 repairs remain disabled.** Windows Diagnostics is available under More tools and never runs with ordinary Inspect this PC. It uses fixed, bounded local Application/System metadata queries, not a health score, servicing command, scheduled task or repair action. D1b store/ABI permissions and later execution still need their distinct Windows gates; D1a fixture evidence does not validate every source/policy or establish a healthy system. Linux compilation and parser tests do not establish Windows correctness. No user PC or servicing/repair command was accessed during development.
 
 The goal is an evidence-based system-health report explaining observed symptoms and their limits. There is no scalar health score, generic “PC needs repair” diagnosis, arbitrary DLL download, registry-cleaner recommendation or unsupported speed/repair promise.
 
 ## D1 — passive, read-only evidence report
 
-The [inspection-evidence panel](DIAGNOSTIC-INSPECTION-EVIDENCE.md) adds the current session’s existing disk and Defender observations, separately from Event Log and WER time windows. It starts no additional query, retains source-specific cancellation/failure and collection times, and supplies coverage, uncertainty, impact context and next step without a health verdict. Only the existing local Inspect action updates these two rows.
+The [five-source session-evidence panel](DIAGNOSTIC-SESSION-EVIDENCE.md) adds existing disk and Defender observations plus independently confirmed recorded flags, fresh component-store findings and SFC client observations, separately from Event Log and WER time windows. It starts no additional query, retains source-specific cancellation/failure and collection times, and supplies coverage, uncertainty, impact context and next step without a health verdict. Only the existing local Inspect action updates Storage/Defender; each integrity source changes only through its own existing explicit confirmation workflow.
 
 Current D1a: explicit 1/7/30-day UTC window; at most 1,000 returned records per channel and 256 groups; levels 1/2/3 plus supported WER informational records. Only channel, provider, event ID/version/level, record reference and UTC time are projected. Per-channel statuses, truncation, whole-log count/bounds and their non-atomic/retention uncertainty are visible. Messages, payload properties, user IDs, paths and dump contents are not requested. The fixed system PowerShell query is capped at 90 seconds overall and cancellable as a metadata-query process; that runner must never be reused for servicing.
 
@@ -49,7 +49,7 @@ Every finding must include:
 
 This ships after D1, independently and only after Windows validation. The user selects the specific check, sees its source/target/scope, expected side effects, elevation requirement and time uncertainty, and can decline. These checks are never started by Scan local, startup inventory, cleanup preview, app discovery, crash-summary reading or release checking.
 
-The command forms below describe future **supported-tool semantics**, not commands executed by current MadClean:
+The command forms below summarize **supported-tool semantics**. Current separately confirmed CheckHealth/ScanHealth use fixed inbox PowerShell cmdlet routes; the selected SFC route uses only `/verifyonly`. The repair forms remain future disabled work:
 
 | Microsoft tool / option | Evidence and limits | Stage / permission |
 | --- | --- | --- |

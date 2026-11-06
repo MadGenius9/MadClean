@@ -34,8 +34,19 @@ public sealed partial class MainViewModel
     public DiskUsageNode? SelectedDiskNode
     {
         get => selectedDiskNode;
-        set { Set(ref selectedDiskNode, value); PropertyChanged?.Invoke(this, new(nameof(DiskMapSelection))); CommandManager.InvalidateRequerySuggested(); }
+        set
+        {
+            // A tile/list callback must belong to the currently displayed snapshot children.
+            // Equal paths or record values do not make an old/foreign observation current.
+            if (value != null && !IsCurrentDiskMapChild(value) || ReferenceEquals(selectedDiskNode, value)) return;
+            selectedDiskNode = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedDiskNode)));
+            PropertyChanged?.Invoke(this, new(nameof(DiskMapSelection)));
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
+    private bool IsCurrentDiskMapChild(DiskUsageNode node) => diskMapCurrent != null &&
+        DiskMapChildren.Any(child => ReferenceEquals(child, node));
     public string DiskMapSelection => selectedDiskNode == null ? "Select a tile or list item for its exact path and known size. Small items remain accessible in the list." :
         $"{selectedDiskNode.Path}\n{Display.Bytes(selectedDiskNode.Bytes)} known logical bytes · {(selectedDiskNode.IsDirectory ? "folder" : "file")}. Size is not a junk or deletion-safety classification.";
     public ICommand ChooseDiskMapFolderCommand { get; private set; } = null!;
@@ -49,7 +60,8 @@ public sealed partial class MainViewModel
         ChooseDiskMapFolderCommand = new AsyncCommand(ChooseDiskMapFolder, () => !IsBusy);
         RefreshDiskMapCommand = new AsyncCommand(() => diskMapRequestedPath is { } path ? MapDiskFolder(path) : Task.CompletedTask,
             () => !IsBusy && diskMapRequestedPath != null);
-        DrillDiskMapCommand = new ActionCommand(DrillDiskMap, () => !IsBusy && SelectedDiskNode?.IsDirectory == true && SelectedDiskNode.Children.Count > 0);
+        DrillDiskMapCommand = new ActionCommand(DrillDiskMap, () => !IsBusy && SelectedDiskNode is { IsDirectory: true } node &&
+            IsCurrentDiskMapChild(node) && node.Children.Count > 0);
         UpDiskMapCommand = new ActionCommand(() => ShowDiskFolder(diskMapParents.Pop()), () => !IsBusy && diskMapParents.Count > 0);
         ResetDiskMapCommand = new ActionCommand(() => { diskMapParents.Clear(); if (diskMapRoot != null) ShowDiskFolder(diskMapRoot); }, () => !IsBusy && diskMapRoot != null);
     }
@@ -137,8 +149,10 @@ public sealed partial class MainViewModel
     public ObservableCollection<ResultRow> DiskMapIssues { get; } = [];
     private void DrillDiskMap()
     {
-        if (SelectedDiskNode?.IsDirectory != true || SelectedDiskNode.Children.Count == 0 || diskMapCurrent == null) return;
-        diskMapParents.Push(diskMapCurrent); ShowDiskFolder(SelectedDiskNode);
+        var selected = SelectedDiskNode;
+        if (IsBusy || selected?.IsDirectory != true || selected.Children.Count == 0 ||
+            diskMapCurrent == null || !IsCurrentDiskMapChild(selected)) return;
+        diskMapParents.Push(diskMapCurrent); ShowDiskFolder(selected);
     }
     private void ShowDiskFolder(DiskUsageNode folder)
     {
