@@ -10,4 +10,12 @@ This is a generic planning checklist, not a report matched to the currently dete
 
 Reviewing, editing and clearing the worksheet starts no query, opens no website, writes no settings/activity entry and changes no hardware or Windows state. Input edits invalidate the old worksheet; **Clear planning inputs** clears the entries. Inputs remain only in the app session. The Core report contains fixed explanations and requirement descriptions, never copies the arbitrary budget/use-case text into its output. There is no persisted/exported plan or approval record.
 
-Portable validation covers malformed/localized/overflow budgets, unsupported or missing areas, bounded preferences, privacy and the inability of complete preferences to produce compatibility. WPF bindings, keyboard interaction, scaling, invalidation and Clear still require a real Windows run. GitHub pushes are paused, so local compilation is not a new remote CI result. Use the [home-test checklist](HOME-TEST-CHECKLIST.md) for an observational first pass.
+Portable validation covers malformed/localized/overflow budgets, unsupported or missing areas, bounded preferences, privacy and the inability of complete preferences to produce compatibility. WPF bindings, keyboard interaction, scaling, invalidation and Clear still require a real Windows run. Compilation is not a source-matched Windows result; current runtime evidence must be checked separately. Use the [home-test checklist](HOME-TEST-CHECKLIST.md) for an observational first pass.
+
+## Actual-control qualification candidate
+
+The Windows harness now includes a separate post-capture worksheet interaction. It uses the real area selector, text boxes, Review and Clear buttons, with harmless planning text as user input. It does not substitute hardware/provider data or call inventory, manufacturer, shopping or update controls.
+
+The check covers a blank/missing area, valid memory planning inputs, memory-specific Unknown prerequisites, edit invalidation, GPU PSU/clearance prerequisites remaining Unknown, malformed localized budget input and clearing back to blank. Hardware observations, source context and activity must remain unchanged. It exports fixed outcome flags only, with no preferences, hardware values or loaded-data screenshots.
+
+This qualifies managed form/binding behavior only when its source-matched Windows run passes. It cannot establish physical keyboard/screen-reader behavior, hardware compatibility, product advice, manufacturer evidence, network instrumentation or purchases. Current compilation/source review is not that runtime result. Push authorization has resumed; earlier local-only validation notes remain historical.
