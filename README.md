@@ -168,3 +168,5 @@ The Drivers page also offers a separate explicit [present-device driver-property
 
 
 The app-update SDK query uses a bounded caller wait, but its native operation may finish later. Cancellation preserves an Unknown/Cancelled result and keeps ownership visible. MadClean waits for its actual native worker before allowing another app check or closing the window; it never kills the shared WinGet server or promotes a timeout after it settles. The legacy CLI observation remains development evidence, with no silent fallback from a failed SDK query. [App UI validation](docs/APP-UPDATE-UI-VALIDATION.md) and [published App validation](docs/PUBLISHED-APP-UPDATE-VALIDATION.md) passed separately at source `b670db51`, with actual Partial results and settled ownership; they remain separate from the SDK harness proof.
+
+Optional disk identity accounting now also displays [reported default-stream allocation](docs/DISK-IDENTITY-ACCOUNTING.md), taken from existing native metadata observations. Missing/conflicting values stay Unknown; logical sizes remain independent, and no allocation sum or physical/reclaimable-space claim is made.

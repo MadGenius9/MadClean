@@ -41,11 +41,16 @@ internal sealed class WindowsDiskIdentityAccountingNative(Stopwatch watch) : IDi
             }
             Check(token);
             using var file = Open(path, 0);
-            var before = Read(file, path);
+            var before = Read(file, path, out long? allocationBefore);
             Check(token);
-            var after = Read(file, path);
+            var after = Read(file, path, out long? allocationAfter);
             Check(token);
-            return new(before.Identity, before.Bytes, before.Links, before == after);
+            bool stable = before == after;
+            // Allocation is an independent default-stream observation from the same
+            // existing queries. Unknown allocation must not alter logical identity stability.
+            long? allocation = stable && allocationBefore.HasValue && allocationBefore == allocationAfter
+                ? allocationBefore : null;
+            return new(before.Identity, before.Bytes, before.Links, stable, allocation);
         }
         finally { for (int i = guards.Count - 1; i >= 0; i--) guards[i].Dispose(); }
     }
@@ -62,7 +67,7 @@ internal sealed class WindowsDiskIdentityAccountingNative(Stopwatch watch) : IDi
         handle.Dispose();
         throw new IOException("Metadata-only handle could not be opened.");
     }
-    private static Stamp Read(SafeFileHandle handle, string path)
+    private static Stamp Read(SafeFileHandle handle, string path, out long? allocation)
     {
         var basic = Basic(handle);
         if ((basic.Attributes & (Unsafe | FileAttributes.Directory)) != 0 ||
@@ -71,6 +76,9 @@ internal sealed class WindowsDiskIdentityAccountingNative(Stopwatch watch) : IDi
             !GetIdentity(handle, 18, out var id, (uint)Marshal.SizeOf<IdentityInfo>()) || (id.Low == 0 && id.High == 0) ||
             !SamePath(Final(handle), path))
             throw new IOException("Safe, stable file identity metadata is unavailable.");
+        // Already returned in FILE_STANDARD_INFO; no extra query, rights or path lookup.
+        // Sparse/compressed streams can report less allocation than logical length, including zero.
+        allocation = standard.AllocationSize >= 0 ? standard.AllocationSize : null;
         return new($"{id.Volume:X16}:{id.Low:X16}{id.High:X16}", standard.EndOfFile, standard.NumberOfLinks,
             basic.LastWriteTime, basic.ChangeTime, basic.Attributes);
     }

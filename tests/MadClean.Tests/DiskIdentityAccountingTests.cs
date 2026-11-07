@@ -161,6 +161,161 @@ public sealed class DiskIdentityAccountingTests
         Assert.Equal(1, probe.Calls);
     }
 
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(512L)]
+    [InlineData(8192L)]
+    public void AllocationIsIndependentOfLogicalLengthAndZeroIsAnObservation(long allocation)
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(_ => new(Id(1), 4096, 1, true, allocation)))
+            .Analyze(Map(FileNode("a", 4096)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Equal(4096, report.ObservedUniqueFileLogicalBytes);
+        Assert.Equal(allocation, Assert.Single(report.Observations).ReportedAllocationBytes);
+        Assert.Equal(CheckState.Available, report.AllocationState);
+        Assert.Equal(1, report.AllocationKnownIdentities);
+        Assert.Equal(0, report.AllocationUnknownIdentities);
+    }
+
+    [Fact]
+    public void OmittedAllocationFromOlderProbesDoesNotEraseLogicalMeasurementsOrBecomeZero()
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(_ => new(Id(1), 5, 1, true)))
+            .Analyze(Map(FileNode("a", 5)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Empty(report.Issues);
+        Assert.Equal(5, report.ObservedPathLogicalBytes);
+        Assert.Null(Assert.Single(report.Observations).ReportedAllocationBytes);
+        Assert.Equal(CheckState.Unknown, report.AllocationState);
+        Assert.Equal(0, report.AllocationKnownIdentities);
+        Assert.Equal(1, report.AllocationUnknownIdentities);
+    }
+
+    [Theory]
+    [InlineData(null, 4096L)]
+    [InlineData(4096L, null)]
+    [InlineData(4096L, 8192L)]
+    [InlineData(-1L, -1L)]
+    [InlineData(4096L, -1L)]
+    public void MissingNegativeOrConflictingAliasAllocationWithholdsEntireGroupAllocationOnly(long? first, long? second)
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(path =>
+                new(Id(1), 10, 2, true, path == P("a") ? first : second)))
+            .Analyze(Map(FileNode("a", 10), FileNode("b", 10)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Empty(report.Issues);
+        Assert.Equal(20, report.ObservedPathLogicalBytes);
+        Assert.Equal(10, report.ObservedUniqueFileLogicalBytes);
+        Assert.Equal(2, report.Observations.Count);
+        Assert.All(report.Observations, observation => Assert.Null(observation.ReportedAllocationBytes));
+        Assert.Equal(CheckState.Unknown, report.AllocationState);
+        Assert.Equal(0, report.AllocationKnownIdentities);
+        Assert.Equal(1, report.AllocationUnknownIdentities);
+    }
+
+    [Fact]
+    public void AllocationCoverageCountsDistinctIdentitiesAndDoesNotCountAliasesAsCopies()
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(path => path == P("copy")
+                ? new(Id(2), 10, 1, true, 8192) : new(Id(1), 10, 3, true, 4096)))
+            .Analyze(Map(FileNode("a", 10), FileNode("alias", 10), FileNode("copy", 10)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, report.AllocationState);
+        Assert.Equal(2, report.AllocationKnownIdentities);
+        Assert.Equal(0, report.AllocationUnknownIdentities);
+        Assert.Equal(2, report.Observations.Count(observation => observation.ReportedAllocationBytes == 4096));
+        Assert.Equal(20, report.ObservedUniqueFileLogicalBytes);
+        Assert.Contains("Alias rows repeat allocation and must not be summed", report.Coverage);
+        Assert.Contains("No allocation aggregate or unique physical/reclaimable total", report.Coverage);
+    }
+
+    [Fact]
+    public void MixedAllocationCoverageIsPartialWithoutDowngradingCompleteLogicalCoverage()
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(path =>
+                new(Id(path == P("a") ? 1 : 2), 10, 1, true, path == P("a") ? 4096 : null)))
+            .Analyze(Map(FileNode("a", 10), FileNode("b", 10)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Equal(CheckState.Partial, report.AllocationState);
+        Assert.Equal(1, report.AllocationKnownIdentities);
+        Assert.Equal(1, report.AllocationUnknownIdentities);
+        Assert.Equal(20, report.ObservedUniqueFileLogicalBytes);
+    }
+
+    [Fact]
+    public void PartialMapCannotYieldCompleteAllocationCoverageEvenWhenEveryObservedValueIsKnown()
+    {
+        var snapshot = Map(FileNode("a", 10)) with { SkippedEntries = 1 };
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(_ => new(Id(1), 10, 1, true, 4096)))
+            .Analyze(snapshot, default);
+        Assert.Equal(CheckState.Partial, result.State);
+        Assert.Equal(CheckState.Partial, Report(result).AllocationState);
+        Assert.Equal(1, Report(result).AllocationKnownIdentities);
+    }
+
+    [Fact]
+    public void LargeAllocationValuesAreRetainedWithoutAggregatingOrOverflowingThem()
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(path =>
+                new(Id(path == P("a") ? 1 : 2), 1, 1, true, long.MaxValue)))
+            .Analyze(Map(FileNode("a", 1), FileNode("b", 1)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Available, result.State);
+        Assert.Equal(CheckState.Available, report.AllocationState);
+        Assert.Equal(2, report.AllocationKnownIdentities);
+        Assert.Equal(2, report.ObservedUniqueFileLogicalBytes);
+        Assert.All(report.Observations, observation => Assert.Equal(long.MaxValue, observation.ReportedAllocationBytes));
+    }
+
+    [Fact]
+    public void NoObservedIdentityIsNotAZeroByteAllocationMeasurement()
+    {
+        var probe = new TestOnlyProbe(_ => throw new Exception("empty map must not probe"));
+        var report = Report(new DiskIdentityAccountingEngine(probe).Analyze(Map(), default));
+        Assert.Equal(0, probe.Calls);
+        Assert.Empty(report.Observations);
+        Assert.Equal(CheckState.Unknown, report.AllocationState);
+        Assert.Equal(0, report.AllocationKnownIdentities);
+        Assert.Equal(0, report.AllocationUnknownIdentities);
+    }
+
+    [Fact]
+    public void EmptyFileWithReportedZeroAllocationRemainsAnActualKnownIdentity()
+    {
+        var report = Report(new DiskIdentityAccountingEngine(new TestOnlyProbe(_ => new(Id(1), 0, 1, true, 0)))
+            .Analyze(Map(FileNode("empty", 0)), default));
+        Assert.Equal(0L, Assert.Single(report.Observations).ReportedAllocationBytes);
+        Assert.Equal(CheckState.Available, report.AllocationState);
+        Assert.Equal(1, report.AllocationKnownIdentities);
+    }
+
+    [Fact]
+    public void RejectedLogicalIdentityCannotContributeAllocationCoverage()
+    {
+        var result = new DiskIdentityAccountingEngine(new TestOnlyProbe(path =>
+                new(Id(1), 10, path == P("a") ? 2u : 3u, true, 4096)))
+            .Analyze(Map(FileNode("a", 10), FileNode("b", 10)), default);
+        var report = Report(result);
+        Assert.Equal(CheckState.Partial, result.State);
+        Assert.Empty(report.Observations);
+        Assert.Equal(CheckState.Unknown, report.AllocationState);
+        Assert.Equal(0, report.AllocationKnownIdentities);
+        Assert.Equal(0, report.AllocationUnknownIdentities);
+    }
+
+    [Fact]
+    public void CancellationCannotPublishKnownAllocationBeforeLogicalAccountingSettles()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var probe = new TestOnlyProbe(_ => { cancellation.Cancel(); return new(Id(1), 1, 1, true, 4096); });
+        Assert.Throws<OperationCanceledException>(() => new DiskIdentityAccountingEngine(probe)
+            .Analyze(Map(FileNode("a", 1)), cancellation.Token));
+    }
+
     // Synthetic identity metadata only; these adapters do not validate Windows identity/marshalling.
     private sealed class TestOnlyProbe(Func<string, DiskIdentityAccountingStamp> read) : IDiskIdentityAccountingProbe
     {

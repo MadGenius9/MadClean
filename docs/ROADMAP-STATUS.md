@@ -690,3 +690,21 @@ A new post-capture actual-control check invokes only the three source-choice but
 The full Release solution built with zero warnings/errors; all1,629 portable tests passed, including20 new pinned-source/no-request/anonymous404/reminder-reset cases. Independent combined source review found no blocking issue. Current fetched immutable Windows evidence remains a04837bb/sourcee8bc6e2, not source580ce28 or this increment; no new Windows runtime pass is inferred. Distribution stays disabled and the roadmap is unfinished.
 
 Fresh Defender official-source research still does not establish a per-request no-remediation/engine-owned-cancel/results contract. Action gates, exact-model manufacturer evidence, broader Windows denial/stop/recovery/accessibility and final executable/signing/distribution remain the principal unfinished groups. Public MSI activation is a separate explicit decision documented in MSI-PUBLIC-QUALIFICATION-REVIEW.md; it was not retried or enabled by this work.
+
+
+## Current pushed-source Windows results
+
+Immutable evidence `634397ea7e21e71f793e17e721e6c963d8f39116` matches source `60b9a84aea1873ce7f075a2f8758bacce6bd4a13`, [run42337639573](https://github.com/MadGenius9/MadClean/actions/runs/42337639573). Windows Core recorded1,619Passed+10NotExecuted=1,629. The passive report was86passed/10inconclusive/zero failed; overall verification remains failed on inconclusive checks.
+
+The new source controls passed actual Official→Disable→Deployment button/binding/status restoration checks without invoking Check/Review. This qualifies that managed workflow, not live release discovery, previously confirmed reminder clearing, keyboard/screen-reader use or distribution. The new actual in-flight Event Log read/range-away-and-back check passed with terminalCancelled: the old returned response was suppressed, current Unknown state preserved and genuine stale references refused. A stale-error branch and WER race were not observed. H1 refresh and independent inspection preservation passed again.
+
+CheckHealth/ScanHealth/public SFC regressions passed; SFC exit0/drains/release/cleanup were observed with integrityUnknown and no private authorization substitution. Actual App and published App updates each returnedPartial68rows/16Available/52Unknown. Private inert-MSI qualification passed; public MSI remainsdisabled/unqualified. New startup/leftover preview UI workflows, physical hardware/accessibility, broader policy/stop/recovery and distribution still need their own evidence.
+
+
+## Reported default-stream allocation in optional identity accounting
+
+The existing metadata-only identity analysis now carries nonnegative agreeing before/after AllocationSize observations from the same FileStandardInfo calls. No open/query/right, content read or fallback was added. Null/negative/changing/conflicting alias values withhold allocation only; logical identity/length/link accounting stays independent. Known/Unknown counts cover accepted observed identities, retain source gaps, and no allocation total exists. Sparse/compressed/resident/shared storage, alternate streams and filesystem overhead prevent interpreting this as unique physical or reclaimable bytes.
+
+The App shows per-row reported default-stream allocation and scoped coverage counts, leaving treemap encoding and all three logical totals unchanged. The existing owned Windows fixture adds an allocation dataflow/alias-consistency check without exporting sizes/identities or claiming an independent physical measurement. It remains unverified until new source-bound Windows evidence. The broader physical-allocation gate remains open.
+
+Full Release solution build passed with zero warnings/errors; all1,646 portable tests passed, including17 new independent-allocation/alias/zero/missing/large-value boundaries. Independent combined source review cleared the frozen implementation. The official WER recheck continues to justify Unknown null-key enumeration; optional SAL nullability does not supply empty/end semantics. No MSI activation, cleanup, installation, Defender scan, repair, restart or distribution package was added.

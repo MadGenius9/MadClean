@@ -116,3 +116,6 @@ The Application/System coverage table uses only the existing parsed Event Log re
 
 
 Actual source218460e/run41447715297 (immutable evidencea1f92c57f9860143bde14b30f0fc31d488798c76) passed the production WPF channel-coverage interaction: both real channels queried, both rows selected, bound details/status verified, no additional query from selection, and range-change invalidation observed. This was one explicit passive Event Log read after every capture, with no raw metadata exported. Broader source policies, physical keyboard/screen-reader behavior and integrity checks/repairs remain separate unverified gates.
+
+
+At source60b9a84/immutable634397ea/run42337639573 the actual pending event read, enabled selector away/back changes and returned-response discard passed. TerminalCancelled qualified that returned-response branch only. The genuine stale references were refused; current range remained Unknown. Stale-error suppression and the WER race were not observed. These source-specific facts do not establish every timing, native completion, physical input or system health.

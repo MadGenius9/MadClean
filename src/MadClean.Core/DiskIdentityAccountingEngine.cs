@@ -65,6 +65,7 @@ public sealed class DiskIdentityAccountingEngine(IDiskIdentityAccountingProbe pr
             }
         }
         long observed = 0, unique = 0;
+        int allocationKnown = 0, allocationUnknown = 0;
         var observations = new List<DiskIdentityAccountingObservation>();
         foreach (var group in known.GroupBy(x => x.Stamp.Identity, StringComparer.Ordinal))
         {
@@ -79,18 +80,29 @@ public sealed class DiskIdentityAccountingEngine(IDiskIdentityAccountingProbe pr
                 continue;
             }
             unique = checked(unique + first.Bytes);
+            // Allocation is independent of the qualified logical identity observations.
+            // Alias names repeat the same reported stream allocation; never sum these rows.
+            long? allocation = first.ReportedAllocationBytes is >= 0 &&
+                group.All(item => item.Stamp.ReportedAllocationBytes == first.ReportedAllocationBytes)
+                    ? first.ReportedAllocationBytes : null;
+            if (allocation.HasValue) allocationKnown++; else allocationUnknown++;
             foreach (var item in group)
             {
                 observed = checked(observed + item.File.Bytes);
-                observations.Add(new(item.File.Path, item.File.Bytes, first.Identity, first.LinkCount, count));
+                observations.Add(new(item.File.Path, item.File.Bytes, first.Identity, first.LinkCount, count, allocation));
             }
         }
         token.ThrowIfCancellationRequested();
         bool partial = snapshot.Truncated || snapshot.SkippedEntries != 0 || snapshot.Issues.Count != 0 || issues.Count != 0 || truncated;
+        var allocationState = allocationKnown == 0 ? CheckState.Unknown
+            : partial || allocationUnknown != 0 ? CheckState.Partial : CheckState.Available;
         string coverage = "Explicit selected-map paths only; metadata observations are not an atomic filesystem snapshot. " +
             "Path logical bytes are the selected map's file lengths. Observed totals exclude unknown/changed paths; unique-file logical bytes count each observed volume+128-bit identity once. " +
-            "Links outside this map, skipped files and unobserved identity relationships remain unknown. Unnamed-stream logical lengths only: no physical allocation, alternate-stream total, reclaimable space, content equality or deletion safety is established.";
-        var report = new DiskIdentityAccountingReport(total, observed, unique, observations.ToArray(), issues.ToArray(), truncated || snapshot.Truncated, coverage);
+            "Links outside this map, skipped files and unobserved identity relationships remain unknown. Unnamed-stream logical lengths only: no physical allocation, alternate-stream total, reclaimable space, content equality or deletion safety is established. " +
+            "Reported default-stream allocation is separate nullable FileStandardInfo metadata. Missing, negative or conflicting alias observations remain Unknown without invalidating logical measurements. " +
+            "Allocation counts cover accepted logical identities only; unobserved files remain outside coverage. Alias rows repeat allocation and must not be summed. No allocation aggregate or unique physical/reclaimable total is provided.";
+        var report = new DiskIdentityAccountingReport(total, observed, unique, observations.ToArray(), issues.ToArray(), truncated || snapshot.Truncated, coverage,
+            allocationState, allocationKnown, allocationUnknown);
         return new(partial ? CheckState.Partial : CheckState.Available,
             partial ? "Selected-path identity accounting has incomplete coverage; unknown bytes are not zero." : "Selected-path identity observations completed; outside-scope links and physical allocation remain unknown.", [report]);
     }

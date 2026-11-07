@@ -37,9 +37,11 @@ public sealed partial class MainViewModel
         token.ThrowIfCancellationRequested();
         foreach (var report in result.Items)
         {
-            DiskIdentityTotals = $"Snapshot scope: {snapshot.Root.Path}\nSnapshot path-logical: {Display.Bytes(report.PathLogicalBytes)}; revalidated observed paths: {Display.Bytes(report.ObservedPathLogicalBytes)}; observed unique-file logical: {Display.Bytes(report.ObservedUniqueFileLogicalBytes)}. These are logical observations, not physical allocation or reclaimable bytes.";
+            DiskIdentityTotals = $"Snapshot scope: {snapshot.Root.Path}\nSnapshot path-logical: {Display.Bytes(report.PathLogicalBytes)}; revalidated observed paths: {Display.Bytes(report.ObservedPathLogicalBytes)}; observed unique-file logical: {Display.Bytes(report.ObservedUniqueFileLogicalBytes)}. These are logical observations, not physical allocation or reclaimable bytes.\n" +
+                $"Reported default-stream allocation metadata: {report.AllocationState}; {report.AllocationKnownIdentities} observed identities known, {report.AllocationUnknownIdentities} unknown. Counts cover accepted observed identities only; omitted paths remain unknown. No allocation total is computed: distinct files may share storage, and alias rows must not be summed.";
             foreach (var observation in report.Observations)
-                DiskIdentityRows.Add(new(observation.Path, $"{Display.Bytes(observation.SnapshotBytes)} logical · {observation.ObservedAliasCount} observed path(s) for this identity · reported link count {observation.LinkCount}", observation.Identity));
+                DiskIdentityRows.Add(new(observation.Path, $"{Display.Bytes(observation.SnapshotBytes)} logical · {observation.ObservedAliasCount} observed path(s) for this identity · reported link count {observation.LinkCount} · reported default-stream allocation: " +
+                    (observation.ReportedAllocationBytes is { } allocation ? $"{allocation:N0} bytes (not physical or reclaimable space)" : "Unknown"), observation.Identity));
             foreach (var issue in report.Issues) DiskIdentityRows.Add(new(issue.Path, issue.Reason, "Unknown / omitted"));
             DiskIdentityCoverage.Add(report.Coverage);
         }

@@ -11,6 +11,7 @@ internal static partial class NativeFixtures
     private static void DiskIdentity(string fixture, SmokeReport report, CancellationToken token)
     {
         const string check = "disk-identity-fixture";
+        const string allocationCheck = "disk-allocation-metadata-fixture";
         string scope = Path.Combine(fixture, "disk-identity");
         Directory.CreateDirectory(scope);
         string first = Path.Combine(scope, "independent-one.txt"), second = Path.Combine(scope, "independent-two.txt");
@@ -85,11 +86,44 @@ internal static partial class NativeFixtures
                 report.Fail(check, "Owned fixture bytes changed during read-only map/identity accounting.");
                 return;
             }
-            report.Pass(check, $"Native identity state={result.State}; observedPaths=4; observedUniqueFiles=3; hardLinkRelationshipVerified=true; fixtureBytesUnchanged=true. Independent equal-content and same-size different-content files remain separate identities; the actual alias counts once in observed unique logical bytes. No identities/paths/contents exported; outside-scope links, allocation, content deduplication and deletion safety are not established.");
+            report.Pass(check, $"Native identity state={result.State}; observedPaths=4; observedUniqueFiles=3; hardLinkRelationshipVerified=true; fixtureBytesUnchanged=true. Independent equal-content and same-size different-content files remain separate identities; the actual alias counts once in observed unique logical bytes. No identities/paths/contents exported; outside-scope links, physical allocation, content deduplication and deletion safety are not established.");
+            CheckDiskAllocationMetadata(data, result.State, report);
         }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
         {
             report.Unknown(check, $"Owned disk identity fixture did not complete (code 0x{ex.HResult:X8}); no native alias/accounting proof is claimed.");
         }
+        finally
+        {
+            if (!report.HasCheck(allocationCheck))
+                report.Unknown(allocationCheck, "The existing owned identity fixture did not establish complete file/alias observations. No reported allocation or physical-consumption proof was substituted.");
+        }
+    }
+
+    private static void CheckDiskAllocationMetadata(DiskIdentityAccountingReport data, CheckState sourceState, SmokeReport report)
+    {
+        const string check = "disk-allocation-metadata-fixture";
+        var groups = data.Observations.GroupBy(row => row.Identity, StringComparer.Ordinal).ToArray();
+        if (groups.Length != 3 || data.Observations.Any(row => row.ReportedAllocationBytes is < 0) ||
+            groups.Any(group => group.Select(row => row.ReportedAllocationBytes).Distinct().Count() != 1))
+        {
+            report.Fail(check, "Reported allocation metadata contradicted the actual owned identity groups or aliases. No allocation values, identities or paths are exported.");
+            return;
+        }
+        int known = groups.Count(group => group.First().ReportedAllocationBytes.HasValue);
+        int unknown = groups.Length - known;
+        CheckState expected = known == 0 ? CheckState.Unknown
+            : unknown != 0 || sourceState == CheckState.Partial ? CheckState.Partial : CheckState.Available;
+        if (data.AllocationKnownIdentities != known || data.AllocationUnknownIdentities != unknown || data.AllocationState != expected)
+        {
+            report.Fail(check, "Reported allocation coverage did not match actual distinct observed identities. No allocation values or source identifiers are exported.");
+            return;
+        }
+        if (unknown != 0)
+        {
+            report.Unknown(check, $"allocationState={data.AllocationState}; observedIdentityGroups=3; knownAllocationGroups={known}; unknownAllocationGroups={unknown}. Some existing production allocation observations remained unavailable; logical accounting stays separate. No physical, all-stream or reclaimable-size conclusion is made.");
+            return;
+        }
+        report.Pass(check, $"allocationState={data.AllocationState}; observedIdentityGroups=3; knownAllocationGroups=3; unknownAllocationGroups=0; actualHardLinkAllocationConsistent=true; fixtureBytesUnchanged=true. The existing production probe's agreeing allocation bookends supplied nonnegative default-stream metadata for all observed fixture identities and aliases. This is data-flow/shape evidence, not an independent native allocation query or a physical-space measurement. No values, identities, paths, all-stream sum, reclaimable bytes or deletion permission are exported or inferred.");
     }
 }
