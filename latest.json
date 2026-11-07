@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "e8bc6e206a9b6fb27c8021431a7a94ec75781254",
-  "runId": "42210724453",
+  "sourceCommit": "580ce2801740080214f88e6001859d93a7841816",
+  "runId": "42336288119",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-06T11:47:04.077397+00:00",
+  "updatedUtc": "2026-11-07T04:14:29.586966+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
@@ -74,7 +74,7 @@
     },
     {
       "name": "tool-18.png",
-      "sha256": "0884ca6f9dcb678bdde3fe419a8cc8ed081bb2d8f2b424f5f3fbadac29a165a5"
+      "sha256": "731372a00a426cfb016de491dbc2c5be850b4af93a9aec263887509bec97c001"
     },
     {
       "name": "tool-20.png",
@@ -86,11 +86,11 @@
     },
     {
       "name": "tool-19.png",
-      "sha256": "f19f88dfc9f1efc322d12294b9984efb40b5acab15dcc3b767fc9f5e48ec3e4c"
+      "sha256": "4735dadabfed026424347acbf7e333e3ddcb6fd8080e5b2902c95624fe43ee89"
     },
     {
       "name": "tool-11.png",
-      "sha256": "5455da907fceef60a02ce40f3931440449bb00c326cada3faae98851d6e189c4"
+      "sha256": "9e913d896824c3a5d1045734877bb48e4170f8a814d2bc458e3abecdcfa183d9"
     },
     {
       "name": "tool-12.png",
@@ -118,11 +118,11 @@
     },
     {
       "name": "tool-25.png",
-      "sha256": "d50ebe6143dc32248ab250bc7a869e267eafdd6883e8e6d89b1bc8caece9226e"
+      "sha256": "249a3414b4dbe09d8a34f67ca0bdf8a3e64c274ea1f3a0ebf1efcc90707d7268"
     },
     {
       "name": "tool-14.png",
-      "sha256": "fab23b0de01457876532b1fdcf76178512e880f8d3000f698008bd6b86c491f8"
+      "sha256": "64691fd8463d3f0673658c4e7eac6f9d89b3f911c5aceca5395c683417420935"
     },
     {
       "name": "tool-15.png",
@@ -134,7 +134,7 @@
     },
     {
       "name": "tool-17.png",
-      "sha256": "8452605c3fd21bf8343637e7c9214473756174bc1566d77d68c1e7c1351bfd6a"
+      "sha256": "3d7624b98f001e083f24ac633c5feb3c599d59bfe707c5f9b4f7c37b647e9efe"
     }
   ]
 }
