@@ -113,7 +113,7 @@ jobs:
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'
         run: python tools/ci_command.py update-discovery -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --update-discovery
-      - name: Qualify the actual read-only app update controls
+      - name: Qualify actual app update and selected online catalog-metadata controls
         continue-on-error: true
         timeout-minutes: 5
         env:

@@ -654,10 +654,42 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual('inconclusive', next(check for check in published['checks'] if check['name'] == 'ui-hardware-inventory-interaction')['state'])
 
     def test_standard_report_versions_are_closed_and_strictly_integer(self):
-        for value in (0, 7, True, '6', 6.0, None):
+        for value in (0, 8, True, '7', 7.0, None):
             with self.subTest(version=value):
                 self.report['formatVersion'] = value
                 self.save(); self.rejected()
+
+    def test_v7_requires_metadata_workflow_separately_from_discovery(self):
+        self.report['formatVersion'] = 7
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction', 'ui-hardware-inventory-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.save(); self.rejected()
+
+    def test_v7_accepts_metadata_proof_and_preserves_v6_scope(self):
+        self.report['formatVersion'] = 7
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction', 'ui-hardware-inventory-interaction', 'app-package-metadata-public-ui-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY separate workflow proof'})
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertTrue(summary['passed'])
+        self.assertEqual(7, json.loads(files['report.json'])['formatVersion'])
+        self.report['formatVersion'] = 6
+        self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'app-package-metadata-public-ui-contract']
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
+    def test_v7_unknown_metadata_cannot_be_promoted_by_discovery_success(self):
+        self.report['formatVersion'] = 7
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract', 'app-update-public-ui-contract', 'ui-sfc-preview-interaction', 'ui-hardware-inventory-interaction'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier workflow proof'})
+        self.report['checks'].append({'name': 'app-package-metadata-public-ui-contract', 'state': 'inconclusive', 'detail': 'TEST-ONLY no current Available offer or accepted metadata'})
+        self.save(); self.rejected()
+        self.report.update(passed=False, state='inconclusive')
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertFalse(summary['passed'])
+        self.assertEqual('inconclusive', next(check for check in json.loads(files['report.json'])['checks'] if check['name'] == 'app-package-metadata-public-ui-contract')['state'])
 
     def test_passed_report_requires_same_query_winget_observation(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'winget-query-observation-contract']
