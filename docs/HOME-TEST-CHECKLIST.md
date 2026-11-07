@@ -25,6 +25,10 @@ Optional read-only startup review: in **Startup recovery previews**, choose **Re
 2. Refresh should return to the original requested scope, clear old selection and optional identity totals, and show a new attempt/receipt. Try Cancel and retry. Logical bytes are not physical allocation or bytes safe to delete.
 3. Read desktop installed apps and Windows packages separately. Search, select details and Clear. Searching should change only the displayed list, without a new inventory or combined-source count. Do not launch uninstallers or infer an app disappeared merely because a filter hides it.
 
+## Leftover-review boundaries
+
+You do not need to uninstall anything for this first test. With no complete baseline or no disappeared registration, the review should show no eligible candidate and leave the folder-preview command unavailable. If a legitimate in-session candidate is already available, preview only metadata: check the selected root and each request stage, change selection/reread, and ensure old results never appear for another candidate. Any excluded/shared/user-data path must remain a warning or Unknown, never proven junk. Do not remove leftovers or uninstall software to manufacture a test case.
+
 ## Diagnostics and hardware
 
 1. In **Windows Diagnostics**, read event evidence, change the 1/7/30-day interval, toggle repeated observations and select source/finding details. Changing a range should invalidate old current results. Event counts are not unique-crash counts or a health score.

@@ -543,7 +543,7 @@
                             <StackPanel Grid.Row="2" Margin="0,12,0,0">
                                 <TextBox Text="{Binding SelectedLeftoverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
                                 <TextBlock Text="Selected-folder metadata preview" FontSize="19" Margin="0,18,0,5"/>
-                                <TextBlock Text="{Binding LeftoverContentAttempt, StringFormat='Last attempt: {0}'}" FontSize="12"/>
+                                <TextBlock Text="{Binding LeftoverContentQueryDetails}" Style="{StaticResource Caption}" FontSize="12" AutomationProperties.Name="Leftover metadata request stages and source coverage"/>
                                 <TextBlock Text="{Binding LeftoverContentMessage}" Style="{StaticResource Caption}"/>
                                 <TextBox Text="{Binding LeftoverContentScope, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
                                 <DataGrid ItemsSource="{Binding LeftoverContentRows}" SelectedItem="{Binding SelectedLeftoverContent, Mode=TwoWay}" Height="235" Margin="0,10,0,10" AutomationProperties.Name="Selected former install-folder metadata observations">

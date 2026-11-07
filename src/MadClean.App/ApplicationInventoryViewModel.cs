@@ -37,11 +37,20 @@ public sealed partial class MainViewModel
         $"{selectedApplication.Name} · {selectedApplication.Version} · publisher: {selectedApplication.Publisher}\nSource: {selectedApplication.Source}\nRegistration: {selectedApplication.Identity}\nInstall location: {selectedApplication.InstallLocation ?? "Unknown/unsupported"}\n{selectedApplication.UninstallSupport}. No registered uninstall command is collected. A separately prepared and confirmed MSI request uses the fixed Windows Installer flow; removal restrictions remain visible.";
     public LeftoverCandidate? SelectedLeftoverCandidate
     {
-        get => selectedLeftover;
-        set { if (ReferenceEquals(selectedLeftover, value)) return; Set(ref selectedLeftover, value); InvalidateLeftoverContents(); PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverDetails))); }
+        get => selectedLeftover is { } candidate && LeftoverCandidates.Any(row => ReferenceEquals(row, candidate)) ? candidate : null;
+        set
+        {
+            if (value != null && !LeftoverCandidates.Any(row => ReferenceEquals(row, value)))
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverCandidate))); return; }
+            if (ReferenceEquals(selectedLeftover, value)) return;
+            selectedLeftover = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverCandidate)));
+            InvalidateLeftoverContents();
+            PropertyChanged?.Invoke(this, new(nameof(SelectedLeftoverDetails)));
+        }
     }
-    public string SelectedLeftoverDetails => selectedLeftover == null ? "Select a candidate to inspect the evidence and cautions. No path here is authorized for deletion." :
-        selectedLeftover.Path + "\n" + selectedLeftover.Evidence + "\n" + selectedLeftover.Caution;
+    public string SelectedLeftoverDetails => SelectedLeftoverCandidate is not { } candidate ? "Select a candidate to inspect the evidence and cautions. No path here is authorized for deletion." :
+        candidate.Path + "\n" + candidate.Evidence + "\n" + candidate.Caution;
     public ICommand ViewLeftoverReviewCommand { get; private set; } = null!;
     public ICommand RefreshInstalledApplicationsCommand { get; private set; } = null!;
     public ICommand CaptureApplicationBaselineCommand { get; private set; } = null!;
