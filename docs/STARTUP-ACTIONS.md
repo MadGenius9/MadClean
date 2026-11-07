@@ -6,6 +6,18 @@ Both `DisableAsync` and `RestoreAsync` are **unconditionally unavailable**, incl
 
 A registration is only one startup source. Its presence does not prove enabled execution; its absence would not prove an application globally disabled, uninstalled or stopped. Policy and other processes can recreate entries. `RunOnce` normally removes its registration before executing; the documented `!` prefix changes deletion timing. Restoring such work could replay it. There is no invented `NoRemove` equivalent or ownership inference for these keys.
 
+## Current selection and preview evidence
+
+Covered registrations and existing recovery records retain separate request/response provenance and source coverage. Refreshing or failing one source clears its old rows/selection and any shared preview; the other inventory remains separate. A Partial inventory is never promoted to complete coverage by a successful selected metadata read.
+
+Only an exact reference from the current appropriate collection can supply a selection or preview request. The App checks that selection again when its read returns. The portable `StartupPreviewEvidence.IsConsistent` helper validates an Available singleton response, exact source/value-name match, UTC attempt/observation/receipt ordering, supported registry type, bounded even byte count, opaque preview-token format and bounded descriptive metadata. Nonpositive, mismatched, malformed or interrupted results cannot retain a previous successful-looking preview.
+
+These are consistency checks on already-returned data, not authentication of a fabricated caller object, registry object/namespace binding, transaction isolation, ownership or action permission. The token is not shown, logged or accepted as an execution capability. An old observation may remain historical metadata; this display check does not invent an execution-expiry guarantee or make it current registry state. No private command, backup identifier, payload, path or command fingerprint is added to the UI/activity log.
+
+Both registration-removal and recovery previews describe hypothetical future effects only. Structural recovery metadata cannot establish who created it or that an action committed. No backup, registry write, restoration or discovered command execution follows selection or preview. Both production mutation methods remain unconditionally unavailable.
+
+Portable boundary tests and Linux compilation cover the consistency contract only. Actual Windows inventory/read/selection/refresh/cancellation rendering still requires validation; no new remote workflow runs while GitHub pushes are paused.
+
 ## Why execution remains blocked
 
 Microsoft documents TxR through `RegOpenKeyTransacted` and KTM. This is different from discouraged TxF. However, the API's options are reserved and do not expose `REG_OPTION_OPEN_LINK`. A trustworthy implementation still needs a proven way to bind the exact previously validated no-follow registry objects into a transaction, including ancestor identity and concurrent registry-link changes. `CompareObjectHandles` has not been established as suitable for this registry reopening contract. This version contains no transaction, registry-write, delete or commit primitives and makes no atomicity claim.
