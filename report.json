@@ -1,10 +1,10 @@
 {
   "formatVersion": 6,
-  "sourceCommit": "580ce2801740080214f88e6001859d93a7841816",
-  "runId": "42336288119",
+  "sourceCommit": "60b9a84aea1873ce7f075a2f8758bacce6bd4a13",
+  "runId": "42337639573",
   "runAttempt": 1,
-  "startedUtc": "2026-11-07T04:03:19.4669099+00:00",
-  "completedUtc": "2026-11-07T04:03:50.5911589+00:00",
+  "startedUtc": "2026-11-07T04:19:24.8516471+00:00",
+  "completedUtc": "2026-11-07T04:19:43.3249669+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -52,6 +52,11 @@
       "name": "ui-tool-popup",
       "state": "passed",
       "detail": "The real More tools popup opens; every generated tool item exposes its actual title through a WPF automation peer, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted."
+    },
+    {
+      "name": "ui-madclean-source-configuration",
+      "state": "passed",
+      "detail": "normalSourceButtonsInvoked=true; actualCommandAndReadOnlyDetailBindings=true; accessibleControlNamesPresent=true; explicitPinnedChoiceNotChecked=true; disabledChoiceNotConfigured=true; initialDeploymentStatusAndMessageRestored=true; reminderAndNotesRemainEmpty=true; activityUnchanged=true; busyRemainedFalse=true; noCheckOrReviewCommandInvoked=true. This qualifies managed source-choice controls only, not network/file instrumentation, release discovery, clearing a previously confirmed reminder, physical keyboard or screen-reader behavior. No deployment/source value, error text, version, screenshot, browser action or provider result was exported or substituted."
     },
     {
       "name": "ui-installed-app-search",
@@ -121,7 +126,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=59; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=65; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "ui-sfc-preview-interaction",
@@ -201,7 +206,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=13; repeatedGroupCount=3. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 7 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=16; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -271,7 +276,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=59; nameAvailable=15; descriptionAvailable=56; providerAvailable=56; installedVersionAvailable=56; driverDateAvailable=56; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=65; nameAvailable=16; descriptionAvailable=62; providerAvailable=62; installedVersionAvailable=62; driverDateAvailable=62; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -451,7 +456,7 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=53/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
