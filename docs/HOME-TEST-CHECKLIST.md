@@ -2,7 +2,7 @@
 
 This checklist covers the read-only desktop workflows on your own Windows 11 x64 PC, using your normal account. It does not require running MadClean as administrator. The full roadmap is unfinished. A hosted runner's successful check does not establish that your PC's providers, display scaling or policies behave the same way.
 
-Further GitHub pushes are paused at your request. Local development after commit `e8bc6e2` is not present in that GitHub checkout. Use the exact local source/build being reviewed when available; do not assume a previous CI artifact contains later changes. No new distribution ZIP is being prepared. Build/run instructions are in [README](../README.md#build-and-run); this checklist does not authorize installing SDKs or other software automatically.
+GitHub push authorization has resumed. Use the exact source/build being reviewed; do not assume a previous CI artifact contains later changes. A pushed commit is not proof that its Windows workflow passed. No new distribution ZIP is being prepared. Build/run instructions are in [README](../README.md#build-and-run); this checklist does not authorize installing SDKs or other software automatically.
 
 ## Start and display
 

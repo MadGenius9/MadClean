@@ -674,3 +674,8 @@ Selected leftover candidates and returned metadata rows now require exact curren
 The new pure LeftoverContentEvidence contract requires a positive singleton report for the exact normalized scope, contained distinct accepted paths, compatible attempted counters/bounds, directory/file byte shape, Unknown active use and bounded metadata. Accepted protected descendants are refused; contained excluded malformed/protected names may still appear as issues. Available cannot hide issue/truncation gaps, and Partial is never promoted. Long native descendant paths remain supported beyond the shorter recorded-root normalization limit. No filesystem probe, extra crawl, content read, uninstall or deletion was added.
 
 The complete Release solution built with zero warnings/errors, and all1,609 portable tests passed, including30 new scope/report boundary cases. Independent combined source review cleared producer compatibility and current-view behavior after preserving completed-stage history on later failure. Windows UI/native qualification of this local increment remains unverified. The home guide explicitly avoids uninstalling software to manufacture a test candidate. No push, remote workflow, ZIP or personal-PC operation occurred; action/manufacturer/runtime roadmap gates remain open.
+
+
+## GitHub push authorization resumed
+
+The user explicitly requested pushing the accumulated local work to GitHub. This supersedes the earlier push pause. The local source through08553eb has a clean Release build and1,609 portable passes as recorded above; resuming pushes adds no Windows runtime qualification, executable distribution or roadmap-completion claim. Source-matched Windows results remain required.

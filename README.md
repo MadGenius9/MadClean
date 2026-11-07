@@ -15,7 +15,7 @@ C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a m
 
 The app requests **asInvoker**, not administrator privileges. It reports inaccessible data rather than silently elevating. Disk space is available to the current user, not necessarily total free bytes under disk quotas.
 
-For the first personal Windows test, use the [home-test checklist](docs/HOME-TEST-CHECKLIST.md). It covers normal-account discovery, navigation, cancellation and display checks while leaving maintenance actions out of the test. Further GitHub pushes are currently paused; local changes after `e8bc6e2` are not included in that remote checkout.
+For the first personal Windows test, use the [home-test checklist](docs/HOME-TEST-CHECKLIST.md). It covers normal-account discovery, navigation, cancellation and display checks while leaving maintenance actions out of the test. GitHub push authorization has resumed. Use the exact source commit when reviewing build artifacts; Windows qualification of later changes still requires matching evidence.
 
 ## Build and run
 
