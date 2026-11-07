@@ -12,11 +12,15 @@ public sealed partial class MainViewModel
     public ObservableCollection<AppUpdate> AppUpdateOffers { get; } = [];
     public AppUpdate? SelectedAppUpdateOffer
     {
-        get => selectedAppUpdateOffer;
+        get => selectedAppUpdateOffer is { } offer && AppUpdateOffers.Any(row => ReferenceEquals(row, offer)) ? offer : null;
         set
         {
-            if (value != null && !AppUpdateOffers.Any(offer => ReferenceEquals(offer, value))) return;
-            Set(ref selectedAppUpdateOffer, value);
+            if (value != null && !AppUpdateOffers.Any(offer => ReferenceEquals(offer, value)))
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedAppUpdateOffer))); return; }
+            if (ReferenceEquals(selectedAppUpdateOffer, value)) return;
+            selectedAppUpdateOffer = value;
+            InvalidateAppPackageMetadata();
+            PropertyChanged?.Invoke(this, new(nameof(SelectedAppUpdateOffer)));
             PropertyChanged?.Invoke(this, new(nameof(AppUpdateOfferDetails)));
         }
     }
@@ -28,7 +32,7 @@ public sealed partial class MainViewModel
                     ? $"WinGet result received UTC: {completed:u}\nOverall source state: {appOfferSourceState}. This is matched-package coverage, not every installed application."
                     : (appOfferInterruptedUtc is { } interrupted ? $"Attempt interruption recorded UTC: {interrupted:u}\n" : "") +
                         "No completed WinGet result is established for this attempt; package coverage remains Unknown.");
-    public string AppUpdateOfferDetails => selectedAppUpdateOffer is not { } offer
+    public string AppUpdateOfferDetails => SelectedAppUpdateOffer is not { } offer
         ? "Select an actual matched package to inspect and copy its reported metadata. Empty or unchecked results do not mean applications are up to date. Source success is separate from each package's update determination."
         : $"Reported package name: {offer.Name}\nMatched package ID: {offer.Id}\nReported package source label: {Reported(offer.Source)}\n" +
             $"Reported installed version: {Reported(offer.InstalledVersion)}\nReported available version: {Reported(offer.AvailableVersion)}\n" +
@@ -41,6 +45,7 @@ public sealed partial class MainViewModel
     private static string Reported(string? value) => string.IsNullOrWhiteSpace(value) ? "Unknown (not reported)" : value;
     private void BeginAppUpdateOffersQuery(DateTimeOffset attemptedUtc)
     {
+        InvalidateAppPackageMetadata();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferAttemptUtc = attemptedUtc; appOfferResultUtc = null; appOfferInterruptedUtc = null;
         appOfferSourceState = CheckState.Unknown; appOfferQueryPending = true;
@@ -48,6 +53,7 @@ public sealed partial class MainViewModel
     }
     private void PublishAppUpdateOffersQuery(CheckResult<AppUpdate> result, DateTimeOffset receivedUtc)
     {
+        InvalidateAppPackageMetadata();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferResultUtc = receivedUtc; appOfferInterruptedUtc = null; appOfferQueryPending = false;
         appOfferSourceState = Enum.IsDefined(result.State) ? result.State : CheckState.Unknown;
@@ -57,6 +63,7 @@ public sealed partial class MainViewModel
     }
     private void InterruptAppUpdateOffersQuery(DateTimeOffset observedUtc)
     {
+        InvalidateAppPackageMetadata();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferResultUtc = null; appOfferInterruptedUtc = observedUtc; appOfferQueryPending = false;
         appOfferSourceState = CheckState.Unknown;

@@ -34,6 +34,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         CancelCommand = new ActionCommand(Cancel, () => IsBusy && !MsiUninstallDispatchReserved);
         InitializeMadCleanUpdates();
         InitializeDiscovery();
+        InitializeAppPackageMetadataReview();
         InitializeFirmwareDiscovery();
         InitializeDeviceDriverInventory();
         InitializeHardwareDiscovery();

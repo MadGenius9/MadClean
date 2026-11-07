@@ -5,7 +5,7 @@ using Microsoft.Management.Deployment;
 namespace MadClean.Windows.WinGet;
 
 /// <summary>Explicit read-only SDK query used by the App and separately qualified development harness.</summary>
-public sealed class StructuredWingetInventory : IStructuredWingetInventory
+public sealed partial class StructuredWingetInventory : IStructuredWingetInventory, IAppPackageMetadataInventory
 {
     private static readonly object Gate = new();
     private static QueryOwner? pending;
@@ -81,7 +81,7 @@ public sealed class StructuredWingetInventory : IStructuredWingetInventory
         _ => CheckState.Unknown
     };
 
-    private sealed class QueryOwner
+    private sealed partial class QueryOwner
     {
         internal readonly TaskCompletionSource<StructuredWingetObservation> Finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly List<object> Retained = [];
@@ -112,7 +112,9 @@ public sealed class StructuredWingetInventory : IStructuredWingetInventory
                 snapshot with { Outcome = outcome, HResult = error.HResult });
         }
 
-        internal StructuredWingetObservation Query()
+        // Shared source/authentication/connection controls for both read-only operations.
+        // The discovery route retains its original diagnostic updates and call ordering.
+        private PackageCatalog? ConnectInstalledCatalog()
         {
             CheckStop();
             Update(d => d with { Stage = StructuredWingetStage.Activation, Attempted = true, StartedUtc = DateTimeOffset.UtcNow });
@@ -163,9 +165,15 @@ public sealed class StructuredWingetInventory : IStructuredWingetInventory
             var connected = Keep(connectOperation.AsTask().GetAwaiter().GetResult());
             bool connectOk = connected.Status == ConnectResultStatus.Ok;
             Update(d => d with { ConnectSucceeded = connectOk });
-            if (!connectOk) return Unsuccessful("WinGet source connection did not succeed.");
+            if (!connectOk) return null;
             CheckStop();
-            var catalog = Keep(connected.PackageCatalog ?? throw new NotSupportedException("Connected catalog is absent."));
+            return Keep(connected.PackageCatalog ?? throw new NotSupportedException("Connected catalog is absent."));
+        }
+
+        internal StructuredWingetObservation Query()
+        {
+            var catalog = ConnectInstalledCatalog();
+            if (catalog == null) return Unsuccessful("WinGet source connection did not succeed.");
             var findOptions = Keep(FixedFactory.Find());
             findOptions.ResultLimit = StructuredWingetPolicy.ResultLimit;
             Update(d => d with { Stage = StructuredWingetStage.Find });
@@ -235,6 +243,7 @@ public sealed class StructuredWingetInventory : IStructuredWingetInventory
         internal static PackageManager Manager(Action<StructuredWingetStage> observeStage) =>
             Create<PackageManager>(new("C53A4F16-787E-42A4-B304-29EFFB4BF597"), observeStage);
         internal static FindPackagesOptions Find() => Create<FindPackagesOptions>(new("572DED96-9C60-4526-8F92-EE7D91D38C1A"));
+        internal static PackageMatchFilter MatchFilter() => Create<PackageMatchFilter>(new("D02C9DAF-99DC-429C-B503-4E504E4AB000"));
         internal static CreateCompositePackageCatalogOptions Composite() => Create<CreateCompositePackageCatalogOptions>(new("526534B8-7E46-47C8-8416-B1685C327D37"));
         internal static AuthenticationArguments Authentication() => Create<AuthenticationArguments>(new("BA580786-BDE3-4F6C-B8F3-44698AC8711A"));
         private static T Create<T>(Guid classId, Action<StructuredWingetStage>? observeStage = null)

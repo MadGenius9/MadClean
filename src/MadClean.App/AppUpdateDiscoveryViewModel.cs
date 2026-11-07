@@ -22,9 +22,9 @@ public sealed partial class MainViewModel
     public string AppUpdateUnknownCount { get => appUpdateUnknownCount; private set => Set(ref appUpdateUnknownCount, value); }
     public string AppUpdateCatalogCount { get => appUpdateCatalogCount; private set => Set(ref appUpdateCatalogCount, value); }
     public string AppUpdateCheckedUtc { get => appUpdateCheckedUtc; private set => Set(ref appUpdateCheckedUtc, value); }
-    public string AppUpdateOwnershipStatus => appUpdateCallActive ? "Checking app updates…"
-        : appUpdateDiscovery.HasPendingNativeRead ? "WinGet is still finishing its query. Cancel does not stop the shared provider."
-        : "No app-update query is pending.";
+    public string AppUpdateOwnershipStatus => appUpdateCallActive ? "WinGet operation in progress…"
+        : appUpdateDiscovery.HasPendingNativeRead ? "WinGet is still finishing discovery or package-metadata work. Cancel does not stop the shared provider."
+        : "No WinGet discovery or package-metadata operation is pending.";
 
     private void BeginStructuredAppUpdateCheck()
     {
@@ -75,18 +75,18 @@ public sealed partial class MainViewModel
     {
         if (HasPendingAppUpdateDiscovery)
         {
-            Status = "Waiting for the owned WinGet query to finish. No process or service will be killed.";
+            Status = "Waiting for the owned WinGet discovery or metadata operation to finish. No process or service will be killed.";
             NotifyAppUpdateOwnership();
             while (HasPendingAppUpdateDiscovery) await Task.Delay(100);
             // Preserve the original timeout/cancellation result after ownership settles.
-            Status = "App-update query ownership settled. Review the recorded result; no earlier timeout was promoted to success.";
+            Status = "WinGet operation ownership settled. Review the recorded result; no earlier timeout was promoted to success.";
         }
         NotifyAppUpdateOwnership();
     }
 
     public void ExplainAppUpdateCloseBlock()
     {
-        Status = "The app-update query is still owned by MadClean. Use Cancel to stop waiting, then wait for the actual WinGet call to return before closing.";
+        Status = "WinGet discovery or package-metadata work is still owned by MadClean. Use Cancel to stop waiting, then wait for the actual WinGet call to return before closing.";
         NotifyAppUpdateOwnership();
     }
 

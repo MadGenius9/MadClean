@@ -8,6 +8,8 @@ Official Microsoft documentation was checked before implementation, using Micros
 
 ## WinGet
 
+The production App uses the separately qualified structured SDK discovery route described near the end of this document. The CLI contract below remains separate legacy diagnostic evidence; it is not a silent fallback. The new explicit [selected catalog metadata reader](APP-PACKAGE-METADATA.md) shares the SDK owner, source/authentication/agreement controls and caller/native lifetime boundaries. It revalidates one exact offered version before reading four bounded contract-6 manifest fields. It never calls installed `GetMetadata`, reads uninstall commands, opens metadata URLs or requests installation. Its Windows runtime remains unverified independently of the previously qualified discovery path.
+
 - [list command](https://learn.microsoft.com/windows/package-manager/winget/list) — [consulted source](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/package-manager/winget/list.md)
 - [upgrade command](https://learn.microsoft.com/windows/package-manager/winget/upgrade) — [consulted source](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/package-manager/winget/upgrade.md)
 - [export command / JSON schema](https://learn.microsoft.com/windows/package-manager/winget/export) — [consulted source](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/package-manager/winget/export.md)

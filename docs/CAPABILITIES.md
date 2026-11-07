@@ -20,6 +20,8 @@ The phase-one read-only foundation is implemented and preserved; the full roadma
 
 This queue is also visible in the app. It records capability scope and review conditions, not a schedule or implemented action. No external issue, reminder, scheduled task or client-PC action was created.
 
+Apps now include an explicit [selected catalog metadata review](APP-PACKAGE-METADATA.md): fresh exact-ID/source/installed-and-offered-version matching, four independently bounded manifest text fields and separate failure/ownership handling. Native Windows metadata retrieval is still unverified; this is no installation or compatibility capability. The Release build and 1,669 portable tests passed, with independent source review.
+
 F2a now adds a read-only [retained-copy/candidate snapshot worksheet](DUPLICATE-PAIR-REVIEW.md), with both choices explicit and no removal implementation. Typed comparison/link/time evidence and exact current snapshot membership gate the preview; it cannot verify current files, protect a keeper or authorize an action. The [current execution ledger](ROADMAP-STATUS.md) is authoritative for source-specific runtime results and remaining gates; historical rows above are not new validation claims.
 
 Shortcut review now also offers an explicit [single-shortcut recheck](SHORTCUT-RECHECK.md). It preserves the old folder snapshot, reads only the selected path through the guarded shared worker, and displays historical/current evidence separately. A newly existing target makes the old missing observation historical; unavailable/network/offline contexts remain unverified. No object-continuity, obsolescence, removal or complete-folder-baseline claim is introduced.
