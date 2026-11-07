@@ -389,6 +389,7 @@ internal static partial class UiCapture
                 report.Pass("ui-tool-popup", "The real More tools popup opens; every generated tool item exposes its actual title through a WPF automation peer, and programmatic page changes synchronize both selectors. Physical keyboard and screen-reader interaction are not asserted.");
                 // All captures and unchecked/navigation assertions are complete. This separate
                 // explicit CI metadata workflow must not produce any later screenshots.
+                await CheckMadCleanReleaseSourceConfiguration(window, model, report);
                 await CheckInstalledAppSearch(window, model, report);
                 await CheckPackagedAppSearch(window, model, report);
                 if (!report.Failed && !model.IsBusy && !model.HasPendingPackagedSettingsWork)

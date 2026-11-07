@@ -43,3 +43,10 @@ The known public Microsoft 365 documentation repository now redirects/moves Defe
 Require independent review of command/module provenance, exact selection and policy effects, rejected permissions, cancellation/observation wording, output bounds and secret-free activity records. Any actual candidate validation must be a separate explicit disposable-Windows stage, limited to its fresh benign owned custom-scan target. It must not enable Defender, change preferences, submit test malware, install dependencies, run ordinary scans during inventory or touch a personal PC.
 
 Provider unavailability, passive mode, missing coverage, unrecognized output and unavailable engine attribution remain genuine outcomes. Do not label them up to date, clean or scan complete merely to produce a passing report.
+
+
+## Fresh official-source recheck
+
+At2026-11-07T04:07:28Z the current official Windows PowerShell sources again returned HTTP200: Start-MpScan3,779bytes/SHA2567650f3eea372bf3964480c533f1987e098e4ff7b5ec4ebc00a519b013c7fcea4; Get-MpComputerStatus4,725bytes/SHA2565259368078fdf4bda92c996aef0a15c4fb0dbb303a676456d38ec6a5adc45d10; Get-MpThreatDetection8,262bytes/SHA25660c87f2e72fdf44dd6e334d7d0d9ba6cf3ab828f0ce822fe699af3bc08286077. These references still establish local custom-scan requests and active/past history, not a per-request no-remediation option, engine-owned cancellation/result identity or a full permission/terminal contract.
+
+Current official MpCmdRun article candidates in defender-docs and legacy microsoft-365-docs returned404/14-byte error responses; the published Learn request failed proxy CONNECT403 with no document bytes. No remembered DisableRemediation/cancellation/executable/permission semantics were substituted. Access failure does not prove API unavailability. No scan, Defender setting, malware fixture, native operation or CI dispatch was performed by the research.

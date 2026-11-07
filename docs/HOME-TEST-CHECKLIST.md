@@ -45,7 +45,7 @@ In Updates → **BIOS / Firmware**, choose **Read BIOS / PC identity**. Check th
 
 1. Choose the update check yourself. Review Apps, Drivers and BIOS/Firmware separately. Available, Partial, Unknown, Unsupported, Unavailable and Failed must remain distinct. Unchecked/unmapped software must never be marked up to date.
 2. Try cancellation. Optionally retry while offline using your usual network controls; restore connectivity afterward. Offline or private-source access must yield honest uncertainty, without credentials being requested or embedded by MadClean.
-3. **MadClean updates** must say **Update checking not configured** when no trusted release source is configured. There should be no automatic download, installation, restart or external scheduled reminder.
+3. **MadClean updates** must say **Update checking not configured** when no trusted release source is configured. Choose **Use trusted GitHub source for this session**: status should become **Not checked**, with no automatic query. Try **Disable for this session** and **Use deployment setting**; comparisons/notes/reminders should reset on a changed choice, and the original loaded configuration/error should return. Only **Check MadClean updates** should query. A private source or no published release may legitimately be Unavailable. There should be no automatic download, installation, restart or external scheduled reminder.
 
 ## Keep the first test observational
 

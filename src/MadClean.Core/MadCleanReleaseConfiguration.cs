@@ -41,6 +41,12 @@ public sealed class MadCleanReleaseReminder
 {
     public MadCleanReleaseResult? Release { get; private set; }
     public DateTimeOffset? ConfirmedAt { get; private set; }
+    // Explicit source-choice changes clear the previous context; failed checks still retain it.
+    public void Clear()
+    {
+        Release = null;
+        ConfirmedAt = null;
+    }
     public void Apply(MadCleanReleaseResult result, DateTimeOffset now)
     {
         if (result.State == MadCleanReleaseState.NewerRelease && result.ReviewUri != null &&

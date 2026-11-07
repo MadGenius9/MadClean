@@ -425,6 +425,13 @@
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="16">
                                 <StackPanel>
                                     <TextBlock Text="MadClean updates" FontSize="19" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding MadCleanSourceSummary}" Style="{StaticResource Caption}" Margin="0,8,0,6" AutomationProperties.Name="MadClean release source choice"/>
+                                    <TextBox Text="{Binding MadCleanSourceDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="155" MinHeight="85" Background="#10141D" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,0,0,8" AutomationProperties.Name="Trusted release source, deployment setting and session limits"/>
+                                    <WrapPanel Margin="0,0,0,10">
+                                        <Button Content="Use trusted GitHub source for this session" Command="{Binding MadCleanUseOfficialSourceCommand}" AutomationProperties.Name="Use the trusted MadClean GitHub release source for this session without checking"/>
+                                        <Button Content="Disable for this session" Command="{Binding MadCleanDisableSourceCommand}" Background="#244159" AutomationProperties.Name="Disable MadClean release checking for this session and clear release observations"/>
+                                        <Button Content="Use deployment setting" Command="{Binding MadCleanUseDeploymentSourceCommand}" Background="#244159" AutomationProperties.Name="Restore the MadClean release deployment setting loaded at launch without checking"/>
+                                    </WrapPanel>
                                     <TextBlock Text="{Binding MadCleanInstalledVersion, StringFormat='Installed version: {0}'}" Style="{StaticResource Caption}" Margin="0,5,0,4"/>
                                     <TextBlock Text="{Binding MadCleanUpdateStatus}" FontSize="16" Foreground="#98D9FF"/>
                                     <TextBlock Text="{Binding MadCleanUpdateMessage}" Style="{StaticResource Caption}" Margin="0,5,0,8"/>

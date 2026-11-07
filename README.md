@@ -122,7 +122,9 @@ The desktop registrations page also prepares an exact **selected MSI request** p
 
 The **MadClean updates** page and Overview status show **“Update checking not configured”** in the default build. No release source is enabled or contacted automatically. The existing Check updates action continues to cover installed apps and Windows/driver offers; **Check MadClean updates** is a separate explicit action, with progress and cancellation.
 
-To opt in after a trustworthy release channel exists, create `madclean-updates.json` **beside MadClean.exe** with exactly:
+For a session-only choice, use **Use trusted GitHub source for this session** on the MadClean updates page. It enables only the pinned `MadGenius9/MadClean` source and changes the status to **Not checked**. You must then choose **Check MadClean updates** yourself. Configuring a source does not create a release or establish that anonymous access works. **Disable for this session** clears that session's release result, notes and reminder; **Use deployment setting** restores the setting loaded at launch. These controls send no request, write no settings and cannot install anything. Restart restores the deployment setting. An invalid deployment setting remains visible even when you explicitly choose a session override.
+
+For an optional deployment default, create `madclean-updates.json` **beside MadClean.exe** with exactly:
 
 ```json
 {"repository":"MadGenius9/MadClean"}
