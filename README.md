@@ -8,6 +8,8 @@ Drivers also offers a [selected-offer prerequisite worksheet](docs/DRIVER-UPDATE
 
 Hardware planning can also [attach the existing detected inventory](docs/HARDWARE-UPGRADE-CONTEXT.md) for the chosen upgrade area. Reported observations remain separate from unverified manufacturer limits; no new query or recommendation is made.
 
+Update Center also includes an explicit [local Windows Update history read](docs/WINDOWS-UPDATE-HISTORY-RESEARCH.md). It shows at most 128 recorded events with per-field uncertainty; history does not establish current installation, available updates or MadClean ownership. Current-source Windows runtime validation is still required.
+
 ## Stack and architecture
 
 C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. The UI uses the Windows desktop framework. The Apps update check uses Microsoft’s pinned Windows Package Manager projection through an isolated read-only adapter. Its backend, actual App controls and owned published-App query passed scoped disposable-Windows qualification; Partial and Unknown results remain visible. This does not establish complete software coverage or physical Windows 11 certification.

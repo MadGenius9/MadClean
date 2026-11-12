@@ -44,6 +44,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeOverview();
         InitializeAdditionalDiscovery();
         InitializeDefenderLifecycle();
+        InitializeWindowsUpdateHistory();
         InitializeGuidedWindowsTools();
         InitializeSystemTools();
         InitializeComponentStoreStatus();

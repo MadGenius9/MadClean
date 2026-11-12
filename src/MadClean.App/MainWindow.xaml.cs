@@ -18,6 +18,12 @@ public partial class MainWindow : Window
                 model.ExplainRepairReviewCloseBlock();
                 return;
             }
+            if (model.HasPendingWindowsUpdateHistoryRead)
+            {
+                args.Cancel = true;
+                model.ExplainWindowsUpdateHistoryCloseBlock();
+                return;
+            }
             if (model.HasPendingDefenderLifecycleRead)
             {
                 args.Cancel = true;

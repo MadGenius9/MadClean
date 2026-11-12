@@ -339,6 +339,9 @@
                             <TabItem Header="Drivers">
                                 <views:DriverOffersView/>
                             </TabItem>
+                            <TabItem Header="Windows history">
+                                <views:WindowsUpdateHistoryView/>
+                            </TabItem>
                             <TabItem Header="BIOS / Firmware">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>

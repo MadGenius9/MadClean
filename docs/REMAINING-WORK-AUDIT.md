@@ -1,5 +1,7 @@
 # Remaining work audit — 2026-11-12
 
+Current source/critical-path assessment: [END-TO-END-COMPLETION-ASSESSMENT.md](END-TO-END-COMPLETION-ASSESSMENT.md). The explicit bounded local WUA history slice is implemented and independently reviewed; Release solution build zero warnings/errors, Core 2,284 passed/one Windows-only skipped, Python 297 passed/one skipped. History Windows runtime remains unverified; no installation or native journal gate was activated. [The current-build VM plan](CURRENT-BUILD-VM-VALIDATION-PLAN.md) is prepare-only UI scope, not execution permission or provider qualification.
+
 The shared descriptor-reader error-path correction passed independent source review and final local validation: Release zero warnings/errors, Core 2,235 passed/one Windows-only skipped, Python 297 passed/one skipped. Successful strict ACL validation is unchanged; actual Windows failure outputs/cleanup were not executed. The earlier `81386d7` source backup stays unchanged for separately coordinated export; this follow-up is a later local checkpoint.
 
 Directory/OpenIf numeric inputs and basic disposition semantics have now been retrieved; they are no longer a missing-header blocker. The narrower supported directory/reparse confinement profile remains unresolved ([exact references and limits](JOURNAL-DIRECTORY-CONTRACT.md)). No directory call was added from guessed options. The shared descriptor-reader correction independently removes an assumed free of failed-call outputs without changing strict ACL acceptance or adding permissions; its actual Windows failure paths remain unverified.
@@ -55,7 +57,7 @@ On2026-11-12 the following exact public Microsoft URLs were requested once with 
 
 The older directory control and GetSecurityInfo/CreateDirectory/FlushFileBuffers references cannot fill these regular-file facts. At864b1f7, coordinated official retrieval was the smallest useful next source-work unblock. The coordinator subsequently supplied these contracts and SDK definitions, including the exact marker sentinel; see the resolution below and current candidate contract for qualification/production-parent work. Any Nt API compatibility limitation must remain explicit; an experiment is not a generally supported production fallback.
 
-Other exact unresolved WUA questions are in WUA-INSTALLATION-CONTRACT.md; separate QueryHistory/count/date URLs are in WINDOWS-UPDATE-HISTORY-RESEARCH.md. Current official OEM references and the missing specification claims are tracked in HARDWARE-SOURCES.md. These are separate from Windows test access.
+Other exact unresolved WUA questions are in WUA-INSTALLATION-CONTRACT.md; the separate QueryHistory/count/date questions are now resolved by coordinated official retrieval and implemented under WINDOWS-UPDATE-HISTORY-RESEARCH.md. Current official OEM references and the missing specification claims are tracked in HARDWARE-SOURCES.md. These are separate from Windows test access.
 
 ## Original audit validation and limits
 

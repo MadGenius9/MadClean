@@ -1,0 +1,24 @@
+<UserControl x:Class="MadClean.App.Views.WindowsUpdateHistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,8,0,0">
+            <TextBlock Text="Recorded Windows Update history" FontSize="20"/>
+            <TextBlock Text="Review local historical attempts separately from available Apps, Drivers and BIOS/Firmware updates. This does not search for updates or change Windows." Style="{StaticResource Caption}"/>
+            <Button Content="Read local update history" Command="{Binding ReadWindowsUpdateHistoryCommand}" HorizontalAlignment="Left" Margin="0,8" AutomationProperties.Name="Read bounded local Windows Update history"/>
+            <TextBlock Text="{Binding WindowsUpdateHistoryMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Local Windows Update history status" AutomationProperties.LiveSetting="Polite"/>
+            <TextBox Text="{Binding WindowsUpdateHistoryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,8" AutomationProperties.Name="Windows Update history source, times and coverage"/>
+            <DataGrid ItemsSource="{Binding WindowsUpdateHistoryRows}" SelectedItem="{Binding SelectedWindowsUpdateHistory, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" Height="260" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Recorded Windows Update attempts">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding Record}" Width="40"/>
+                    <DataGridTextColumn Header="Recorded time UTC" Binding="{Binding RecordedUtc}" Width="2*"/>
+                    <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="3*"/>
+                    <DataGridTextColumn Header="Recorded operation" Binding="{Binding Operation}" Width="2*"/>
+                    <DataGridTextColumn Header="Historical result" Binding="{Binding RecordedResult}" Width="2*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBox Text="{Binding WindowsUpdateHistoryEntryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="120" MaxHeight="300" VerticalScrollBarVisibility="Auto" Margin="0,10" AutomationProperties.Name="Selected update history metadata and limitations"/>
+            <TextBlock Text="Windows Update Agent supplies recorded outcomes, not current installation evidence. Missing or unreadable fields remain Unknown or Failed to read. A recorded success never means Up to date; repeated update identities remain separate attempts." Style="{StaticResource Caption}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
