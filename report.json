@@ -1,10 +1,10 @@
 {
   "formatVersion": 7,
-  "sourceCommit": "f8d3a35a0a5d3d0b899c648b27fb31ca7d68ef8c",
-  "runId": "43314147773",
+  "sourceCommit": "05c01daffe399f551ecbeb83b62fb5b232074214",
+  "runId": "43318621259",
   "runAttempt": 1,
-  "startedUtc": "2026-11-12T21:55:11.4205528+00:00",
-  "completedUtc": "2026-11-12T21:55:37.9323262+00:00",
+  "startedUtc": "2026-11-12T22:24:15.6579996+00:00",
+  "completedUtc": "2026-11-12T22:24:41.4517779+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -471,7 +471,7 @@
     {
       "name": "update-discovery-provider-contract",
       "state": "inconclusive",
-      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=3/software=3/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
+      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=4/software=4/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
     },
     {
       "name": "winget-query-observation-contract",
@@ -486,7 +486,7 @@
     {
       "name": "wua-offer-metadata-contract",
       "state": "passed",
-      "detail": "WUA source=Available; accepted=True; availableRows=3; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
+      "detail": "WUA source=Available; accepted=True; availableRows=4; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
     },
     {
       "name": "app-update-public-ui-contract",
