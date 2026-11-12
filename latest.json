@@ -1,13 +1,34 @@
 {
   "formatVersion": 1,
   "sourceRef": "refs/heads/recovery/validated-20261112",
-  "sourceCommit": "2d51aba230c02505335d98e623235380b815d291",
-  "runId": "43295261530",
+  "sourceCommit": "221bd3ed24890871ca8b12d33220111b4f53e7dc",
+  "runId": "43297534847",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
+  "scopedObservationArtifactOutcome": "success",
+  "scopedObservations": {
+    "localRepairReview": {
+      "present": true,
+      "reportedState": "failed",
+      "originalReportSha256": "14b8419bfe49b3b84742d6a6fa23536ab4684d50cda014f155eadcaf383d1807",
+      "error": null
+    },
+    "localUpdateHistory": {
+      "present": true,
+      "reportedState": "passed",
+      "originalReportSha256": "37555ac9fdd8d22a305347964d401483b97a1527770be051b0bffb3773b60bab",
+      "error": null
+    },
+    "sdkJournalReference": {
+      "present": true,
+      "reportedState": "reference-only",
+      "originalReportSha256": "4d51c6533fc6a86201364a8dcca3f0d2c265c3b0c0f06fdae24b487854eed459",
+      "error": null
+    }
+  },
   "passed": false,
-  "updatedUtc": "2026-11-12T20:01:19.465986+00:00",
+  "updatedUtc": "2026-11-12T20:14:30.496697+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": false,
   "coreTestsPresent": true,
