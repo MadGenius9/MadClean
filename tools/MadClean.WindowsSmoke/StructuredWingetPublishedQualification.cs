@@ -259,7 +259,7 @@ internal static class StructuredWingetPublishedQualification
             repository != Path.GetFullPath(repository) || repository != Path.GetFullPath(Environment.CurrentDirectory) || repository.StartsWith(@"\\", StringComparison.Ordinal) ||
             Environment.GetEnvironmentVariable("MADCLEAN_WINDOWS_VALIDATION") != "1" || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
             Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "MadGenius9/MadClean" ||
-            Environment.GetEnvironmentVariable("GITHUB_REF") != "refs/heads/feat/phase-one-foundation" ||
+            !ReadOnlyWingetQualificationSource.IsAllowedRef(Environment.GetEnvironmentVariable("GITHUB_REF")) ||
             Environment.GetEnvironmentVariable("GITHUB_JOB") != "windows-verification") throw new InvalidDataException();
         string source = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "", attempt = Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") ?? "";
         if (source.Length != 40 || source.Any(c => c is not (>= 'a' and <= 'f' or >= '0' and <= '9')) ||

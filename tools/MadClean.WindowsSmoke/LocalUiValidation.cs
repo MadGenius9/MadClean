@@ -166,13 +166,23 @@ internal static class LocalUiValidation
                     { initial = window == null ? null : false; throw new InvalidOperationException(); }
                     initial = Neutral(owner);
                     if (initial != true) throw new InvalidOperationException();
-                    window.WindowState = WindowState.Normal;
-                    window.Width = 1200; window.Height = 900;
-                    await Idle(window);
-                    wide = Layout(window, 1200, 900, repairReview, out wideLayout);
-                    window.Width = window.MinWidth; window.Height = window.MinHeight;
-                    await Idle(window);
-                    compact = Layout(window, window.MinWidth, window.MinHeight, repairReview, out compactLayout);
+                    {
+                        // Repair-review observations may need this same own-HWND
+                        // tracking correction used by the separate UI capture on a
+                        // small hosted desktop. Never change the display or substitute
+                        // requested dimensions for the actual layout assertions.
+                        // The legacy neutral mode does not acquire this helper.
+                        using var sizing = repairReview ? new OwnWindowSizing(window) : null;
+                        window.WindowState = WindowState.Normal;
+                        window.Width = 1200; window.Height = 900;
+                        if (sizing != null) sizing.TryResize(1200, 900, out _);
+                        await Idle(window);
+                        wide = Layout(window, 1200, 900, repairReview, out wideLayout);
+                        window.Width = window.MinWidth; window.Height = window.MinHeight;
+                        if (sizing != null) sizing.TryResize(window.MinWidth, window.MinHeight, out _);
+                        await Idle(window);
+                        compact = Layout(window, window.MinWidth, window.MinHeight, repairReview, out compactLayout);
+                    } // Release the UI-thread hook before navigation and normal Finish.
                     navigation = await Navigate(window, owner);
                     if (repairObservation != null && navigation == true)
                         await repairObservation.ObserveAsync(window, owner);

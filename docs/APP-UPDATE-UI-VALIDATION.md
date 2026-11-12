@@ -1,6 +1,6 @@
 # Actual application update-discovery workflow
 
-The separate `--app-update-ui-validation` development mode qualifies MadClean's real Check updates control after adopting the structured WinGet provider. It requires the exact disposable GitHub-hosted Windows x64 job, repository, feature branch, source/run/attempt and validation environment. The ordinary passive harness only reads its completed report; that read cannot start a provider query.
+The separate `--app-update-ui-validation` development mode qualifies MadClean's real Check updates control after adopting the structured WinGet provider. It requires the exact disposable GitHub-hosted Windows x64 job, repository, exact authorized feature or recovery ref, source/run/attempt and validation environment. The ordinary passive harness only reads its completed report; that read cannot start a provider query.
 
 The helper starts the actual WPF App and MainWindow on an owned foreground STA. It checks the neutral model, selects the actual Updates navigation item, locates the real toolbar button and verifies its UpdatesCommand binding. Its automation peer invokes that control. No fake provider, injected result, modified collection or direct SDK call substitutes for the application workflow.
 
@@ -28,3 +28,7 @@ This workflow requires its own source-matched Windows result. SDK-only developme
 ## Observed qualification
 
 Source `b670db51`, immutable evidence `d257f165b9a02b5b3a66c19eb09e741c0b015cb3`, [run 41784447861](https://github.com/MadGenius9/MadClean/actions/runs/41784447861): the actual command, fresh Partial result, rendered counts, settled ownership and closed App window passed. There were 68 catalog rows, 19 Available and 49 Unknown. No package identities, raw provider output or loaded-data screenshots were exported. This qualifies the observed disposable-runner workflow, not every platform/policy, cancellation timing, complete software coverage or a physical-input accessibility audit.
+
+## Recovery-source qualification
+
+After the user's 2026-11-12 authorization for pushes and standard Windows Actions, the existing read-only app-discovery/selected-metadata mode and its passive reader admit exactly `refs/heads/feat/phase-one-foundation` and `refs/heads/recovery/validated-20261112`. Main, PR/tag refs and near matches remain refused. The shared source-ref predicate is limited to this mode and the read-only published SDK harness below; it is a development fence, not authentication or production action permission. Existing repository/job/OS/source/run/attempt, ownership, schema and download/provenance checks remain unchanged. No installation, agreement acceptance, elevation, restart, MSI, DISM, SFC or journal guard is enabled. The separate published MadClean App qualification retains its existing source restriction. New source-matched Windows observations are required.

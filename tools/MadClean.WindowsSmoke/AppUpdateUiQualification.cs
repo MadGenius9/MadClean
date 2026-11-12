@@ -447,7 +447,7 @@ internal static class AppUpdateUiQualification
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) || !Environment.Is64BitProcess ||
             repository != Path.GetFullPath(repository) || !string.Equals(repository, Path.GetFullPath(Environment.CurrentDirectory), StringComparison.OrdinalIgnoreCase) ||
             Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
-            Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "MadGenius9/MadClean" || Environment.GetEnvironmentVariable("GITHUB_REF") != "refs/heads/feat/phase-one-foundation" ||
+            Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "MadGenius9/MadClean" || !ReadOnlyWingetQualificationSource.IsAllowedRef(Environment.GetEnvironmentVariable("GITHUB_REF")) ||
             Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is not ("push" or "workflow_dispatch") ||
             Environment.GetEnvironmentVariable("GITHUB_JOB") != "windows-verification" || Environment.GetEnvironmentVariable("MADCLEAN_WINDOWS_VALIDATION") != "1") throw new InvalidDataException();
         string source = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "", run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "", attempt = Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") ?? "";
