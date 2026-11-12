@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "sourceRef": "refs/heads/recovery/validated-20261112",
-  "sourceCommit": "221bd3ed24890871ca8b12d33220111b4f53e7dc",
-  "runId": "43297534847",
+  "sourceCommit": "c95e665ddd159ce88cac371962a0128c4cac70e0",
+  "runId": "43299174582",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
@@ -11,28 +11,28 @@
     "localRepairReview": {
       "present": true,
       "reportedState": "failed",
-      "originalReportSha256": "14b8419bfe49b3b84742d6a6fa23536ab4684d50cda014f155eadcaf383d1807",
+      "originalReportSha256": "67b958a2982ecdbb4402c023b3d9591ceab5b83b4fc431a827fe4c406700fb93",
       "error": null
     },
     "localUpdateHistory": {
       "present": true,
       "reportedState": "passed",
-      "originalReportSha256": "37555ac9fdd8d22a305347964d401483b97a1527770be051b0bffb3773b60bab",
+      "originalReportSha256": "a61e62e7dff93c40d2a3019eb6b817bc9726012d058c0e3d4c412a8359ebf920",
       "error": null
     },
     "sdkJournalReference": {
       "present": true,
       "reportedState": "reference-only",
-      "originalReportSha256": "4d51c6533fc6a86201364a8dcca3f0d2c265c3b0c0f06fdae24b487854eed459",
+      "originalReportSha256": "d86d4bb0c0bc75f3d27238359543d0fd2d4f158a4de4576686f9ee38c6d3aee3",
       "error": null
     }
   },
   "passed": false,
-  "updatedUtc": "2026-11-12T20:14:30.496697+00:00",
+  "updatedUtc": "2026-11-12T20:25:09.123648+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
-  "reportPresent": false,
+  "reportPresent": true,
   "coreTestsPresent": true,
-  "reportArtifactOutcome": "failure",
+  "reportArtifactOutcome": "success",
   "coreArtifactOutcome": "success",
   "stageOutcomes": {
     "sdk": "success",
@@ -81,5 +81,82 @@
   "msiRequestQualified": false,
   "msiRequestPublicUiQualified": false,
   "msiRequestError": null,
-  "images": []
+  "images": [
+    {
+      "name": "overview-wide.png",
+      "sha256": "f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf"
+    },
+    {
+      "name": "overview-compact.png",
+      "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
+    },
+    {
+      "name": "tool-28.png",
+      "sha256": "dd12f215940051eb6723f66f8ddc3439824daa81dadf82ea48c88046a03c1b85"
+    },
+    {
+      "name": "tool-18.png",
+      "sha256": "21e1c64855ed243ec9108bad4b231a5abe654f010fb480a2046b8935c886917f"
+    },
+    {
+      "name": "tool-20.png",
+      "sha256": "b6d8ac2601728f164e46863deeba19c371a9d6e8e7595ceb24384bdca1643c13"
+    },
+    {
+      "name": "tool-21.png",
+      "sha256": "cbd1a5439f97ebae71a8da6b4cb00225dac5f3a7788f5bc588004d007ee10a85"
+    },
+    {
+      "name": "tool-19.png",
+      "sha256": "4735dadabfed026424347acbf7e333e3ddcb6fd8080e5b2902c95624fe43ee89"
+    },
+    {
+      "name": "tool-11.png",
+      "sha256": "bffe3e83dc2cbfb6aac9470ef4a580bf625939c774c62692c9e1ae8145eb07b8"
+    },
+    {
+      "name": "tool-12.png",
+      "sha256": "e4e90ba8e864a0bbcb38e9082fc382273f22d8ac25f191b74057b90626eddbee"
+    },
+    {
+      "name": "tool-22.png",
+      "sha256": "8d1758efc830b5254b57550d54a86aa6ecf415e020d21bce573b0078febf67e2"
+    },
+    {
+      "name": "tool-27.png",
+      "sha256": "5ec40eaf6be65741db0a2fb4522e378f2e7c54d8fa5b7d805a3da591c77c52a1"
+    },
+    {
+      "name": "tool-26.png",
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
+    },
+    {
+      "name": "tool-13.png",
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
+    },
+    {
+      "name": "tool-23.png",
+      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
+    },
+    {
+      "name": "tool-25.png",
+      "sha256": "79aa62d1bf359157a7c5f3b80d2b10ad34700b929db7b157c2413e4569bb5369"
+    },
+    {
+      "name": "tool-14.png",
+      "sha256": "dd638de84364f9edaa0ca24dd37e4b4f3f07296f469d43137e8f44bc44c90c56"
+    },
+    {
+      "name": "tool-15.png",
+      "sha256": "b7dedd05d9a35c4174f65ccd78b040ae1676daea9c8d191d3b2a812614993178"
+    },
+    {
+      "name": "tool-16.png",
+      "sha256": "c3113ea1cd489b000e1e2eb320b6081176314dd01205cb25aea84464aa81af3d"
+    },
+    {
+      "name": "tool-17.png",
+      "sha256": "3d7624b98f001e083f24ac633c5feb3c599d59bfe707c5f9b4f7c37b647e9efe"
+    }
+  ]
 }

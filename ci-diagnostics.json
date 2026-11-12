@@ -2,28 +2,34 @@
   "scope": "Bounded, redacted development compiler/test command excerpts only; not production inventory or provider logs. A zero exit code is not a test count, Windows runtime result or health verdict. Missing stages were not observed; truncated includes capture/excerpt limits.",
   "stages": [
     {
+      "label": "sdk",
+      "exitCode": 0,
+      "truncated": false,
+      "excerpt": "10.0.403"
+    },
+    {
       "label": "restore",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 198 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 221 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 589 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 589 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 326 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 350 ms)."
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 319 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 605 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 240 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 608 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 2 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 624 ms)."
     },
     {
       "label": "build",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:32.46"
+      "excerpt": "  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:35.88"
     },
     {
       "label": "publisher-tests",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "Local validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: python_tests\nok\ntest_dangerous_cli_modes_are_not_supported (test_validate_local.LocalValidationTests.test_dangerous_cli_modes_are_not_supported) ... ok\ntest_each_failed_stage_stops_later_commands (test_validate_local.LocalValidationTests.test_each_failed_stage_stops_later_commands) ... Local validation: sdk\nLocal validation: sdk\nLocal validation: restore\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: python_tests\nok\ntest_existing_output_is_rejected_without_overwrite (test_validate_local.LocalValidationTests.test_existing_output_is_rejected_without_overwrite) ... ok\ntest_malformed_sdk_response_is_not_success_or_retained_text (test_validate_local.LocalValidationTests.test_malformed_sdk_response_is_not_success_or_retained_text) ... Local validation: sdk\nok\ntest_missing_sdk_records_unavailable_withou\n[Excerpt truncated.]"
+      "excerpt": "Local validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: python_tests\nok\ntest_dangerous_cli_modes_are_not_supported (test_validate_local.LocalValidationTests.test_dangerous_cli_modes_are_not_supported) ... ok\ntest_each_failed_stage_stops_later_commands (test_validate_local.LocalValidationTests.test_each_failed_stage_stops_later_commands) ... Local validation: sdk\nLocal validation: sdk\nLocal validation: restore\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: sdk\nLocal validation: restore\nLocal validation: build\nLocal validation: core_tests\nLocal validation: python_tests\nok\ntest_existing_output_is_rejected_without_overwrite (test_validate_local.LocalValidationTests.test_existing_output_is_rejected_without_overwrite) ... ok\ntest_malformed_sdk_response_is_not_success_or_retained_text (test_validate_local.LocalValidationTests.test_malformed_sdk_response_is_not_success_or_retained_\n[Excerpt truncated.]"
     },
     {
       "label": "core-tests",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [1 ms]\n[xUnit.net 00:00:05.14]     MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [SKIP]\n[xUnit.net 00:00:05.14]     MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [SKIP]\n  Skipped MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [1 ms]\n  Skipped MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [1 ms]\n[xUnit.net 00:00:05.99]     MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [SKIP]\n  Skipped MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  2385, Skipped:    13, Total:  2398, Duration: 4 s - MadClean.Tests.dll (net10.0)"
+      "excerpt": "  Skipped MadClean.Tests.ActivityLogBoundaryTests.LinkedCurrentAndPreviousDestinationsNeverChangeTheirTargetsOrRotateCurrent [1 ms]\n[xUnit.net 00:00:04.75]     MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [SKIP]\n[xUnit.net 00:00:04.75]     MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [SKIP]\n  Skipped MadClean.Tests.CleanupTests.ReparsePointInRootAncestorsIsRejected [1 ms]\n  Skipped MadClean.Tests.CleanupTests.LinkedDirectoryCannotExposeFilesOutsideScopeOrCreateCycle [1 ms]\n[xUnit.net 00:00:05.85]     MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [SKIP]\n  Skipped MadClean.Tests.CleanupTests.UnreadableDirectoryProducesAnIssueWhenRunningWithoutRoot [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  2385, Skipped:    13, Total:  2398, Duration: 5 s - MadClean.Tests.dll (net10.0)"
     }
   ]
 }
