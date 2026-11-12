@@ -1,10 +1,10 @@
 {
   "formatVersion": 7,
-  "sourceCommit": "0cd8b2c6deb30a84cfda01b6e633a74855e4b77f",
-  "runId": "43305459588",
+  "sourceCommit": "f8d3a35a0a5d3d0b899c648b27fb31ca7d68ef8c",
+  "runId": "43314147773",
   "runAttempt": 1,
-  "startedUtc": "2026-11-12T21:02:28.5866436+00:00",
-  "completedUtc": "2026-11-12T21:02:48.6655381+00:00",
+  "startedUtc": "2026-11-12T21:55:11.4205528+00:00",
+  "completedUtc": "2026-11-12T21:55:37.9323262+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -131,7 +131,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=67; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=61; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "ui-sfc-preview-interaction",
@@ -211,12 +211,12 @@
     {
       "name": "shortcut-dacl-fixture",
       "state": "passed",
-      "detail": "providerState=Available; daclState=Available; present=True; nullDacl=False; protected=False; defaulted=False; aceCount=3; aclBytes=76; revision=2; descriptorReleased=true; nativeFactsMatched=true; meaningfulDaclBytesUnchanged=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Only one genuine owned file's current facts were observed; no ACL was set and no effective-access, ownership, privacy or recovery conclusion is made. Synthetic malformed/null/empty cases are not certified by this check."
+      "detail": "providerState=Available; daclState=Available; present=True; nullDacl=False; protected=False; defaulted=False; aceCount=2; aclBytes=64; revision=2; descriptorReleased=true; nativeFactsMatched=true; meaningfulDaclBytesUnchanged=true; linkAndSentinelBytesUnchanged=true; CanMove=false. Only one genuine owned file's current facts were observed; no ACL was set and no effective-access, ownership, privacy or recovery conclusion is made. Synthetic malformed/null/empty cases are not certified by this check."
     },
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -286,7 +286,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=67; nameAvailable=18; descriptionAvailable=64; providerAvailable=64; installedVersionAvailable=64; driverDateAvailable=64; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=61; nameAvailable=17; descriptionAvailable=58; providerAvailable=58; installedVersionAvailable=58; driverDateAvailable=58; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -360,18 +360,113 @@
     },
     {
       "name": "system-tool-private-journal-scope",
+      "state": "passed",
+      "detail": "productionCreationGuardFalse=true; productionFactoryRejectedWithoutStore=true; fixedProductionPathDerivedOnly=true; existingOnlyAbsenceNoCreate=true; ownedPrivateStore=true; existingExclusiveLeaseBlocks=true; emptyStoreObservationOnly=true; immutableIntentLifecycle=true; existingOnlyCannotWrite=true; recordedTerminalReopened=true; unresolvedLossBlocksNewIntent=true; participantsClosed=true. Two explicitly synthetic inert operation records used only the fixed owned GUID fixture backend; no actual process start/exit, servicing or operation success was inferred. Guard refusal is not an instrumented all-I/O trace. No production writer scope, PID reopen, dispatch, identity/SID/path export, journal clearing or permission was introduced."
+    },
+    {
+      "name": "owned-private-parent-security-preflight",
+      "state": "passed",
+      "detail": "setup=actual-unprotected-observed; protectedBefore=False; unprotectCalled=True; unprotectSucceeded=True; protectedAfter=False; qualifiedParent=True; unprotectedRefused=True; foreignGrantRefused=True; qualifiedControlInvocations=1; rejectedControlInvocations=0; rejectedParentsStillEmpty=True; qualifiedChildAbsent=True; nativeControlCleanupConfirmed=True; workerOwnershipReleased=True. Strict same-handle descriptor predicate; rejected route counts are not all-I/O tracing. No effective-access, prior-handle, namespace-race, durability or production-creation proof; no profile/actions/gate change."
+    },
+    {
+      "name": "owned-relative-directory-create-control",
+      "state": "passed",
+      "detail": "state=Available; stage=baseline-collision-cleanup-observed-only; apiReturn=True; nativeStage=8; setupWin32=unobserved; parent=0x00000000; parentIo=0x00000000; parentId=True; create=0x00000000; createIo=0x00000000; created=True; structuralSD=True; collision=0xC0000035; refused=True; parentBookend=True; childBookend=True; dispositionRequested=True; dispositionAccepted=True; nativeClosed=True; descriptorReleased=True; absence=True; teardown=True; pending=False; retained=False. Owned baseline/collision only; no reparse interference, effective parent ACL, history, durability or production creation proof. Creation, disposition acceptance, checked closure and observed absence are separate evidence. No profile/journal writer, elevation or gate change."
+    },
+    {
+      "name": "dism-powershell-capability-contract",
       "state": "inconclusive",
-      "detail": "stage=CreateOwnedScope; reason=SecurityUnsupported; nativeCode=Unknown; hResult=80131620; storeReferencePresent=false; cleanupUncertainWhenCaught=false. These are managed catch-time diagnostics, not final cleanup or native-lifetime proof. Owned fixed private-store prerequisites or lifecycle could not be confirmed. Retain the marked outer tree if cleanup remains uncertain."
+      "detail": "transport=Completed; transportException=None/unobserved; win32=unobserved; exit=0; outputChars=848. metadata=Unavailable; stage=ModuleImport; host=True; manifest=True; module=False; command=False; outputType=False; assemblyPath=False; propertyReadable=False; propertyEnum=False; enumShape=False; sharedSet=False; switches=False; noOtherMandatory=False; counts(output/property/enum/sets/shared)=unobserved/unobserved/unobserved/unobserved/unobserved; importMetadata(qualified/unqualified)=True/True; errorCategory=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; moduleError=CommandNotFound; publisherTrustVerified=false; healthCheckInvoked=false. Metadata coverage remains Unknown. Diagnostics are observed exception metadata, not native error codes or a proven cause. No health/servicing command, output getter, publisher verification or gate enablement."
+    },
+    {
+      "name": "dism-builtin-import-control-contract",
+      "state": "inconclusive",
+      "detail": "transport=Completed; exit=0; outputChars=723; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None; targetContext=Unknown/OuterTargetObject; freshCleared=True; freshSampled=2; freshLimited=False; freshTypedMissing=Unknown; freshRecordIndex=1; freshShape=SimpleCmdlet. Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate."
+    },
+    {
+      "name": "cleanup-disposition-owned-probe",
+      "state": "passed",
+      "detail": "state=Observed;stage=owned-classic-observations-complete;native=~;preCancel=True;siblingAudit=True;rootIdAudit=True;cleanup=True. Normal:o=~,a=1,r=1,e=~,p=1,c=1,n=1,ne=00000002,f=0 | Readonly:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Recent:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | MultipleLinks:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | ChangedIdentity:o=~,a=0,r=?,e=~,p=?,c=1,n=?,ne=~,f=1 | ConflictingWriter:o=00000020,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 | Reparse:o=~,a=0,r=?,e=~,p=?,c=?,n=?,ne=~,f=1 o=target-open error;a/r/e=disposition attempt/accepted/error;p=pending;c=checked target close;n/ne=name absent/probe error;f=predicate refused;?/~=unobserved. Owned files only; no fallback, recycling, inactivity, reclaimed bytes or production execution permission."
+    },
+    {
+      "name": "cleanup-mapped-disposition-owned-probe",
+      "state": "passed",
+      "detail": "state=ControlledOpenRefusalObserved;stage=owned-mapped-observations-complete;native=~;preCancel=True; sourceClose=1;viewBefore=1;open=0/00000020; disposition=?/~;pending=?;targetClose=?; absentWithView=0/~;viewAfter=1; unmap=1/~;mappingClose=1;absentAfterUnmap=0/~; controlAudit=True;rootAudit=True;cleanup=True. All memory access is one byte in this process's owned non-executable view; ?/~=unobserved. A live-view deletion is a counterexample, never inactivity or safety proof. No file/view coherence, physical persistence, reclaimed bytes or production permission is established."
+    },
+    {
+      "name": "cleanup-confirmation-owned-protocol",
+      "state": "passed",
+      "detail": "developerProtocolOnly=true; actualCases=6; dispositionCalls=2; declineExpiryCancelWrongSessionZeroCalls=true; replayAdditionalCalls=0; exactHeldIdentityBound=true; affirmativeRequestsAndCheckedClosesAndNameAbsenceObserved=true; preCancelBeforeStart=true; controlBytesRootIdsTopologyAndCleanupConfirmed=true; caseFacts=0:0,c0,a?,e,p?,h1,n0,g,u1,r0;1:1,c0,a?,e,p?,h1,n0,g,u1,r0;2:2,c0,a?,e,p?,h1,n0,g,u1,r0;3:3,c0,a?,e,p?,h1,n0,g,u1,r0;4:5,c1,a1,e,p1,h1,n1,g2,u?,r0;5:4,c1,a1,e,p1,h1,n1,g2,u?,r0; ExecutionSupported=false. These fixed developer decisions are not real UI/user consent, inactivity, durable recovery or production cleanup permission."
+    },
+    {
+      "name": "shortcut-rename-handle-probe",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=ManagedWin32; controlApiCalls=0; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-mapped-write-witness",
+      "state": "inconclusive",
+      "detail": "mappingReadOnlyOpenRequested=True; exclusiveWithLiveMapping=false; mappedWriteObserved=unknown; teardown=True; pendingWorker=False; mappedNativeCode=0x00000020; reason=move-owned-link. The owned live-mapping witness was not established; no inactivity or safe-mutation inference."
+    },
+    {
+      "name": "shortcut-rename-cpp-control",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=CppWin32; controlApiCalls=1; move=False; restore=False; collisionRefused=False; identityPreserved=False; bytesPreserved=False; targetUnchanged=False; attributeAnchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link; nativeCode=0x00000057; bufferBytes=108; nameBytes=84; rootValid=true; sameVolume=true; fileSystem=Ntfs. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-rename-nt-control",
+      "state": "passed",
+      "detail": "state=Partial; backend=NativeNt; guardProfile=Baseline; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Independent backend/profile; no retry/fallback or promotion of other checks. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
+    },
+    {
+      "name": "shortcut-rename-source-guard",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=NativeNt; guardProfile=SourceParentShareRead; ntCalls=2; successfulRenames=1; immediateNtStatus=0xC0000043; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=none; setupWin32Error=none; move=True; restore=False; collisionRefused=False; identity=False; bytes=False; targetUnchanged=False; anchorHandoff=True; teardown=True; pendingWorker=False; reason=restore-owned-link. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-rename-destination-guard",
+      "state": "inconclusive",
+      "detail": "state=Unavailable; backend=NativeNt; guardProfile=DestinationParentShareRead; ntCalls=1; successfulRenames=0; immediateNtStatus=0xC0000043; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=none; setupWin32Error=none; move=False; restore=False; collisionRefused=False; identity=False; bytes=False; targetUnchanged=False; anchorHandoff=True; teardown=True; pendingWorker=False; reason=move-owned-link. The narrow owned handle-rename sequence was not fully established; no fallback or production readiness inferred."
+    },
+    {
+      "name": "shortcut-rename-ancestor-guard",
+      "state": "passed",
+      "detail": "state=Partial; backend=NativeNt; guardProfile=FixtureAncestorShareRead; ntCalls=3; successfulRenames=2; immediateNtStatus=0xC0000035; completionNtStatus=none; completionObserved=False; pendingObserved=False; terminalObserved=True; collisionNtStatus=0xC0000035; setupWin32Error=none; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; reason=owned-primitives-observed-mapping-unverified. Only this separate marked development shortcut moved/restored without overwrite. Independent backend/profile; no retry/fallback or promotion of other checks. No personal shortcut/target or production gate changed; not deletion, recovery or action authorization."
+    },
+    {
+      "name": "shortcut-rename-win32-absolute-control",
+      "state": "passed",
+      "detail": "state=Partial; backend=ManagedWin32AbsoluteControl; calls=3; move=True; restore=True; collisionRefused=True; identity=True; bytes=True; targetUnchanged=True; anchorHandoff=True; teardown=True; pendingWorker=False; nativeCode=0x000000B7; reason=owned-primitives-observed-mapping-unverified; bufferBytes=414; nameBytes=390; rootValid=not-applicable; nullRoot=true; absoluteName=true; heldParent=true; sameVolume=true; fileSystem=Ntfs. Owned-only independent control; no production permission or cause inferred."
+    },
+    {
+      "name": "shortcut-directory-sharing-observation",
+      "state": "passed",
+      "detail": "controlRename=True; controlWrite=True; controlAttributes=True; guardedRenameRefused=True; guardedRenameCode=32; guardedWriteRefused=True; guardedWriteCode=32; preopenedWriterGuardRefused=True; preopenedWriterGuardCode=32; preopenedMetadataCoexisted=True; newMetadataCoexisted=True; ownedRestorationConfirmed=True. Metadata-only Hidden modification remained possible with the share-read guard. This is an owned sharing observation, not namespace/reparse protection, inactivity, privacy, recovery or action readiness proof."
+    },
+    {
+      "name": "startup-transaction-handle-probe",
+      "state": "passed",
+      "detail": "Isolated transaction state=Passed; rollbackObserved=True; commitObserved=True; teardownCompleted=True; pendingWorker=False; stage=rollback-and-commit-observed; nativeCode=none. Two sequential inert DWORD transactions verified handle-based enlistment rollback and commit only inside an ownership-marked development HKCU subtree. No actual startup registrations, SIDs, links, rename/concurrency cases, DPAPI recovery or production action gate exercised; durability and safe startup mutations remain unverified."
+    },
+    {
+      "name": "startup-transaction-interference-probe",
+      "state": "passed",
+      "detail": "Isolated interference state=Passed; ordinaryWriteSucceeded=True; abortObserved=True; baselinePreserved=True; observedBeforeTimeout=True; teardownCompleted=True; pendingWorker=False; stage=abort-observed-after-ordinary-write; nativeCode=none. An abort was observed after one ordinary same-anchor inert DWORD write, before cleanup rollback and before the configured timeout boundary. This is a narrow owned sequence, not proof the write caused the abort, ABA prevention, rename/link/concurrency coverage, journal recovery, durability or safe production startup actions. No real startup registration or production gate changed."
+    },
+    {
+      "name": "startup-transaction-namespace-observation",
+      "state": "passed",
+      "detail": "state=Recorded; stage=four-owned-sequences-recorded-not-binding-proof; native=~; pending=False; teardown=True. SourceRenameSourceOnly/Recorded/owned-first-outcome-recorded-not-binding-proof:n=~,r=00000000,c=~,w=~,o=3,f=111111 | AncestorRenameSourceOnly/Recorded/owned-first-outcome-recorded-not-binding-proof:n=~,r=00000000,c=~,w=~,o=1,f=110111 | AncestorRenameAll/Recorded/owned-first-outcome-recorded-not-binding-proof:n=~,r=00000000,c=~,w=~,o=1,f=110111 | SourceReplacementAll/Recorded/owned-first-outcome-recorded-not-binding-proof:n=~,r=00000000,c=00000000,w=00000000,o=3,f=111111 n/r/c/w=native/rename/create/write; o=first outcome(1 Undetermined,3 Aborted); f=early/interference/abort/terminal/baseline/teardown. Four owned inert sequences only; no commits, key-identity/link/isolation or startup-action readiness proof."
     },
     {
       "name": "fixture-teardown",
-      "state": "inconclusive",
-      "detail": "An isolated native probe is pending or did not establish teardown. The entire owned fixture tree and ownership marker were retained; no filesystem deletion or broader cleanup was attempted."
+      "state": "passed",
+      "detail": "stage=OwnedTreeRemoved; encountered=130; inspected=130; limit=512. Only the complete validated owned development tree was removed; no application or personal-file cleanup action was exercised."
     },
     {
       "name": "published-executable-startup",
-      "state": "inconclusive",
-      "detail": "Earlier validation failed or native tree teardown is uncertain; no published executable was started."
+      "state": "passed",
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=56/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
