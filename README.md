@@ -14,7 +14,7 @@ The selected MSI workflow also connects accepted historical results to an explic
 
 ## Stack and architecture
 
-C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` pins that feature band and allows later servicing patches. The UI uses the Windows desktop framework. The Apps update check uses Microsoft’s pinned Windows Package Manager projection through an isolated read-only adapter. Its backend, actual App controls and owned published-App query passed scoped disposable-Windows qualification; Partial and Unknown results remain visible. This does not establish complete software coverage or physical Windows 11 certification.
+C# / **.NET 10 LTS**, WPF, and a small MVVM presentation layer. WPF provides a maintainable Windows-native desktop surface without a web runtime. The verified cloud SDK is **10.0.403**; `global.json` selects that exact SDK to preserve the locked build-tool graph. The UI uses the Windows desktop framework. The Apps update check uses Microsoft’s pinned Windows Package Manager projection through an isolated read-only adapter. Its backend, actual App controls and owned published-App query passed scoped disposable-Windows qualification; Partial and Unknown results remain visible. This does not establish complete software coverage or physical Windows 11 certification.
 
 - `src/MadClean.App`: dark WPF UI, navigation, dashboard, background-operation orchestration and cancellation. Default state is unchecked; all production data comes from Windows. No sample/design data is injected.
 - `src/MadClean.Core`: platform-independent models, conservative filesystem inventory, structured WinGet observation policy and legacy table parser, bounded cancellable process execution, and privacy-limited activity log.
@@ -31,7 +31,7 @@ For the first personal Windows test, use the [home-test checklist](docs/HOME-TES
 
 ## Build and run
 
-Requirements: a supported Windows 11 x64 installation, .NET SDK 10.0.403 or a compatible servicing patch, and Internet access to NuGet for the first restore. Windows PowerShell 5.1 and the local Defender provider are needed for security status; Microsoft's App Installer / WinGet and configured source agreements are needed for app discovery. Organizational policy may restrict any provider. MadClean does not accept agreements for you.
+Requirements: a supported Windows 11 x64 installation, .NET SDK 10.0.403 (the exact version selected by `global.json`), and Internet access to NuGet for the first restore. Windows PowerShell 5.1 and the local Defender provider are needed for security status; Microsoft's App Installer / WinGet and configured source agreements are needed for app discovery. Organizational policy may restrict any provider. MadClean does not accept agreements for you.
 
 From the existing checkout root:
 
@@ -199,3 +199,7 @@ In Update Center, select a current Available app offer and choose **Read selecte
 **Review selected installer requirements** separately asks the SDK for an applicable manifest installer under a fixed User/Interactive profile and shows reported type, architecture, scope, locale, elevation and authentication. This is an exact-version requirements review, not a completed upgrade check or permission to install. Installed scope, restart behavior, dependencies and readiness remain unknown; no applicable installer never means up to date. [Supported contract](docs/APP-INSTALLER-REVIEW.md).
 
 The [guided repair protocol](docs/SYSTEM-REPAIR-WORKFLOW.md), disabled native lifecycle and existing-history recovery now connect to a [guarded public Diagnostics review](docs/SYSTEM-REPAIR-PUBLIC-REVIEW.md). Select RestoreHealth/scannow to prepare a local effects review; no history, identity or servicing query starts automatically. Repair execution, production journal creation and history review remain disabled. Portable model tests/WPF compilation are not Windows repair or public-control qualification.
+
+### Build SDK selection
+
+`global.json` selects SDK 10.0.403 exactly. SDK patch roll-forward is disabled so a newer preinstalled runner SDK cannot silently change the SDK-supplied linker dependencies used by the separate publish lockfiles. CI records `dotnet --version` after setup in each .NET job. Keep locked restore enabled; an intentional SDK update must also regenerate and review the affected development/publish lockfiles. This is build-tool selection, not an app runtime update or self-install feature.

@@ -34,6 +34,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked dependencies
         id: restore
         run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
@@ -99,6 +101,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked Windows validation dependencies
         run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
       - name: Build the development-only Windows harness
@@ -188,6 +192,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked qualification dependencies
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build the separate owned MSI qualification mode
@@ -223,6 +229,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked recorded-status qualification dependencies
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build the separate recorded component-store flag mode
@@ -258,6 +266,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked fresh-scan qualification dependencies
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build the separate fresh component-store scan mode
@@ -293,6 +303,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked development dependencies
         run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
       - name: Build the development observer
@@ -330,6 +342,8 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
+      - name: Record the selected pinned .NET SDK
+        run: python tools/ci_command.py sdk -- dotnet --version
       - name: Restore locked client qualification dependencies
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build the separate non-repair SFC client mode

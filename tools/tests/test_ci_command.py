@@ -48,6 +48,20 @@ class CommandCaptureTests(unittest.TestCase):
             self.assertEqual('shortcut-control',metadata['label'])
             self.assertEqual(9,metadata['exitCode'])
             self.assertFalse((root/'artifacts/ci-logs/native-abi.json').exists())
+    def test_sdk_version_and_resolver_failure_survive_capture_and_diagnostic_projection(self):
+        for code in (0, 7):
+            with self.subTest(code=code), tempfile.TemporaryDirectory(prefix='MadCleanSdkCapture-') as directory:
+                root=Path(directory)
+                env=dict(os.environ,GITHUB_SHA='a'*40,GITHUB_RUN_ID='100',GITHUB_RUN_ATTEMPT='1')
+                with contextlib.redirect_stdout(io.StringIO()):
+                    status=c.run('sdk',[sys.executable,'-c','print("10.0.403"); print("token=fixture-secret"); raise SystemExit('+str(code)+')'],root,env)
+                result=c._scrubber.collect(root/'artifacts/ci-logs',('a'*40,'100',1),'success')
+                self.assertEqual(code,status)
+                self.assertEqual('sdk',result['stages'][0]['label'])
+                self.assertEqual(code,result['stages'][0]['exitCode'])
+                self.assertIn('10.0.403',result['stages'][0]['excerpt'])
+                self.assertNotIn('fixture-secret',json.dumps(result))
+
     def test_non_catalogued_label_and_executable_are_not_run(self):
         with self.assertRaises(ValueError): c.run('../outside',[sys.executable,'-c','raise Exception()'],Path('/unused'),{})
         with self.assertRaises(ValueError): c.run('build',['unsupported-program'],Path('/unused'),{})
