@@ -1,0 +1,19 @@
+# Current-source Windows observations
+
+The user reauthorized source pushes and standard hosted Windows Actions on 2026-11-12. The exact `feat/phase-one-foundation` and `recovery/validated-20261112` refs may publish development evidence to the existing `madclean-verification` branch. Pull requests, forks and other refs cannot use this publisher. No force push, final release ZIP, action-gate change or host/VM operation follows.
+
+The source SHA, actual source ref, run ID and attempt accompany every newly published summary. The existing destination manifest remains a legacy branch marker, not authority for the current source. Old reports must never qualify newer code. A successful source push proves neither workflow start nor Windows test success.
+
+The separate `MadClean-local-observations-and-sdk-reference-<run-attempt>` artifact contains three independently assessed scopes:
+
+- `localRepairReview`: actual neutral window/navigation and fixed repair-draft controls, with history/confirmation and production capabilities closed. It proves no provider or repair execution.
+- `localUpdateHistory`: one bounded local WUA history read. Accepted empty history, bounded history, negative provider responses and observation expiry remain distinct. No online Search or installation occurs. Historical results do not establish current applicability or installation.
+- `sdkJournalReference`: bounded fragments from allowlisted already-installed SDK headers. No SDK acquisition, compiler or native call runs. Source text, hashes and lexical matches are reference material; definition interpretation, ABI, OS support, namespace safety and native qualification remain unverified.
+
+The publisher downloads only this run's named artifact for its exact run attempt, with digest mismatch treated as an error. The attempt suffix is used at both upload and download so a publisher rerun cannot relabel an earlier attempt's unbound local report as new evidence. Each accepted scope is wrapped separately in `local-repair-review.json`, `local-update-history.json` or `sdk-journal-reference.json`. The wrapper records the original report byte hash and validated CI context; the inner report's source authenticity remains unverified. Passive schema checks authenticate neither Windows services nor reported SDK declarations.
+
+A failed or missing artifact is not read as trusted leftover evidence. Multiple GUID reports, unexpected files within a scope, unsafe paths and invalid schemas are refused rather than selecting a convenient report. Rejection of one scope preserves independent evidence. Every latest summary records presence, reported state, original report hash and a fixed error reason for each scope; absent current evidence removes stale generated observations.
+
+These optional observations never replace the separate general WPF/native report or Core tests, and never upgrade repair, MSI, SFC, DISM, driver or software-install qualifications. Native qualification jobs retain their original exact branch restrictions. The enclosing workflow can continue after an inconclusive observation, so inspect the per-scope states rather than treating a green job as universal success.
+
+The frozen `3b25787` internal payload is unrelated immutable test material. New CI observations must not be represented as a rerun of those frozen bytes.

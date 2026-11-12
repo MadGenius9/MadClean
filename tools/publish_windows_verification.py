@@ -35,12 +35,16 @@ _sfc_client_spec = importlib.util.spec_from_file_location("madclean_sfc_client_e
 sfc_client_evidence = importlib.util.module_from_spec(_sfc_client_spec)
 _sfc_client_spec.loader.exec_module(sfc_client_evidence)
 
+_local_observation_spec = importlib.util.spec_from_file_location("madclean_local_observation_evidence", Path(__file__).with_name("local_observation_evidence.py"))
+local_observation_evidence = importlib.util.module_from_spec(_local_observation_spec)
+_local_observation_spec.loader.exec_module(local_observation_evidence)
+
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
 SOURCE_REFS = frozenset({SOURCE_REF, "refs/heads/recovery/validated-20261112"})
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
-OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json", *IMAGES)
+OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json", "local-repair-review.json", "local-update-history.json", "sdk-journal-reference.json", *IMAGES)
 REQUIRED_CHECKS = {
     "ui-wide-size", "ui-initial-state", "ui-compact-layout", "ui-primary-navigation", "ui-tool-navigation", "ui-tool-popup", "ui-installed-app-search", "ui-packaged-app-search", "ui-packaged-settings-preview-interaction", "ui-component-store-preview-interaction", "ui-inspection-evidence", "ui-shortcut-file-evidence", "ui-duplicate-pair-recheck",
     "bounded-registration-fixture", "defender-status-contract", "defender-scan-history-contract", "storage-inspection-evidence-contract", "defender-inspection-evidence-contract", "installed-registration-contract", "msi-registration-contract", "msi-action-binding-contract", "packaged-application-contract", "leftover-content-fixture", "disk-identity-fixture", "wer-v1-managed-layout", "wer-store-read-contract", "wer-store-count-contract", "hardware-metadata-contract", "startup-fixture-inventory", "startup-fixture-preview", "startup-fixture-mutation-gate", "startup-fixture-scope", "startup-fixture-teardown", "startup-transaction-handle-probe", "startup-transaction-interference-probe", "system-tool-execution-gate", "system-tool-identity-contract", "system-tool-embedded-version-fixture", "system-tool-catalog-observation", "system-tool-held-catalog-observation",
@@ -537,7 +541,7 @@ def validate_msi_report(directory, context):
             reject_unless(consent_qualified, "msi-pass-consent")
     return value
 
-def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped", sfc_client_directory=None, sfc_client_download_result="skipped", sfc_client_result="skipped"):
+def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped", sfc_client_directory=None, sfc_client_download_result="skipped", sfc_client_result="skipped", local_observation_directory=None, local_observation_download_result="skipped"):
     # Bind ref and stage observations to the same captured CI environment. This
     # does not change any native job/adapter's independent source restrictions.
     environment = dict(environment)
@@ -600,6 +604,11 @@ def prepare(root, download, build_result, verification_result, environment, core
         # nor establish Windows integrity, even when its own job completed.
         sfc_client_report, sfc_client_error = None, "sfc-client-evidence-rejected"
 
+    # Optional source-bound observations are independent of general/native action
+    # qualification. Missing/rejected scopes cannot suppress the existing evidence.
+    scoped_observations, scoped_files = local_observation_evidence.collect(
+        local_observation_directory, context, environment["GITHUB_REF"], local_observation_download_result)
+
     latest = root / "latest.json"
     if latest.exists():
         previous = read_json(latest, 262_144)
@@ -611,6 +620,8 @@ def prepare(root, download, build_result, verification_result, environment, core
     summary = {
         "formatVersion": 1, "sourceRef": environment["GITHUB_REF"], "sourceCommit": context[0], "runId": context[1], "runAttempt": context[2],
         "buildResult": build_result, "verificationResult": verification_result,
+        "scopedObservationArtifactOutcome": local_observation_download_result,
+        "scopedObservations": scoped_observations,
         "passed": build_result == "success" and verification_result == "success" and report is not None and report["passed"] and core is not None and core["passed"],
         "updatedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
@@ -661,6 +672,7 @@ def prepare(root, download, build_result, verification_result, environment, core
         "images": [{"name": name, "sha256": hashlib.sha256(data).hexdigest()} for name, data in images.items()],
     }
     files = {"latest.json": (json.dumps(summary, indent=2) + "\n").encode(), **images}
+    files.update(scoped_files)
     if sfc_client_report is not None:
         files["sfc-client.json"] = (json.dumps(sfc_client_report, indent=2) + "\n").encode()
     if published_app_report is not None:
@@ -731,10 +743,12 @@ def main():
     parser.add_argument("--sfc-client-reports", type=Path)
     parser.add_argument("--sfc-client-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--sfc-client-result", choices=sorted(RESULTS), default="skipped")
+    parser.add_argument("--local-observation-reports", type=Path)
+    parser.add_argument("--local-observation-download-result", choices=sorted(RESULTS), default="skipped")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     try:
-        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result, args.published_app_update_reports, args.published_app_update_download_result, args.published_app_update_result, args.sfc_client_reports, args.sfc_client_download_result, args.sfc_client_result)
+        root, summary, files = prepare(args.verification_checkout, args.downloaded_reports, args.build_result, args.verification_result, os.environ, args.core_test_results, args.report_download_result, args.core_download_result, args.command_logs, args.log_download_result, args.native_command_logs, args.native_log_download_result, args.msi_request_reports, args.msi_download_result, args.msi_result, args.component_store_reports, args.component_store_download_result, args.component_store_result, args.component_scan_reports, args.component_scan_download_result, args.component_scan_result, args.published_app_update_reports, args.published_app_update_download_result, args.published_app_update_result, args.sfc_client_reports, args.sfc_client_download_result, args.sfc_client_result, args.local_observation_reports, args.local_observation_download_result)
         if not args.validate_only:
             publish(root, files, summary["sourceCommit"])
         print("Windows evidence " + ("validated" if args.validate_only else "published") + "; scoped pass: " + str(summary["passed"]).lower())

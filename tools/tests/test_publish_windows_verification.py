@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -63,8 +64,57 @@ class PublisherTests(unittest.TestCase):
     def test_complete_evidence_binds_real_files_and_changes_nothing_during_validation(self):
         _, summary, files = self.prepare()
         self.assertTrue(summary['passed'])
-        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json"},set(files))
+        self.assertEqual(set(p.OWNED) - {"ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json", "local-repair-review.json", "local-update-history.json", "sdk-journal-reference.json"},set(files))
         self.assertFalse((self.root/'latest.json').exists())
+    def test_scoped_artifact_cannot_relabel_a_previous_attempt_or_another_run(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/windows.yml").read_text()
+        actions = re.findall(r"uses: actions/(upload|download)-artifact@[^\n]+\n((?: {8,}[^\n]*\n| *\n)*)", workflow)
+        scoped = []
+        for action, body in actions:
+            if "MadClean-local-observations-and-sdk-reference" not in body:
+                continue
+            names = re.findall(r"^ +name: ([^\n]+)$", body, re.MULTILINE)
+            self.assertEqual(["MadClean-local-observations-and-sdk-reference-${{ github.run_attempt }}"], names)
+            if action == "download":
+                self.assertNotRegex(body, r"(?m)^ +(?:run-id|repository|github-token):")
+                self.assertIn("digest-mismatch: error", body)
+            scoped.append(action)
+        self.assertEqual(["upload", "download"], scoped)
+
+    def test_scoped_observations_never_substitute_for_failed_general_evidence(self):
+        observations = {key: {"present": True, "reportedState": "passed", "originalReportSha256": "b"*64, "error": None}
+                        for key in ("localRepairReview", "localUpdateHistory", "sdkJournalReference")}
+        with patch.object(p.local_observation_evidence, "collect", return_value=(observations, {})) as collect:
+            _, summary, _ = p.prepare(self.root, self.download, "failure", "skipped", self.env,
+                local_observation_directory=self.download, local_observation_download_result="success")
+        self.assertFalse(summary["passed"])
+        self.assertFalse(summary["msiRequestQualified"])
+        self.assertFalse(summary["componentStoreScanBackendQualified"])
+        self.assertEqual(observations, summary["scopedObservations"])
+        collect.assert_called_once_with(self.download, (self.env["GITHUB_SHA"], "100", 1),
+                                        self.env["GITHUB_REF"], "success")
+
+    def test_missing_scoped_reports_do_not_discard_independent_core_and_window_evidence(self):
+        _, summary, files = p.prepare(self.root, self.download, "success", "success", self.env,
+            core_directory=self.download, local_observation_directory=self.download / "absent",
+            local_observation_download_result="success")
+        self.assertTrue(summary["passed"])
+        self.assertTrue(summary["coreTestsPresent"])
+        self.assertTrue(summary["reportPresent"])
+        self.assertTrue(all(not value["present"] for value in summary["scopedObservations"].values()))
+        self.assertNotIn("local-update-history.json", files)
+        self.assertIn("core-tests.json", files)
+
+    def test_publishing_without_optional_evidence_removes_stale_observations(self):
+        optional = ("local-repair-review.json", "local-update-history.json", "sdk-journal-reference.json")
+        for name in optional:
+            (self.root / name).write_text("TEST-ONLY historical observation")
+        root, _, files = self.prepare()
+        with patch.object(p, "git", return_value=""):
+            p.publish(root, files, self.env["GITHUB_SHA"])
+        self.assertTrue(all(not (self.root / name).exists() for name in optional))
+        self.assertTrue((self.root / "core-tests.json").exists())
+
     def test_another_existing_directory_cannot_impersonate_the_checkout_root(self):
         actual_git = p.git
         def altered_git(root,*arguments):

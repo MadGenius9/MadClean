@@ -163,7 +163,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: MadClean-local-observations-and-sdk-reference
+          name: MadClean-local-observations-and-sdk-reference-${{ github.run_attempt }}
           path: |
             artifacts/local-repair-review-validation/
             artifacts/local-update-history-validation/
@@ -443,8 +443,17 @@ jobs:
           name: MadClean-SFC-client-validation
           path: downloaded-sfc-client
           digest-mismatch: error
+      - name: Retrieve this run's separate local observations and SDK references
+        id: local_observations
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: MadClean-local-observations-and-sdk-reference-${{ github.run_attempt }}
+          path: downloaded-local
+          digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
         env:
+          MADCLEAN_LOCAL_OBSERVATION_DOWNLOAD_RESULT: ${{ steps.local_observations.outcome }}
           MADCLEAN_SFC_CLIENT_RESULT: ${{ needs.windows-sfc-client.result }}
           MADCLEAN_SFC_CLIENT_DOWNLOAD_RESULT: ${{ steps.sfc_client_evidence.outcome }}
           MADCLEAN_PUBLISHED_APP_RESULT: ${{ needs.windows-app-update-published.result }}
@@ -495,3 +504,5 @@ jobs:
           --sfc-client-reports downloaded-sfc-client
           --sfc-client-download-result "$MADCLEAN_SFC_CLIENT_DOWNLOAD_RESULT"
           --sfc-client-result "$MADCLEAN_SFC_CLIENT_RESULT"
+          --local-observation-reports downloaded-local
+          --local-observation-download-result "$MADCLEAN_LOCAL_OBSERVATION_DOWNLOAD_RESULT"
