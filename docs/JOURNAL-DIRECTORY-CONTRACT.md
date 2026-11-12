@@ -24,3 +24,7 @@ The earlier C++ owned directory control uses CreateNew, broader object attribute
 Next native implementation requires a documented supported directory profile with the intended confinement, chosen access/share/options and RootDirectory requirements. Alternatively, a narrower independently reviewed contract must state what it actually proves; no unsupported action capability or claim follows merely from supplied constants. The existing managed state machine/dependency graph can be reused once that boundary is selected. Actual relative lease/lifecycle/history composition and source-bound Windows qualification remain separate missing work.
 
 No new directory call, fixture route, host/VM operation, guard activation or native argument profile was added here.
+
+## Subsequent supported design assessment
+
+The coordinator supplied a concrete sharing limitation: attribute/EA access is unaffected by sharing flags, and reparse-setting can use FILE_WRITE_ATTRIBUTES. Therefore no-write/delete sharing cannot be treated as a reparse-mutation barrier, including against prior attribute-write handles. The [private namespace proposal](JOURNAL-PROVISIONING-DESIGN.md) records official sources, a current-user trust boundary, separately provisioned storage, modern no-redirection API candidates, exact unresolved SDK/ABI facts and owned Windows evidence needs. It does not implement a new profile, broker, service, provisioner or permission override. All gates remain false.
