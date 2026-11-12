@@ -8,6 +8,7 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -91,12 +92,14 @@ def _entries(directory, maximum):
     return names
 
 
-def _report_path(directory, guid):
+def _report_path(directory, guid, repair_layout=False):
     if guid:
         names = _entries(directory, 1)
         _require(len(names) == 1 and re.fullmatch(r"[a-f0-9]{32}", names[0]) is not None and names[0] != "0" * 32)
         directory = directory / names[0]
-    _require(_entries(directory, 1) == ["report.json"])
+    names = _entries(directory, 2 if repair_layout else 1)
+    allowed = {"report.json", "layout-observations.json"} if repair_layout else {"report.json"}
+    _require("report.json" in names and set(names) <= allowed)
     return directory / "report.json"
 
 
@@ -126,6 +129,75 @@ def _read(path, maximum):
     _require(0 < len(data) <= maximum and len(data) == before.st_size and
              identity(before) == identity(after) == identity(path.stat()))
     return json.loads(data.decode("utf-8-sig", errors="strict"), object_pairs_hook=_unique, parse_constant=_constant), hashlib.sha256(data).hexdigest()
+
+
+def _layout_number(value, low, high):
+    return value is None or (type(value) in (int, float) and low <= value <= high and math.isfinite(value))
+
+
+def _layout_snapshot(snapshot):
+    if snapshot is None:
+        return
+    dimensions = {"requestedWidth", "requestedHeight", "actualWidth", "actualHeight", "clientWidth", "clientHeight",
+                  "workAreaWidth", "workAreaHeight"}
+    _shape(snapshot, dimensions | {"dpiScaleX", "dpiScaleY", "outerSizeMatched", "shellCount", "shellCountOverLimit", "shell"})
+    for key in dimensions:
+        _require(_layout_number(snapshot[key], 0, 32768) and
+                 (key not in {"requestedWidth", "requestedHeight"} or snapshot[key] is None or snapshot[key] > 0))
+    _require(all(_layout_number(snapshot[key], .125, 16) for key in ("dpiScaleX", "dpiScaleY")))
+    outer_values = [snapshot[key] for key in ("requestedWidth", "requestedHeight", "actualWidth", "actualHeight")]
+    outer = None if any(value is None for value in outer_values) else (
+        abs(snapshot["actualWidth"] - snapshot["requestedWidth"]) <= 2 and
+        abs(snapshot["actualHeight"] - snapshot["requestedHeight"]) <= 2)
+    _require((snapshot["outerSizeMatched"] is None or type(snapshot["outerSizeMatched"]) is bool) and
+             snapshot["outerSizeMatched"] is outer and type(snapshot["shellCountOverLimit"]) is bool)
+    count, shell, over_limit = snapshot["shellCount"], snapshot["shell"], snapshot["shellCountOverLimit"]
+    _require(count is None or _integer(count, 0, 3))
+    _require(shell is None or type(shell) is list and len(shell) <= 3)
+    if over_limit:
+        _require(count is None and (shell is None or len(shell) == 3))
+    elif count is None:
+        _require(shell is None)
+    else:
+        _require(shell is not None and len(shell) == count)
+    for item in shell or []:
+        _shape(item, {"kind", "visible", "x", "y", "width", "height", "withinClient"})
+        _require(_label(item["kind"], {"page-host", "navigation", "tools"}) and
+                 (item["visible"] is None or type(item["visible"]) is bool) and
+                 all(_layout_number(item[key], -32768, 32768) for key in ("x", "y")) and
+                 all(_layout_number(item[key], 0, 32768) for key in ("width", "height")))
+        sizes = [snapshot["clientWidth"], snapshot["clientHeight"], item["width"], item["height"]]
+        if any(value == 0 for value in sizes if value is not None):
+            within = False
+        elif any(value is None for value in (*sizes, item["x"], item["y"])):
+            within = None
+        else:
+            within = (item["x"] >= -1 and item["y"] >= -1 and item["x"] + item["width"] <= snapshot["clientWidth"] + 1 and
+                      item["y"] + item["height"] <= snapshot["clientHeight"] + 1)
+        _require((item["withinClient"] is None or type(item["withinClient"]) is bool) and item["withinClient"] is within)
+
+
+def validate_layout(report, primary_digest):
+    """Fixed geometry diagnostics only; never reinterpret the primary result."""
+    _shape(report, {"formatVersion", "context", "primaryReportSha256", "sourceAuthenticity", "windowsProviders",
+                    "maintenance", "physicalInput", "wide", "compact"})
+    _require(type(report["formatVersion"]) is int and report["formatVersion"] == 1 and
+             report["context"] == "local-repair-review-layout" and report["primaryReportSha256"] == primary_digest and
+             all(report[key] == "unverified" for key in ("sourceAuthenticity", "windowsProviders", "maintenance", "physicalInput")))
+    _layout_snapshot(report["wide"])
+    _layout_snapshot(report["compact"])
+    return report
+
+
+def _layout_companion(primary_path, primary_digest):
+    try:
+        report, digest = _read(primary_path.with_name("layout-observations.json"), 16384)
+        validate_layout(report, primary_digest)
+        return report, digest, None
+    except FileNotFoundError:
+        return None, None, None
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
+        return None, None, "layout-evidence-rejected"
 
 
 def _source_line(value):
@@ -255,7 +327,7 @@ def collect(directory, context, source_ref, download_result="skipped"):
         return observations, files
     for scope, (folder, output, maximum) in SCOPES.items():
         try:
-            path = _report_path(directory / folder, guid=scope != "sdkJournalReference")
+            path = _report_path(directory / folder, guid=scope != "sdkJournalReference", repair_layout=scope == "localRepairReview")
             report, digest = _read(path, maximum)
             if scope == "localRepairReview":
                 _repair.validate(report)
@@ -266,6 +338,9 @@ def collect(directory, context, source_ref, download_result="skipped"):
             wrapper = {"formatVersion": 1, "context": "MadClean scoped development observation",
                        "sourceCommit": context[0], "runId": context[1], "runAttempt": context[2], "sourceRef": source_ref,
                        "scope": scope, "reportSha256": digest, "sourceAuthenticity": "unverified", "report": report}
+            if scope == "localRepairReview":
+                layout, layout_digest, layout_error = _layout_companion(path, digest)
+                wrapper.update(layoutObservation=layout, layoutObservationSha256=layout_digest, layoutObservationError=layout_error)
             files[output] = (json.dumps(wrapper, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
             observations[scope].update(present=True, reportedState=report["state"], originalReportSha256=digest)
         except FileNotFoundError:

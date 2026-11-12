@@ -17,3 +17,9 @@ A failed or missing artifact is not read as trusted leftover evidence. Multiple 
 These optional observations never replace the separate general WPF/native report or Core tests, and never upgrade repair, MSI, SFC, DISM, driver or software-install qualifications. Native qualification jobs retain their original exact branch restrictions. The enclosing workflow can continue after an inconclusive observation, so inspect the per-scope states rather than treating a green job as universal success.
 
 The frozen `3b25787` internal payload is unrelated immutable test material. New CI observations must not be represented as a rerun of those frozen bytes.
+
+## Explaining a layout failure
+
+The repair-review mode may write one optional `layout-observations.json` beside its unchanged primary report. It records bounded requested/actual/client sizes, DPI, primary-display work-area size and at most three fixed shell-kind geometry observations. It contains no control text, paths, screenshots or monitor identifiers. Primary work area does not prove which monitor hosts the window.
+
+The companion hashes the exact closed primary-report bytes. Its absence, rejected hash/schema or failed write cannot change the primary verdict. The publisher adds accepted measurements and their original byte hash only to the repair wrapper; invalid diagnostics receive a fixed companion error while the valid primary remains available. A failed wide-layout fact stays failed. This separates an unachieved requested viewport from real shell bounds only after actual numeric evidence arrives; it does not presume either cause. Neutral-mode primary output and frozen payloads remain unchanged.

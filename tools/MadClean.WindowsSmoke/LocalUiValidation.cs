@@ -2,6 +2,7 @@ using System.Collections;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -45,6 +46,7 @@ internal static class LocalUiValidation
         bool? observed = null, initial = null, wide = null, compact = null, navigation = null,
             final = null, closed = null, settled = null;
         int? error = null;
+        LayoutObservation? wideLayout = null, compactLayout = null;
         bool reportSaved = false;
         int reportExit = 1;
         MainWindow? window = null;
@@ -73,10 +75,32 @@ internal static class LocalUiValidation
             try
             {
                 CheckAncestors(output);
-                using var file = new FileStream(Path.Combine(output, "report.json"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                JsonSerializer.Serialize(file, report, report.GetType(), new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                byte[] primaryBytes = JsonSerializer.SerializeToUtf8Bytes(report, report.GetType(), options);
+                using (var file = new FileStream(Path.Combine(output, "report.json"), FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    file.Write(primaryBytes);
+                // The primary file is closed before it is marked saved. Optional
+                // diagnostic failures cannot change its bytes, facts or outcome.
                 reportSaved = true;
                 reportExit = state switch { "passed" => 0, "inconclusive" => 2, _ => 1 };
+                if (repairReview)
+                {
+                    try
+                    {
+                        var companion = new LayoutCompanion(1, "local-repair-review-layout",
+                            Convert.ToHexStringLower(SHA256.HashData(primaryBytes)), "unverified", "unverified",
+                            "unverified", "unverified", wideLayout, compactLayout);
+                        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(companion, options);
+                        if (bytes.Length <= 16_384)
+                        {
+                            CheckAncestors(output);
+                            using var diagnostic = new FileStream(Path.Combine(output, "layout-observations.json"),
+                                FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                            diagnostic.Write(bytes);
+                        }
+                    }
+                    catch (Exception) { /* Missing/invalid companion is unknown; never rewrite the primary report. */ }
+                }
                 return reportExit;
             }
             catch (Exception) { return 1; }
@@ -145,10 +169,10 @@ internal static class LocalUiValidation
                     window.WindowState = WindowState.Normal;
                     window.Width = 1200; window.Height = 900;
                     await Idle(window);
-                    wide = Layout(window, 1200, 900);
+                    wide = Layout(window, 1200, 900, repairReview, out wideLayout);
                     window.Width = window.MinWidth; window.Height = window.MinHeight;
                     await Idle(window);
-                    compact = Layout(window, window.MinWidth, window.MinHeight);
+                    compact = Layout(window, window.MinWidth, window.MinHeight, repairReview, out compactLayout);
                     navigation = await Navigate(window, owner);
                     if (repairObservation != null && navigation == true)
                         await repairObservation.ObserveAsync(window, owner);
@@ -258,25 +282,151 @@ internal static class LocalUiValidation
         return model.SelectedPage == 0 && host.SelectedIndex == 0 && tools.SelectedItem == null && Neutral(model) && BindingsPresent();
     }
 
-    private static bool Layout(MainWindow window, double width, double height)
+    private static bool Layout(MainWindow window, double width, double height, bool recordLayout,
+        out LayoutObservation? observation)
     {
-        if (Math.Abs(window.ActualWidth - width) > 2 || Math.Abs(window.ActualHeight - height) > 2 ||
-            window.Content is not FrameworkElement client || !Size(client)) return false;
-        // Coarse shell bounds only: no pixel fidelity, text clipping or physical-input claim.
-        var shell = Descendants<FrameworkElement>(window).Where(element => element is PageHost ||
-            element is ListBox && AutomationProperties.GetName(element) == "Main navigation" ||
-            element is ComboBox combo && Equals(combo.Tag, "More tools")).ToArray();
-        return shell.Length == 3 && shell.All(element =>
+        observation = null;
+        LayoutCapture? capture = null;
+        try { if (recordLayout) capture = new(width, height); }
+        catch (Exception) { /* Optional measurement allocation is not a primary assertion. */ }
+        try
+        {
+            double actualWidth = window.ActualWidth, actualHeight = window.ActualHeight;
+            capture?.SetOuter(actualWidth, actualHeight);
+            if (Math.Abs(actualWidth - width) > 2 || Math.Abs(actualHeight - height) > 2 ||
+                window.Content is not FrameworkElement client) return false;
+            double clientWidth = client.ActualWidth, clientHeight = client.ActualHeight;
+            capture?.SetClient(client, clientWidth, clientHeight);
+            if (!Size(clientWidth, clientHeight)) return false;
+            // Coarse shell bounds only: no pixel fidelity, text clipping or physical-input claim.
+            var shell = Shell(window).ToArray();
+            try { capture?.SetShell(shell); } catch (Exception) { capture = null; }
+            int index = 0;
+            return shell.Length == 3 && shell.All(element =>
             {
                 Point point = element.TranslatePoint(new Point(), client);
-                return element.IsVisible && Size(element) && double.IsFinite(point.X) && double.IsFinite(point.Y) &&
-                    point.X >= -1 && point.Y >= -1 && point.X + element.ActualWidth <= client.ActualWidth + 1 &&
-                    point.Y + element.ActualHeight <= client.ActualHeight + 1;
+                bool visible = element.IsVisible;
+                double itemWidth = element.ActualWidth, itemHeight = element.ActualHeight;
+                try { capture?.Record(index, visible, point, itemWidth, itemHeight); }
+                catch (Exception) { capture = null; }
+                index++;
+                return visible && Size(itemWidth, itemHeight) && double.IsFinite(point.X) && double.IsFinite(point.Y) &&
+                    point.X >= -1 && point.Y >= -1 && point.X + itemWidth <= clientWidth + 1 &&
+                    point.Y + itemHeight <= clientHeight + 1;
             });
+        }
+        finally
+        {
+            // Retain exactly the original predicate's dimensions/points. Read only
+            // unvisited fields for diagnostics, without another layout/resize/await.
+            try { if (capture != null) observation = capture.Complete(window); }
+            catch (Exception) { observation = null; }
+        }
     }
 
-    private static bool Size(FrameworkElement element) => double.IsFinite(element.ActualWidth) &&
-        double.IsFinite(element.ActualHeight) && element.ActualWidth > 0 && element.ActualHeight > 0;
+    private static IEnumerable<FrameworkElement> Shell(MainWindow window) =>
+        Descendants<FrameworkElement>(window).Where(element => element is PageHost ||
+            element is ListBox && AutomationProperties.GetName(element) == "Main navigation" ||
+            element is ComboBox combo && Equals(combo.Tag, "More tools"));
+    private static bool Size(double width, double height) => double.IsFinite(width) && double.IsFinite(height) && width > 0 && height > 0;
+
+    private sealed record LayoutCompanion(int FormatVersion, string Context, string PrimaryReportSha256,
+        string SourceAuthenticity, string WindowsProviders, string Maintenance, string PhysicalInput,
+        LayoutObservation? Wide, LayoutObservation? Compact);
+    private sealed record LayoutObservation(double? RequestedWidth, double? RequestedHeight,
+        double? ActualWidth, double? ActualHeight, double? ClientWidth, double? ClientHeight,
+        double? WorkAreaWidth, double? WorkAreaHeight, double? DpiScaleX, double? DpiScaleY,
+        bool? OuterSizeMatched, int? ShellCount, bool ShellCountOverLimit, IReadOnlyList<ShellObservation>? Shell);
+    private sealed record ShellObservation(string Kind, bool? Visible, double? X, double? Y,
+        double? Width, double? Height, bool? WithinClient);
+
+    private sealed class LayoutCapture(double requestedWidth, double requestedHeight)
+    {
+        private double? actualWidth, actualHeight, clientWidth, clientHeight;
+        private FrameworkElement? client;
+        private FrameworkElement[]? shell;
+        private ShellObservation?[]? records;
+
+        internal void SetOuter(double width, double height)
+        { actualWidth = Dimension(width); actualHeight = Dimension(height); }
+        internal void SetClient(FrameworkElement value, double width, double height)
+        { client = value; clientWidth = Dimension(width); clientHeight = Dimension(height); }
+        internal void SetShell(FrameworkElement[] value)
+        {
+            var slots = new ShellObservation?[Math.Min(value.Length, 3)];
+            shell = value; records = slots;
+        }
+        internal void Record(int index, bool visible, Point point, double width, double height)
+        {
+            if (shell == null || records == null || index < 0 || index >= records.Length) return;
+            double? x = Coordinate(point.X), y = Coordinate(point.Y), w = Dimension(width), h = Dimension(height);
+            records[index] = new(Kind(shell[index]), visible, x, y, w, h,
+                WithinClient(x, y, w, h, clientWidth, clientHeight));
+        }
+        internal LayoutObservation Complete(MainWindow window)
+        {
+            // Supplementary reads never replace already captured primary values.
+            if (client == null)
+                try
+                {
+                    if (window.Content is FrameworkElement value)
+                        SetClient(value, value.ActualWidth, value.ActualHeight);
+                }
+                catch (Exception) { }
+            if (shell == null)
+                try { SetShell(LocalUiValidation.Shell(window).Take(4).ToArray()); }
+                catch (Exception) { shell = null; records = null; }
+            if (shell != null && records != null)
+            {
+                for (int index = 0; index < records.Length; index++)
+                {
+                    if (records[index] != null) continue;
+                    var element = shell[index];
+                    bool? visible = null;
+                    double? x = null, y = null, width = null, height = null;
+                    try { visible = element.IsVisible; } catch (Exception) { }
+                    try { width = Dimension(element.ActualWidth); height = Dimension(element.ActualHeight); } catch (Exception) { }
+                    try
+                    {
+                        if (client != null)
+                        { var point = element.TranslatePoint(new Point(), client); x = Coordinate(point.X); y = Coordinate(point.Y); }
+                    }
+                    catch (Exception) { }
+                    records[index] = new(Kind(element), visible, x, y, width, height,
+                        WithinClient(x, y, width, height, clientWidth, clientHeight));
+                }
+            }
+            double? workWidth = null, workHeight = null, dpiX = null, dpiY = null;
+            try
+            {
+                // SystemParameters describes the PRIMARY work area, not a promise
+                // about the current window's monitor or available test viewport.
+                var work = SystemParameters.WorkArea;
+                workWidth = Dimension(work.Width); workHeight = Dimension(work.Height);
+            }
+            catch (Exception) { }
+            try { var dpi = VisualTreeHelper.GetDpi(window); dpiX = Dpi(dpi.DpiScaleX); dpiY = Dpi(dpi.DpiScaleY); }
+            catch (Exception) { }
+            double? requestedW = requestedWidth > 0 ? Dimension(requestedWidth) : null,
+                requestedH = requestedHeight > 0 ? Dimension(requestedHeight) : null;
+            bool? outer = requestedW is > 0 && requestedH is > 0 && actualWidth.HasValue && actualHeight.HasValue
+                ? Math.Abs(actualWidth.Value - requestedW.Value) <= 2 && Math.Abs(actualHeight.Value - requestedH.Value) <= 2 : null;
+            bool overLimit = shell is { Length: > 3 };
+            return new(requestedW, requestedH, actualWidth, actualHeight, clientWidth, clientHeight,
+                workWidth, workHeight, dpiX, dpiY, outer, overLimit ? null : shell?.Length,
+                overLimit, records?.Select(row => row!).ToArray());
+        }
+        private static string Kind(FrameworkElement element) => element is PageHost ? "page-host" : element is ListBox ? "navigation" : "tools";
+        private static double? Dimension(double value) => double.IsFinite(value) && value is >= 0 and <= 32768 ? value : null;
+        private static double? Coordinate(double value) => double.IsFinite(value) && value is >= -32768 and <= 32768 ? value : null;
+        private static double? Dpi(double value) => double.IsFinite(value) && value is >= 0.125 and <= 16 ? value : null;
+        private static bool? WithinClient(double? x, double? y, double? width, double? height, double? clientWidth, double? clientHeight)
+        {
+            if (width == 0 || height == 0 || clientWidth == 0 || clientHeight == 0) return false;
+            if (!x.HasValue || !y.HasValue || !width.HasValue || !height.HasValue || !clientWidth.HasValue || !clientHeight.HasValue) return null;
+            return x >= -1 && y >= -1 && x + width <= clientWidth + 1 && y + height <= clientHeight + 1;
+        }
+    }
     private static async Task Idle(MainWindow window)
     {
         await window.Dispatcher.InvokeAsync(window.UpdateLayout, DispatcherPriority.ApplicationIdle);

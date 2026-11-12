@@ -71,6 +71,25 @@ class ScopedObservationEvidenceTests(unittest.TestCase):
     def collect(self):
         return evidence.collect(self.root, self.context, self.source_ref, 'success')
 
+    def layout(self):
+        def snapshot(width, height, actual_height):
+            return {'requestedWidth': width, 'requestedHeight': height, 'actualWidth': width,
+                    'actualHeight': actual_height, 'clientWidth': width - 20, 'clientHeight': actual_height - 40,
+                    'workAreaWidth': 1366, 'workAreaHeight': 768, 'dpiScaleX': 1, 'dpiScaleY': 1,
+                    'outerSizeMatched': abs(height - actual_height) <= 2, 'shellCount': 3,
+                    'shellCountOverLimit': False, 'shell': [
+                        {'kind': kind, 'visible': True, 'x': 0, 'y': 0, 'width': 100, 'height': 100, 'withinClient': True}
+                        for kind in ('page-host', 'navigation', 'tools')]}
+        return {'formatVersion': 1, 'context': 'local-repair-review-layout',
+                'primaryReportSha256': hashlib.sha256(self.paths['localRepairReview'].read_bytes()).hexdigest(),
+                **{key: 'unverified' for key in ('sourceAuthenticity', 'windowsProviders', 'maintenance', 'physicalInput')},
+                'wide': snapshot(1200, 900, 800), 'compact': snapshot(980, 650, 650)}
+
+    def save_layout(self, report):
+        path = self.paths['localRepairReview'].with_name('layout-observations.json')
+        path.write_text(json.dumps(report), encoding='utf-8')
+        return path
+
     def test_each_scope_preserves_inner_limits_actual_text_hash_and_trusted_outer_identity(self):
         before = {str(path.relative_to(self.root)): path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
         observations, files = self.collect()
@@ -246,6 +265,149 @@ class ScopedObservationEvidenceTests(unittest.TestCase):
             self.assertIs(sentinel, sys.modules['read_local_ui_report'])
             self.assertIs(loaded._neutral, loaded._repair.neutral)
             self.assertIs(loaded._neutral, loaded._history.neutral)
+
+    def test_layout_outer_mismatch_and_compact_success_are_diagnostics_not_reclassification(self):
+        self.repair['facts']['wideLayout'] = False
+        self.repair['state'] = 'failed'
+        self.save('localRepairReview', self.repair)
+        layout = self.layout()
+        path = self.save_layout(layout)
+        observations, files = self.collect()
+        wrapper = json.loads(files['local-repair-review.json'])
+        self.assertEqual('failed', observations['localRepairReview']['reportedState'])
+        self.assertEqual(self.repair, wrapper['report'])
+        self.assertEqual(layout, wrapper['layoutObservation'])
+        self.assertFalse(wrapper['layoutObservation']['wide']['outerSizeMatched'])
+        self.assertTrue(wrapper['layoutObservation']['compact']['outerSizeMatched'])
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), wrapper['layoutObservationSha256'])
+        self.assertIsNone(wrapper['layoutObservationError'])
+        # Even later/more-positive companion geometry is not a new primary verdict.
+        layout['wide'] = copy.deepcopy(layout['compact'])
+        self.save_layout(layout)
+        observations, files = self.collect()
+        self.assertEqual('failed', observations['localRepairReview']['reportedState'])
+        self.assertEqual('failed', json.loads(files['local-repair-review.json'])['report']['state'])
+
+    def test_missing_or_malformed_layout_never_suppresses_primary_or_other_scopes(self):
+        observations, files = self.collect()
+        wrapper = json.loads(files['local-repair-review.json'])
+        for key in ('layoutObservation', 'layoutObservationSha256', 'layoutObservationError'):
+            self.assertIsNone(wrapper[key])
+        malformed = self.layout()
+        malformed['primaryReportSha256'] = 'b' * 64
+        self.save_layout(malformed)
+        observations, files = self.collect()
+        self.assertEqual({'local-repair-review.json', 'local-update-history.json', 'sdk-journal-reference.json'}, set(files))
+        self.assertTrue(observations['localRepairReview']['present'])
+        self.assertIsNone(observations['localRepairReview']['error'])
+        wrapper = json.loads(files['local-repair-review.json'])
+        self.assertEqual('layout-evidence-rejected', wrapper['layoutObservationError'])
+        self.assertIsNone(wrapper['layoutObservation'])
+        self.assertIsNone(wrapper['layoutObservationSha256'])
+        self.assertEqual(self.repair, wrapper['report'])
+
+    def test_layout_sensitive_extra_fields_numeric_overflow_and_count_contradictions_are_isolated(self):
+        mutations = (
+            lambda value: value.update(processPath='PRIVATE-SYNTHETIC-PATH'),
+            lambda value: value.update(sourceAuthenticity='verified'),
+            lambda value: value['wide'].update(actualWidth=float('nan')),
+            lambda value: value['wide'].update(actualWidth=float('inf')),
+            lambda value: value['wide'].update(actualWidth=32769),
+            lambda value: value['wide'].update(dpiScaleX=.124),
+            lambda value: value['wide'].update(requestedHeight=0),
+            lambda value: value['wide'].update(shellCount=True),
+            lambda value: value['wide'].update(shellCount=2),
+            lambda value: value['wide'].update(shellCountOverLimit=True),
+            lambda value: value['wide']['shell'][0].update(kind='PRIVATE-TEXT'),
+            lambda value: value['wide']['shell'][0].update(width=-1),
+            lambda value: value['wide']['shell'][0].update(x=-32769),
+            lambda value: value['wide']['shell'][0].update(withinClient=False),
+            lambda value: value['wide'].update(outerSizeMatched=True),
+            lambda value: value['wide']['shell'][0].update(x=None, withinClient=False),
+        )
+        for index, mutate in enumerate(mutations):
+            with self.subTest(index=index):
+                layout = self.layout()
+                mutate(layout)
+                self.save_layout(layout)
+                observations, files = self.collect()
+                wrapper = json.loads(files['local-repair-review.json'])
+                self.assertTrue(observations['localRepairReview']['present'])
+                self.assertEqual('passed', observations['localRepairReview']['reportedState'])
+                self.assertEqual('layout-evidence-rejected', wrapper['layoutObservationError'])
+                self.assertNotIn(b'PRIVATE-', files['local-repair-review.json'])
+
+    def test_layout_zero_unknown_duplicate_kinds_and_bounded_overlimit_facts_are_preserved(self):
+        layout = self.layout()
+        layout['wide']['shell'][0].update(width=0, x=None, withinClient=False)
+        layout['wide']['shell'][1].update(kind='page-host', x=None, withinClient=None)
+        layout['compact'].update(shellCount=None, shellCountOverLimit=True)
+        self.save_layout(layout)
+        observations, files = self.collect()
+        self.assertTrue(observations['localRepairReview']['present'])
+        self.assertEqual(layout, json.loads(files['local-repair-review.json'])['layoutObservation'])
+        layout['compact']['shell'] = None
+        self.save_layout(layout)
+        self.assertIsNone(json.loads(self.collect()[1]['local-repair-review.json'])['layoutObservationError'])
+        layout['wide'] = None
+        layout['compact'] = {key: None for key in layout['compact']}
+        layout['compact']['shellCountOverLimit'] = False
+        self.save_layout(layout)
+        self.assertEqual(layout, json.loads(self.collect()[1]['local-repair-review.json'])['layoutObservation'])
+
+    def test_layout_boundary_tolerance_and_visibility_are_independent_of_geometric_containment(self):
+        layout = self.layout()
+        compact = layout['compact']
+        compact['actualHeight'] = compact['requestedHeight'] + 2
+        compact['shell'][0].update(visible=False, x=-1, y=-1, width=compact['clientWidth'] + 2,
+                                   height=compact['clientHeight'] + 2, withinClient=True)
+        self.save_layout(layout)
+        self.assertEqual(layout, json.loads(self.collect()[1]['local-repair-review.json'])['layoutObservation'])
+        compact['shell'][0]['width'] += .01
+        compact['shell'][0]['withinClient'] = False
+        compact['actualHeight'] += .01
+        compact['outerSizeMatched'] = False
+        self.save_layout(layout)
+        self.assertIsNone(json.loads(self.collect()[1]['local-repair-review.json'])['layoutObservationError'])
+
+    def test_layout_is_repair_only_and_unsafe_or_oversized_companion_cannot_hide_primary(self):
+        layout = self.layout()
+        path = self.save_layout(layout)
+        path.write_bytes(b' ' * (16384 + 1))
+        observations, files = self.collect()
+        self.assertTrue(observations['localRepairReview']['present'])
+        self.assertEqual('layout-evidence-rejected', json.loads(files['local-repair-review.json'])['layoutObservationError'])
+        path.unlink()
+        target = self.root / 'private-synthetic-layout.json'
+        target.write_text('PRIVATE-COMPANION-MUST-NOT-EXPORT')
+        try:
+            path.symlink_to(target)
+        except OSError:
+            self.skipTest('Owned fixture link creation unavailable.')
+        observations, files = self.collect()
+        self.assertTrue(observations['localRepairReview']['present'])
+        self.assertNotIn(b'PRIVATE-COMPANION', b''.join(files.values()))
+        self.assertEqual('layout-evidence-rejected', json.loads(files['local-repair-review.json'])['layoutObservationError'])
+        # The same extra filename remains invalid in the history-only scope.
+        self.paths['localUpdateHistory'].with_name('layout-observations.json').write_text('{}')
+        observations, files = self.collect()
+        self.assertFalse(observations['localUpdateHistory']['present'])
+        self.assertTrue(observations['localRepairReview']['present'])
+
+    def test_layout_primary_hash_is_of_exact_accepted_primary_bytes(self):
+        layout = self.layout()
+        self.save_layout(layout)
+        path = self.paths['localRepairReview']
+        path.write_bytes(b'\xef\xbb\xbf' + path.read_bytes() + b'\r\n')
+        observations, files = self.collect()
+        self.assertTrue(observations['localRepairReview']['present'])
+        self.assertEqual('layout-evidence-rejected', json.loads(files['local-repair-review.json'])['layoutObservationError'])
+        layout['primaryReportSha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+        companion = self.save_layout(layout)
+        companion.write_bytes(b'\xef\xbb\xbf' + companion.read_bytes())
+        wrapper = json.loads(self.collect()[1]['local-repair-review.json'])
+        self.assertEqual(layout, wrapper['layoutObservation'])
+        self.assertEqual(hashlib.sha256(companion.read_bytes()).hexdigest(), wrapper['layoutObservationSha256'])
 
 
 if __name__ == '__main__':
