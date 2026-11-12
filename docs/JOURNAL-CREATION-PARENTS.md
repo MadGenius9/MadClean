@@ -42,3 +42,9 @@ The .NET enum confirms inheritance bits 1/2/4/8, inherited bit 16, and audit bit
 - https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants
 
 The file-security reference distinguishes default inherited descriptors on new objects from an existing child's own descriptor and explains generic-right mapping. The named constants include add-file 2, add-subdirectory 4, traverse 32, delete-child 64, read-attributes 128, write-attributes 256 and write-EA 16. These contracts support the exclusion-only design, not effective-access, frozen ACLs, namespace atomicity or Windows qualification.
+
+## Current owned-fixture precondition
+
+The old broad harness created its outer GUID root with inherited default security, which did not guarantee the current-user owner/known-ACE profile required here. Actual source 0cd8b2c reported CreateOwnedScope/SecurityUnsupported, not a precise owner/ACE diagnosis. The harness now requests a protected current-user/SYSTEM descriptor at fresh root creation, independently audits the actual held object/security/volume, and closes that audit before later sharing/namespace probes. It never adopts collisions or repairs an existing ACL. Its owner marker is create-new, fixed ASCII and flushed before probes.
+
+Preparation failure retains the scope and does not enter normal fixture cleanup. The fixture descriptor audit now treats failed GetSecurityInfo outputs as opaque and never dereferences or frees them; uncertainty is latched before retention allocation. This is stronger test setup and failure handling, not production first-parent provisioning, namespace confinement, secure recovery or writer activation.

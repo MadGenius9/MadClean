@@ -8,6 +8,8 @@ namespace MadClean.WindowsSmoke;
 
 internal static partial class NativeFixtures
 {
+    private enum NativeFixtureRootPreparationStage { Guard, AtomicCreate, HeldAudit, OwnerMarker }
+
     public static bool NativeFixtureTreeCleanupConfirmed { get; private set; }
 
     public static void Run(string repository, SmokeReport report, CancellationToken token)
@@ -30,8 +32,55 @@ internal static partial class NativeFixtures
         }
         string fixture = Path.Combine(repository, "artifacts", "windows-validation-fixtures-" + Guid.NewGuid().ToString("N"));
         string marker = Guid.NewGuid().ToString("N");
-        Directory.CreateDirectory(fixture);
-        File.WriteAllText(Path.Combine(fixture, ".madclean-fixture-owner"), marker);
+        bool rootDescriptorsReleased = true;
+        var rootStage = NativeFixtureRootPreparationStage.Guard;
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess ||
+                Marshal.SizeOf<JournalStoreSecurityAttributes>() != 24 || !SystemToolJournalStoreCleanupConfirmed ||
+                JournalStoreRetainedDescriptors.Count != 0 || SystemToolJournalStore.HasUncertainCleanup)
+                throw new IOException();
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            string sid = identity.User?.Value ?? throw new IOException();
+            rootStage = NativeFixtureRootPreparationStage.AtomicCreate;
+            // Fresh harness scope only: fail on any existing object. Never adopt it,
+            // repair inherited ACLs, or treat this fixture as production admission.
+            JournalStoreCreateDirectory(fixture, JournalStoreSddl(sid, true), ref rootDescriptorsReleased);
+            rootStage = NativeFixtureRootPreparationStage.HeldAudit;
+            var audit = SystemToolJournalStore.Open(fixture, 0x20080, 3, true);
+            try
+            {
+                SystemToolJournalStore.ValidateObject(audit, fixture, true);
+                SystemToolJournalStore.VerifyPersistentAclVolume(audit);
+                JournalStoreAuditSecurity(audit, sid, true, ref rootDescriptorsReleased);
+                SystemToolJournalStore.VerifyCreationParentSecurity(audit, sid);
+            }
+            finally { SystemToolJournalStore.DisposeChecked(audit); }
+            // Release this audit before probes so their original sharing and
+            // namespace observations are not changed by another retained handle.
+            if (!rootDescriptorsReleased || JournalStoreRetainedDescriptors.Count != 0 || SystemToolJournalStore.HasUncertainCleanup)
+                throw new IOException();
+            token.ThrowIfCancellationRequested();
+            rootStage = NativeFixtureRootPreparationStage.OwnerMarker;
+            byte[] markerBytes = Encoding.ASCII.GetBytes(marker);
+            try
+            {
+                if (markerBytes.Length != 32) throw new IOException();
+                using var owner = new FileStream(Path.Combine(fixture, ".madclean-fixture-owner"),
+                    FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                owner.Write(markerBytes);
+                owner.Flush(true);
+            }
+            finally { Array.Clear(markerBytes); }
+        }
+        catch
+        {
+            if (!rootDescriptorsReleased) SystemToolJournalStoreCleanupConfirmed = false;
+            report.Unknown("fixture-teardown", $"stage=RootPreparation; step={rootStage}. " +
+                "The fresh private fixture root or its owner marker was not qualified. No main fixture or tree deletion started; any created or pre-existing scope is retained. This is not production namespace evidence.");
+            return;
+        }
         bool cleanupMappedOwnershipConfirmed = true;
         bool cleanupConfirmationOwnershipConfirmed = true;
         bool relativeDirectoryOwnershipConfirmed = true;

@@ -175,9 +175,17 @@ internal static partial class NativeFixtures
     private static void JournalStoreAuditSecurity(SafeFileHandle handle, string sid, bool directory, ref bool released)
     {
         uint code = JournalStoreGetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
+        if (code != 0)
+        {
+            // A failed call grants no descriptor ownership. Keep any output opaque;
+            // do not inspect or pass it to LocalFree as if it were an allocation.
+            released = false;
+            if (descriptor != 0) JournalStoreRetainedDescriptors.Add(descriptor);
+            throw new IOException();
+        }
         try
         {
-            if (code != 0 || descriptor == 0 || !JournalStoreIsValidSecurityDescriptor(descriptor)) throw new IOException();
+            if (descriptor == 0 || !JournalStoreIsValidSecurityDescriptor(descriptor)) throw new IOException();
             uint size = JournalStoreGetSecurityDescriptorLength(descriptor);
             if (size is < 20 or > 65536) throw new IOException();
             byte[] bytes = new byte[size];
@@ -206,7 +214,8 @@ internal static partial class NativeFixtures
         if (descriptor == 0 || JournalStoreLocalFree(descriptor) == 0) return;
         // Retain the one failed native allocation and stop this fixture immediately;
         // no later call retries the free or accumulates additional native queries.
-        JournalStoreRetainedDescriptors.Add(descriptor); released = false;
+        released = false;
+        JournalStoreRetainedDescriptors.Add(descriptor);
     }
 
     private static void JournalStoreCreateDirectory(string path, string sddl, ref bool released)
