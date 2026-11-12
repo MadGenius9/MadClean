@@ -22,19 +22,29 @@ public sealed partial class MainViewModel
     public string InstalledMessage { get => installedMessage; private set => Set(ref installedMessage, value); }
     public string ApplicationBaselineMessage { get => baselineMessage; private set => Set(ref baselineMessage, value); }
     public string LeftoverMessage { get => leftoverMessage; private set => Set(ref leftoverMessage, value); }
+    private InstalledApplication? CurrentInstalledApplication => ApplicationSelectionPolicy.IsCurrentDesktop(
+        latestInstalledSnapshot, InstalledApplications, selectedApplication, installedAppSearch) ? selectedApplication : null;
     public InstalledApplication? SelectedInstalledApplication
     {
-        get => selectedApplication;
+        get => CurrentInstalledApplication;
         set
         {
+            // Collection bindings may send a departed row after refresh/filter changes.
+            // Rebind to the qualified current row without invalidating its valid preview.
+            if (value != null && !ApplicationSelectionPolicy.IsCurrentDesktop(
+                latestInstalledSnapshot, InstalledApplications, value, installedAppSearch))
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedInstalledApplication))); return; }
             if (ReferenceEquals(selectedApplication, value) || MsiUninstallDispatchReserved) return;
             InvalidateInstalledAppPlan();
             if (MsiUninstallDispatchReserved) return;
-            Set(ref selectedApplication, value); PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails)));
+            // InstalledApplication is a record: value equality cannot replace reference ownership.
+            selectedApplication = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedInstalledApplication)));
+            PropertyChanged?.Invoke(this, new(nameof(SelectedApplicationDetails)));
         }
     }
-    public string SelectedApplicationDetails => selectedApplication == null ? "Select a registration to review its reported metadata and uninstall capability hint." :
-        $"{selectedApplication.Name} · {selectedApplication.Version} · publisher: {selectedApplication.Publisher}\nSource: {selectedApplication.Source}\nRegistration: {selectedApplication.Identity}\nInstall location: {selectedApplication.InstallLocation ?? "Unknown/unsupported"}\n{selectedApplication.UninstallSupport}. No registered uninstall command is collected. A separately prepared and confirmed MSI request uses the fixed Windows Installer flow; removal restrictions remain visible.";
+    public string SelectedApplicationDetails => CurrentInstalledApplication is not { } selected ? "Select a registration to review its reported metadata and uninstall capability hint." :
+        $"{selected.Name} · {selected.Version} · publisher: {selected.Publisher}\nSource: {selected.Source}\nRegistration: {selected.Identity}\nInstall location: {selected.InstallLocation ?? "Unknown/unsupported"}\n{selected.UninstallSupport}. No registered uninstall command is collected. A separately prepared and confirmed MSI request uses the fixed Windows Installer flow; removal restrictions remain visible.";
     public LeftoverCandidate? SelectedLeftoverCandidate
     {
         get => selectedLeftover is { } candidate && LeftoverCandidates.Any(row => ReferenceEquals(row, candidate)) ? candidate : null;
@@ -60,6 +70,7 @@ public sealed partial class MainViewModel
         InitializeInstalledAppSearch();
         InitializePackagedApplications();
         InitializeInstalledAppPlans();
+        InitializeMsiRegistrationWatch();
         InitializeLeftoverContentReview();
         ViewLeftoverReviewCommand = new ActionCommand(() => SelectedPage = 8, () => true);
         RefreshInstalledApplicationsCommand = new AsyncCommand(() => RefreshInstalledApplications(false), () => !IsBusy);

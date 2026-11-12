@@ -293,6 +293,7 @@
                             <TextBlock Text="{Binding SecurityMessage}" Style="{StaticResource Caption}"/>
                             <TextBlock Text="MadClean reports Windows protection status and recorded findings. It is not an antivirus engine. No scan, remediation, quarantine or setting change is performed." Style="{StaticResource Caption}"/>
                             <ContentControl Height="320" Content="{Binding SecurityRows}" ContentTemplate="{StaticResource RowsTemplate}"/>
+                            <views:DefenderLifecycleView/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -507,6 +508,7 @@
                                     <StackPanel Margin="0,8,0,0">
                                         <Button Content="Analyze snapshot file identities" Command="{Binding AnalyzeDiskIdentitiesCommand}" HorizontalAlignment="Left"/>
                                         <TextBlock Text="{Binding DiskIdentityMessage}" Style="{StaticResource Caption}" Margin="0,8,0,8"/>
+                                        <TextBlock Text="{Binding DiskIdentityQueryDetails}" Style="{StaticResource Caption}" AutomationProperties.Name="Disk identity request times and pending metadata ownership" AutomationProperties.LiveSetting="Polite"/>
                                         <TextBox Text="{Binding DiskIdentityTotals, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="115" MinHeight="60" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
                                         <ContentControl Content="{Binding DiskIdentityRows}" ContentTemplate="{StaticResource RowsTemplate}" Height="220" Margin="0,10,0,8"/>
                                         <ItemsControl ItemsSource="{Binding DiskIdentityCoverage}">
@@ -598,7 +600,7 @@
                         </Grid.RowDefinitions>
                         <StackPanel>
                             <TextBlock Text="Activity" Style="{StaticResource SectionTitle}"/>
-                            <TextBlock Text="Local operation events only. No filenames, startup commands, detection resources or provider output are written to the log. Two bounded log files, approximately 1 MB each." Style="{StaticResource Caption}"/>
+                            <TextBlock Text="MadClean writes only UTC time, module and outcome. It does not log filenames, startup commands, detection resources or provider output. Rotation keeps current and previous generations and starts around 1 MiB; existing files are not verified and may be larger. This is an activity record, not a durable recovery journal." Style="{StaticResource Caption}"/>
                             <TextBlock Text="{Binding LogMessage}" Style="{StaticResource Caption}"/>
                         </StackPanel>
                         <ListBox Grid.Row="1" ItemsSource="{Binding Activity}" Background="#171C27" Foreground="#C5D1E6" BorderThickness="0" Padding="14"/>
@@ -640,7 +642,7 @@
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
                                     <TextBlock Text="Upgrade prerequisite worksheet" FontSize="19" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Plan what needs checking before considering an upgrade. This generic worksheet is not matched to your detected PC and does not verify manufacturer specifications, recommend products or contact any service. Every evidence requirement remains Unknown." Style="{StaticResource Caption}"/>
+                                    <TextBlock Text="Plan what needs checking before considering an upgrade. The checklist does not verify manufacturer specifications, recommend products or contact any service. You can separately attach reported inventory context below; every compatibility requirement remains Unknown." Style="{StaticResource Caption}"/>
                                     <Label Content="_Upgrade area" Target="{Binding ElementName=HardwareUpgradeAreaInput}" Foreground="#ECF1FB" Padding="0" Margin="0,12,0,4"/>
                                     <ComboBox x:Name="HardwareUpgradeAreaInput" ItemsSource="{Binding UpgradeReviewAreas}" SelectedItem="{Binding UpgradeReviewArea, Mode=TwoWay}" Style="{StaticResource ToolSelector}" Tag="Choose an upgrade area" Width="250" HorizontalAlignment="Left" AutomationProperties.Name="Upgrade planning area, no selection by default"/>
                                     <WrapPanel Margin="0,12,0,0">
@@ -677,7 +679,8 @@
                                             </DataGridTextColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <TextBlock Text="Planning inputs stay in memory and are not saved, logged or sent anywhere. Changing any input clears this report. Exact OEM/model or board revision, applicable manufacturer and firmware evidence, and safe manual physical checks are still required. There is no verification checkbox, compatibility approval, purchase or hardware action here." Style="{StaticResource Caption}" Margin="0,12,0,0"/>
+                                    <TextBlock Text="Planning inputs stay in memory and are not saved, logged or sent anywhere. Changing any input clears this report and attached context. Exact OEM/model or board revision, applicable manufacturer and firmware evidence, and safe manual physical checks are still required. There is no compatibility approval, purchase or hardware action here." Style="{StaticResource Caption}" Margin="0,12,0,0"/>
+                                    <views:HardwareUpgradeContextView/>
                                 </StackPanel>
                             </Border>
                             <views:ManufacturerServiceView/>

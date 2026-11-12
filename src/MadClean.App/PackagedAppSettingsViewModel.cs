@@ -20,17 +20,18 @@ public sealed partial class MainViewModel
     public bool HasPendingPackagedSettingsWork => packagedSettingsRefreshTask is { IsCompleted: false } ||
         packagedSettingsHandoffTask is { IsCompleted: false } || packagedSettingsLauncher.HasPendingHandoff;
     public string PackagedSettingsMessage { get => packagedSettingsMessage; private set => Set(ref packagedSettingsMessage, value); }
-    public string PackagedSettingsPreview => packagedSettingsPreview is { } preview
+    private PackagedAppSettingsPreview? CurrentPackagedSettingsPreview => packagedSettingsPreview is { } preview &&
+        ReferenceEquals(CurrentPackagedApplication, preview.Selected) ? preview : null;
+    public string PackagedSettingsPreview => CurrentPackagedSettingsPreview is { } preview
         ? $"Selected registration: {preview.Selected.FullName}\nFamily destination: {preview.Selected.FamilyName}\nExact URI: {preview.TargetUri.OriginalString}\nOriginal source received UTC: {preview.SourceCompletedUtc:u}; coverage: {preview.SourceCoverage}\nPreview created UTC: {preview.CreatedUtc:u}; expires after five minutes\nReported non-removable: {Flag(preview.Selected.NonRemovable)}\n\n{PackagedAppSettingsPreview.Effect}\n\nBefore handoff, MadClean rereads current-user Main/Bundle metadata and requires the exact selected registration metadata still to match. Source changes can occur after that observation; this is not a locked package snapshot.\n\n{PackagedAppSettingsPreview.Limits}\n\nNo elevation is requested by MadClean. Windows may require separate consent for any later action.\nOfficial reference: {PackagedAppSettingsPreview.OfficialReference}"
         : "No current navigation preview. A preview must come from a supported exact loaded registration observed within five minutes. Windows' documented destination is family-level; it does not select an exact version or guarantee an uninstall control. No package operation is requested.";
     private void InitializePackagedAppSettings()
     {
         PreviewPackagedSettingsCommand = new ActionCommand(PreviewPackagedSettings,
-            () => !IsBusy && !HasPendingPackagedSettingsWork && selectedPackagedApplication != null && packagedSettingsSource != null);
+            () => !IsBusy && !HasPendingPackagedSettingsWork && CurrentPackagedApplication != null && packagedSettingsSource != null);
         OpenPackagedSettingsCommand = new AsyncCommand(OpenPackagedSettings,
-            () => !IsBusy && !HasPendingPackagedSettingsWork && packagedSettingsPreview != null &&
-                ReferenceEquals(selectedPackagedApplication, packagedSettingsPreview.Selected) &&
-                PackagedAppSettingsPolicy.IsAllowed(packagedSettingsPreview, DateTimeOffset.UtcNow));
+            () => !IsBusy && !HasPendingPackagedSettingsWork && CurrentPackagedSettingsPreview is { } preview &&
+                PackagedAppSettingsPolicy.IsAllowed(preview, DateTimeOffset.UtcNow));
     }
     private void InvalidatePackagedSettings(bool clearSource)
     {
@@ -48,7 +49,7 @@ public sealed partial class MainViewModel
     }
     private void PreviewPackagedSettings()
     {
-        if (IsBusy || HasPendingPackagedSettingsWork || selectedPackagedApplication is not { } selected ||
+        if (IsBusy || HasPendingPackagedSettingsWork || CurrentPackagedApplication is not { } selected ||
             packagedSettingsSource is not { } source || packagedSettingsSourceUtc is not { } completed) return;
         packagedSettingsPreview = PackagedAppSettingsPolicy.Create(source, selected, completed, DateTimeOffset.UtcNow);
         PackagedSettingsMessage = packagedSettingsPreview == null
@@ -58,11 +59,11 @@ public sealed partial class MainViewModel
     }
     private async Task OpenPackagedSettings()
     {
-        if (IsBusy || HasPendingPackagedSettingsWork || packagedSettingsPreview is not { } preview ||
-            !ReferenceEquals(selectedPackagedApplication, preview.Selected) || !PackagedAppSettingsPolicy.IsAllowed(preview, DateTimeOffset.UtcNow)) return;
+        if (IsBusy || HasPendingPackagedSettingsWork || CurrentPackagedSettingsPreview is not { } preview ||
+            !PackagedAppSettingsPolicy.IsAllowed(preview, DateTimeOffset.UtcNow)) return;
         long generation = packagedSettingsGeneration;
         bool Current() => generation == packagedSettingsGeneration && ReferenceEquals(packagedSettingsPreview, preview) &&
-            ReferenceEquals(selectedPackagedApplication, preview.Selected);
+            ReferenceEquals(CurrentPackagedApplication, preview.Selected);
         using var sourceStop = new CancellationTokenSource();
         using var selectedStop = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(sourceStop.Token, selectedStop.Token);

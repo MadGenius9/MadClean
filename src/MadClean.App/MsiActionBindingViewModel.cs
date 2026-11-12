@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
     public string MsiActionBindingMessage { get => msiActionBindingMessage; private set => Set(ref msiActionBindingMessage, value); }
     public string MsiActionBindingDetails { get => msiActionBindingDetails; private set => Set(ref msiActionBindingDetails, value); }
     private void InitializeMsiActionBinding() => RecheckMsiActionBindingCommand = new AsyncCommand(RecheckMsiActionBinding,
-        () => !IsBusy && latestInstalledSnapshot != null && selectedApplication?.RegistrationEvidence?.WindowsInstaller == true);
+        () => !IsBusy && latestInstalledSnapshot != null && CurrentInstalledApplication?.RegistrationEvidence?.WindowsInstaller == true);
     private void InvalidateMsiActionBinding()
     {
         msiActionBindingGeneration++;
@@ -26,10 +26,10 @@ public sealed partial class MainViewModel
         long generation = -1;
         InstalledApplication? selected = null;
         CheckResult<InstalledApplication>? snapshot = null;
-        bool Current() => generation == msiActionBindingGeneration && ReferenceEquals(selected, selectedApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
+        bool Current() => generation == msiActionBindingGeneration && ReferenceEquals(selected, CurrentInstalledApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
         return RunDiscoveryAsync(ActivityArea.MsiRegistrationVerification, "Rechecking selected MSI context binding", async token =>
         {
-            selected = selectedApplication; snapshot = latestInstalledSnapshot;
+            selected = CurrentInstalledApplication; snapshot = latestInstalledSnapshot;
             InvalidateMsiActionBinding(); generation = msiActionBindingGeneration;
             if (selected == null || snapshot == null)
             { MsiActionBindingMessage = "Select a current MSI registration first; no query started."; return CheckState.Unknown; }

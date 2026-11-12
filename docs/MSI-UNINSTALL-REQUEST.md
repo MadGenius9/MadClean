@@ -66,3 +66,9 @@ Current official sources were retrieved successfully and read on 2026-11-03:
 - [MsiEnumProductsExW](https://learn.microsoft.com/windows/win32/api/msi/nf-msi-msienumproductsexw) ([consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/msi/nf-msi-msienumproductsexw.md)): NULL SID restricts per-user enumeration to the current caller; the combined context mask also covers machine registrations. This is not all-user enumeration or an atomic selection mechanism for msiexec.
 
 No actual installer, uninstall, elevation, repair or personal-PC operation ran while authoring these portable contracts.
+
+## Portable result-observation admission
+
+The App now uses `MsiUninstallResultPolicy.IsConsistent` instead of a private UI-only validator. Exact request binding, valid ordered UTC observations and defined states/classification are required. Actual client claims additionally require this intent's committed reservation and ClientStartObserved=true. Pure negative and fact-free ambiguous-start observations do not fabricate either. Missing optional PID, OS start time or exit code stays missing even after an actual observed exit; cleanup uncertainty may retain that exit under MonitoringUnknown. An already-run client result is not erased when its earlier preview expires. Supplied exit codes must retain the existing exact classifier. Tool diagnostics and result Message are not authorization inputs.
+
+This adds portable boundary tests and one App admission call, not an executor or new preview. No launcher, production gate, qualification fixture or result-display contract is enabled. Actual client exit/installer-reported success remains separate from current registration absence, completed uninstall, leftover ownership, rollback and restart permission.

@@ -1,0 +1,23 @@
+<UserControl x:Class="MadClean.App.Views.DefenderLifecycleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="0,22,0,0">
+        <TextBlock Text="Recorded scan events" Style="{StaticResource SectionTitle}"/>
+        <TextBlock Text="Read local Defender lifecycle notifications separately from protection status. This does not start, stop or attribute a scan." Style="{StaticResource Caption}"/>
+        <WrapPanel Margin="0,10,0,10">
+            <ComboBox MinWidth="160" ItemsSource="{Binding DefenderLifecycleRanges}" SelectedItem="{Binding SelectedDefenderLifecycleRange}" DisplayMemberPath="Title" AutomationProperties.Name="Defender event history time range"/>
+            <Button Margin="10,0,0,0" Content="Read scan-event history" Command="{Binding ReadDefenderLifecycleCommand}" AutomationProperties.HelpText="Read bounded local Windows Defender lifecycle metadata only; no scan is started"/>
+        </WrapPanel>
+        <TextBlock Text="{Binding DefenderLifecycleMessage}" Style="{StaticResource Caption}"/>
+        <TextBox Text="{Binding DefenderLifecycleDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,8" AutomationProperties.Name="Defender event query scope and coverage"/>
+        <DataGrid ItemsSource="{Binding DefenderLifecycleRows}" AutoGenerateColumns="False" IsReadOnly="True" Height="240" CanUserAddRows="False" AutomationProperties.Name="Retained Defender lifecycle event records">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Event time UTC" Binding="{Binding TimeUtc, StringFormat=O}" Width="2*"/>
+                <DataGridTextColumn Header="Reported event" Binding="{Binding Kind}" Width="2*"/>
+                <DataGridTextColumn Header="Event ID" Binding="{Binding EventId}" Width="*"/>
+                <DataGridTextColumn Header="Record reference" Binding="{Binding RecordId}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="{Binding DefenderLifecycleLimits}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+    </StackPanel>
+</UserControl>

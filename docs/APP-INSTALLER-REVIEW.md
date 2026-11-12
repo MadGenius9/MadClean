@@ -1,0 +1,21 @@
+# Selected update installer requirements
+
+Update Center's **Review selected installer requirements** action now rereads one actual Available offer's exact package ID, installed version, offered version and pinned source. It requests only manifest installer selection for an explicit **User / Interactive** profile. It does not request an installation, upgrade, installer payload, agreement acceptance or restart. Ordinary Inspect never invokes it.
+
+The shared WinGet lookup requires one exact ID match, no truncated coverage, unchanged installed/offered versions, update availability and the original supported source tuple. Discovery, catalog details and installer review share one provider, gate and retained MTA owner. The options object uses the production out-of-process InstallOptions CLSID `1095F097-EB96-453B-B4E6-1613637F3B14`. Hash mismatch, Force, unknown-version upgrades, package-agreement acceptance and Store-policy bypass remain false; arguments, locations, logs, catalog arguments and correlation are empty. No fallback broadens the profile or source.
+
+`PackageVersionInfo.GetApplicableInstaller(options)` is a supported synchronous manifest selection operation. It can fetch/cache manifest metadata. The pinned implementation passes empty installed-package metadata to its comparator; it therefore does **not** establish that UpgradePackageAsync would accept this installed application or that the installed scope is User. Null is displayed as **no applicable installer reported for this profile**, never “up to date.” A returned installer yields bounded closed reported type/nested type, architecture, scope, locale, elevation and authentication declarations. Missing/unknown/future declarations remain Unknown. No installer URL, command line, installation path, product code, authentication resource/account or installed `GetMetadata` is read.
+
+Positive applicability remains **Partial**, with `CanInstall` permanently false: restart behavior, dependency effects, installed scope, actual upgrade applicability, publisher/package authenticity and installation readiness are unverified. Reported authentication None or elevation declarations do not grant credentials, consent or trust. The pinned install API has no universal no-restart option; a lack of that option is an unresolved activation contract, not permission to infer restart suppression.
+
+Caller cancellation/deadline never kills the WinGet server or drops the synchronous getter's owner. Busy and normal close protection remain until actual settlement, including display-notification failures. Selection/source generations and exact references reject stale responses without erasing original update counts or catalog details. Times distinguish app attempt/response from manifest observation; no performance or simultaneous-snapshot claim is made. Activity records contain only area/outcome/time, never package fields.
+
+## Official contract and validation
+
+The implementation was checked against previously retrieved Microsoft **winget-cli v1.10.340** sources, reread locally for this milestone without contacting GitHub:
+
+- [PackageManager.idl](https://github.com/microsoft/winget-cli/blob/v1.10.340/src/Microsoft.Management.Deployment/PackageManager.idl): contracts 4/6/12, InstallOptions and installer-info fields.
+- [PackageVersionInfo.cpp](https://github.com/microsoft/winget-cli/blob/v1.10.340/src/Microsoft.Management.Deployment/PackageVersionInfo.cpp): synchronous GetManifest/comparator and null return semantics.
+- [ComClsids.h](https://github.com/microsoft/winget-cli/blob/v1.10.340/src/Microsoft.Management.Deployment/Public/ComClsids.h): fixed production out-of-process activation. Checksums are recorded with the earlier [catalog metadata contract](APP-PACKAGE-METADATA.md).
+
+Current-main cached sources contain newer contracts and were not treated as pinned runtime proof. Portable projection/consistency tests cover malformed selectors, unknown/future declarations, no-applicable findings, fixed-profile scope, time/identity mismatches and permanent non-installability. Builds and independent review do not qualify actual COM selection, source policy/offline behavior, server interface availability or WPF interaction. Windows execution remains unverified while no test environment is available.

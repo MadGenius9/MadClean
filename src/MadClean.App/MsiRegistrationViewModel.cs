@@ -22,7 +22,7 @@ public sealed partial class MainViewModel
     {
         InitializeMsiActionBinding();
         VerifyMsiRegistrationCommand = new AsyncCommand(VerifyMsiRegistration,
-            () => !IsBusy && latestInstalledSnapshot != null && selectedApplication?.RegistrationEvidence?.WindowsInstaller == true);
+            () => !IsBusy && latestInstalledSnapshot != null && CurrentInstalledApplication?.RegistrationEvidence?.WindowsInstaller == true);
     }
     private void InvalidateMsiRegistration()
     {
@@ -38,10 +38,10 @@ public sealed partial class MainViewModel
         long generation = -1;
         InstalledApplication? selection = null;
         CheckResult<InstalledApplication>? snapshot = null;
-        bool Current() => generation == msiRegistrationGeneration && ReferenceEquals(selection, selectedApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
+        bool Current() => generation == msiRegistrationGeneration && ReferenceEquals(selection, CurrentInstalledApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
         return RunDiscoveryAsync(ActivityArea.MsiRegistrationVerification, "Verifying selected Windows Installer metadata", async token =>
         {
-            selection = selectedApplication; snapshot = latestInstalledSnapshot;
+            selection = CurrentInstalledApplication; snapshot = latestInstalledSnapshot;
             InvalidateMsiRegistration(); generation = msiRegistrationGeneration;
             if (selection == null || snapshot == null)
             { MsiRegistrationMessage = "Select a current MSI registration first. No Windows Installer query ran."; return CheckState.Unknown; }

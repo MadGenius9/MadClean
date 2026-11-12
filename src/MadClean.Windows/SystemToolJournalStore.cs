@@ -183,6 +183,40 @@ internal sealed class SystemToolJournalStore : IDisposable
         if (!GetVolumeInformationByHandleW(volume, null, 0, out _, out _, out uint flags, null, 0)) throw Native();
         if ((flags & 8) == 0) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.PersistentAclUnavailable);
     }
+    // Used only by the closed relative-file candidate after same-handle qualification.
+    // The native frame owns the raw child and publishes this stream into its own
+    // slot before allocating a store. No path is opened and no handle is transferred.
+    internal static SystemToolJournalStore AdoptQualifiedRelativeLifecycleFile(SafeFileHandle handle,
+        SafeFileHandle parent, bool created, bool readOnly, out FileStream stream)
+    {
+        if (!WindowsSystemToolJournalRelativeFile.NativeCandidateExecutionValidated)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        if (HasUncertainCleanup || handle.IsInvalid || handle.IsClosed || parent.IsInvalid || parent.IsClosed || created && readOnly)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        stream = new FileStream(handle, readOnly ? FileAccess.Read : FileAccess.ReadWrite, 4096, false);
+        return new(stream, parent, [], created, SystemToolJournalFixtureCase.Lifecycle) { readOnly = readOnly };
+    }
+    internal static nint CreateRelativeFileDescriptor(string sid)
+    {
+        if (!WindowsSystemToolJournalRelativeFile.NativeCandidateExecutionValidated)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        return Descriptor(sid, false);
+    }
+    internal static bool ReleaseRelativeFileDescriptor(nint descriptor)
+    {
+        if (!WindowsSystemToolJournalRelativeFile.NativeCandidateExecutionValidated || HasUncertainCleanup) return false;
+        FreeDescriptor(descriptor);
+        return !HasUncertainCleanup;
+    }
+    internal static (ulong Volume, ulong Low, ulong High) RelativeFileIdentity(SafeFileHandle handle)
+    {
+        if (!WindowsSystemToolJournalRelativeFile.NativeCandidateExecutionValidated)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        if (!GetIdentity(handle, 18, out var identity, 24)) throw Native();
+        if (identity.Low == 0 && identity.High == 0)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.UnsafeObject);
+        return (identity.Volume, identity.Low, identity.High);
+    }
     internal static void VerifyFixedLocalPath(string path)
     {
         string? root = Path.GetPathRoot(path);

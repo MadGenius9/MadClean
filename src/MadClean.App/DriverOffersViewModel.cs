@@ -6,6 +6,7 @@ namespace MadClean.App;
 public sealed partial class MainViewModel
 {
     private SystemUpdate? selectedDriverOffer;
+    private CheckResult<SystemUpdate>? driverOfferSnapshot;
     private DateTimeOffset? driverOfferAttemptUtc, driverOfferResultUtc, driverOfferInterruptedUtc;
     private CheckState driverOfferSourceState = CheckState.Unknown;
     private bool driverOfferQueryPending;
@@ -16,7 +17,10 @@ public sealed partial class MainViewModel
         set
         {
             if (value != null && !DriverOffers.Any(offer => ReferenceEquals(offer, value))) return;
-            Set(ref selectedDriverOffer, value);
+            if (ReferenceEquals(selectedDriverOffer, value)) return;
+            selectedDriverOffer = value;
+            InvalidateDriverUpdateReview();
+            PropertyChanged?.Invoke(this, new(nameof(SelectedDriverOffer)));
             PropertyChanged?.Invoke(this, new(nameof(DriverOfferDetails)));
         }
     }
@@ -40,6 +44,8 @@ public sealed partial class MainViewModel
 
     private void BeginDriverOffersQuery(DateTimeOffset attemptedUtc)
     {
+        driverOfferSnapshot = null;
+        InvalidateDriverUpdateReview();
         DriverOffers.Clear(); SelectedDriverOffer = null;
         driverOfferAttemptUtc = attemptedUtc; driverOfferResultUtc = null; driverOfferInterruptedUtc = null;
         driverOfferSourceState = CheckState.Unknown; driverOfferQueryPending = true;
@@ -47,16 +53,21 @@ public sealed partial class MainViewModel
     }
     private void PublishDriverOffersQuery(CheckResult<SystemUpdate> result, DateTimeOffset completedUtc)
     {
+        driverOfferSnapshot = null;
+        InvalidateDriverUpdateReview();
         DriverOffers.Clear(); SelectedDriverOffer = null;
         driverOfferResultUtc = completedUtc; driverOfferInterruptedUtc = null; driverOfferQueryPending = false;
         driverOfferSourceState = Enum.IsDefined(result.State) ? result.State : CheckState.Unknown;
         if ((result.State is CheckState.Available or CheckState.Partial) && result.Items != null)
             foreach (var offer in result.Items)
                 if (offer != null && offer.Kind == "Driver") DriverOffers.Add(offer);
+        driverOfferSnapshot = result;
         NotifyDriverOfferQuery();
     }
     private void InterruptDriverOffersQuery(DateTimeOffset completedUtc)
     {
+        driverOfferSnapshot = null;
+        InvalidateDriverUpdateReview();
         DriverOffers.Clear(); SelectedDriverOffer = null;
         // The existing interruption callback carries fixed display text, not a typed provider
         // completion. Do not invent a successful response or derive a state by parsing text.

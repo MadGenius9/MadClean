@@ -16,6 +16,11 @@
             </CheckBox>
             <TextBlock Text="Before dispatch, Cancel stops MadClean preparation. After dispatch, use Windows Installer's Cancel control if offered; otherwise wait for supported completion. MadClean will not kill it or claim rollback. Keep MadClean open until actual process ownership settles." Style="{StaticResource Caption}"/>
             <TextBox Text="{Binding MsiUninstallResultDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="260" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Actual MSI client result and unchecked registration status"/>
+            <TextBlock Text="Registration postcheck for the historical request" FontSize="17" Margin="0,14,0,4"/>
+            <TextBlock Text="After an accepted actual client exit, explicitly read that request's exact ProductCode registrations. The current app-list selection does not choose this target. No query starts automatically, and an absent registration does not prove complete uninstall or identify files for deletion." Style="{StaticResource Caption}"/>
+            <Button Content="Recheck historical request registrations" Command="{Binding RecheckMsiUninstallRegistrationsCommand}" HorizontalAlignment="Left" Margin="0,6,0,4" AutomationProperties.Name="Read exact historical MSI uninstall request registrations"/>
+            <TextBlock Text="{Binding MsiUninstallPostcheckMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Historical MSI request registration postcheck status" AutomationProperties.LiveSetting="Polite"/>
+            <TextBox Text="{Binding MsiUninstallPostcheckDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Historical MSI request target and sequential registration observations"/>
             <WrapPanel Margin="0,10,0,0">
                 <Button Content="Refresh registrations separately" Command="{Binding RefreshInstalledApplicationsCommand}" Background="#343E52" Foreground="White"/>
                 <Button Content="Review leftover candidates" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>

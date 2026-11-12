@@ -38,7 +38,7 @@ public sealed partial class MainViewModel
         }
     }
     public string WerDetails => CurrentWerObservation is { } item
-        ? $"Category: {item.Category}\nStore: {item.Store}\nReport reference: {item.ReportId}\nRecorded creation UTC: {item.CreatedUtc:u}\nSource: {item.Source}\n{WerWindow}\n\nThis is stored report metadata, not a confirmed unique crash, current problem, cause, severity or integrity verdict. Queue/archive entries can overlap, expire or be absent under retention/policy. App names, raw signatures/parameters, file names and dump contents are not read into this view."
+        ? $"Category: {item.Category}\nStore: {item.Store}\nReport reference: {item.ReportId}\nRecorded creation: {DiagnosticTimestamp(item.CreatedUtc)}\nSource: {item.Source}\n{WerWindow}\n\nThis is stored report metadata, not a confirmed unique crash, current problem, cause, severity or integrity verdict. Queue/archive entries can overlap, expire or be absent under retention/policy. App names, raw signatures/parameters, file names and dump contents are not read into this view."
         : "Select a stored-report observation to inspect its source and recorded time. Retention, access, OS/API support and bounded coverage limit this corroborating evidence; no records does not mean healthy.";
     private static string WerStoreStatusText(WerMetadataStoreStatus source)
     {
@@ -88,10 +88,10 @@ public sealed partial class MainViewModel
                 foreach (var source in report.StoreStatuses) WerCoverage.Add(WerStoreStatusText(source));
                 WerCountSummary = "Current-store counts (all creation times): " + string.Join("; ", report.StoreStatuses.Select(source =>
                     WerMetadataProjection.Label(source.Store) + (source.CountObservation is { NativeResult: 0, ReportCount: { } count } observation
-                        ? $" reported {count} at {observation.CheckedUtc:u}"
+                        ? $" reported {count} at {DiagnosticTimestamp(observation.CheckedUtc)}"
                         : " count unknown"))) +
                     ". Separate non-atomic observations; not a count of unique crashes or reports in the selected time range. Zero does not mean healthy. Enumeration status remains separate.";
-                WerWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
+                WerWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc);
             }
             WerMessage = Stamp(result.State, result.Message);
             return result.State;

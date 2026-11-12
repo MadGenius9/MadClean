@@ -38,6 +38,7 @@
         </DataGrid>
         <StackPanel Grid.Row="2" Margin="0,12,0,0">
             <views:MsiUninstallRequestView/>
+            <views:MsiRegistrationWatchView/>
             <TextBox Text="{Binding SelectedApplicationDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="105" MinHeight="46" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8"/>
             <TextBox Text="{Binding InstalledAppPlanDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="230" MinHeight="65" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" Margin="0,10,0,0"/>
             <Border Style="{StaticResource Card}" Margin="0,16,0,0"><StackPanel>

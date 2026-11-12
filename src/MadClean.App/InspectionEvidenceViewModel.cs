@@ -27,8 +27,8 @@ public sealed partial class MainViewModel
     }
     public string InspectionEvidenceDetails => selectedInspectionEvidence is { } entry
         ? $"Area: {entry.Title}\nObservation: {entry.Observation}\nSource: {entry.Source}\nState: {entry.State}\n" +
-            $"Request attempt UTC: {(entry.AttemptedUtc.HasValue ? entry.AttemptedUtc.Value.ToString("u") : "not checked")}\n" +
-            $"Collection completed UTC: {(entry.CompletedUtc.HasValue ? entry.CompletedUtc.Value.ToString("u") : "not completed")}\n" +
+            $"Request attempt: {DiagnosticTimestamp(entry.AttemptedUtc)}\n" +
+            $"Collection completed: {DiagnosticTimestamp(entry.CompletedUtc)}\n" +
             $"Coverage: {entry.Coverage}\nUncertainty: {entry.Uncertainty}\nImpact: {entry.Impact}\nNext step: {entry.NextStep}\n\n" +
             "These are independent in-memory source observations from this session, not live monitoring, a combined health verdict or permission to change the PC. Each source has its own request and time. Collection time does not establish when Windows last refreshed an individual provider field."
         : "Select an inspection observation to review its source, collection time, scope, uncertainty and next step. Inspect this PC collects disk and Defender observations. Component-store and SFC observations require their own reviewed, explicitly confirmed requests. Reading or selecting this panel starts no query.";

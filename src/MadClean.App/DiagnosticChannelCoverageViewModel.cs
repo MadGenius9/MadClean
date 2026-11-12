@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
     public string DiagnosticChannelDetails => SelectedDiagnosticChannel is { } row
         ? $"{row.Channel} · {row.State}\n{row.Explanation}\n" +
           $"Rejected records: {Known(row.RejectedRecords)}; duplicate/ambiguous references omitted: {Known(row.DuplicateRecords)}.\n" +
-          $"Whole-log retained bounds UTC: {row.OldestRetainedUtc?.ToString("u") ?? "Unknown"} to {row.NewestRetainedUtc?.ToString("u") ?? "Unknown"}. " +
+          $"Whole-log oldest retained: {DiagnosticTimestamp(row.OldestRetainedUtc)}\nWhole-log newest retained: {DiagnosticTimestamp(row.NewestRetainedUtc)}\n" +
           "These are separate whole-log probes, not matching-event bounds or proof of continuous coverage. No health or unique-incident conclusion is made."
         : "Select Application or System to inspect its actual query status, bounds and limitations. Unknown counts are not zero.";
     private static string Known(int? value) => value?.ToString("N0") ?? "Unknown";

@@ -18,10 +18,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private readonly ActivityLog log = new(ActivityLogPath());
     private CancellationTokenSource? cancellation;
     private bool busy;
+    private long missedActivityLogWrites;
     private int selectedPage;
     private string status = "Waiting for first inspection. Nothing has been checked.";
     private string diskSummary = "Not checked", cleanupSummary = "Not checked", startupSummary = "Not checked", securitySummary = "Unknown", updateSummary = "Not checked";
-    private string diskMessage = "Disk capacity has not been checked.", cleanupMessage = "Cleanup has not been scanned.", startupMessage = "Startup entries have not been queried.", securityMessage = "Defender has not been queried.", appsMessage = "WinGet has not been queried.", systemMessage = "Windows Update has not been queried.", logMessage = @"Log: %LocalAppData%\MadClean\activity.jsonl";
+    private string diskMessage = "Disk capacity has not been checked.", cleanupMessage = "Cleanup has not been scanned.", startupMessage = "Startup entries have not been queried.", securityMessage = "Defender has not been queried.", appsMessage = "WinGet has not been queried.", systemMessage = "Windows Update has not been queried.", logMessage = @"No log write attempted this session. Destination: %LocalAppData%\MadClean\activity.jsonl.";
     private static string ActivityLogPath()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -35,11 +36,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeMadCleanUpdates();
         InitializeDiscovery();
         InitializeAppPackageMetadataReview();
+        InitializeAppInstallerReview();
         InitializeFirmwareDiscovery();
+        InitializeDriverUpdateReview();
         InitializeDeviceDriverInventory();
         InitializeHardwareDiscovery();
         InitializeOverview();
         InitializeAdditionalDiscovery();
+        InitializeDefenderLifecycle();
         InitializeGuidedWindowsTools();
         InitializeSystemTools();
         InitializeComponentStoreStatus();
@@ -75,6 +79,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string LogMessage { get => logMessage; private set => Set(ref logMessage, value); }
     public void Cancel()
     {
+        if (TryRequestRepairObservationStopFromUi()) return;
         if (TryRequestSfcObservationStopFromUi()) return;
         if (TryRequestComponentStoreStopFromUi()) return;
         if (ExplainCommittedMsiUninstallCancel()) return;
@@ -82,6 +87,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }
     public void Shutdown()
     {
+        ShutdownRepairReviewUi();
         ShutdownComponentStoreStatusUi();
         ShutdownMsiUninstallRequestUi();
         Cancel();
@@ -142,31 +148,46 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }, text => { DiskMessage = text; DiskSummary = text; CompleteStorageOverview(text.StartsWith("Cancelled", StringComparison.Ordinal) ? CheckState.Cancelled : CheckState.Failed); });
     private async Task LoadCleanup(CancellationToken token) => await Guard(ActivityArea.Cleanup, async () =>
     {
+        InvalidateCleanupPreview("Reading supported temporary locations; no current preview is committed…");
         var preferences = LoadCleanupPreferences();
         if (preferences.Error != null)
         {
-            cleanupPreview = Array.Empty<CleanupCandidate>();
             CleanupSummary = "Unavailable"; CleanupMessage = preferences.Error;
             Event(ActivityArea.Cleanup, ActivityOutcome.Failed); return;
         }
         var report = await new CleanupScanner().ScanAsync(inventory.CleanupLocations, token, preferences.Items); token.ThrowIfCancellationRequested();
         var completedUtc = DateTimeOffset.UtcNow;
-        cleanupPreview = report.Candidates.ToArray();
-        foreach (var group in report.Candidates.GroupBy(c => c.Category)) CleanupCategories.Add($"{group.Key}: {group.Count()} files · {Display.Bytes(group.Sum(c => c.Bytes))}");
-        int added = 0;
-        foreach (var c in report.Candidates)
+        var bindings = Array.AsReadOnly(report.Candidates.Select(c => new CleanupPreviewBinding<ResultRow>(
+            new(c.Path, $"{Display.Bytes(c.Bytes)} · modified {c.ModifiedUtc:u} · active use unknown", c.Category), c)).ToArray());
+        var preparedIndex = await Task.Run(() => CleanupPreviewIndex<ResultRow>.Create(report, bindings, token), token);
+        token.ThrowIfCancellationRequested();
+        if (preparedIndex == null) throw new InvalidOperationException("Cleanup preview bindings could not be established.");
+        foreach (var group in report.Candidates.GroupBy(c => c.Category))
         {
             token.ThrowIfCancellationRequested();
-            CleanupRows.Add(new(c.Path, $"{Display.Bytes(c.Bytes)} · modified {c.ModifiedUtc:u} · active use unknown", c.Category));
+            CleanupCategories.Add($"{group.Key}: {group.Count()} files · {Display.Bytes(group.Sum(c => c.Bytes))}");
+        }
+        int added = 0;
+        foreach (var binding in bindings)
+        {
+            token.ThrowIfCancellationRequested();
+            CleanupRows.Add(binding.Row);
             if (++added % 128 == 0) await Task.Delay(1, token);
         }
-        foreach (var issue in report.Issues) CleanupRows.Add(new(issue.Path, issue.Reason, issue.Category + " · excluded/error"));
+        foreach (var issue in report.Issues)
+        {
+            token.ThrowIfCancellationRequested();
+            CleanupRows.Add(new(issue.Path, issue.Reason, issue.Category + " · excluded/error"));
+            if (++added % 128 == 0) await Task.Delay(1, token);
+        }
+        token.ThrowIfCancellationRequested();
         CleanupSummary = Display.Bytes(report.TotalBytes) + (report.Truncated || report.Issues.Count > 0 ? " (partial)" : "");
         var state = report.Truncated || report.Issues.Count > 0 ? CheckState.Partial : CheckState.Available;
         CleanupMessage = Stamp(state, $"{report.Candidates.Count} candidates; {report.ExcludedCount} exclusions; {report.Issues.Count} recorded errors. Check reported paths/permissions or close active files before retrying. {(report.Truncated ? "Safety limit reached; inventory incomplete." : "Scan finished.")} Nothing was deleted.");
-        PublishCleanupEvidenceSnapshot(report, preferences.Items, completedUtc);
+        token.ThrowIfCancellationRequested();
+        PublishCleanupEvidenceSnapshot(report, preferences.Items, completedUtc, preparedIndex);
         Event(ActivityArea.Cleanup, Outcome(state));
-    }, text => { CleanupMessage = text; CleanupSummary = text; });
+    }, text => { InvalidateCleanupPreview(text); CleanupSummary = text; });
     private async Task LoadStartup(CancellationToken token) => await Guard(ActivityArea.Startup, async () =>
     {
         var result = await inventory.StartupAsync(token); token.ThrowIfCancellationRequested();
@@ -218,11 +239,22 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private static ActivityOutcome Outcome(CheckState state) => state switch
     { CheckState.Available => ActivityOutcome.Completed, CheckState.Partial => ActivityOutcome.Partial, CheckState.Cancelled => ActivityOutcome.Cancelled, _ => ActivityOutcome.Failed };
     private static string Stamp(CheckState state, string message) => $"{state} · {DateTime.Now:t} · {message}";
+    private string FailedActivityLogAttemptCount => missedActivityLogWrites == long.MaxValue
+        ? $"at least {missedActivityLogWrites:N0}" : $"{missedActivityLogWrites:N0}";
     private void Event(ActivityArea area, ActivityOutcome outcome)
     {
         Activity.Insert(0, $"{DateTime.Now:T}   {area} · {outcome}");
         if (Activity.Count > 200) Activity.RemoveAt(Activity.Count - 1);
-        if (!log.TryWrite(area, outcome)) LogMessage = @"Activity log unavailable: check write permission in %LocalAppData%\MadClean. In-memory events remain visible.";
+        if (log.TryWrite(area, outcome))
+            LogMessage = missedActivityLogWrites == 0
+                ? @"Last activity-log write succeeded. Destination: %LocalAppData%\MadClean\activity.jsonl. This does not verify older log contents."
+                : $"Last activity-log write succeeded; {FailedActivityLogAttemptCount} earlier write attempt(s) in this session failed and may have left incomplete data. Those events were not replayed. The view keeps only the latest 200 in-memory events.";
+        else
+        {
+            if (missedActivityLogWrites < long.MaxValue) missedActivityLogWrites++;
+            LogMessage = @"Last activity-log write failed. Check the local profile path, write permissions and unexpected linked files/folders in %LocalAppData%\MadClean. " +
+                $"{FailedActivityLogAttemptCount} write attempt(s) failed in this session and may have left incomplete data; the latest 200 in-memory events remain visible. No automatic retry or replay is performed.";
+        }
     }
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

@@ -1,0 +1,24 @@
+<UserControl x:Class="MadClean.App.Views.HardwareUpgradeContextView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="0,16,0,0">
+        <TextBlock Text="Detected inventory context" FontSize="18"/>
+        <TextBlock Text="Attach already-read PC, baseboard and selected-area observations for reference. No reported fact satisfies a manufacturer specification or manual physical check." Style="{StaticResource Caption}"/>
+        <WrapPanel Margin="0,8">
+            <Button Content="Attach detected inventory" Command="{Binding AttachHardwareUpgradeContextCommand}" AutomationProperties.HelpText="Use the completed local hardware snapshot without querying, contacting a service or verifying compatibility"/>
+            <Button Content="Clear attached context" Command="{Binding ClearHardwareUpgradeContextCommand}" Margin="8,0,0,0" Background="#244159"/>
+        </WrapPanel>
+        <TextBlock Text="{Binding HardwareUpgradeContextMessage}" Style="{StaticResource Caption}"/>
+        <TextBox Text="{Binding HardwareUpgradeContextDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="180" Margin="0,8" AutomationProperties.Name="Attached hardware observation source, time and uncertainty"/>
+        <DataGrid ItemsSource="{Binding HardwareUpgradeContextFacts}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" Height="250" AutomationProperties.Name="Reported inventory context, not manufacturer specifications">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*" MinWidth="75"/>
+                <DataGridTextColumn Header="Component" Binding="{Binding Component}" Width="*" MinWidth="110"/>
+                <DataGridTextColumn Header="Reported property" Binding="{Binding Property}" Width="2*" MinWidth="145"/>
+                <DataGridTextColumn Header="Reported value" Binding="{Binding Value}" Width="2*" MinWidth="140"/>
+                <DataGridTextColumn Header="Provider source" Binding="{Binding Source}" Width="2*" MinWidth="190"/>
+                <DataGridTextColumn Header="Source enumeration complete" Binding="{Binding SourceEnumerationComplete}" Width="*" MinWidth="115"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </StackPanel>
+</UserControl>

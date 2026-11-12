@@ -45,6 +45,17 @@
                     <TextBox AutomationProperties.AutomationId="AppPackageMetadataDetails" Text="{Binding AppPackageMetadataDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="130" MaxHeight="380" VerticalScrollBarVisibility="Auto" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" AutomationProperties.Name="Catalog-reported publisher, description, license and release notes, unverified plain text"/>
                 </StackPanel>
             </Border>
+            <Border Style="{StaticResource Card}" Margin="0,16,0,8">
+                <StackPanel>
+                    <TextBlock Text="Selected installer requirements" FontSize="19" Margin="0,0,0,8"/>
+                    <TextBlock Text="Explicit online metadata review for the exact offered version. Ask WinGet to select an installer under User scope / Interactive mode constraints; this may fetch/cache manifest metadata. No installer is downloaded or run. SDK applicability is separate from upgrade applicability, installed scope, restart behavior, dependency effects and installation readiness." Style="{StaticResource Caption}"/>
+                    <Button Content="Review selected installer requirements" Command="{Binding ReviewAppInstallerCommand}" HorizontalAlignment="Left" Margin="0,12,0,10" AutomationProperties.AutomationId="ReviewAppInstaller" AutomationProperties.Name="Review selected offered-version installer requirements without installing"/>
+                    <TextBlock Text="{Binding AppInstallerReviewMessage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="AppInstallerReviewMessage" AutomationProperties.Name="Selected installer review status and unknown requirements" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBox Text="{Binding AppInstallerReviewQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="230" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" AutomationProperties.AutomationId="AppInstallerReviewQueryDetails" AutomationProperties.Name="Installer review source, profile, versions and request times"/>
+                    <TextBox Text="{Binding AppInstallerReviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="150" MaxHeight="440" VerticalScrollBarVisibility="Auto" Background="#171C27" Foreground="#ECF1FB" BorderBrush="#35435A" Padding="8" AutomationProperties.AutomationId="AppInstallerReviewDetails" AutomationProperties.Name="Reported installer type, architecture, scope, elevation, authentication and unknown installation prerequisites"/>
+                    <TextBlock Text="No applicable installer for this profile does not mean the app is up to date. Unknown requirements stay Unknown; this review cannot enable installation or request elevation/restart." Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
             <TextBlock Text="Windows software / unclassified offers" FontSize="18" Margin="0,18,0,0"/>
             <ScrollViewer MaxHeight="95" VerticalScrollBarVisibility="Auto">
                 <TextBlock Text="{Binding WindowsSoftwareMessage}" Style="{StaticResource Caption}"/>

@@ -12,8 +12,21 @@ internal sealed record WindowsMsiRegistrationObservationSet(IReadOnlyList<MsiReg
 
 // Official MsiEnumProductsExW / MsiGetProductInfoExW contracts and current Msi.h verified.
 // ProductState's SDK literal is "State". No package, path, SID or action APIs are imported.
-internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope scope, CancellationToken token)
+internal sealed class WindowsMsiRegistrationInventoryNative
 {
+    private readonly MsiRegistrationScope? scope;
+    private readonly string productCode;
+    private readonly CancellationToken token;
+    private readonly Action? cooperativeCheck;
+    internal WindowsMsiRegistrationInventoryNative(MsiRegistrationScope scope, CancellationToken token)
+    { this.scope = scope; productCode = scope.ProductCode; this.token = token; }
+    internal WindowsMsiRegistrationInventoryNative(string exactProductCode, CancellationToken token, Action? cooperativeCheck = null)
+    {
+        if (!Guid.TryParseExact(exactProductCode, "B", out var code) || code == Guid.Empty ||
+            code.ToString("B").ToUpperInvariant() != exactProductCode)
+            throw new ArgumentException("A canonical exact ProductCode is required.", nameof(exactProductCode));
+        productCode = exactProductCode; this.token = token; this.cooperativeCheck = cooperativeCheck;
+    }
     private readonly Stopwatch watch = Stopwatch.StartNew();
     private readonly List<MsiRegistrationObservation> instances = [];
     private readonly List<string> issues = [];
@@ -22,6 +35,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
 
     internal CheckResult<MsiRegistrationReport> Read()
     {
+        if (scope == null) throw new InvalidOperationException("A registration review scope is required for assessed reads.");
         var raw = ReadObservations(scope.ExpectedContextMask);
         return MsiRegistrationReview.Assess(scope, raw.Instances, raw.EnumerationComplete, raw.Issues, raw.CheckedUtc, token);
     }
@@ -37,7 +51,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
             {
                 // Both optional SID outputs are NULL: the API does not retrieve any SID value.
                 // A non-NULL exact ProductCode prevents an all-products enumeration.
-                uint code = MsiEnumProductsExW(scope.ProductCode, null, (uint)contextMask, index,
+                uint code = MsiEnumProductsExW(productCode, null, (uint)contextMask, index,
                     product, out uint context, IntPtr.Zero, IntPtr.Zero);
                 Check();
                 if (code == 259) { enumerationComplete = true; break; }
@@ -47,7 +61,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
                 { Issue("The bounded MSI instance limit was exceeded; additional contexts are unknown."); break; }
                 int end = Array.IndexOf(product, '\0');
                 if (end != 38 || !Guid.TryParseExact(new string(product, 0, end), "B", out var parsed) || parsed == Guid.Empty ||
-                    !parsed.ToString("B").Equals(scope.ProductCode, StringComparison.OrdinalIgnoreCase) ||
+                    !parsed.ToString("B").Equals(productCode, StringComparison.OrdinalIgnoreCase) ||
                     context is not (1 or 2 or 4) || (context & (uint)contextMask) != context)
                 { Issue("The returned product identity/context did not match the exact selected scope; enumeration coverage is unknown."); break; }
                 var typedContext = (MsiRegistrationContext)context;
@@ -75,7 +89,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
                 }
                 else Issue("The selected MSI product-state value is unavailable or unsupported; installed/advertised status and installed-only properties remain Unknown.");
                 Check();
-                instances.Add(new(scope.ProductCode, typedContext, state, name, version, publisher, DateTimeOffset.UtcNow));
+                instances.Add(new(productCode, typedContext, state, name, version, publisher, DateTimeOffset.UtcNow));
             }
             finally { Array.Clear(product); }
         }
@@ -100,7 +114,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
         {
             uint count = (uint)buffer.Length;
             Check();
-            uint code = MsiGetProductInfoExW(scope.ProductCode, null, context, property, buffer, ref count);
+            uint code = MsiGetProductInfoExW(productCode, null, context, property, buffer, ref count);
             Check();
             if (code != 0)
             {
@@ -132,6 +146,7 @@ internal sealed class WindowsMsiRegistrationInventoryNative(MsiRegistrationScope
     {
         token.ThrowIfCancellationRequested();
         if (watch.Elapsed >= TimeSpan.FromSeconds(20)) throw new WindowsMsiRegistrationBudgetException();
+        cooperativeCheck?.Invoke();
     }
     private void Issue(string message)
     {

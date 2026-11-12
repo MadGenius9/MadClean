@@ -18,8 +18,9 @@ public sealed partial class MainViewModel
         {
             var accepted = value is { } area && Enum.IsDefined(area) ? value : null;
             if (upgradeReviewArea == accepted) return;
-            Set(ref upgradeReviewArea, accepted);
+            upgradeReviewArea = accepted;
             InvalidateUpgradeReview();
+            PropertyChanged?.Invoke(this, new(nameof(UpgradeReviewArea)));
         }
     }
     public string UpgradeReviewBudgetText
@@ -40,6 +41,7 @@ public sealed partial class MainViewModel
 
     private void InitializeHardwareUpgradeReview()
     {
+        InitializeHardwareUpgradeContext();
         ReviewUpgradePrerequisitesCommand = new ActionCommand(ReviewUpgradePrerequisites, () => true);
         ResetUpgradeReviewCommand = new ActionCommand(ResetUpgradeReview, () => true);
     }
@@ -49,13 +51,14 @@ public sealed partial class MainViewModel
         bool rejected = value != null && value.Length > limit;
         string accepted = rejected ? "" : value ?? "";
         if (field == accepted && !rejected) return;
-        Set(ref field, accepted, property);
-        if (rejected) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        field = accepted;
         InvalidateUpgradeReview();
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
     private void InvalidateUpgradeReview()
     {
         upgradeReviewReport = null;
+        InvalidateHardwareUpgradeContext();
         NotifyUpgradeReview();
     }
     private void ReviewUpgradePrerequisites()

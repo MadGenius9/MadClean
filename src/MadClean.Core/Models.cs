@@ -26,6 +26,7 @@ public sealed record SystemUpdate(string Title, string Kind, string Identity, bo
     string DriverClass = "Unknown", string PackageDate = "Unknown", string Description = "Unknown")
 {
     public WindowsUpdateOfferMetadata? OfferMetadata { get; init; }
+    public WindowsUpdateIdentityMetadata? IdentityMetadata { get; init; }
 }
 
 public interface IComputerInventory

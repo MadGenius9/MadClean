@@ -110,7 +110,7 @@ public sealed partial class MainViewModel
         ? $"Shortcut: {entry.ShortcutPath}\nStored target: {entry.TargetPath}\nState: {entry.State}\nReason: {entry.Reason}\nSource: {entry.Source}\nObserved: {entry.CheckedAt:u}\nA local missing target is evidence for review, not proof the shortcut is obsolete. No target is launched and no shortcut is removed."
         : "Select a shortcut to inspect its stored target, source and reason. Network/offline/access/reparse/unsupported contexts remain unknown, not broken.";
     public string DiagnosticDetails => SelectedDiagnosticFinding is { } finding
-        ? $"Observation: {finding.Observation}\nSource: local Windows Event Log / {finding.Channel} / {finding.Provider}, event {finding.EventId}, schema {finding.Version}, reported level {finding.Level}.\nRecord count in covered window: {finding.Count}; these are records, not unique crashes.\nFirst UTC: {finding.FirstUtc:u}; last UTC: {finding.LastUtc:u}.\nRetained record references: {string.Join(", ", finding.RecordIds)}\nUncertainty: {finding.Uncertainty}\nImpact: {finding.Impact}\nNext step: {finding.NextStep}\n{DiagnosticsWindow}"
+        ? $"Observation: {finding.Observation}\nSource: local Windows Event Log / {finding.Channel} / {finding.Provider}, event {finding.EventId}, schema {finding.Version}, reported level {finding.Level}.\nRecord count in covered window: {finding.Count}; these are records, not unique crashes.\nFirst observed: {DiagnosticTimestamp(finding.FirstUtc)}\nLast observed: {DiagnosticTimestamp(finding.LastUtc)}\nRetained record references: {string.Join(", ", finding.RecordIds)}\nUncertainty: {finding.Uncertainty}\nImpact: {finding.Impact}\nNext step: {finding.NextStep}\n{DiagnosticsWindow}"
         : "Select an observation to inspect source, time range, record references, uncertainty and impact. No records does not establish a healthy system.";
     private void InitializeAdditionalDiscovery()
     {
@@ -200,7 +200,7 @@ public sealed partial class MainViewModel
         return RunDiscoveryAsync(ActivityArea.DiagnosticsReport, "Reading existing event evidence", async token =>
         {
             DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-            DiagnosticsAttempt = DateTimeOffset.Now.ToString("g"); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
+            DiagnosticsAttempt = DiagnosticTimestamp(DateTimeOffset.UtcNow); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
             DiagnosticsWindow = "In progress; no completed time window is claimed.";
             ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
             ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.");
@@ -213,7 +213,7 @@ public sealed partial class MainViewModel
             {
                 foreach (var finding in report.Findings) DiagnosticRows.Add(finding);
                 foreach (var coverage in report.Coverage) DiagnosticCoverage.Add(coverage);
-                DiagnosticsWindow = $"UTC window [{report.StartUtc:u}, {report.EndUtc:u}); local {report.StartUtc.ToLocalTime():g} to {report.EndUtc.ToLocalTime():g} ({TimeZoneInfo.Local.DisplayName}).";
+                DiagnosticsWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc);
             }
             PublishDiagnosticRecurrence(result, token);
             PublishDiagnosticChannels(result);

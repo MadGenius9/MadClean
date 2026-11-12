@@ -8,6 +8,7 @@ public sealed partial class MainViewModel
 {
     private readonly ICleanupFileEvidence cleanupFileEvidence = new WindowsCleanupFileEvidence();
     private CleanupReport? cleanupEvidenceSnapshot;
+    private CleanupPreviewIndex<ResultRow>? cleanupPreviewIndex;
     private DateTimeOffset cleanupEvidenceCompletedUtc;
     private IReadOnlyList<CleanupExclusion> cleanupEvidenceExclusions = Array.Empty<CleanupExclusion>();
     private long cleanupEvidenceGeneration;
@@ -18,8 +19,8 @@ public sealed partial class MainViewModel
     public string CleanupFileEvidenceMessage { get => cleanupFileEvidenceMessage; private set => Set(ref cleanupFileEvidenceMessage, value); }
     public string CleanupFileEvidenceDetails { get => cleanupFileEvidenceDetails; private set => Set(ref cleanupFileEvidenceDetails, value); }
 
-    private CleanupCandidate? CurrentCleanupEvidenceCandidate() => SelectedCleanupRow is { } row && CleanupRows.Contains(row)
-        ? cleanupPreview.FirstOrDefault(candidate => string.Equals(candidate.Path, row.Name, StringComparison.OrdinalIgnoreCase)) : null;
+    private CleanupCandidate? CurrentCleanupEvidenceCandidate() =>
+        cleanupPreviewIndex?.Find(cleanupEvidenceSnapshot, SelectedCleanupRow, CleanupRows);
     private void InitializeCleanupFileEvidence() => RecheckCleanupFileCommand = new AsyncCommand(RecheckCleanupFile,
         () => !IsBusy && cleanupEvidenceSnapshot != null && CurrentCleanupEvidenceCandidate() != null);
     private void InvalidateCleanupFileEvidence()
@@ -31,19 +32,24 @@ public sealed partial class MainViewModel
     }
     private void InvalidateCleanupEvidenceSnapshot()
     {
-        InvalidateCleanupSelectionReview();
+        cleanupPreviewIndex = null;
         cleanupEvidenceSnapshot = null;
         cleanupEvidenceCompletedUtc = default;
         cleanupEvidenceExclusions = Array.Empty<CleanupExclusion>();
+        InvalidateCleanupSelectionReview();
         InvalidateCleanupFileEvidence();
+        PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails)));
     }
-    private void PublishCleanupEvidenceSnapshot(CleanupReport report, IReadOnlyList<CleanupExclusion> exclusions, DateTimeOffset completedUtc)
+    private void PublishCleanupEvidenceSnapshot(CleanupReport report, IReadOnlyList<CleanupExclusion> exclusions, DateTimeOffset completedUtc,
+        CleanupPreviewIndex<ResultRow> preparedIndex)
     {
         InvalidateCleanupSelectionReview();
         InvalidateCleanupFileEvidence();
+        cleanupPreviewIndex = preparedIndex;
         cleanupEvidenceSnapshot = report;
         cleanupEvidenceCompletedUtc = completedUtc;
         cleanupEvidenceExclusions = Array.AsReadOnly(exclusions.Select(item => item with { }).ToArray());
+        PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails)));
         CommandManager.InvalidateRequerySuggested();
     }
     private Task RecheckCleanupFile()

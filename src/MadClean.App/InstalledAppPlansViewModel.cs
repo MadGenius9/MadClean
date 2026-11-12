@@ -16,12 +16,13 @@ public sealed partial class MainViewModel
         InitializeMsiRegistration();
         InitializeMsiUninstallRequest();
         PreviewInstalledAppPlanCommand = new ActionCommand(PreviewInstalledAppPlan,
-            () => !IsBusy && latestInstalledSnapshot != null && selectedApplication != null);
+            () => !IsBusy && latestInstalledSnapshot != null && CurrentInstalledApplication != null);
         ReviewInstalledAppHandoffCommand = new ActionCommand(ReviewInstalledAppHandoff,
-            () => !IsBusy && !GuidedOpening && installedAppPlan != null);
+            () => !IsBusy && !GuidedOpening && CurrentInstalledApplication != null && installedAppPlan != null);
     }
     private void InvalidateInstalledAppPlan()
     {
+        InvalidateMsiWatchCapture();
         InvalidateMsiUninstallRequest();
         InvalidateMsiRegistration();
         installedAppPlan = null;
@@ -31,8 +32,10 @@ public sealed partial class MainViewModel
     private void PreviewInstalledAppPlan()
     {
         installedAppPlan = null;
-        if (IsBusy || latestInstalledSnapshot == null || selectedApplication == null) return;
-        var result = InstalledAppActionPlans.Preview(latestInstalledSnapshot, selectedApplication.Identity, DateTimeOffset.UtcNow);
+        var selected = CurrentInstalledApplication;
+        var snapshot = latestInstalledSnapshot;
+        if (IsBusy || snapshot == null || selected == null) return;
+        var result = InstalledAppActionPlans.Preview(snapshot, selected.Identity, DateTimeOffset.UtcNow);
         installedAppPlan = result.Items.SingleOrDefault();
         InstalledAppPlanDetails = Stamp(result.State, result.Message);
         if (installedAppPlan is { } plan)

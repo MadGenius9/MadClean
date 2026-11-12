@@ -44,6 +44,7 @@ public sealed partial class MainViewModel
     public bool MsiUninstallSubmissionActive => msiUninstallSubmissionActive;
     public bool MsiUninstallDispatchReserved => msiUninstallSubmissionActive && msiUninstallActiveIntent?.IsDispatchReserved == true;
     public bool HasPendingMsiUninstallRequest => msiUninstallSubmissionActive ||
+        HasPendingMsiUninstallPostcheck ||
         msiUninstallPreparation is { IsCompleted: false } || msiUninstallSubmission is { IsCompleted: false } ||
         msiUninstallPreparationNeedsDrain && msiUninstallPreparationReader.HasPendingNativeRead ||
         MsiUninstallRequestLauncher.HasPendingRequest || MsiUninstallRequestLauncher.RequiresRetention;
@@ -56,7 +57,8 @@ public sealed partial class MainViewModel
             : "This separately confirmed route supports a validated current-user unmanaged ProductCode only and requests visible Windows Installer UI. Windows controls permissions and prompts; machine/managed-user contexts are unavailable.";
     private bool MsiUninstallPreviewCurrent => msiUninstallPreview is { } preview &&
         !preview.Intent.IsInvalidated && !preview.Intent.IsDispatchReserved &&
-        ReferenceEquals(msiUninstallPreviewSelection, selectedApplication) &&
+        CurrentInstalledApplication is { } currentSelection &&
+        ReferenceEquals(msiUninstallPreviewSelection, currentSelection) &&
         ReferenceEquals(msiUninstallPreviewSnapshot, latestInstalledSnapshot) &&
         preview.Intent.SelectedProductScope is { } selectedScope && ReferenceEquals(selectedScope, msiUninstallReadScope) &&
         MsiSelectedProductPreparationPolicy.IsFresh(selectedScope, msiUninstallGeneration, DateTimeOffset.UtcNow) &&
@@ -65,9 +67,10 @@ public sealed partial class MainViewModel
 
     private void InitializeMsiUninstallRequest()
     {
+        InitializeMsiUninstallPostcheck();
         PrepareMsiUninstallRequestCommand = new AsyncCommand(PrepareMsiUninstallRequest,
             () => !IsBusy && !HasPendingMsiUninstallRequest && latestInstalledSnapshot != null &&
-                selectedApplication?.RegistrationEvidence?.WindowsInstaller == true);
+                CurrentInstalledApplication?.RegistrationEvidence?.WindowsInstaller == true);
         ConfirmMsiUninstallRequestCommand = new AsyncCommand(ConfirmMsiUninstallRequest,
             () => !IsBusy && !HasPendingMsiUninstallRequest && MsiUninstallAcknowledged &&
                 MsiUninstallPreviewCurrent && msiUninstallPreview is { } preview &&
@@ -97,10 +100,10 @@ public sealed partial class MainViewModel
         InstalledApplication? selected = null;
         CheckResult<InstalledApplication>? snapshot = null;
         long generation = -1;
-        bool Current() => generation == msiUninstallGeneration && ReferenceEquals(selected, selectedApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
+        bool Current() => generation == msiUninstallGeneration && ReferenceEquals(selected, CurrentInstalledApplication) && ReferenceEquals(snapshot, latestInstalledSnapshot);
         return RunDiscoveryAsync(ActivityArea.MsiUninstallRequest, "Preparing selected MSI request", async token =>
         {
-            selected = selectedApplication; snapshot = latestInstalledSnapshot;
+            selected = CurrentInstalledApplication; snapshot = latestInstalledSnapshot;
             InvalidateMsiUninstallRequest(); generation = msiUninstallGeneration;
             if (selected == null || snapshot == null || HasPendingMsiUninstallRequest)
             { MsiUninstallMessage = "Select a current MSI registration and wait for existing work to settle; no preparation started."; return CheckState.Unknown; }
@@ -187,13 +190,15 @@ public sealed partial class MainViewModel
             msiUninstallSubmission = msiUninstallLauncher.RequestAsync(intent, true, generation, stop.Token);
             var result = await msiUninstallSubmission;
             // A cancelled UI token after dispatch cannot erase an actual client exit observation.
-            if (!ConsistentMsiUninstallResult(intent, result, DateTimeOffset.UtcNow))
+            if (!MsiUninstallResultPolicy.IsConsistent(intent, result, DateTimeOffset.UtcNow))
                 throw new InvalidOperationException("Installer request returned inconsistent observations.");
+            CaptureMsiUninstallPostcheckSource(intent, result);
             MsiUninstallLastResult = result;
+            NotifyMsiUninstallPostcheck();
             MsiUninstallMessage = result.Message;
             string startObservation = result.ClientStartObserved switch { true => "Started (start call returned true)", false => "Start call returned false", null => "Unobserved" };
-            MsiUninstallResultDetails = $"Request observation: {result.State}\nRequested UTC: {result.RequestedUtc:u}\nActual client-start observation: {startObservation}\nObserved OS client start UTC: {result.StartedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit UTC: {result.ExitedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit code: {result.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "Unobserved"}\nWindows Installer reported outcome: {result.ExitDisposition?.ToString() ?? "Unobserved"}\n\n{MsiUninstallToolIdentityDetails(result.ToolIdentity)}\n\n{result.Message}\n\nRegistration postcheck: Not checked. Refresh registrations separately and review its coverage; client exit is not proof of global absence or every uninstall effect. The retained baseline is unchanged. Leftover candidates remain candidates, never proven junk. No automatic file removal, rollback or crash recovery is provided.";
-            Status = "Windows Installer request observation: " + result.State + ". Review its actual result and refresh registrations separately.";
+            MsiUninstallResultDetails = $"Request observation: {result.State}\nRequested UTC: {result.RequestedUtc:u}\nActual client-start observation: {startObservation}\nObserved OS client start UTC: {result.StartedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit UTC: {result.ExitedUtc?.ToString("u") ?? "Unobserved"}\nActual client exit code: {result.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "Unobserved"}\nWindows Installer reported outcome: {result.ExitDisposition?.ToString() ?? "Unobserved"}\n\n{MsiUninstallToolIdentityDetails(result.ToolIdentity)}\n\n{result.Message}\n\nRegistration postcheck: Not checked. Use the separate exact historical ProductCode recheck below, or refresh global registrations separately and review its coverage; client exit is not proof of global absence or every uninstall effect. The retained baseline is unchanged. Leftover candidates remain candidates, never proven junk. No automatic file removal, rollback or crash recovery is provided.";
+            Status = "Windows Installer request observation: " + result.State + ". Review its actual result; an exact-product registration postcheck remains a separate action.";
             var outcome = result.ExitDisposition is MsiUninstallExitDisposition.FailureReported or
                 MsiUninstallExitDisposition.RestartInitiatedUnexpectedly or MsiUninstallExitDisposition.InstallerBusy
                 ? ActivityOutcome.Failed
@@ -232,35 +237,6 @@ public sealed partial class MainViewModel
         }
     }
 
-    private static bool ConsistentMsiUninstallResult(MsiUninstallRequestIntent intent, MsiUninstallRequestResult result, DateTimeOffset now)
-    {
-        if (result.RequestId != intent.RequestId || !Enum.IsDefined(result.State) || result.RequestedUtc == default ||
-            result.RequestedUtc.Offset != TimeSpan.Zero || result.RequestedUtc < intent.PreparedUtc || result.RequestedUtc > now ||
-            result.ExitDisposition is { } disposition && !Enum.IsDefined(disposition) ||
-            result.ClientProcessId is { } processId && processId <= 0) return false;
-        bool hasClientFacts = result.StartedUtc != null || result.ExitedUtc != null || result.ClientProcessId != null ||
-            result.ExitCode != null || result.ExitDisposition != null;
-        if ((hasClientFacts || result.ClientStartObserved == true) && result.State is MsiUninstallRequestState.NotStarted or MsiUninstallRequestState.Blocked or MsiUninstallRequestState.Preparing)
-            return false;
-        if (result.ClientStartObserved == false && (hasClientFacts || result.State is MsiUninstallRequestState.ClientStarted or MsiUninstallRequestState.ClientExited))
-            return false;
-        if (result.StartedUtc is { } start)
-        {
-            if (start.Offset != TimeSpan.Zero || start < result.RequestedUtc || start > now) return false;
-        }
-        if (result.ExitedUtc is { } exit)
-        {
-            if (exit.Offset != TimeSpan.Zero || exit < result.RequestedUtc || exit > now ||
-                result.StartedUtc is { } actualStart && exit < actualStart ||
-                result.State is not (MsiUninstallRequestState.ClientExited or MsiUninstallRequestState.MonitoringUnknown)) return false;
-        }
-        else if (result.State == MsiUninstallRequestState.ClientExited || result.ExitCode != null || result.ExitDisposition != null)
-            return false;
-        return result.ExitCode is { } code
-            ? result.ExitDisposition == MsiUninstallRequestPolicy.ClassifyExit(code)
-            : result.ExitDisposition == null;
-    }
-
     private static string MsiUninstallToolIdentityDetails(SystemToolIdentityDiagnostic? diagnostic)
     {
         if (diagnostic == null) return "Windows tool identity observation: Unobserved. No trust or launch permission is inferred.";
@@ -273,6 +249,12 @@ public sealed partial class MainViewModel
 
     public void ExplainMsiUninstallCloseBlock()
     {
+        if (HasPendingMsiUninstallPostcheck)
+        {
+            Status = "The read-only postcheck still owns registration work or has uncertain native ownership. Cancel does not force-close native calls; normal close remains blocked until actual settlement is known.";
+            NotifyMsiUninstallPostcheck();
+            return;
+        }
         MsiUninstallMessage = MsiUninstallDispatchReserved || MsiUninstallRequestLauncher.RequiresRetention
             ? "Windows Installer work or native ownership is still pending/unconfirmed. Use Windows Installer's Cancel control if offered, otherwise wait for supported completion and the actual result. MadClean will not kill it or infer rollback."
             : "Read-only MSI/registration preparation is still pending. Cancel preparation if available, then wait for its owning native read to return before closing; no installer start is inferred.";
@@ -287,6 +269,7 @@ public sealed partial class MainViewModel
     }
     private void ShutdownMsiUninstallRequestUi()
     {
+        ShutdownMsiUninstallPostcheck();
         msiUninstallPreview?.Intent.Invalidate();
         if (!MsiUninstallDispatchReserved) msiUninstallReadScope?.Invalidate();
         msiUninstallUiTimer?.Stop();

@@ -19,19 +19,24 @@ public sealed partial class MainViewModel
     public ICommand ReadPackagedApplicationsCommand { get; private set; } = null!;
     public string PackagedApplicationsMessage { get => packagedApplicationsMessage; private set => Set(ref packagedApplicationsMessage, value); }
     public string PackagedApplicationsAttempt { get => packagedApplicationsAttempt; private set => Set(ref packagedApplicationsAttempt, value); }
+    private PackagedApplication? CurrentPackagedApplication => ApplicationSelectionPolicy.IsCurrentPackage(
+        packagedSettingsSource, PackagedApplicationRows, selectedPackagedApplication, installedAppSearch) ? selectedPackagedApplication : null;
     public PackagedApplication? SelectedPackagedApplication
     {
-        get => selectedPackagedApplication;
+        get => CurrentPackagedApplication;
         set
         {
-            if (value != null && !PackagedApplicationRows.Any(row => ReferenceEquals(row, value))) return;
+            if (value != null && !ApplicationSelectionPolicy.IsCurrentPackage(
+                packagedSettingsSource, PackagedApplicationRows, value, installedAppSearch))
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedPackagedApplication))); return; }
             if (ReferenceEquals(selectedPackagedApplication, value)) return;
             InvalidatePackagedSettings(clearSource: false);
-            Set(ref selectedPackagedApplication, value);
+            selectedPackagedApplication = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedPackagedApplication)));
             PropertyChanged?.Invoke(this, new(nameof(PackagedApplicationDetails)));
         }
     }
-    public string PackagedApplicationDetails => selectedPackagedApplication is { } package
+    public string PackagedApplicationDetails => CurrentPackagedApplication is { } package
         ? $"Package identity name: {package.Name}\nFull identity: {package.FullName}\nFamily identity: {package.FamilyName}\nReported version: {package.Version}\nPublisher metadata: {package.Publisher}\nArchitecture: {package.Architecture}; type: {package.PackageType}\nReported signing kind: {package.SignatureKind}\nProvider non-removable flag: {Flag(package.NonRemovable)}\nFramework: {Flag(package.IsFramework)}; resource package: {Flag(package.IsResourcePackage)}\nSource: current-user Windows Appx Main/Bundle metadata.\n\nThese are registration observations, not independent signature/publisher authentication, running/health/update status or removal permission. Other users and provisioning are outside coverage. A bundle and main records can describe the same software; no unique-app count or ARP baseline is inferred. No package mutation is implemented here; a separate explicit preview can request Windows' family-level options page."
         : "Select a package record to inspect its exact public package identities and reported metadata. No user SID, manifest content, installation path or dependencies are collected. Non-removable and signing fields are provider reports; removal eligibility remains unknown.";
     public string PackagedApplicationSearchSummary => !installedAppSearch.IsValid

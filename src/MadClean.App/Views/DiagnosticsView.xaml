@@ -26,6 +26,7 @@
             <TextBlock Text="Changing the time range clears old event/WER results. An existing read may still finish; choose Read again after it settles to check the new range." Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsMessage}" Style="{StaticResource Caption}"/>
             <TextBlock Text="{Binding DiagnosticsWindow}" Style="{StaticResource Caption}"/>
+            <TextBlock Text="Detail times show UTC plus this computer's time zone and numeric offset. Offsets can differ across a daylight-saving transition. Provider filters and table headings remain UTC; converting the display does not change the queried interval or verify the computer's clock." Style="{StaticResource Caption}"/>
             <Border Style="{StaticResource Card}" Margin="0,8,0,12"><StackPanel>
                 <TextBlock Text="Event source coverage" FontSize="20"/>
                 <TextBlock Text="Each channel keeps its own status. Usable matching records are counted before the finding-group limit. Whole-log counts and retention probes are separate observations, not unique crashes or complete history. Unknown is never zero." Style="{StaticResource Caption}"/>

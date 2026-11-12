@@ -64,7 +64,7 @@ public sealed class SfcVerificationProvider : ISfcVerificationProvider
             var admission = SystemToolServicingAdmission.TryAcquire(SystemToolOperation.SfcVerifyOnly, intent.RequestId);
             if (admission == null)
                 return Task.FromResult<ISfcVerificationSession>(new CompletedSession(intent,
-                    "Another cooperating servicing owner is pending or retained. No SFC client or identity query was requested."));
+                    "A cooperating owner or unresolved operation history blocks admission. No SFC client or identity query was requested."));
             owner.AttachAdmission(admission);
             bool proofTransferred;
             try { proofTransferred = authorization == null || authorization.TransferToWorker(intent.RequestId); }

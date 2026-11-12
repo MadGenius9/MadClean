@@ -2,6 +2,8 @@
 
 This separate, explicit read-only analysis accepts the existing selected-folder `DiskUsageReport`. It does not create another disk crawl, inspect file contents or run with elevation. A new disk map invalidates the old analysis. The analysis covers the original selected map, even if its presentation is currently focused on a child folder.
 
+The App now observes the adapter's existing process-wide pending-native flag through its Core interface. It marks ownership before the adapter call and retains Busy and normal window-close protection until the actual metadata worker settles, including after a caller timeout, cancellation or display-notification error. It never force-closes worker handles or accepts the late task result as success. Attempt, adapter-response receipt and interruption times remain separate from original-map and individual-file observation times. Source/reference generations reject departed-snapshot results; a positive singleton response is refused while native ownership is still pending. A settled owner is not a fresh or successful result. This covers ordinary App control/close behavior, not forced process termination, dispatcher failure or OS shutdown. Source review and Linux compilation do not qualify Windows native timing or WPF cancellation/close interaction.
+
 Three totals have distinct meanings:
 
 - **Path logical bytes:** the sum of the selected snapshot's valid file lengths. Directory aggregate values are not counted again.

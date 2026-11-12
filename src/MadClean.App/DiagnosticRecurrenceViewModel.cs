@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Globalization;
 using System.Windows.Data;
 using MadClean.Core;
 
@@ -34,13 +33,14 @@ public sealed partial class MainViewModel
     {
         var summary = DiagnosticRecurrenceSummaryBuilder.Build(result, DateTimeOffset.UtcNow, token);
         if (summary.ObservedRecords is not long records || summary.ObservedGroups is not int groups ||
-            summary.RepeatedGroups is not int repeated || summary.RecordsInRepeatedGroups is not long repeatedRecords)
+            summary.RepeatedGroups is not int repeated || summary.RecordsInRepeatedGroups is not long repeatedRecords ||
+            summary.StartUtc is not { } startUtc || summary.EndUtc is not { } endUtc)
         {
             DiagnosticRecurrence = summary.State + " · " + summary.Explanation;
             return;
         }
         DiagnosticRecurrence = $"{summary.State} · {records:N0} observed event records in {groups:N0} groups; {repeated:N0} groups have two or more records ({repeatedRecords:N0} records in those groups).\n" +
-            $"UTC window [{summary.StartUtc?.ToString("u", CultureInfo.InvariantCulture)}, {summary.EndUtc?.ToString("u", CultureInfo.InvariantCulture)}); collected {summary.CollectedUtc:u}.\n" +
+            DiagnosticWindowText(startUtc, endUtc) + $"\nCollected: {DiagnosticTimestamp(summary.CollectedUtc)}.\n" +
             summary.Explanation + " The summary always covers all returned groups; the repeated-only filter changes the list below without another query.";
     }
 }

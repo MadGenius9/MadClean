@@ -3,7 +3,7 @@
         <StackPanel Margin="28,24">
             <TextBlock Text="Windows integrity tools" Style="{StaticResource SectionTitle}"/>
             <TextBlock Text="Review exact Microsoft commands and verify their identity." FontSize="19" Margin="0,0,0,10"/>
-            <TextBlock Text="Separate from passive inspection. Verifying an executable or preparing a preview runs no SFC client and does not diagnose Windows. The fixed verify-only request requires separate acknowledgement and confirmation when its execution path is enabled; no repair is offered." Style="{StaticResource Caption}"/>
+            <TextBlock Text="Separate from passive inspection. Verifying an executable or preparing a review runs no SFC client and does not diagnose Windows. The fixed verify-only request requires separate acknowledgement and confirmation. Repair effects review is available below; execution depends on separate qualification and exact confirmation." Style="{StaticResource Caption}"/>
             <ComboBox ItemsSource="{Binding SystemToolDefinitions}" SelectedItem="{Binding SelectedSystemTool, Mode=TwoWay}" DisplayMemberPath="Title" Tag="Choose a Windows tool operation" MinWidth="320" HorizontalAlignment="Left" Margin="0,4,0,16" AutomationProperties.Name="Windows integrity operation selection">
                 <ComboBox.Style><Style TargetType="ComboBox" BasedOn="{StaticResource ToolSelector}"><Style.Triggers><DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></ComboBox.Style>
             </ComboBox>
@@ -33,7 +33,43 @@
                 <TextBlock Text="{Binding SfcVerificationAssessment}" TextWrapping="Wrap" FontSize="18" Margin="0,8,0,12" AutomationProperties.AutomationId="SfcVerificationAssessment" AutomationProperties.Name="SFC integrity uncertainty and client observation"/>
                 <TextBox Text="{Binding SfcVerificationLastObservation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="105" MaxHeight="320" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SfcVerificationObservation" AutomationProperties.Name="Historical SFC client and output ownership observations"/>
             </StackPanel></Border>
-            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, the operation's documented permissions, actual result evidence and separate validation. The separate SFC candidate requires already-effective administrator rights and never requests elevation consent. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12">
+                <StackPanel>
+                    <TextBlock Text="{Binding RepairReviewHeading}" FontSize="20"/>
+                    <TextBlock Text="Select DISM RestoreHealth or SFC scannow above, then prepare a local review of its exact effects. Preparation reads no history, checks no identity and runs no command. Existing-history review and repair execution have separate qualification gates; current availability is shown below. Acknowledgments cannot bypass either gate." Style="{StaticResource Caption}"/>
+                    <TextBlock Text="This view allows at most one existing-history review and one execution attempt. A new local draft or checkbox does not reset unresolved history, retained ownership or a consumed attempt." Style="{StaticResource Caption}"/>
+                    <TextBlock Text="{Binding RepairReviewQualification}" Style="{StaticResource Caption}" AutomationProperties.Name="Repair execution qualification and presentation status" AutomationProperties.LiveSetting="Polite"/>
+                    <Button Content="Prepare selected repair effects review" Command="{Binding PrepareRepairReviewCommand}" HorizontalAlignment="Left" Margin="0,8,0,12" AutomationProperties.AutomationId="SystemRepairPrepare" AutomationProperties.Name="Prepare local fixed repair review without querying or executing Windows tools"/>
+                    <TextBox Text="{Binding RepairDraftDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="140" MaxHeight="380" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SystemRepairDraft" AutomationProperties.Name="Exact selected repair command, effects, permissions and limitations"/>
+                    <StackPanel IsEnabled="{Binding CanAcknowledgeRepairReview}" Margin="0,8,0,8">
+                        <CheckBox IsChecked="{Binding RepairReview.OperationSelected, Mode=TwoWay}" Foreground="#ECF1FB" Margin="0,4" AutomationProperties.AutomationId="SystemRepairSelectedAck" AutomationProperties.Name="Acknowledge this exact selected repair operation">
+                            <TextBlock Text="I selected this exact fixed operation and reviewed its current command and expiry." TextWrapping="Wrap"/>
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RepairReview.EffectsAcknowledged, Mode=TwoWay}" Foreground="#ECF1FB" Margin="0,4" AutomationProperties.AutomationId="SystemRepairEffectsAck" AutomationProperties.Name="Acknowledge selected repair effects and Windows source/log behavior">
+                            <TextBlock Text="I understand this repair can change Windows components or protected files and write Windows logs. DISM may use Windows Update or configured repair sources under policy. No repair, deleted-file recovery or crash fix is guaranteed." TextWrapping="Wrap"/>
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RepairReview.ElevationAcknowledged, Mode=TwoWay}" Foreground="#ECF1FB" Margin="0,4" AutomationProperties.AutomationId="SystemRepairElevationAck" AutomationProperties.Name="Acknowledge already-effective administrator requirement without elevation request">
+                            <TextBlock Text="I reviewed the requirement for already-effective administrator access. MadClean requests no UAC, credentials, silent elevation or restart." TextWrapping="Wrap"/>
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RepairReview.ObservationLimitsAcknowledged, Mode=TwoWay}" Foreground="#ECF1FB" Margin="0,4" AutomationProperties.AutomationId="SystemRepairObservationAck" AutomationProperties.Name="Acknowledge repair observation, stop, result and rollback uncertainty">
+                            <TextBlock Text="I understand stop requests observation only. A committed operation may continue; no process/service is killed or rollback promised. Client exit, including zero, is not repair success or healthy Windows." TextWrapping="Wrap"/>
+                        </CheckBox>
+                    </StackPanel>
+                    <WrapPanel Margin="0,4,0,8">
+                        <Button Content="Review existing repair history" Command="{Binding ReviewRepairHistoryCommand}" AutomationProperties.AutomationId="SystemRepairHistory" AutomationProperties.Name="Explicitly review existing repair history when separately qualified"/>
+                        <Button Content="Confirm selected repair" Command="{Binding ConfirmRepairCommand}" Background="#244B70" AutomationProperties.AutomationId="SystemRepairConfirm" AutomationProperties.Name="Confirm exact selected repair only when all execution prerequisites qualify"/>
+                        <Button Content="Request observation stop" Command="{Binding RequestRepairObservationStopCommand}" Background="#343E52" Foreground="White" AutomationProperties.AutomationId="SystemRepairStop" AutomationProperties.Name="Request repair observation stop without killing Windows work"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding RepairReview.Status}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="SystemRepairStatus" AutomationProperties.Name="Selected repair controller status" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock Text="{Binding RepairReview.RepairSucceeded, StringFormat='Repair success: {0}'}" TextWrapping="Wrap" FontSize="18" Margin="0,8,0,0" AutomationProperties.Name="Repair success remains unknown"/>
+                    <TextBlock Text="{Binding RepairReview.Integrity, StringFormat='Windows integrity: {0}'}" TextWrapping="Wrap" FontSize="18" Margin="0,0,0,12" AutomationProperties.Name="Windows integrity remains unknown"/>
+                    <TextBlock Text="Historical existing-history review" FontSize="17" Margin="0,8"/>
+                    <TextBox Text="{Binding RepairRecoveryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="220" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SystemRepairRecovery" AutomationProperties.Name="Historical repair journal review and ownership observations"/>
+                    <TextBlock Text="Historical request and client observations" FontSize="17" Margin="0,12,0,8"/>
+                    <TextBox Text="{Binding RepairResultDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="SystemRepairResult" AutomationProperties.Name="Historical repair request and literal client result, not repair success"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,8,0,12"><TextBlock Text="Later execution requires explicit operation selection, fresh trusted identity, the operation's documented permissions, actual result evidence and separate validation. Selected SFC verification and repair candidates require already-effective administrator rights and never request elevation consent. Stop monitoring cannot promise that Windows servicing stopped or rolled back. Exit code zero alone is not a healthy or repaired verdict." Style="{StaticResource Caption}"/></Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

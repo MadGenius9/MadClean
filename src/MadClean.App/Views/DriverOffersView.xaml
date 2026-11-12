@@ -16,6 +16,7 @@
             </DataGrid>
             <TextBlock Text="Selected offer · source and limitations" FontSize="18" Margin="0,16,0,8"/>
             <TextBox Text="{Binding DriverOfferDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="255" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Selected driver offer description and reported installation characteristics"/>
+            <views:DriverUpdateReviewView/>
             <views:DeviceDriverInventoryView/>
         </StackPanel>
     </ScrollViewer>

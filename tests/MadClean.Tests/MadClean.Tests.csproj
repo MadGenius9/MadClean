@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Include="../../tools/LocalUiValidationEvidence.cs" Link="LocalUiValidationEvidence.cs" />
+    <Compile Include="../../tools/LocalRepairReviewEvidence.cs" Link="LocalRepairReviewEvidence.cs" />
+  </ItemGroup>
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <IsPackable>false</IsPackable>
@@ -18,5 +22,7 @@
         <Compile Include="../../tools/MadClean.WindowsSmoke/SingleFileStaticHostMetadata.cs" Link="FixtureMetadata/SingleFileStaticHostMetadata.cs"/>
         <Compile Include="../../tools/MadClean.WindowsSmoke/ValidationLifetime.cs" Link="FixtureMetadata/ValidationLifetime.cs"/>
         <Compile Include="../../src/MadClean.Windows/SystemToolOutputDrain.cs" Link="WindowsPortable/SystemToolOutputDrain.cs"/>
+        <Compile Include="../../src/MadClean.Windows/SystemRepairDirectPipeReader.cs" Link="WindowsPortable/SystemRepairDirectPipeReader.cs"/>
+        <Compile Include="../../src/MadClean.Windows/SystemToolJournalRelativeFileProtocol.cs" Link="WindowsPortable/SystemToolJournalRelativeFileProtocol.cs"/>
     </ItemGroup>
 </Project>

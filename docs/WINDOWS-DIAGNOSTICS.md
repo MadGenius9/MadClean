@@ -4,6 +4,12 @@
 
 The goal is an evidence-based system-health report explaining observed symptoms and their limits. There is no scalar health score, generic “PC needs repair” diagnosis, arbitrary DLL download, registry-cleaner recommendation or unsupported speed/repair promise.
 
+### UTC evidence and local display
+
+Event/WER detail windows, individual event first/last observations, retained whole-log bounds, WER creation/count observations and session source request/completion details now include UTC plus a local representation with a numeric offset and time-zone ID. The offset is computed for each actual instant: repeated autumn clock times remain distinguishable, and spring transitions do not invent a time in the skipped hour. Tables retain their explicit UTC headings. Window endpoints stay start-inclusive/end-exclusive; a seven-day UTC query does not become seven local calendar days.
+
+The pure formatter accepts an explicit zone and performs no provider/network/file query. Null/default observations remain Unknown. Unsafe zone labels or conversions outside the representable local date range retain UTC with local Unknown rather than a clamped date. Display conversion does not verify the computer's clock, incident uniqueness, provider freshness or complete history. No additional Windows data, health assessment, action or polling is added. Formatting boundary tests are portable; Windows layout and actual configured-zone rendering still need manual validation.
+
 ### Changing a range during a read
 
 Event and WER reads each retain their selected number of days and the shared range generation from the moment the request starts. Changing the range immediately invalidates both views. A result or error from the old generation cannot repopulate findings, coverage, recurrence, WER references or count text under the new range—even when the user changes away and back before the original read returns. The range selector remains usable during a read; read commands remain busy-gated. The new range stays unchecked until explicitly requested.

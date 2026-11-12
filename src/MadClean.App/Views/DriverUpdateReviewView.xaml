@@ -1,0 +1,19 @@
+<UserControl x:Class="MadClean.App.Views.DriverUpdateReviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="0,18,0,10">
+        <TextBlock Text="Selected driver · prerequisite review" FontSize="18"/>
+        <TextBlock Text="Review one offer's declarations and missing evidence before considering a later update. This worksheet does not install, download, match a device or approve any prerequisite." Style="{StaticResource Caption}"/>
+        <Button Content="Review selected driver prerequisites" Command="{Binding ReviewDriverPrerequisitesCommand}" HorizontalAlignment="Left" Margin="0,8" AutomationProperties.HelpText="Create a read-only worksheet from the selected Windows Update query snapshot; no fresh query or installation"/>
+        <TextBlock Text="{Binding DriverUpdateReviewMessage}" Style="{StaticResource Caption}"/>
+        <TextBox Text="{Binding DriverUpdateReviewDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="160" Margin="0,8" AutomationProperties.Name="Selected driver prerequisite review scope and limits"/>
+        <DataGrid ItemsSource="{Binding DriverUpdateRequirements}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" Height="280" AutomationProperties.Name="Driver prerequisite declarations and missing evidence">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Requirement / declaration" Binding="{Binding Title}" Width="2*" MinWidth="150"/>
+                <DataGridTextColumn Header="Evidence state" Binding="{Binding State}" Width="*" MinWidth="100"/>
+                <DataGridTextColumn Header="Observed evidence" Binding="{Binding Evidence}" Width="2*" MinWidth="160"/>
+                <DataGridTextColumn Header="Limit / remaining verification" Binding="{Binding Limit}" Width="3*" MinWidth="230"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </StackPanel>
+</UserControl>

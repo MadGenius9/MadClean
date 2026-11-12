@@ -40,10 +40,13 @@ public static class WindowsResponseParser
             string driverClass = type == 2 ? OptionalText(u, "DriverClass", 128) : "Unknown";
             string kind = type switch { 1 => "Software", 2 when driverClass.Equals("Firmware", StringComparison.OrdinalIgnoreCase) => "Firmware", 2 => "Driver", _ => "Unknown" };
             var metadata = u.EnumerateObject().Where(field => field.Name == "OfferMetadata").ToArray();
+            var identity = u.EnumerateObject().Where(field => field.Name == "IdentityMetadata").ToArray();
             return new SystemUpdate(RequiredText(u, "Title"), kind, RequiredText(u, "Id"), u.GetProperty("RebootRequired").GetBoolean(),
                 driverClass, OptionalDate(u, "DriverVerDate"), OptionalText(u, "Description", 2300))
             { OfferMetadata = metadata.Length == 0 ? null : metadata.Length != 1 ? WindowsUpdateOfferMetadataParser.Unknown()
-                : WindowsUpdateOfferMetadataParser.Parse(metadata[0].Value, type) };
+                : WindowsUpdateOfferMetadataParser.Parse(metadata[0].Value, type),
+                IdentityMetadata = identity.Length == 0 ? null : identity.Length != 1 ? WindowsUpdateIdentityMetadataParser.Unknown()
+                    : WindowsUpdateIdentityMetadataParser.Parse(identity[0].Value, type) };
         }).ToArray();
         bool incomplete = code == 3 || truncated || updates.Any(u => u.Kind == "Unknown" || u.Kind == "Driver" && u.DriverClass == "Unknown");
         return new CheckResult<SystemUpdate>(incomplete ? CheckState.Partial : CheckState.Available,

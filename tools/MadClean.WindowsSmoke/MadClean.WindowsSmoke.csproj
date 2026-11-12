@@ -7,6 +7,8 @@
     <StartupObject>MadClean.WindowsSmoke.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../LocalUiValidationEvidence.cs" Link="LocalUiValidationEvidence.cs" />
+    <Compile Include="../LocalRepairReviewEvidence.cs" Link="LocalRepairReviewEvidence.cs" />
     <ProjectReference Include="../../src/MadClean.App/MadClean.App.csproj" />
     <ProjectReference Include="../../src/MadClean.Windows.WinGet/MadClean.Windows.WinGet.csproj" />
   </ItemGroup>

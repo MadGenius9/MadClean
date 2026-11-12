@@ -25,8 +25,12 @@ public sealed partial class MainViewModel
         set
         {
             if (IsBusy || HasPendingSystemToolIdentity || value != null && !SystemToolDefinitions.Contains(value)) return;
-            Set(ref selectedSystemTool, value); systemToolPreview = null;
+            selectedSystemTool = value;
+            systemToolPreview = null;
+            // Invalidate the repair draft before publishing the new selection.
+            RepairSelectionChanged(value?.Operation);
             ClearSfcVerificationPreview();
+            PropertyChanged?.Invoke(this, new(nameof(SelectedSystemTool)));
             SystemToolMessage = "Selection changed. No new identity check or Windows command has been requested.";
             SystemToolIdentitySummary = "Tool identity: not checked for this selection. Identity evidence is separate from any requested integrity-tool result.";
             NotifySystemToolIdentityState();
@@ -37,7 +41,9 @@ public sealed partial class MainViewModel
         get
         {
             if (selectedSystemTool is not { } action) return "Select a fixed Microsoft operation. Ordinary inspection never runs these tools. Identity verification starts no command. The separately acknowledged SFC verify-only request below has its own scope and qualification; repairs and the legacy executor remain disabled.";
-            string permissions = action.Operation == SystemToolOperation.SfcVerifyOnly
+            string permissions = action.Kind == SystemToolActionKind.Repair
+                ? "The disabled repair candidate requires already-effective, nonimpersonated administrator access. MadClean requests no UAC, relaunch or alternate credentials. Review availability and ownership separately below."
+                : action.Operation == SystemToolOperation.SfcVerifyOnly
                 ? "The separate verify-only request requires already-effective administrator access and never requests elevation. Identity verification alone requires no administrator relaunch."
                 : action.Elevation;
             string description = $"{action.Title}\nCommand descriptor: {action.FileName} {string.Join(" ", action.Arguments)}\nAction type: {action.Kind}\n\nEffect: {action.Effect}\nPermissions: {permissions}\nNetwork/source behavior: {action.Network}\nCancellation: {action.Cancellation}\nRestart: {action.Reboot}\nProtected Windows result log: {action.WindowsLogReference}";
@@ -50,6 +56,7 @@ public sealed partial class MainViewModel
     {
         VerifySystemToolCommand = new AsyncCommand(VerifySystemTool, () => !IsBusy && !HasPendingSystemToolIdentity && selectedSystemTool != null);
         InitializeSfcVerificationPreview();
+        InitializeRepairReview();
     }
     private Task VerifySystemTool() => RunDiscoveryAsync(ActivityArea.SystemToolIdentity, "Verifying selected Microsoft tool identity", async token =>
     {

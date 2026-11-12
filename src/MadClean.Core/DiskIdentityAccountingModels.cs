@@ -10,6 +10,7 @@ public sealed record DiskIdentityAccountingReport(long PathLogicalBytes, long Ob
     int AllocationUnknownIdentities = 0);
 public interface IDiskIdentityAccounting
 {
+    bool HasPendingNativeRead { get; }
     Task<CheckResult<DiskIdentityAccountingReport>> AnalyzeAsync(DiskUsageReport snapshot, CancellationToken token);
 }
 

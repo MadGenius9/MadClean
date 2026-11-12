@@ -14,3 +14,7 @@ Portable tests exercise mixed-route concurrent admission, repairs/unknown kinds/
 ## Observed Windows regression
 
 At source `2ee4dec6`, immutable evidence `f2b92a489ef1996ebc13981e5716bc893deb6507`, [run 41896905146](https://github.com/MadGenius9/MadClean/actions/runs/41896905146), the managed composition check passed across the actual provider instances. Both existing selected DISM backend/public UI workflows also passed with settled ownership and no retention. SFC production remained disabled. This qualifies the observed cooperating in-process integration, not a cross-process/native servicing lock or actual SFC client.
+
+## Current repair candidate integration
+
+The later [shared repair backend](SYSTEM-REPAIR-SERVICING-BACKEND.md) now uses this same Windows gate through a separate internal exact-reserved-context candidate route. Public TryAcquire still accepts only the three original non-repair kinds; normal completion behavior is unchanged. Candidate completion additionally binds the exact actual owner/context and preserves a separate history-only blocking state without implying pending native resources. Native repair/platform/journal guards remain false and there is no App repair execution hook. The historical SFC-disabled statements above describe their recorded source stages; verify-only later qualified as recorded in the execution ledger. No new repair/Windows qualification is inferred.

@@ -9,19 +9,44 @@ namespace MadClean.App;
 public sealed partial class MainViewModel
 {
     private readonly CleanupExclusionStore? cleanupExclusionStore = CreateExclusionStore();
-    private IReadOnlyList<CleanupCandidate> cleanupPreview = Array.Empty<CleanupCandidate>();
     private ResultRow? selectedCleanupRow;
     private CleanupExclusion? selectedExclusion;
     private string exclusionsMessage = "Exclusions have not been loaded.";
     public ObservableCollection<CleanupExclusion> CleanupExclusions { get; } = [];
     public string ExclusionsMessage { get => exclusionsMessage; private set => Set(ref exclusionsMessage, value); }
-    public ResultRow? SelectedCleanupRow { get => selectedCleanupRow; set { if (!ReferenceEquals(selectedCleanupRow, value)) InvalidateCleanupFileEvidence(); Set(ref selectedCleanupRow, value); PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails))); CommandManager.InvalidateRequerySuggested(); } }
-    public string SelectedCleanupDetails => selectedCleanupRow == null ? "Select a preview row to inspect and copy its complete path, size/observation and category before choosing an exclusion." :
-        selectedCleanupRow.Name + "\n" + selectedCleanupRow.Detail + "\n" + selectedCleanupRow.State +
-        (cleanupPreview.Any(candidate => candidate.Path.Equals(selectedCleanupRow.Name, StringComparison.OrdinalIgnoreCase))
+    public ResultRow? SelectedCleanupRow
+    {
+        get => selectedCleanupRow is { } row && CleanupRows.Count(item => ReferenceEquals(item, row)) == 1 ? row : null;
+        set
+        {
+            if (value != null && CleanupRows.Count(row => ReferenceEquals(row, value)) != 1)
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupRow))); return; }
+            if (ReferenceEquals(selectedCleanupRow, value)) return;
+            InvalidateCleanupFileEvidence();
+            selectedCleanupRow = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupRow)));
+            PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupDetails)));
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+    public string SelectedCleanupDetails => SelectedCleanupRow is not { } row ? "Select a preview row to inspect and copy its complete path, size/observation and category before choosing an exclusion." :
+        row.Name + "\n" + row.Detail + "\n" + row.State +
+        (CurrentCleanupEvidenceCandidate() != null
             ? "\nActive use is not established. Files can remain memory-mapped after ordinary handles close; a successful sharing check is not proof they are inactive. This is a read-only candidate, not deletion permission."
-            : "\nThis is an excluded/error observation, not a cleanup candidate or deletion permission.");
-    public CleanupExclusion? SelectedCleanupExclusion { get => selectedExclusion; set { Set(ref selectedExclusion, value); CommandManager.InvalidateRequerySuggested(); } }
+            : "\nThis is an excluded/error observation or an invalidated preview, not a current cleanup candidate or deletion permission.");
+    public CleanupExclusion? SelectedCleanupExclusion
+    {
+        get => selectedExclusion is { } exclusion && CleanupExclusions.Count(item => ReferenceEquals(item, exclusion)) == 1 ? exclusion : null;
+        set
+        {
+            if (value != null && CleanupExclusions.Count(item => ReferenceEquals(item, value)) != 1)
+            { PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupExclusion))); return; }
+            if (ReferenceEquals(selectedExclusion, value)) return;
+            selectedExclusion = value;
+            PropertyChanged?.Invoke(this, new(nameof(SelectedCleanupExclusion)));
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
     public ICommand ExcludeCleanupFileCommand { get; private set; } = null!;
     public ICommand ExcludeCleanupFolderCommand { get; private set; } = null!;
     public ICommand RemoveCleanupExclusionCommand { get; private set; } = null!;
@@ -33,8 +58,7 @@ public sealed partial class MainViewModel
     }
     private void InitializeCleanupPreview()
     {
-        ExcludeCleanupFileCommand = new ActionCommand(ExcludeSelectedCleanupFile, () => !IsBusy && SelectedCleanupRow != null &&
-            cleanupPreview.Any(c => c.Path.Equals(SelectedCleanupRow.Name, StringComparison.OrdinalIgnoreCase)));
+        ExcludeCleanupFileCommand = new ActionCommand(ExcludeSelectedCleanupFile, () => !IsBusy && CurrentCleanupEvidenceCandidate() != null);
         ExcludeCleanupFolderCommand = new ActionCommand(ExcludeCleanupFolder, () => !IsBusy);
         RemoveCleanupExclusionCommand = new ActionCommand(RemoveCleanupExclusion, () => !IsBusy && SelectedCleanupExclusion != null);
         InitializeCleanupFileEvidence();
@@ -43,6 +67,8 @@ public sealed partial class MainViewModel
     }
     private CleanupExclusionSettings LoadCleanupPreferences()
     {
+        InvalidateCleanupEvidenceSnapshot();
+        SelectedCleanupExclusion = null;
         var settings = cleanupExclusionStore?.Load() ?? new CleanupExclusionSettings([], "The local settings folder is unavailable. Cleanup is blocked until exclusions can be read safely.");
         CleanupExclusions.Clear(); foreach (var item in settings.Items) CleanupExclusions.Add(item);
         ExclusionsMessage = settings.Error ?? $"{settings.Items.Count} saved exclusions. They apply to cleanup previews only; file contents and other discovery scopes are unchanged.";
@@ -50,8 +76,8 @@ public sealed partial class MainViewModel
     }
     private void ExcludeSelectedCleanupFile()
     {
-        if (SelectedCleanupRow == null || !cleanupPreview.Any(c => c.Path.Equals(SelectedCleanupRow.Name, StringComparison.OrdinalIgnoreCase))) return;
-        SaveCleanupPreferences(items => items.Append(new(SelectedCleanupRow.Name, false)).ToArray());
+        if (IsBusy || CurrentCleanupEvidenceCandidate() is not { } candidate) return;
+        SaveCleanupPreferences(items => items.Append(new(candidate.Path, false)).ToArray());
     }
     private void ExcludeCleanupFolder()
     {
@@ -77,7 +103,7 @@ public sealed partial class MainViewModel
     private void InvalidateCleanupPreview(string message)
     {
         InvalidateCleanupEvidenceSnapshot();
-        cleanupPreview = Array.Empty<CleanupCandidate>(); SelectedCleanupRow = null;
+        SelectedCleanupRow = null;
         CleanupRows.Clear(); CleanupCategories.Clear(); CleanupSummary = "Rescan required"; CleanupMessage = message;
     }
 }

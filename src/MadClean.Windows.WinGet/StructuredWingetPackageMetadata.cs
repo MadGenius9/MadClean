@@ -91,12 +91,33 @@ public sealed partial class StructuredWingetInventory
 
         internal CheckResult<AppPackageMetadataReport> QueryPackageMetadata(AppPackageMetadataRequest request)
         {
+            var lookup = FindSelectedOffered(request);
+            if (lookup.Offered is not { } offered) return MetadataEmpty(lookup.State, lookup.Message);
+            // Contract 6: this synchronous getter can fetch/cache manifest metadata.
+            // Never use GetMetadata, whose installed fields include raw uninstall commands.
+            var metadata = Keep(offered.GetCatalogPackageMetadata()
+                ?? throw new NotSupportedException("Catalog metadata is unavailable."));
+            CheckStop();
+            string? publisher = CatalogText(() => metadata.Publisher);
+            string? description = CatalogText(() => metadata.ShortDescription);
+            if (string.IsNullOrWhiteSpace(description)) description = CatalogText(() => metadata.Description);
+            string? license = CatalogText(() => metadata.License);
+            string? notes = CatalogText(() => metadata.ReleaseNotes);
+            CheckStop();
+            return AppPackageMetadataPolicy.Project(request, publisher, description, license, notes, DateTimeOffset.UtcNow);
+        }
+
+        private sealed record SelectedOfferedLookup(PackageVersionInfo? Offered, CheckState State, string Message);
+
+        // Shared exact-version/source validation for the two explicit manifest-only reviews.
+        private SelectedOfferedLookup FindSelectedOffered(AppPackageMetadataRequest request)
+        {
             CheckStop();
             // Request expiry is a dispatch check, not a fabricated native-getter timeout.
             if (!AppPackageMetadataPolicy.IsRequestConsistent(request, DateTimeOffset.UtcNow))
-                return MetadataEmpty(CheckState.Unknown, "The selected-package request expired before activation. Refresh updates and select the offered version again.");
+                return new(null, CheckState.Unknown, "The selected-package request expired before activation. Refresh updates and select the offered version again.");
             var catalog = ConnectInstalledCatalog();
-            if (catalog == null) return MetadataEmpty(CheckState.Failed, "The configured WinGet source did not connect.");
+            if (catalog == null) return new(null, CheckState.Failed, "The configured WinGet source did not connect.");
             CheckStop();
             var options = Keep(FixedFactory.Find());
             var filter = Keep(FixedFactory.MatchFilter());
@@ -110,18 +131,18 @@ public sealed partial class StructuredWingetInventory
             if (options.Selectors.Count != 1 || options.Filters.Count != 0 || options.ResultLimit != 2 ||
                 filter.Field != PackageMatchField.Id || filter.Option != PackageFieldMatchOption.Equals ||
                 !string.Equals(filter.Value, request.PackageId, StringComparison.Ordinal))
-                return MetadataEmpty(CheckState.Unknown, "Exact package-query controls were not established.");
+                return new(null, CheckState.Unknown, "Exact package-query controls were not established.");
             CheckStop();
             var operation = Keep(catalog.FindPackagesAsync(options));
             var found = Keep(operation.AsTask().GetAwaiter().GetResult());
             CheckStop();
             if (found.Status != FindPackagesResultStatus.Ok)
-                return MetadataEmpty(CheckState.Failed, "The exact package lookup did not succeed.");
+                return new(null, CheckState.Failed, "The exact package lookup did not succeed.");
             if (Read(() => found.WasLimitExceeded) != false)
-                return MetadataEmpty(CheckState.Unknown, "Exact package lookup coverage is incomplete or unknown; no version was substituted.");
+                return new(null, CheckState.Unknown, "Exact package lookup coverage is incomplete or unknown; no version was substituted.");
             var matches = Keep(found.Matches);
             if (matches.Count != 1)
-                return MetadataEmpty(CheckState.Unknown, "The selected package is missing or ambiguous in the fresh lookup. Refresh updates and select it again.");
+                return new(null, CheckState.Unknown, "The selected package is missing or ambiguous in the fresh lookup. Refresh updates and select it again.");
             var match = Keep(matches[0]);
             var package = Keep(match.CatalogPackage);
             var installed = ReadObject(() => package.InstalledVersion);
@@ -130,24 +151,13 @@ public sealed partial class StructuredWingetInventory
                 !string.Equals(Text(() => package.Id), request.PackageId, StringComparison.Ordinal) ||
                 !string.Equals(Text(() => installed.Version), request.InstalledVersion, StringComparison.Ordinal) ||
                 !string.Equals(Text(() => offered.Version), request.OfferedVersion, StringComparison.Ordinal))
-                return MetadataEmpty(CheckState.Unknown, "The selected package or installed/offered version changed. Refresh updates; no different version's metadata was accepted.");
+                return new(null, CheckState.Unknown, "The selected package or installed/offered version changed. Refresh updates; no different version's metadata was accepted.");
             var offeredCatalog = ReadObject(() => offered.PackageCatalog);
             var offeredInfo = offeredCatalog == null ? null : ReadObject(() => offeredCatalog.Info);
             if (offeredInfo == null || !StructuredWingetPolicy.MatchesSource(Facts(offeredInfo, null, null, null)))
-                return MetadataEmpty(CheckState.Unknown, "The offered version's exact configured source was not established.");
+                return new(null, CheckState.Unknown, "The offered version's exact configured source was not established.");
             CheckStop();
-            // Contract 6: this synchronous getter can fetch/cache manifest metadata.
-            // Never use GetMetadata, whose installed fields include raw uninstall commands.
-            var metadata = Keep(offered.GetCatalogPackageMetadata()
-                ?? throw new NotSupportedException("Catalog metadata is unavailable."));
-            CheckStop();
-            string? publisher = CatalogText(() => metadata.Publisher);
-            string? description = CatalogText(() => metadata.ShortDescription);
-            if (string.IsNullOrWhiteSpace(description)) description = CatalogText(() => metadata.Description);
-            string? license = CatalogText(() => metadata.License);
-            string? notes = CatalogText(() => metadata.ReleaseNotes);
-            CheckStop();
-            return AppPackageMetadataPolicy.Project(request, publisher, description, license, notes, DateTimeOffset.UtcNow);
+            return new(offered, CheckState.Available, "");
         }
 
         private string? CatalogText(Func<string> read)

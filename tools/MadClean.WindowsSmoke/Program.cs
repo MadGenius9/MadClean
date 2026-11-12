@@ -16,6 +16,12 @@ internal static class Program
             Console.Error.WriteLine("Unsupported: this harness requires Windows and WPF; no platform checks ran.");
             return 2;
         }
+        // Explicit local neutral UI observation, independent of disposable CI qualification.
+        if (args.Length == 1 && args[0] == "--local-ui-validation")
+            return LocalUiValidation.Run();
+        // Separate local draft/binding observation only; never a repair qualification mode.
+        if (args.Length == 1 && args[0] == "--local-repair-review-validation")
+            return LocalUiValidation.RunRepairReview();
         if (Environment.GetEnvironmentVariable("MADCLEAN_WINDOWS_VALIDATION") != "1")
         {
             Console.Error.WriteLine("Not enabled: set MADCLEAN_WINDOWS_VALIDATION=1 only in a disposable Windows runner/VM.");

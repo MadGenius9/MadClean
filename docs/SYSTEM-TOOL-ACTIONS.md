@@ -66,3 +66,5 @@ The additional [identity-observation policy and native validation](SYSTEM-TOOL-I
 
 
 [Client-process observation](CLIENT-PROCESS-OBSERVATION.md) now separates actual observed exit/code from stopped observation. Its native fixture uses fixed inert instances of the existing harness only. Production servicing remains disabled; this infrastructure does not satisfy the remaining D2/D3 launch, durable ownership, private-record or interactive validation gates.
+
+A separate [managed repair coordinator](SYSTEM-REPAIR-WORKFLOW.md) now supplies one-shot authorization, durable-intent ordering and retained-ownership/result orchestration for future fixed repairs. It is not wired to this legacy executor, has no production backend and does not change either production execution or journal-creation gates. The qualified non-repair admission domain remains unchanged.

@@ -2,6 +2,8 @@
 
 Selected Windows Installer metadata uses a separate explicit [product/context verification adapter](MSI-REGISTRATION-VERIFICATION.md). Its exact-product current-user/machine enumeration and fixed display/state queries collect no SIDs or package/source paths and invoke no activation, repair, installation or uninstall API. It preserves source coverage, NoRemove restrictions and unknown results; matching metadata is never action eligibility.
 
+The [remembered-product recheck](MSI-REGISTRATION-WATCH.md) reuses those same fixed native functions and the selected-product exact ARP reader with independent read-only scope and shared worker admission. It can observe source-specific absence without treating expected post-uninstall absence as a failed action match. It never promotes absence to uninstall completeness or leftover ownership.
+
 [Current-user Windows packages](PACKAGED-APPLICATIONS.md) use fixed system PowerShell/Appx metadata for Main/Bundle registrations only. Query warnings preserve Partial without raw text, optional fields remain unknown, and neither signing/removal flags nor versions become trust/action/update verdicts. This source is separate from ARP/MSI, user baselines and unique-app counts; it requests no other profile, SID, manifest, paths, dependencies or deployment action.
 
 Official Microsoft documentation was checked before implementation, using Microsoft's official GitHub documentation sources because `learn.microsoft.com` was denied by the cloud proxy. Links below include the browsable reference and the source consulted. No third-party scraping or undocumented driver updater is used.
@@ -9,6 +11,8 @@ Official Microsoft documentation was checked before implementation, using Micros
 ## WinGet
 
 The production App uses the separately qualified structured SDK discovery route described near the end of this document. The CLI contract below remains separate legacy diagnostic evidence; it is not a silent fallback. The new explicit [selected catalog metadata reader](APP-PACKAGE-METADATA.md) shares the SDK owner, source/authentication/agreement controls and caller/native lifetime boundaries. It revalidates one exact offered version before reading four bounded contract-6 manifest fields. It never calls installed `GetMetadata`, reads uninstall commands, opens metadata URLs or requests installation. Its Windows runtime remains unverified independently of the previously qualified discovery path.
+
+The additional [installer requirements reader](APP-INSTALLER-REVIEW.md) shares that exact lookup and owner. Fixed User/Interactive manifest selection reads only declared requirement fields; no installation operation is invoked. Cached pinned official1.10.340 sources establish this read contract, not universal restart suppression or runtime qualification. All execution/readiness claims remain unavailable.
 
 - [list command](https://learn.microsoft.com/windows/package-manager/winget/list) — [consulted source](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/package-manager/winget/list.md)
 - [upgrade command](https://learn.microsoft.com/windows/package-manager/winget/upgrade) — [consulted source](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/package-manager/winget/upgrade.md)
@@ -30,6 +34,8 @@ No arbitrary executable is searched on PATH. The adapter uses `%LocalAppData%\Mi
 
 System Windows PowerShell imports the Defender manifest from its absolute `$PSHOME/Modules/Defender` path and uses module-qualified Defender commands. Both provider scripts restrict PSModulePath inside their child process to system PowerShell modules, leaving user/system configuration unchanged. System Windows PowerShell runs a constant query script with `Get-MpComputerStatus` and `Get-MpThreatDetection`. It projects booleans, mode, signature version/timestamp, and detection ID/action/time into bounded JSON. It excludes detection resource paths. Missing flags remain Unknown; unreadable detection history makes the result Partial even if protection flags are available. A passive/disabled/third-party-protected system must not be presented as actively protected by Defender. An empty detection history is not a clean bill of health. No `Start-MpScan`, remediation or quarantine method exists in phase 1.
 
+[Explicit Defender lifecycle history](DEFENDER-LIFECYCLE-EVENTS.md) reads only fixed-channel/provider event1000/1001/1002 metadata through the inbox Event Log module. It does not read payloads/Scan IDs, correlate scans, invoke Defender commands or establish outcomes. Query cancellation stops only its read-only client; retained events remain Partial evidence. This new route has not run on Windows.
+
 ## Windows Update / drivers
 
 - [IUpdateSession](https://learn.microsoft.com/windows/win32/api/wuapi/nn-wuapi-iupdatesession) — [consulted source](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/wuapi/nn-wuapi-iupdatesession.md)
@@ -38,6 +44,8 @@ System Windows PowerShell imports the Defender manifest from its absolute `$PSHO
 [OperationResultCode](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/wuapi/ne-wuapi-operationresultcode.md) and [UpdateType](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/wuapi/ne-wuapi-updatetype.md) define the result/type values used below.
 
 A system PowerShell child creates `Microsoft.Update.Session`, sets the client application ID, and calls the supported WUA search interface with `IsInstalled=0 and IsHidden=0`. It leaves service selection and policy intact and projects title, update ID, type and current reboot-required flag. Type 2 identifies a Driver offer. Search result code 2 is successful; 3 is partial; others fail. No downloader, installer, reboot, registry tweak or OEM web scrape is used. Search may contact the configured Microsoft/managed update server and refresh Windows-owned metadata. No results means no offers returned by **this search**, never that all drivers/software are current.
+
+The [selected driver prerequisite worksheet](DRIVER-UPDATE-REVIEW.md) consumes only these existing source snapshots and optional declarations. It adds no native/online query or action. Exact references, source-wide unique GUIDs, complete Driver-row publication and bounded admission age are required. Readiness stays Unknown and CanInstall false.
 
 ## Startup / disks / files
 
@@ -192,3 +200,5 @@ The separate [selected SFC verification contract](SFC-VERIFICATION.md) fixes `/v
 [Shared diagnostic admission](SYSTEM-TOOL-ADMISSION.md) coordinates the selected DISM/SFC routes within this process. An exact capability stays held until actual cleanup; uncertain terminal release permanently blocks cooperating requests. Composition and DISM regressions passed at source2ee4dec6 and subsequent runs. This is not an OS-wide lock or crash recovery. The legacy executor remains disabled.
 
 The [separate SFC qualification](SFC-CLIENT-VALIDATION.md) runs one actual client: the held-proof private candidate when the normal guard is closed, or actual normal App controls when enabled. Version2 public proof requires all actual UI/native facts, with private candidate proof fields null. Source326cda1 passed this public path with exit0, both raw-output drains, released ownership and closed window; integrity remained Unknown. Mid-native stop, denial/failure policies, physical input and broader Windows systems remain separate limits. [Review and limits](SFC-PUBLIC-QUALIFICATION-REVIEW.md).
+
+The explicit [upgrade inventory context](HARDWARE-UPGRADE-CONTEXT.md) uses only the existing CIM projection and its current accepted source references. It adds no integration call, aggregation, memory-code interpretation, manufacturer source or compatibility verdict. Refresh/input changes clear context; observed fields and enumeration flags remain separate from verified limits.

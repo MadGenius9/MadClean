@@ -33,16 +33,20 @@ public sealed class MsiUninstallRequestIntent
 
     internal MsiUninstallRequestIntent(MsiActionBindingScope scope, MsiRegistrationContext context,
         long sourceGeneration, DateTimeOffset preparedUtc, DateTimeOffset expiresUtc,
-        MsiSelectedProductReadScope? selectedProductScope = null)
+        MsiSelectedProductReadScope? selectedProductScope = null, MsiRegistrationWatchTarget? postcheckTarget = null)
     {
         Scope = scope; SelectedProductScope = selectedProductScope; Context = context; SourceGeneration = sourceGeneration;
         PreparedUtc = preparedUtc; ExpiresUtc = expiresUtc; RequestId = Guid.NewGuid();
         Arguments = Array.AsReadOnly(new[] { "/x", scope.ProductCode, "/qf", "/norestart" });
+        PostcheckTarget = postcheckTarget;
     }
 
     public Guid RequestId { get; }
     public MsiActionBindingScope Scope { get; }
     public MsiSelectedProductReadScope? SelectedProductScope { get; }
+    // Historical selected-preparation facts only. This independent read-only
+    // target neither revives the consumed selector nor authorizes another action.
+    public MsiRegistrationWatchTarget? PostcheckTarget { get; }
     public string ProductCode => Scope.ProductCode;
     public string RegistrationIdentity => Scope.Application.Identity;
     public string Name => Scope.Application.Name;
@@ -161,8 +165,10 @@ public static class MsiUninstallRequestPolicy
         if (reasons.Count != 0) return Refused(string.Join(" ", reasons));
         var report = preparation.Items[0];
         var displayScope = MsiActionBindingScope.From(scope.NativeReadScope);
+        var postcheckTarget = new MsiRegistrationWatchTarget(scope.Application, scope.ProductCode,
+            scope.OriginalSource, report.Instances[0].Context, scope.HistoricalGlobalSnapshotState, nowUtc);
         var intent = new MsiUninstallRequestIntent(displayScope, report.Instances[0].Context, sourceGeneration,
-            nowUtc, scope.ExpiresUtc, scope);
+            nowUtc, scope.ExpiresUtc, scope, postcheckTarget);
         return new(scope.HistoricalGlobalSnapshotState == CheckState.Partial ? CheckState.Partial : CheckState.Available,
             "Exact-product request preview prepared from fresh target facts. Historical global coverage is unchanged; current global inventory was not read. Explicit confirmation and another actual target recheck are required; no installer started.", [new(intent)]);
     }

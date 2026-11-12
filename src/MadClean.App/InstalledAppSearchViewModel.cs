@@ -22,13 +22,16 @@ public sealed partial class MainViewModel
             if (installedAppSearchText == text) return;
             InvalidateMsiUninstallRequest();
             if (MsiUninstallDispatchReserved) return;
-            Set(ref installedAppSearchText, text);
+            installedAppSearchText = text;
             installedAppSearch = InstalledApplicationSearch.Create(text);
             // A hidden selection must not retain a review plan or receive pending MSI results.
             if (selectedApplication != null && !installedAppSearch.Matches(selectedApplication))
                 SelectedInstalledApplication = null;
             InstalledApplicationsView.Refresh();
             RefreshPackagedApplicationSearch();
+            // Publish the text only after the new literal filter and selection invalidation
+            // are in force, so a binding callback cannot reuse the previous visibility rule.
+            PropertyChanged?.Invoke(this, new(nameof(InstalledAppSearchText)));
             NotifyInstalledAppSearchSummary();
             CommandManager.InvalidateRequerySuggested();
         }

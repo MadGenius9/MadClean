@@ -20,6 +20,7 @@ public sealed partial class MainViewModel
             if (ReferenceEquals(selectedAppUpdateOffer, value)) return;
             selectedAppUpdateOffer = value;
             InvalidateAppPackageMetadata();
+            InvalidateAppInstallerReview();
             PropertyChanged?.Invoke(this, new(nameof(SelectedAppUpdateOffer)));
             PropertyChanged?.Invoke(this, new(nameof(AppUpdateOfferDetails)));
         }
@@ -46,6 +47,7 @@ public sealed partial class MainViewModel
     private void BeginAppUpdateOffersQuery(DateTimeOffset attemptedUtc)
     {
         InvalidateAppPackageMetadata();
+        InvalidateAppInstallerReview();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferAttemptUtc = attemptedUtc; appOfferResultUtc = null; appOfferInterruptedUtc = null;
         appOfferSourceState = CheckState.Unknown; appOfferQueryPending = true;
@@ -54,6 +56,7 @@ public sealed partial class MainViewModel
     private void PublishAppUpdateOffersQuery(CheckResult<AppUpdate> result, DateTimeOffset receivedUtc)
     {
         InvalidateAppPackageMetadata();
+        InvalidateAppInstallerReview();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferResultUtc = receivedUtc; appOfferInterruptedUtc = null; appOfferQueryPending = false;
         appOfferSourceState = Enum.IsDefined(result.State) ? result.State : CheckState.Unknown;
@@ -64,6 +67,7 @@ public sealed partial class MainViewModel
     private void InterruptAppUpdateOffersQuery(DateTimeOffset observedUtc)
     {
         InvalidateAppPackageMetadata();
+        InvalidateAppInstallerReview();
         AppUpdateOffers.Clear(); SelectedAppUpdateOffer = null;
         appOfferResultUtc = null; appOfferInterruptedUtc = observedUtc; appOfferQueryPending = false;
         appOfferSourceState = CheckState.Unknown;

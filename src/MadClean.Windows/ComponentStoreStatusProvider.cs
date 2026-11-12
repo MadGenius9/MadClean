@@ -76,7 +76,7 @@ public sealed class ComponentStoreStatusProvider : IComponentStoreStatusProvider
             var admission = SystemToolServicingAdmission.TryAcquire(operation, intent.RequestId);
             if (admission == null)
                 return Task.FromResult<IComponentStoreStatusSession>(new CompletedSession(intent, CheckState.Unavailable,
-                    "Another cooperating servicing owner is pending or retained, or this check kind is unsupported. No host or identity query was requested.", null));
+                    "A cooperating owner or unresolved operation history blocks admission, or this check kind is unsupported. No host or identity query was requested.", null));
             owner.AttachAdmission(admission);
             bool proofTransferred;
             try { proofTransferred = authorization == null || authorization.TransferToWorker(intent.RequestId, intent.Kind); }

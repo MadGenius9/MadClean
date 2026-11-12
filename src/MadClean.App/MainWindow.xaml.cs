@@ -12,6 +12,18 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => WindowAppearance.TryUseDarkTitleBar(new WindowInteropHelper(this).Handle);
         Closing += (_, args) =>
         {
+            if (model.HasPendingRepairReview)
+            {
+                args.Cancel = true;
+                model.ExplainRepairReviewCloseBlock();
+                return;
+            }
+            if (model.HasPendingDefenderLifecycleRead)
+            {
+                args.Cancel = true;
+                model.ExplainDefenderLifecycleCloseBlock();
+                return;
+            }
             if (model.HasPendingSystemToolIdentity)
             {
                 args.Cancel = true;
@@ -28,6 +40,18 @@ public partial class MainWindow : Window
             {
                 args.Cancel = true;
                 model.ExplainAppUpdateCloseBlock();
+                return;
+            }
+            if (model.HasPendingDiskIdentityRead)
+            {
+                args.Cancel = true;
+                model.ExplainDiskIdentityCloseBlock();
+                return;
+            }
+            if (model.HasPendingMsiRegistrationWatchWork)
+            {
+                args.Cancel = true;
+                model.ExplainMsiWatchCloseBlock();
                 return;
             }
             if (model.HasPendingSfcVerification)

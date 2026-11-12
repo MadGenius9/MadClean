@@ -129,6 +129,7 @@ public sealed partial class MainViewModel
     }
     private void ResetCurrentHardwareObservation()
     {
+        InvalidateHardwareUpgradeContext();
         InvalidateManufacturerServiceFacts();
         HardwareLastObservation = null;
         HardwareCompletedUtc = null;

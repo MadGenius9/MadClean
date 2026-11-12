@@ -244,6 +244,12 @@ public sealed class WindowsInventory : IComputerInventory
               if ($value -is [bool]) { return (Offer-Field 'Available' $value) }
               return (Offer-Field 'Unknown' $null)
             }
+            if ($kind -ceq 'Revision') {
+              $integer=$value -is [sbyte] -or $value -is [byte] -or $value -is [int16] -or $value -is [uint16] -or
+                  $value -is [int32] -or $value -is [uint32] -or $value -is [int64] -or $value -is [uint64]
+              if ($integer -and $value -ge 0 -and $value -le [int32]::MaxValue) { return (Offer-Field 'Available' ([int]$value)) }
+              return (Offer-Field 'Unknown' $null)
+            }
             if ($kind -ceq 'Enum') {
               $integer=$value -is [sbyte] -or $value -is [byte] -or $value -is [int16] -or $value -is [uint16] -or
                   $value -is [int32] -or $value -is [uint32] -or $value -is [int64] -or $value -is [uint64]
@@ -264,6 +270,24 @@ public sealed class WindowsInventory : IComputerInventory
           for ($i=0; $i -lt $count -and $i -lt 256; $i++) {
             $u=$result.Updates.Item($i)
             $type=[int]$u.Type
+            $identity=$u.Identity
+            $id=$identity.UpdateID
+            $identityMetadata=[pscustomobject]@{
+              Version=1
+              RevisionNumber=(Read-OfferField $identity 'RevisionNumber' 'Revision')
+              DriverHardwareID=(Offer-Field 'Unknown' $null)
+            }
+            if ($type -eq 1) {
+              $identityMetadata.DriverHardwareID=Offer-Field 'Unsupported' $null
+            } elseif ($type -eq 2) {
+              $hardwareID=Read-OfferField $u 'DriverHardwareID' 'String'
+              if ($hardwareID.State -ceq 'Available' -and
+                  ($hardwareID.Value.Trim().Equals('Unknown',[StringComparison]::OrdinalIgnoreCase) -or
+                   $hardwareID.Value.Trim().Equals('N/A',[StringComparison]::OrdinalIgnoreCase))) {
+                $hardwareID=Offer-Field 'Unknown' $null
+              }
+              $identityMetadata.DriverHardwareID=$hardwareID
+            }
             $class = $null
             $date = $null
             if ($type -eq 2) {
@@ -302,7 +326,7 @@ public sealed class WindowsInventory : IComputerInventory
             if ($reboot -isnot [bool]) { throw [InvalidOperationException]::new('Windows Update required reboot metadata unavailable.') }
             $description = [string]$u.Description
             if ($description.Length -gt 2048) { $description = $description.Substring(0, 2048) + ' [truncated]' }
-            $updates += [pscustomobject]@{Title=$u.Title; Type=$type; Id=$u.Identity.UpdateID; RebootRequired=$reboot; DriverClass=$class; DriverVerDate=$date; Description=$description; OfferMetadata=$metadata}
+            $updates += [pscustomobject]@{Title=$u.Title; Type=$type; Id=$id; RebootRequired=$reboot; DriverClass=$class; DriverVerDate=$date; Description=$description; OfferMetadata=$metadata; IdentityMetadata=$identityMetadata}
           }
           [pscustomobject]@{ResultCode=[int]$result.ResultCode; Truncated=$truncated; Updates=@($updates)} | ConvertTo-Json -Depth 8 -Compress
         } catch { exit 1 }

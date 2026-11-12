@@ -1,0 +1,24 @@
+<UserControl x:Class="MadClean.App.Views.MsiRegistrationWatchView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource Card}" Margin="0,16,0,0"><Expander Header="Remember and recheck one MSI registration" Foreground="#ECF1FB"><StackPanel>
+        <TextBlock Text="Remember a verified selected MSI product before an external app change, then separately recheck the same product's registrations. No uninstaller runs here. You can also recheck without making any change. The remembered target stays in memory for at most 24 hours; it is independent of later list selection." Style="{StaticResource Caption}"/>
+        <WrapPanel>
+            <Button Content="Remember selected MSI product" Command="{Binding RememberMsiRegistrationCommand}"/>
+            <Button Content="Recheck remembered product" Command="{Binding RecheckRememberedMsiCommand}"/>
+            <Button Content="Clear remembered product" Command="{Binding ClearRememberedMsiCommand}" Background="#343E52"/>
+        </WrapPanel>
+        <TextBlock Text="{Binding MsiWatchMessage}" Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite"/>
+        <TextBox Text="{Binding MsiWatchTargetDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="95" MaxHeight="200" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Remembered MSI product and historical evidence"/>
+        <TextBlock Text="{Binding MsiWatchQueryDetails}" Style="{StaticResource Caption}"/>
+        <DataGrid ItemsSource="{Binding MsiWatchArpRows}" IsReadOnly="True" AutoGenerateColumns="False" Height="130" AutomationProperties.Name="Remembered product ARP source observations"><DataGrid.Columns>
+            <DataGridTextColumn Header="ARP SOURCE" Binding="{Binding Name}" Width="*"/>
+            <DataGridTextColumn Header="OBSERVATION" Binding="{Binding State}" Width="130"/>
+            <DataGridTextColumn Header="TIME / NATIVE CODE" Binding="{Binding Detail}" Width="2*"/>
+        </DataGrid.Columns></DataGrid>
+        <DataGrid ItemsSource="{Binding MsiWatchContextRows}" IsReadOnly="True" AutoGenerateColumns="False" Height="130" Margin="0,8,0,0" AutomationProperties.Name="Remembered product MSI context observations"><DataGrid.Columns>
+            <DataGridTextColumn Header="MSI CONTEXT" Binding="{Binding Context}" Width="*"/>
+            <DataGridTextColumn Header="REGISTRATION" Binding="{Binding Presence}" Width="*"/>
+            <DataGridTextColumn Header="OBSERVED UTC" Binding="{Binding ObservedUtc, StringFormat=u, TargetNullValue=Unknown}" Width="2*"/>
+        </DataGrid.Columns></DataGrid>
+        <TextBox Text="{Binding MsiWatchReportDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="260" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" AutomationProperties.Name="Registration recheck coverage and uninstall uncertainty"/>
+    </StackPanel></Expander></Border>
+</UserControl>
