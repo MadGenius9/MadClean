@@ -1,3 +1,5 @@
+param([switch] $Journal)
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -26,9 +28,10 @@ try {
         throw 'Compile-only WER assertions require 64-bit Windows.'
     }
     $Repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-    $Source = Join-Path $Repository 'tools\MadClean.WindowsSmoke\WerAbiAssertions.cpp'
+    $SourceName = if ($Journal) { 'JournalSdkAbiAssertions' } else { 'WerAbiAssertions' }
+    $Source = Join-Path $Repository ('tools\MadClean.WindowsSmoke\' + $SourceName + '.cpp')
     $OutputDirectory = Join-Path $Repository 'artifacts\native-abi'
-    $Object = Join-Path $OutputDirectory 'WerAbiAssertions.obj'
+    $Object = Join-Path $OutputDirectory ($SourceName + '.obj')
     $Vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     $CommandProcessor = Join-Path $env:SystemRoot 'System32\cmd.exe'
     foreach ($Path in @($Repository, $Source, $OutputDirectory, $Object, $Vswhere, $CommandProcessor)) {
@@ -69,11 +72,15 @@ try {
     & $CommandProcessor /d /s /c $Command
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Object -PathType Leaf) -or
         (Get-Item -LiteralPath $Object).Length -le 0) { throw 'Compile-only Windows SDK assertions failed.' }
-    Write-Output 'WER SDK compile-only x64 assertions passed; no linking or executable execution occurred.'
+    if ($Journal) {
+        Write-Output 'Journal SDK compile-only x64 assertions passed; no linking or executable execution occurred.'
+    } else {
+        Write-Output 'WER SDK compile-only x64 assertions passed; no linking or executable execution occurred.'
+    }
     exit 0
 }
 catch {
     # Fixed developer message only: do not dump environment, discovery output or exception text.
-    [Console]::Error.WriteLine('WER SDK compile-only validation failed; verify installed x64 Visual Studio/SDK tools and bounded compiler diagnostics.')
+    [Console]::Error.WriteLine('SDK compile-only validation failed; verify installed x64 Visual Studio/SDK tools and bounded compiler diagnostics.')
     exit 1
 }

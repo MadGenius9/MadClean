@@ -2,6 +2,8 @@
 
 ## Current validation path, 2026-11-12
 
+Latest reviewed source step adds compile-only assertions for the installed modern journal API ABI, using the existing fixed installed toolchain with a separate object and diagnostic. It adds no runnable sample or native operation. Local Release build passed, Core 2,420 passed/one skipped, Python 367 passed/one skipped. Actual header compilation awaits matching Actions evidence. The fresh-root fix at f8d3a35 now has passing owned journal/private-scope/teardown and published neutral-startup evidence; the overall passive report is still inconclusive. Missing modern source composition and production namespace/recovery admission remain the substantive repair dependencies, separate from ABI compilation.
+
 The user explicitly reauthorized source pushes and standard Windows Actions after making the repository public. The reviewed recovery branch can therefore obtain current Windows build/test evidence without a host/VM transfer. Keep final distribution packaging off, native action gates unchanged, and separate negative provider handling from successful acquisition. The installed-SDK collector reads existing bounded header fragments only; it does not acquire an SDK or prove ABI/security semantics. The frozen 3b25787 payload remains immutable and distinct from this newer candidate.
 
 The current MSI correction preserves uncertain Process.Start exceptions and drains the exact qualification worker/native owners before Main can return. Controlled local build/tests and final independent source review pass; source-bound Windows evidence remains separate. This closes an ownership bug, not direct-uninstall readiness or the remaining action/manufacturer/release roadmap.

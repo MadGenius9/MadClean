@@ -18,3 +18,11 @@ Two different flag declarations were observed; they must not be interchanged:
 The reported winbase.h hash is `1e27239cda673a4b6c8f4295a3a0a8c3b87892eb7a593922eb11e0f22e602318`. No header bytes were installed or executed by the collector.
 
 The exact remaining semantic questions are unchanged: named failure/last-error and owned-return rules for CreateDirectory2W/CreateFile3; no-redirection coverage of intermediate/final components and supported OS/filesystems; created-versus-existing security semantics; protected first-parent admission; and supported handle-bound bounded directory enumeration for recovery. See [the composition audit](JOURNAL-PROVISIONING-DESIGN.md). A constant/declaration match does not answer these questions or enable a gate. Current production/native candidate guards remain false, and no namespace/lease/journal operation was run by this observation.
+
+## Compile-only contract check
+
+`python tools/compile_journal_sdk.py` selects the closed `-Journal` profile of the existing installed-toolchain launcher. It accepts no arguments, searches no PATH compiler, uses the installed x64 Visual Studio/SDK only, and emits `artifacts/native-abi/JournalSdkAbiAssertions.obj`. No linker, executable, API call, SDK installation or native sample is requested. WER's default profile and object remain separate.
+
+The translation unit requires the SDK's `NTDDI_WIN11_GE` symbol and asserts the actual five-argument function-pointer types, x64 extended-parameter/security-attribute sizes and offsets, and the distinct no-redirect constants. An older SDK or mismatched declaration must fail compilation. The optional CI step records that outcome under `journal-native-abi`; `continue-on-error` preserves other observations and is not a qualification claim. Portable tests cover launcher refusal, fixed command construction, nonzero results and no retry after uncertain process outcomes. They do not execute PowerShell/MSVC or establish Windows header compilation.
+
+The modern journal execution candidate is still absent and every existing production/native action gate remains unchanged. Header compilation cannot resolve failure-output ownership, namespace security, concurrency, recovery or API runtime behavior.

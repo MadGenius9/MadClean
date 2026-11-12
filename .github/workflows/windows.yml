@@ -118,6 +118,9 @@ jobs:
         run: python tools/ci_command.py sdk-journal-reference -- python tools/inspect_journal_sdk.py
       - name: Compile WER ABI assertions against the installed Windows SDK (no execution)
         run: python tools/ci_command.py native-abi -- python tools/compile_wer_sdk.py
+      - name: Compile modern journal ABI assertions against the installed Windows SDK (no execution)
+        continue-on-error: true
+        run: python tools/ci_command.py journal-native-abi -- python tools/compile_journal_sdk.py
       - name: Compile development-only SDK shortcut control DLL (not packaged)
         run: python tools/ci_command.py shortcut-control -- python tools/compile_shortcut_control.py
       - name: Observe existing read-only update providers on the disposable runner

@@ -62,6 +62,19 @@ class CommandCaptureTests(unittest.TestCase):
                 self.assertIn('10.0.403',result['stages'][0]['excerpt'])
                 self.assertNotIn('fixture-secret',json.dumps(result))
 
+    def test_journal_compiler_failure_has_its_own_source_bound_diagnostic(self):
+        with tempfile.TemporaryDirectory(prefix='MadCleanJournalAbiCapture-') as directory:
+            root=Path(directory)
+            env=dict(os.environ,GITHUB_SHA='a'*40,GITHUB_RUN_ID='100',GITHUB_RUN_ATTEMPT='1')
+            with contextlib.redirect_stdout(io.StringIO()):
+                status=c.run('journal-native-abi',[sys.executable,'-c','print("error SDK declarations unavailable"); raise SystemExit(4)'],root,env)
+            result=c._scrubber.collect(root/'artifacts/ci-logs',('a'*40,'100',1),'success')
+            self.assertEqual(4,status)
+            self.assertEqual('journal-native-abi',result['stages'][0]['label'])
+            self.assertEqual(4,result['stages'][0]['exitCode'])
+            self.assertIn('SDK declarations unavailable',result['stages'][0]['excerpt'])
+            self.assertFalse((root/'artifacts/ci-logs/native-abi.json').exists())
+
     def test_non_catalogued_label_and_executable_are_not_run(self):
         with self.assertRaises(ValueError): c.run('../outside',[sys.executable,'-c','raise Exception()'],Path('/unused'),{})
         with self.assertRaises(ValueError): c.run('build',['unsupported-program'],Path('/unused'),{})
