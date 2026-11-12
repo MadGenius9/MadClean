@@ -1,16 +1,17 @@
 {
   "formatVersion": 1,
-  "sourceCommit": "60b9a84aea1873ce7f075a2f8758bacce6bd4a13",
-  "runId": "42337639573",
+  "sourceRef": "refs/heads/recovery/validated-20261112",
+  "sourceCommit": "2d51aba230c02505335d98e623235380b815d291",
+  "runId": "43295261530",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
   "passed": false,
-  "updatedUtc": "2026-11-07T04:30:14.029067+00:00",
+  "updatedUtc": "2026-11-12T20:01:19.465986+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
-  "reportPresent": true,
+  "reportPresent": false,
   "coreTestsPresent": true,
-  "reportArtifactOutcome": "success",
+  "reportArtifactOutcome": "failure",
   "coreArtifactOutcome": "success",
   "stageOutcomes": {
     "sdk": "success",
@@ -27,114 +28,37 @@
   "nativeDiagnosticsPresent": true,
   "nativeDiagnosticsError": null,
   "componentStoreStatusScope": "Separate explicit disposable-runner recorded-flag check; Windows-managed DISM log/archive writes, no fresh scan or repair.",
-  "componentStoreStatusResult": "success",
-  "componentStoreStatusArtifactOutcome": "success",
-  "componentStoreStatusReportPresent": true,
-  "componentStoreStatusQualified": true,
+  "componentStoreStatusResult": "skipped",
+  "componentStoreStatusArtifactOutcome": "failure",
+  "componentStoreStatusReportPresent": false,
+  "componentStoreStatusQualified": false,
   "componentStoreStatusError": null,
   "componentStoreScanScope": "Separate explicit disposable-runner fresh component-store scan; Windows-managed health metadata/log writes, no repair or restart.",
-  "componentStoreScanResult": "success",
-  "componentStoreScanArtifactOutcome": "success",
-  "componentStoreScanReportPresent": true,
-  "componentStoreScanBackendQualified": true,
-  "componentStoreScanPublicUiQualified": true,
+  "componentStoreScanResult": "skipped",
+  "componentStoreScanArtifactOutcome": "failure",
+  "componentStoreScanReportPresent": false,
+  "componentStoreScanBackendQualified": false,
+  "componentStoreScanPublicUiQualified": false,
   "componentStoreScanError": null,
   "publishedAppUpdateScope": "Separate owned published MadClean UI query; metadata discovery only, no installation or package identities.",
-  "publishedAppUpdateResult": "success",
-  "publishedAppUpdateArtifactOutcome": "success",
-  "publishedAppUpdateReportPresent": true,
-  "publishedAppUpdateQualified": true,
+  "publishedAppUpdateResult": "skipped",
+  "publishedAppUpdateArtifactOutcome": "failure",
+  "publishedAppUpdateReportPresent": false,
+  "publishedAppUpdateQualified": false,
   "publishedAppUpdateError": null,
   "sfcClientLifecycleScope": "Separate disposable-runner fixed SFC verify-only client lifecycle; Windows-managed diagnostic writes, no repair and no Windows integrity verdict.",
-  "sfcClientLifecycleResult": "success",
-  "sfcClientLifecycleArtifactOutcome": "success",
-  "sfcClientLifecycleReportPresent": true,
-  "sfcClientLifecycleQualified": true,
-  "sfcClientPublicUiQualified": true,
+  "sfcClientLifecycleResult": "skipped",
+  "sfcClientLifecycleArtifactOutcome": "failure",
+  "sfcClientLifecycleReportPresent": false,
+  "sfcClientLifecycleQualified": false,
+  "sfcClientPublicUiQualified": false,
   "sfcClientLifecycleError": null,
   "msiRequestScope": "Separate disposable-runner qualification of one fresh inert current-user MSI product only; not the passive report or production permission.",
-  "msiRequestResult": "success",
-  "msiRequestArtifactOutcome": "success",
-  "msiRequestReportPresent": true,
-  "msiRequestQualified": true,
+  "msiRequestResult": "skipped",
+  "msiRequestArtifactOutcome": "failure",
+  "msiRequestReportPresent": false,
+  "msiRequestQualified": false,
   "msiRequestPublicUiQualified": false,
   "msiRequestError": null,
-  "images": [
-    {
-      "name": "overview-wide.png",
-      "sha256": "f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf"
-    },
-    {
-      "name": "overview-compact.png",
-      "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
-    },
-    {
-      "name": "tool-28.png",
-      "sha256": "0ac5a77d8165382678037973b5997abb3174a635adf84b2d6dd10dddb3ff04ae"
-    },
-    {
-      "name": "tool-18.png",
-      "sha256": "731372a00a426cfb016de491dbc2c5be850b4af93a9aec263887509bec97c001"
-    },
-    {
-      "name": "tool-20.png",
-      "sha256": "3e1df89e868c3ac745bd5c4270483fadf7e2b869e7792e4295fcbe70889ed1bd"
-    },
-    {
-      "name": "tool-21.png",
-      "sha256": "cbd1a5439f97ebae71a8da6b4cb00225dac5f3a7788f5bc588004d007ee10a85"
-    },
-    {
-      "name": "tool-19.png",
-      "sha256": "4735dadabfed026424347acbf7e333e3ddcb6fd8080e5b2902c95624fe43ee89"
-    },
-    {
-      "name": "tool-11.png",
-      "sha256": "9e913d896824c3a5d1045734877bb48e4170f8a814d2bc458e3abecdcfa183d9"
-    },
-    {
-      "name": "tool-12.png",
-      "sha256": "e4e90ba8e864a0bbcb38e9082fc382273f22d8ac25f191b74057b90626eddbee"
-    },
-    {
-      "name": "tool-22.png",
-      "sha256": "8d1758efc830b5254b57550d54a86aa6ecf415e020d21bce573b0078febf67e2"
-    },
-    {
-      "name": "tool-27.png",
-      "sha256": "5ec40eaf6be65741db0a2fb4522e378f2e7c54d8fa5b7d805a3da591c77c52a1"
-    },
-    {
-      "name": "tool-26.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-13.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-23.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-25.png",
-      "sha256": "249a3414b4dbe09d8a34f67ca0bdf8a3e64c274ea1f3a0ebf1efcc90707d7268"
-    },
-    {
-      "name": "tool-14.png",
-      "sha256": "64691fd8463d3f0673658c4e7eac6f9d89b3f911c5aceca5395c683417420935"
-    },
-    {
-      "name": "tool-15.png",
-      "sha256": "b7dedd05d9a35c4174f65ccd78b040ae1676daea9c8d191d3b2a812614993178"
-    },
-    {
-      "name": "tool-16.png",
-      "sha256": "f5f00dacb5d67194748e6b2dccd89b3abf983b4ed8113949c64e90e73b78d589"
-    },
-    {
-      "name": "tool-17.png",
-      "sha256": "3d7624b98f001e083f24ac633c5feb3c599d59bfe707c5f9b4f7c37b647e9efe"
-    }
-  ]
+  "images": []
 }

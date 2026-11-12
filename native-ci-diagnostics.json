@@ -5,19 +5,13 @@
       "label": "restore",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 523 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 524 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 2 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 4 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 1 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 4 ms)."
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 170 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 589 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 594 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 359 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 3 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 608 ms)."
     },
     {
       "label": "build",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:19.89"
-    },
-    {
-      "label": "smoke",
-      "exitCode": 2,
-      "truncated": false,
-      "excerpt": "MadClean Windows validation: inconclusive. See artifacts/windows-validation/report.json."
+      "excerpt": "  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:28.81"
     },
     {
       "label": "native-abi",
@@ -32,12 +26,6 @@
       "excerpt": "ShortcutRenameControl.cpp\n   Creating library D:\\a\\MadClean\\MadClean\\artifacts\\native-controls\\ShortcutRenameControl.lib and object D:\\a\\MadClean\\MadClean\\artifacts\\native-controls\\ShortcutRenameControl.exp\nDevelopment-only x64 shortcut control DLL compiled and linked; no control executed or packaged."
     },
     {
-      "label": "startup-publish",
-      "exitCode": 0,
-      "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  All projects are up-to-date for restore.\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\\MadClean.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\artifacts\\published-startup-e89cee35c7f745e593565be8a376c868\\publish\\"
-    },
-    {
       "label": "update-discovery",
       "exitCode": 2,
       "truncated": false,
@@ -45,19 +33,13 @@
     },
     {
       "label": "structured-winget-publish",
-      "exitCode": 0,
+      "exitCode": 1,
       "truncated": true,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 6.31 sec).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 6.33 sec).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 3 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 7 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 5 ms).\n  MadClean.Core -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\bin\\Release\\net10.0\\MadClean.Core.dll\n  MadClean.Windows -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\bin\\Release\\net10.0-windows\\MadClean.Windows.dll\n  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\win-x64\n[Excerpt truncated.]"
-    },
-    {
-      "label": "structured-winget-published",
-      "exitCode": 0,
-      "truncated": false,
-      "excerpt": "No command output was captured. Exit code alone does not establish tests or Windows verification."
+      "excerpt": "  Determining projects to restore...\nD:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj : error NU1004: The package reference Microsoft.NET.ILLink.Tasks version has changed from [10.0.14, ) to [10.0.15, ).The packages lock file is inconsistent with the project dependencies so restore can't be run in locked mode. Disable the RestoreLockedMode MSBuild property or pass an explicit --force-evaluate option to run restore to update the lock file. [D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj]\nD:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj : error NU1004: The package reference Microsoft.NET.ILLink.Tasks version has changed from [10.0.14, ) to [10.0.15, ).The packages lock file is inconsistent with the project dependencies so restore can't be run in locked mode. Disable the RestoreLockedMode MSBuild property or pass an explicit --force-evaluate option to run restore to update the lock file. [D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj]\nD:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj : error NU1004: The package re\n[Excerpt truncated.]"
     },
     {
       "label": "app-update-ui",
-      "exitCode": 0,
+      "exitCode": 1,
       "truncated": false,
       "excerpt": "No command output was captured. Exit code alone does not establish tests or Windows verification."
     }
