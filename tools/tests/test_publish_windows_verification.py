@@ -704,6 +704,72 @@ class PublisherTests(unittest.TestCase):
     def test_fork_pull_request_and_other_branch_cannot_publish(self):
         for key,value in [('GITHUB_REPOSITORY','other/MadClean'),('GITHUB_EVENT_NAME','pull_request'),('GITHUB_REF','refs/heads/main')]:
             old=self.env[key]; self.env[key]=value; self.rejected(); self.env[key]=old
+    def test_only_two_exact_source_refs_are_accepted_and_retained_in_summary(self):
+        self.assertEqual({'refs/heads/feat/phase-one-foundation', 'refs/heads/recovery/validated-20261112'}, set(p.SOURCE_REFS))
+        marker = (self.root/'verification-manifest.json').read_bytes()
+        for source_ref in sorted(p.SOURCE_REFS):
+            for event in ('push', 'workflow_dispatch'):
+                with self.subTest(source_ref=source_ref, event=event):
+                    self.env.update(GITHUB_REF=source_ref, GITHUB_EVENT_NAME=event)
+                    _, summary, files = self.prepare()
+                    self.assertEqual(source_ref, summary['sourceRef'])
+                    self.assertEqual(source_ref, json.loads(files['latest.json'])['sourceRef'])
+                    self.assertEqual(('a'*40, '100', 1), (summary['sourceCommit'], summary['runId'], summary['runAttempt']))
+                    self.assertTrue(summary['passed'])
+                    self.assertEqual(marker, (self.root/'verification-manifest.json').read_bytes())
+    def test_recovery_prefix_suffix_tags_and_pull_request_contexts_are_not_authority(self):
+        for source_ref in ('refs/heads/recovery/validated-20261112-extra', 'refs/heads/recovery/validated-20261112/child',
+                           'recovery/validated-20261112', 'refs/tags/recovery/validated-20261112',
+                           'refs/pull/1/merge', 'refs/heads/recovery/other', 'refs/heads/main'):
+            with self.subTest(source_ref=source_ref):
+                self.env['GITHUB_REF'] = source_ref
+                self.rejected()
+        self.env['GITHUB_REF'] = 'refs/heads/recovery/validated-20261112'
+        for key, value in (('GITHUB_REPOSITORY', 'fork/MadClean'), ('GITHUB_EVENT_NAME', 'pull_request_target'),
+                           ('GITHUB_EVENT_NAME', 'pull_request'), ('GITHUB_EVENT_NAME', 'workflow_run')):
+            with self.subTest(key=key, value=value):
+                old = self.env[key]
+                self.env[key] = value
+                self.rejected()
+                self.env[key] = old
+    def test_recovery_still_requires_matching_source_run_and_attempt(self):
+        self.env['GITHUB_REF'] = 'refs/heads/recovery/validated-20261112'
+        for field, value in (('sourceCommit', 'b'*40), ('runId', '101'), ('runAttempt', 2)):
+            with self.subTest(field=field):
+                old = self.report[field]
+                self.report[field] = value
+                self.save()
+                self.rejected()
+                self.report[field] = old
+    def test_recovery_does_not_read_or_qualify_skipped_native_reports(self):
+        self.env['GITHUB_REF'] = 'refs/heads/recovery/validated-20261112'
+        with patch.object(p, 'validate_msi_report', side_effect=AssertionError('must not read')),\
+             patch.object(p.component_store_evidence, 'collect', side_effect=AssertionError('must not read')),\
+             patch.object(p.published_app_update_evidence, 'collect', side_effect=AssertionError('must not read')),\
+             patch.object(p.sfc_client_evidence, 'collect', side_effect=AssertionError('must not read')):
+            _, summary, files = p.prepare(self.root, self.download, 'success', 'success', self.env,
+                core_directory=self.download, msi_directory=self.download, component_directory=self.download,
+                scan_directory=self.download, published_app_directory=self.download, sfc_client_directory=self.download)
+        for prefix in ('msiRequest', 'componentStoreStatus', 'componentStoreScan', 'publishedAppUpdate', 'sfcClientLifecycle'):
+            self.assertEqual('skipped', summary[prefix + 'Result'])
+            self.assertFalse(summary[prefix + 'ReportPresent'])
+        for key in ('msiRequestQualified', 'msiRequestPublicUiQualified', 'componentStoreStatusQualified',
+                    'componentStoreScanBackendQualified', 'componentStoreScanPublicUiQualified',
+                    'publishedAppUpdateQualified', 'sfcClientLifecycleQualified', 'sfcClientPublicUiQualified'):
+            self.assertFalse(summary[key])
+        self.assertFalse({'msi-request.json', 'component-store.json', 'component-scan.json',
+                          'published-app-update.json', 'sfc-client.json'} & set(files))
+    def test_recovery_retains_existing_destination_marker_and_global_run_ordering(self):
+        self.env['GITHUB_REF'] = 'refs/heads/recovery/validated-20261112'
+        marker = self.root/'verification-manifest.json'
+        original = marker.read_bytes()
+        marker.write_text(json.dumps({'formatVersion': 1, 'purpose': 'MadClean Windows validation',
+                                      'sourceBranch': 'recovery/validated-20261112'}))
+        self.rejected()
+        marker.write_bytes(original)
+        (self.root/'latest.json').write_text(json.dumps({'formatVersion': 1, 'runId': '101', 'runAttempt': 1,
+                                                       'sourceRef': p.SOURCE_REF}))
+        self.rejected()
     def test_digest_mismatch_is_rejected_without_copying_untrusted_image(self):
         (self.download/p.IMAGES[0]).write_bytes(png()+b'changed'); self.rejected()
     def test_matching_hash_does_not_hide_corrupt_png_chunks(self):

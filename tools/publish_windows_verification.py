@@ -1,4 +1,4 @@
-"""Publish bounded CI evidence to the existing private verification branch.
+"""Publish bounded CI evidence to the existing dedicated verification branch.
 
 This is a development-only tool for trusted clean CI checkouts, not a hostile-filesystem broker.
 It never exports production inventory, credentials or arbitrary runner files.
@@ -38,6 +38,7 @@ _sfc_client_spec.loader.exec_module(sfc_client_evidence)
 REPOSITORY = "MadGenius9/MadClean"
 BRANCH = "madclean-verification"
 SOURCE_REF = "refs/heads/feat/phase-one-foundation"
+SOURCE_REFS = frozenset({SOURCE_REF, "refs/heads/recovery/validated-20261112"})
 IMAGES = ("overview-wide.png", "overview-compact.png", "tool-11.png", "tool-12.png", "tool-13.png", "tool-14.png", "tool-15.png", "tool-16.png", "tool-17.png", "tool-18.png", "tool-19.png", "tool-20.png", "tool-21.png", "tool-22.png", "tool-23.png", "tool-25.png", "tool-26.png", "tool-27.png", "tool-28.png")
 OWNED = ("latest.json", "report.json", "core-tests.json", "ci-diagnostics.json", "native-ci-diagnostics.json", "msi-request.json", "component-store.json", "component-scan.json", "published-app-update.json", "sfc-client.json", *IMAGES)
 REQUIRED_CHECKS = {
@@ -87,7 +88,7 @@ def git(root, *arguments):
 
 def validate_context(environment):
     reject_unless(environment.get("GITHUB_REPOSITORY") == REPOSITORY, "repository-mismatch")
-    reject_unless(environment.get("GITHUB_REF") == SOURCE_REF and environment.get("GITHUB_EVENT_NAME") in {"push", "workflow_dispatch"}, "untrusted-trigger")
+    reject_unless(environment.get("GITHUB_REF") in SOURCE_REFS and environment.get("GITHUB_EVENT_NAME") in {"push", "workflow_dispatch"}, "untrusted-trigger")
     sha = environment.get("GITHUB_SHA", "")
     run = environment.get("GITHUB_RUN_ID", "")
     attempt = environment.get("GITHUB_RUN_ATTEMPT", "")
@@ -110,6 +111,9 @@ def validate_checkout(root):
     reject_unless(git(root, "symbolic-ref", "--short", "HEAD") == BRANCH, "unexpected-branch")
     reject_unless(git(root, "remote", "get-url", "origin").rstrip("/") in {f"https://github.com/{REPOSITORY}", f"https://github.com/{REPOSITORY}.git"}, "unexpected-origin")
     manifest = read_json(root / "verification-manifest.json", 8192)
+    # This unchanged legacy value identifies the existing dedicated destination.
+    # It is not source authority: the exact current ref is checked separately above
+    # and recorded alongside source/run identity in each newly prepared summary.
     reject_unless(isinstance(manifest, dict) and type(manifest.get("formatVersion")) is int and manifest["formatVersion"] == 1 and manifest.get("purpose") == "MadClean Windows validation" and manifest.get("sourceBranch") == "feat/phase-one-foundation", "unexpected-manifest")
     for name in OWNED:
         path = safe_path(root / name, missing=True)
@@ -534,6 +538,9 @@ def validate_msi_report(directory, context):
     return value
 
 def prepare(root, download, build_result, verification_result, environment, core_directory=None, report_download_result="success", core_download_result="success", command_logs=None, log_download_result="skipped", native_command_logs=None, native_log_download_result="skipped", msi_directory=None, msi_download_result="skipped", msi_result="skipped", component_directory=None, component_download_result="skipped", component_result="skipped", scan_directory=None, scan_download_result="skipped", scan_result="skipped", published_app_directory=None, published_app_download_result="skipped", published_app_result="skipped", sfc_client_directory=None, sfc_client_download_result="skipped", sfc_client_result="skipped"):
+    # Bind ref and stage observations to the same captured CI environment. This
+    # does not change any native job/adapter's independent source restrictions.
+    environment = dict(environment)
     context = validate_context(environment)
     reject_unless(build_result in RESULTS and verification_result in RESULTS, "job-result")
     root = validate_checkout(root)
@@ -602,7 +609,7 @@ def prepare(root, download, build_result, verification_result, environment, core
     report, images = validate_report(safe_path(download, missing=True), context) if report_download_result == "success" else (None, {})
     core = core_test_summary(core_directory) if core_download_result == "success" else None
     summary = {
-        "formatVersion": 1, "sourceCommit": context[0], "runId": context[1], "runAttempt": context[2],
+        "formatVersion": 1, "sourceRef": environment["GITHUB_REF"], "sourceCommit": context[0], "runId": context[1], "runAttempt": context[2],
         "buildResult": build_result, "verificationResult": verification_result,
         "passed": build_result == "success" and verification_result == "success" and report is not None and report["passed"] and core is not None and core["passed"],
         "updatedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),

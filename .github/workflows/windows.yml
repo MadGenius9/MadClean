@@ -352,7 +352,8 @@ jobs:
     needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published, windows-sfc-client]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
-          github.ref == 'refs/heads/feat/phase-one-foundation' &&
+          (github.ref == 'refs/heads/feat/phase-one-foundation' ||
+           github.ref == 'refs/heads/recovery/validated-20261112') &&
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -365,7 +366,7 @@ jobs:
           ref: ${{ github.sha }}
           path: source
           persist-credentials: false
-      - name: Check out only the dedicated private verification branch
+      - name: Check out only the dedicated verification branch
         uses: actions/checkout@v7
         with:
           ref: madclean-verification
