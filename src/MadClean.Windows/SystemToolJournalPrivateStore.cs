@@ -72,15 +72,33 @@ internal sealed class SystemToolJournalPrivateStore : IDisposable
             guards.Add(ancestry!);
             // Verify fixed local volume and persistent ACL support before ANY creation,
             // including a missing fixed MadClean parent on the explicit write path.
-            using (var volume = SystemToolJournalStore.Open(ancestryRoot, 0x80, 3, true))
-            { SystemToolJournalStore.ValidateObject(volume, ancestryRoot, true); SystemToolJournalStore.VerifyPersistentAclVolume(volume); }
+            if (create)
+            {
+                // Keep the exact no-follow parent handle alive through all child work.
+                // Inherited parent ACLs may pass namespace exclusion; private child
+                // objects still require the unchanged strict protected descriptor.
+                var creationParent = SystemToolJournalStore.Open(ancestryRoot, 0x20080, 3, true);
+                guards.Add(creationParent);
+                SystemToolJournalStore.ValidateObject(creationParent, ancestryRoot, true);
+                SystemToolJournalStore.VerifyPersistentAclVolume(creationParent);
+                SystemToolJournalStore.VerifyCreationParentSecurity(creationParent, sid);
+            }
+            else
+            {
+                // Existing-only review keeps its original metadata access contract.
+                using var volume = SystemToolJournalStore.Open(ancestryRoot, 0x80, 3, true);
+                SystemToolJournalStore.ValidateObject(volume, ancestryRoot, true);
+                SystemToolJournalStore.VerifyPersistentAclVolume(volume);
+            }
             if (createParentFrom != null)
             {
+                token.ThrowIfCancellationRequested();
                 SystemToolJournalStore.CreatePrivateDirectory(parent, sid);
                 if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
                 var parentGuard = SystemToolJournalStore.Open(parent, 0x20080, 3, true);
                 guards.Add(parentGuard); SystemToolJournalStore.ValidateObject(parentGuard, parent, true);
-                // Existing MadClean is ordinary ancestry, not asserted to have this store's private ACL.
+                SystemToolJournalStore.VerifyCreationParentSecurity(parentGuard, sid);
+                // Ordinary ancestry is namespace-qualified, never asserted private.
             }
             if (marker != null)
             {

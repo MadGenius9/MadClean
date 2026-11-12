@@ -400,6 +400,50 @@ internal sealed class SystemToolJournalStore : IDisposable
     }
     private static SecurityAttributes Attributes(nint descriptor) => new() { Length = 24, Descriptor = descriptor, Inherit = 0 };
 
+    // Namespace exclusion snapshot only. It neither grants creation rights nor replaces
+    // the stricter protected user+SYSTEM descriptor required for private store objects.
+    internal static void VerifyCreationParentSecurity(SafeFileHandle handle, string sid)
+    {
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+        uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
+        if (code != 0)
+        {
+            // Do not dereference or free a failed-call output whose allocation ownership
+            // is not established. Retention is sticky; no later create may ignore it.
+            if (descriptor != 0)
+            {
+                lock (CleanupSync) { RetainedDescriptors.Add(descriptor); Volatile.Write(ref cleanupUncertain, 1); }
+            }
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, unchecked((int)code));
+        }
+        try
+        {
+            if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor)) throw Security();
+            uint length = GetSecurityDescriptorLength(descriptor);
+            if (length is < 20 or > 65536) throw Security();
+            byte[] bytes = new byte[length];
+            try
+            {
+                Marshal.Copy(descriptor, bytes, 0, bytes.Length);
+                var security = new RawSecurityDescriptor(bytes, 0);
+                var acl = security.DiscretionaryAcl;
+                if (acl == null || acl.Count is < 1 or > JournalCreationParentSecurity.MaximumAces) throw Security();
+                var entries = new JournalParentAce[acl.Count];
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    if (acl[i] is CommonAce ace && !ace.IsCallback && ace.AceQualifier == AceQualifier.AccessAllowed)
+                        entries[i] = new(JournalParentAceKind.OrdinaryAllow, ace.SecurityIdentifier.Value, ace.AccessMask, (int)ace.AceFlags);
+                    else throw Security();
+                }
+                if (!JournalCreationParentSecurity.IsSupported(security.Owner?.Value, sid,
+                    (security.ControlFlags & ControlFlags.DiscretionaryAclPresent) != 0, entries)) throw Security();
+            }
+            finally { Array.Clear(bytes); }
+        }
+        finally { FreeDescriptor(descriptor); }
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+    }
+
     internal static void VerifyPrivateSecurity(SafeFileHandle handle, string sid, bool directory)
     {
         if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);

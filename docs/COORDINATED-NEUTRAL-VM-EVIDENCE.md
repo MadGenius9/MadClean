@@ -1,5 +1,7 @@
 # Coordinator-verified frozen neutral Windows evidence
 
+Subsequent recovery validation: the coordinator-supplied UTF-8/no-BOM JSON was reconstructed as exactly 572 bytes with the recorded CRLF/no-final-newline form. Its SHA-256 matched `e6b4f6c817bec0910b530911e07c19d1fa2d9dd024f7488c85efdbcac650542c`; the locally recovered passive reader accepted its consistency. This is not a new VM run or current-build authentication. The original attribution and host-only observation record below remain historical. See docs/RECOVERY-BASELINE.md for the separate recovered-source validation.
+
 On2026-11-12 the coordinating task reported that the specifically approved **frozen `cd1718b` neutral UI test passed with exit0** on the offline `MadClean-Test` Windows11 VM. This task did not control the VM, execute the test, read the host report, or independently validate its JSON. The distinction between a trusted coordinator report and local passive validation remains explicit.
 
 ## Exact attribution and observed scope
