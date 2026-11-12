@@ -159,7 +159,8 @@ public sealed class MsiUninstallRequestLauncher
         private SystemToolTrustedLease? lease;
         private Process? process;
         private SafeProcessHandle? actualProcessHandle;
-        private bool processStarted, processExitObserved, uncertain, startAttempted;
+        private bool processStarted, processExitObserved, uncertain;
+        private readonly MsiClientStartBoundary clientStart = new();
         private DateTimeOffset? startedUtc, exitedUtc;
         private int? processId, exitCode;
         private bool? clientStartObserved;
@@ -172,13 +173,13 @@ public sealed class MsiUninstallRequestLauncher
         {
             MsiUninstallRequestResult result;
             try { result = await ExecuteAsync().ConfigureAwait(false); }
-            catch (OperationCanceledException) when (!intent.IsDispatchReserved)
+            catch (OperationCanceledException) when (!intent.IsDispatchReserved && !clientStart.Attempted)
             {
                 intent.Invalidate();
                 result = Blocked(intent, requested,
                     "Cancellation was observed before dispatch. No installer request was sent; any pending metadata remains owned until it returns.");
             }
-            catch (SystemToolTrustFailure failure)
+            catch (SystemToolTrustFailure failure) when (!clientStart.Attempted)
             {
                 toolIdentity = failure.Diagnostic;
                 string code = failure.Diagnostic.NativeTrustResult is { } value
@@ -189,7 +190,7 @@ public sealed class MsiUninstallRequestLauncher
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception or
                 InvalidOperationException or ArgumentException or System.Security.SecurityException or NotSupportedException)
             {
-                if (processStarted || startAttempted && exception is not Win32Exception)
+                if (processStarted || clientStart.RequiresRetention)
                 {
                     uncertain = true;
                     result = Result(MsiUninstallRequestState.MonitoringUnknown,
@@ -301,8 +302,7 @@ public sealed class MsiUninstallRequestLauncher
                     "The one-shot request was not committed at the final dispatch boundary. No installer started.");
             // No await, shell, user input, additional query or cancellation claim separates
             // reservation from this exact direct process-start attempt.
-            startAttempted = true;
-            bool returnedStarted = process.Start();
+            bool returnedStarted = clientStart.Invoke(process.Start);
             clientStartObserved = returnedStarted;
             if (!returnedStarted) return Blocked(intent, requested,
                 "The direct process start returned no new client. No alternate request or retry was used.");

@@ -17,6 +17,7 @@ internal static class MsiRequestQualificationFixture
     private static readonly byte[] Payload = Encoding.ASCII.GetBytes("MadClean inert MSI qualification payload\r\n");
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
     private static Owner? rootedOwner;
+    private static readonly Task UncertainEntryHold = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously).Task;
 
     private sealed class Report
     {
@@ -144,7 +145,28 @@ internal static class MsiRequestQualificationFixture
             owner.Hold(guards); guards.Clear(); rootedOwner = owner;
             // No process-deadline kill or Environment.Exit. A pending installer/native call
             // remains owned; the isolated GitHub job's outer VM lifetime is independent.
-            return owner.RunAsync().GetAwaiter().GetResult();
+            ValidationWorkerLifetime? lifetime = null;
+            int proposed;
+            try
+            {
+                var actual = owner.RunAsync();
+                lifetime = new ValidationWorkerLifetime(actual);
+                proposed = actual.GetAwaiter().GetResult();
+            }
+            finally
+            {
+                // Even failure to receive/root the actual task cannot establish no
+                // native entry. A static owner alone would not keep the CLR alive.
+                if (lifetime == null)
+                {
+                    owner.MarkOwnershipUnsettled(null);
+                    UncertainEntryHold.GetAwaiter().GetResult();
+                }
+                else lifetime.DrainOwnershipAsync(owner.HasPendingNativeWork,
+                    owner.RequiresNativeRetention).GetAwaiter().GetResult();
+                GC.KeepAlive(owner);
+            }
+            return owner.LifetimeQualifiedExit(proposed);
         }
         finally { foreach (var guard in guards.AsEnumerable().Reverse()) guard.Dispose(); }
     }
@@ -154,7 +176,19 @@ internal static class MsiRequestQualificationFixture
         private readonly Guid product = Guid.NewGuid();
         private readonly object reportWriteGate = new();
         private readonly List<IDisposable> leases = [];
-        private bool installationRequested, resourcesReleased;
+        private bool installationRequested, resourcesReleased, releaseAttempted, releaseConfirmed, ownershipUnsettled;
+        private readonly InstalledApplicationInventory inventoryOwnership = new();
+        private readonly WindowsMsiActionBindingInventory bindingOwnership = new();
+        private readonly WindowsMsiSelectedProductPreparation selectedOwnership = new();
+        private readonly InstallCall initialInstall = new(), publicInstall = new();
+        private sealed class InstallCall
+        {
+            internal int SchedulingAttempted, Entered, Returned;
+            internal Task? Worker;
+            internal bool Pending => Volatile.Read(ref Worker) is { IsCompleted: false };
+            internal bool Retained => Volatile.Read(ref SchedulingAttempted) != 0 && Volatile.Read(ref Worker) == null ||
+                Volatile.Read(ref Entered) != 0 && Volatile.Read(ref Returned) == 0;
+        }
         private string scope = "", target = "", package = "";
         internal void Hold(IEnumerable<IDisposable> owned) => leases.AddRange(owned);
         private void Save()
@@ -198,17 +232,8 @@ internal static class MsiRequestQualificationFixture
                 installationRequested = true;
                 // Setup UI suppression applies only to this process's freshly authored inert
                 // fixture package, never the separately launched visible uninstall client.
-                await Task.Run(() =>
-                {
-                    uint previous = MsiSetInternalUI(2, 0);
-                    if (previous == 0) throw new InvalidOperationException();
-                    try
-                    {
-                        uint result = MsiInstallProductW(package, "ALLUSERS=\"\" REBOOT=ReallySuppress");
-                        report.InstallCode = unchecked((int)result); report.InstallReturned = true;
-                    }
-                    finally { if (MsiSetInternalUI(previous, 0) == 0) throw new InvalidOperationException(); }
-                });
+                uint setupCode = await QueueInstall(initialInstall);
+                report.InstallCode = unchecked((int)setupCode); report.InstallReturned = true;
                 if (report.InstallCode != 0) { report.Stage = "InstallUnverified"; Save(); return 2; }
                 var installed = Contexts(product);
                 report.InstalledContextObserved = installed.Count == 1 && installed[0] == 2;
@@ -216,7 +241,7 @@ internal static class MsiRequestQualificationFixture
                 if (report.InstalledContextObserved != true || report.PayloadObserved != true) { report.Stage = "InstalledEvidenceUnknown"; Save(); return 2; }
                 report.Stage = "PrepareRequest"; Save();
                 using var authorization = MsiUninstallFixtureAuthorization.Open(repository, scope, product);
-                var snapshot = await new InstalledApplicationInventory().ScanAsync(CancellationToken.None);
+                var snapshot = await inventoryOwnership.ScanAsync(CancellationToken.None);
                 report.SelectionSourceState = Enum.IsDefined(snapshot.State) ? snapshot.State.ToString() : null; Save();
                 var selected = snapshot.Items.SingleOrDefault(row => row.RegistrationEvidence?.ProductCode == product.ToString("B").ToUpperInvariant());
                 report.SelectionNoRemove = selected?.RegistrationEvidence?.NoRemove; Save();
@@ -226,7 +251,7 @@ internal static class MsiRequestQualificationFixture
                 if (scopeResult.Items.Count == 1)
                 {
                     report.ExpectedMask = scopeResult.Items[0].ExpectedContextMask; Save();
-                    var binding = await new WindowsMsiActionBindingInventory().VerifyAsync(scopeResult.Items[0], CancellationToken.None);
+                    var binding = await bindingOwnership.VerifyAsync(scopeResult.Items[0], CancellationToken.None);
                     report.BindingResultState = Enum.IsDefined(binding.State) ? binding.State.ToString() : null;
                     if (binding.Items.Count == 1)
                     {
@@ -244,7 +269,7 @@ internal static class MsiRequestQualificationFixture
                 }
                 var targetScope = MsiSelectedProductPreparationPolicy.CreateScope(snapshot, selected, 1, DateTimeOffset.UtcNow, CancellationToken.None);
                 if (targetScope.Items.Count != 1) { report.Stage = "SelectionUnknown"; Save(); return 2; }
-                var targetPreparationResult = await new WindowsMsiSelectedProductPreparation().ReadAsync(targetScope.Items[0], 1, CancellationToken.None);
+                var targetPreparationResult = await selectedOwnership.ReadAsync(targetScope.Items[0], 1, CancellationToken.None);
                 report.TargetPreparation = targetPreparationResult.Items.Count == 1 ? TargetPreparationFacts.From(targetPreparationResult) : null; Save();
                 var previews = MsiUninstallRequestPolicy.CreatePreview(targetScope.Items[0], targetPreparationResult, 1, DateTimeOffset.UtcNow, CancellationToken.None);
                 report.PreviewPrepared = previews.Items.Count == 1; Save();
@@ -319,13 +344,7 @@ internal static class MsiRequestQualificationFixture
             if (Contexts(product).Count != 0 || !ObserveAbsent(Path.Combine(target, "fixture.txt"), scope, product))
                 throw new InvalidDataException();
             Directory.CreateDirectory(target); CheckAncestry(target);
-            uint installed = await Task.Run(() =>
-            {
-                uint previous = MsiSetInternalUI(2, 0);
-                if (previous == 0) throw new InvalidOperationException();
-                try { return MsiInstallProductW(package, "ALLUSERS=\"\" REBOOT=ReallySuppress"); }
-                finally { if (MsiSetInternalUI(previous, 0) == 0) throw new InvalidOperationException(); }
-            });
+            uint installed = await QueueInstall(publicInstall);
             ui.InstallReturned = true; ui.InstallCode = unchecked((int)installed); Save();
             if (installed != 0) { report.Stage = "InstallUnverified"; Save(); return false; }
             var current = Contexts(product);
@@ -405,11 +424,76 @@ internal static class MsiRequestQualificationFixture
                 Save();
             });
         }
+        private Task<uint> QueueInstall(InstallCall call)
+        {
+            if (!ReferenceEquals(call, initialInstall) && !ReferenceEquals(call, publicInstall))
+                throw new InvalidOperationException("An original owned installation frame is required.");
+            if (Interlocked.CompareExchange(ref call.SchedulingAttempted, 1, 0) != 0)
+                throw new InvalidOperationException("The exact owned installation call cannot be repeated.");
+            var actual = Task.Run(() =>
+            {
+                uint previous = MsiSetInternalUI(2, 0);
+                if (previous == 0) throw new InvalidOperationException();
+                try
+                {
+                    Volatile.Write(ref call.Entered, 1);
+                    uint code = MsiInstallProductW(package, "ALLUSERS=\"\" REBOOT=ReallySuppress");
+                    Volatile.Write(ref call.Returned, 1);
+                    // Preserve actual API return facts even if restoring this
+                    // process's setup UI level subsequently fails.
+                    if (ReferenceEquals(call, initialInstall))
+                    { report.InstallCode = unchecked((int)code); report.InstallReturned = true; }
+                    else if (ReferenceEquals(call, publicInstall) && report.Ui is { } ui)
+                    { ui.InstallCode = unchecked((int)code); ui.InstallReturned = true; }
+                    return code;
+                }
+                finally { if (MsiSetInternalUI(previous, 0) == 0) throw new InvalidOperationException(); }
+            });
+            Volatile.Write(ref call.Worker, actual);
+            return actual;
+        }
+        internal bool? HasPendingNativeWork()
+        {
+            try
+            {
+                bool pending = initialInstall.Pending || publicInstall.Pending ||
+                    MsiUninstallRequestLauncher.HasPendingRequest || inventoryOwnership.HasPendingNativeRead ||
+                    bindingOwnership.HasPendingNativeRead || selectedOwnership.HasPendingNativeRead;
+                if (pending) MarkOwnershipUnsettled(false);
+                return pending;
+            }
+            catch (Exception) { MarkOwnershipUnsettled(null); return null; }
+        }
+        internal bool? RequiresNativeRetention()
+        {
+            try
+            {
+                bool retained = initialInstall.Retained || publicInstall.Retained ||
+                    releaseAttempted && !releaseConfirmed || OwnedMsiDatabase.RequiresRetention ||
+                    MsiUninstallRequestLauncher.RequiresRetention || SystemToolTrustNative.HasCleanupUncertainty ||
+                    SystemToolCatalogObservation.HasCleanupUncertainty;
+                if (retained) MarkOwnershipUnsettled(false);
+                return retained;
+            }
+            catch (Exception) { MarkOwnershipUnsettled(null); return null; }
+        }
+        internal void MarkOwnershipUnsettled(bool? settled)
+        {
+            if (ownershipUnsettled) return;
+            ownershipUnsettled = true; // Latch before any failing report write.
+            if (report.State != "failed") report.State = "inconclusive";
+            report.Stage = "NativeOwnershipUnsettled"; report.WorkerSettled = settled;
+            try { Save(); } catch (Exception) { /* Missing evidence never releases the actual owner. */ }
+        }
+        internal int LifetimeQualifiedExit(int proposed) => ownershipUnsettled
+            ? report.State == "failed" ? 1 : 2 : proposed;
         private void Release()
         {
             if (OwnedMsiDatabase.RequiresRetention || MsiUninstallRequestLauncher.HasPendingRequest || MsiUninstallRequestLauncher.RequiresRetention) return;
+            if (releaseAttempted) return; // Never retry an uncertain prefix of native disposal.
+            releaseAttempted = true;
             foreach (var lease in leases.AsEnumerable().Reverse()) lease.Dispose();
-            leases.Clear(); resourcesReleased = true;
+            leases.Clear(); resourcesReleased = true; releaseConfirmed = true;
         }
     }
 

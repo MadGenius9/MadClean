@@ -1,5 +1,12 @@
 # Remaining completion plan
 
+## Current validation path, 2026-11-12
+
+The user explicitly reauthorized source pushes and standard Windows Actions after making the repository public. The reviewed recovery branch can therefore obtain current Windows build/test evidence without a host/VM transfer. Keep final distribution packaging off, native action gates unchanged, and separate negative provider handling from successful acquisition. The installed-SDK collector reads existing bounded header fragments only; it does not acquire an SDK or prove ABI/security semantics. The frozen 3b25787 payload remains immutable and distinct from this newer candidate.
+
+The current MSI correction preserves uncertain Process.Start exceptions and drains the exact qualification worker/native owners before Main can return. Controlled local build/tests and final independent source review pass; source-bound Windows evidence remains separate. This closes an ownership bug, not direct-uninstall readiness or the remaining action/manufacturer/release roadmap.
+
+
 Repair namespace assessment: [JOURNAL-PROVISIONING-DESIGN.md](JOURNAL-PROVISIONING-DESIGN.md) records the newly verified share-mode/reparse limitation and a bounded separately provisioned current-user namespace proposal. The exact modern SDK/API contract remains unresolved; no source binding, service/provisioning operation or gate change was added. This documentation follow-up is separate from the validated3b25787 history/UI build.
 
 Current next-evidence dependency implemented: the [local history-only validation mode](LOCAL-UPDATE-HISTORY-VALIDATION.md) observes exactly one concrete read-only provider with separate fixed evidence and no CI/online/action path. Independent review passed; Release solution build zero warnings/errors; Core 2,364 passed/one Windows-only skipped, Python 317 passed/one skipped. No Windows provider/VM run occurred. The coordinator can now consider separately pinned UI-only and history-backend observations; the existing [completion assessment](END-TO-END-COMPLETION-ASSESSMENT.md) still records missing action implementations/contracts and manufacturer coverage. No execution gate, transfer or release permission changed.

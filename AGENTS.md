@@ -1,6 +1,6 @@
 # Working on MadClean
 
-Development now continues from the explicitly reconstructed local recovery checkpoint described in docs/RECOVERY-BASELINE.md. Do not claim historical b3bd541 tree equivalence. Preserve the original repository/evidence outside this approved candidate, and keep all work local without GitHub/Actions or final release packaging.
+Development now continues from the explicitly reconstructed local recovery checkpoint described in docs/RECOVERY-BASELINE.md. Do not claim historical b3bd541 tree equivalence. Preserve the original repository/evidence outside this approved candidate. On 2026-11-12 the user explicitly reauthorized pushes and standard Windows GitHub Actions after making the repository public. Do not use paid/larger runners, rewrite remote history or prepare a final release ZIP before roadmap completion. The frozen 3b25787 internal test payload and earlier recovery bundles remain unchanged; GitHub authorization does not enable production actions or authorize host/VM operations.
 
 ## Architecture and commands
 

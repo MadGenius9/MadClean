@@ -27,7 +27,7 @@ The app requests **asInvoker**, not administrator privileges. It reports inacces
 
 The local activity log contains only UTC time, module and outcome. It refuses detected links/reparse paths and reports failed write attempts while keeping the latest 200 events in memory. Later successful writes do not replay earlier failures or verify existing contents. Fixed current/previous generations rotate around 1 MiB; this log is not a durable recovery journal or protection against hostile path replacement/hard links.
 
-For the first personal Windows test, use the [home-test checklist](docs/HOME-TEST-CHECKLIST.md). It covers normal-account discovery, navigation, cancellation and display checks while leaving maintenance actions out of the test. Development is currently **local only** at the user's request: no GitHub pushes, uploads or Actions runs. Later changes still require matching Windows evidence; local compilation does not provide it.
+For the first personal Windows test, use the [home-test checklist](docs/HOME-TEST-CHECKLIST.md). It covers normal-account discovery, navigation, cancellation and display checks while leaving maintenance actions out of the test. On 2026-11-12 the user reauthorized pushes and standard Windows GitHub Actions after making the repository public. Paid/larger runners and premature final release packaging remain excluded. Later changes still require matching Windows evidence; local compilation does not provide it.
 
 ## Build and run
 

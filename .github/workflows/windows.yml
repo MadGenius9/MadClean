@@ -1,7 +1,7 @@
 name: Windows build and validation
 on:
   push:
-    branches: [main, feat/phase-one-foundation]
+    branches: [main, feat/phase-one-foundation, recovery/validated-20261112]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -89,7 +89,7 @@ jobs:
   windows-verification:
     needs: build-test-package
     runs-on: windows-latest
-    timeout-minutes: 18
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -103,6 +103,15 @@ jobs:
         run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
       - name: Build the development-only Windows harness
         run: python tools/ci_command.py build -- dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Observe current neutral repair-review controls (no providers or actions)
+        continue-on-error: true
+        run: python tools/ci_command.py local-repair-review -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --local-repair-review-validation
+      - name: Observe bounded local Windows Update history (no online search or actions)
+        continue-on-error: true
+        run: python tools/ci_command.py local-update-history -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --local-update-history-validation
+      - name: Record installed SDK journal API reference fragments (metadata only)
+        continue-on-error: true
+        run: python tools/ci_command.py sdk-journal-reference -- python tools/inspect_journal_sdk.py
       - name: Compile WER ABI assertions against the installed Windows SDK (no execution)
         run: python tools/ci_command.py native-abi -- python tools/compile_wer_sdk.py
       - name: Compile development-only SDK shortcut control DLL (not packaged)
@@ -147,6 +156,18 @@ jobs:
         with:
           name: MadClean-Windows-validation
           path: artifacts/windows-validation/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Preserve separate local UI, history and SDK observations
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-local-observations-and-sdk-reference
+          path: |
+            artifacts/local-repair-review-validation/
+            artifacts/local-update-history-validation/
+            artifacts/sdk-journal-reference/
           if-no-files-found: warn
           retention-days: 14
 
