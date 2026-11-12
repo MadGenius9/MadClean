@@ -191,6 +191,22 @@ internal sealed class SystemToolJournalStore : IDisposable
     {
         if (!WindowsSystemToolJournalRelativeFile.NativeCandidateExecutionValidated)
             throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        return AdoptQualifiedLifecycleMechanics(handle, parent, created, readOnly, out stream);
+    }
+    // The modern fixed sample must supply its actual registered frame's one-shot
+    // attachment. This does not relax the separate old Nt candidate boundary above.
+    internal static SystemToolJournalStore AdoptQualifiedModernLifecycleFile(
+        WindowsModernOwnedJournalSample.LifecycleAttachment attachment, out FileStream stream)
+    {
+        if (!WindowsModernOwnedJournalSample.ExecutionValidated)
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        if (!attachment.TryClaim(out var handle, out var parent))
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        return AdoptQualifiedLifecycleMechanics(handle, parent, true, false, out stream);
+    }
+    private static SystemToolJournalStore AdoptQualifiedLifecycleMechanics(SafeFileHandle handle,
+        SafeFileHandle parent, bool created, bool readOnly, out FileStream stream)
+    {
         if (HasUncertainCleanup || handle.IsInvalid || handle.IsClosed || parent.IsInvalid || parent.IsClosed || created && readOnly)
             throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
         stream = new FileStream(handle, readOnly ? FileAccess.Read : FileAccess.ReadWrite, 4096, false);
