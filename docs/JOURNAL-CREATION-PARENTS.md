@@ -12,6 +12,8 @@ Masks must be nonzero concrete file rights within the existing `FILE_ALL_ACCESS`
 
 The Windows adapter projects only the actual returned descriptor, bounds it to 64 KiB, and clears copied descriptor bytes. It does not accept caller-provided grants as native proof. A known-success allocation is released through the existing checked descriptor cleanup. A failed call's nonzero output is neither dereferenced nor freed as an assumed owned allocation: its raw value is retained and sticky cleanup uncertainty blocks later creation. No failed-output ownership guarantee is invented.
 
+Both namespace and strict private-object validators now use the same descriptor acquisition/error path. The older strict reader's unconditional free of a failed-call nonzero output has been removed; its successful ACL acceptance/validation body is unchanged. Cleanup uncertainty is latched before retention-list allocation can fail, including a failed `LocalFree`. These are conservative source ownership changes. Native failure injection/Windows behavior has not been exercised by portable tests.
+
 ## Claim ceiling and remaining admission work
 
 This is a structural security snapshot, not authorization, an effective-rights calculation or a private-parent proof. There is no required user/SYSTEM grant: the actual operation must still enforce caller access. The model trusts the current account, SYSTEM and Administrators; it does not resist those principals, concurrent DACL changes, previous handles or privileged interference. Ordinary upstream profile ancestry is still shape-checked ancestry, not a foreign-rights qualification of every ancestor.

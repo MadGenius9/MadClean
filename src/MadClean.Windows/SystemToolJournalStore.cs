@@ -404,18 +404,7 @@ internal sealed class SystemToolJournalStore : IDisposable
     // the stricter protected user+SYSTEM descriptor required for private store objects.
     internal static void VerifyCreationParentSecurity(SafeFileHandle handle, string sid)
     {
-        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
-        uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
-        if (code != 0)
-        {
-            // Do not dereference or free a failed-call output whose allocation ownership
-            // is not established. Retention is sticky; no later create may ignore it.
-            if (descriptor != 0)
-            {
-                lock (CleanupSync) { RetainedDescriptors.Add(descriptor); Volatile.Write(ref cleanupUncertain, 1); }
-            }
-            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, unchecked((int)code));
-        }
+        nint descriptor = ReadOwnedSecurityDescriptor(handle);
         try
         {
             if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor)) throw Security();
@@ -446,13 +435,7 @@ internal sealed class SystemToolJournalStore : IDisposable
 
     internal static void VerifyPrivateSecurity(SafeFileHandle handle, string sid, bool directory)
     {
-        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
-        uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
-        if (code != 0)
-        {
-            if (descriptor != 0) FreeDescriptor(descriptor);
-            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, unchecked((int)code));
-        }
+        nint descriptor = ReadOwnedSecurityDescriptor(handle);
         try
         {
             if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor)) throw Security();
@@ -481,6 +464,20 @@ internal sealed class SystemToolJournalStore : IDisposable
         }
         finally { FreeDescriptor(descriptor); }
         if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+    }
+
+    private static nint ReadOwnedSecurityDescriptor(SafeFileHandle handle)
+    {
+        if (HasUncertainCleanup) throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.CleanupUncertain);
+        uint code = GetSecurityInfo(handle, 1, 5, 0, 0, 0, 0, out nint descriptor);
+        if (code == 0) return descriptor;
+        // Treat only a successful call as a known allocation we may inspect/free.
+        // A nonzero failed output is opaque: keep it without dereference or LocalFree.
+        if (descriptor != 0)
+        {
+            lock (CleanupSync) { Volatile.Write(ref cleanupUncertain, 1); RetainedDescriptors.Add(descriptor); }
+        }
+        throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.NativeUnavailable, unchecked((int)code));
     }
 
     internal static SafeFileHandle Open(string path, uint access, uint share, bool directory, uint extra = 0)
@@ -512,7 +509,8 @@ internal sealed class SystemToolJournalStore : IDisposable
     {
         if (descriptor == 0) return;
         if (LocalFree(descriptor) == 0) return;
-        lock (CleanupSync) { RetainedDescriptors.Add(descriptor); Volatile.Write(ref cleanupUncertain, 1); }
+        // Latch before the managed list may allocate, including under memory pressure.
+        lock (CleanupSync) { Volatile.Write(ref cleanupUncertain, 1); RetainedDescriptors.Add(descriptor); }
     }
     internal static void DisposeChecked(IDisposable? value)
     {
