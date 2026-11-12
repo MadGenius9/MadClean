@@ -63,7 +63,10 @@ def unique_fields(pairs):
     return result
 
 
-def read_document(path):
+def read_document(path, *, maximum_bytes=16_384):
+    # A consuming report schema may narrow the shared safe-reader bound, never widen it.
+    if type(maximum_bytes) is not int or not 1 <= maximum_bytes <= 16_384:
+        raise ValueError("Invalid report bound.")
     if str(path).startswith(("\\\\", "//")):
         raise ValueError("A local report file is required.")
     path = Path(path).absolute()
@@ -74,8 +77,8 @@ def read_document(path):
         if not (stat.S_ISREG(info.st_mode) if item == path else stat.S_ISDIR(info.st_mode)):
             raise ValueError("A regular report file and directory ancestry are required.")
     with path.open("rb") as stream:
-        data = stream.read(16_385)
-    if not data or len(data) > 16_384:
+        data = stream.read(maximum_bytes + 1)
+    if not data or len(data) > maximum_bytes:
         raise ValueError("Report exceeds its bounds.")
     return json.loads(data, object_pairs_hook=unique_fields)
 

@@ -22,6 +22,10 @@ internal static class Program
         // Separate local draft/binding observation only; never a repair qualification mode.
         if (args.Length == 1 && args[0] == "--local-repair-review-validation")
             return LocalUiValidation.RunRepairReview();
+        // This local read-only leaf cannot fall through into CI/provider/native fixtures,
+        // even when combined with another argument or a CI environment happens to exist.
+        if (args.Contains("--local-update-history-validation", StringComparer.Ordinal))
+            return args.Length == 1 ? LocalUpdateHistoryValidation.Run() : 2;
         if (Environment.GetEnvironmentVariable("MADCLEAN_WINDOWS_VALIDATION") != "1")
         {
             Console.Error.WriteLine("Not enabled: set MADCLEAN_WINDOWS_VALIDATION=1 only in a disposable Windows runner/VM.");
