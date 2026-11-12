@@ -79,7 +79,21 @@ public static class LeftoverReview
     };
 
     public static CheckResult<LeftoverCandidate> Compare(IReadOnlyList<InstalledApplication> before,
-        IReadOnlyList<InstalledApplication> after, Func<string, bool?> directoryExists)
+        IReadOnlyList<InstalledApplication> after, Func<string, bool?> directoryExists) =>
+        CompareCore(before, after, null, directoryExists);
+
+    /// <summary>Limits probes to one registration while retaining all recorded roots for overlap cautions.</summary>
+    public static CheckResult<LeftoverCandidate> CompareSelected(IReadOnlyList<InstalledApplication> before,
+        IReadOnlyList<InstalledApplication> after, string registrationIdentity, Func<string, bool?> directoryExists)
+    {
+        if (!LeftoverContentPolicy.SafeText(registrationIdentity, 1_024))
+            return CheckResult<LeftoverCandidate>.Empty(CheckState.Unknown,
+                "A bounded exact registration identity is required. No paths were probed.");
+        return CompareCore(before, after, registrationIdentity, directoryExists);
+    }
+
+    private static CheckResult<LeftoverCandidate> CompareCore(IReadOnlyList<InstalledApplication> before,
+        IReadOnlyList<InstalledApplication> after, string? selectedIdentity, Func<string, bool?> directoryExists)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
@@ -101,6 +115,9 @@ public static class LeftoverReview
         bool limited = false;
         foreach (var group in before.GroupBy(app => app.Identity, StringComparer.OrdinalIgnoreCase))
         {
+            // Filter BEFORE any missing-row path resolution/probe; do not first probe
+            // every departed registration and then hide unrelated returned candidates.
+            if (selectedIdentity != null && !group.Key.Equals(selectedIdentity, StringComparison.OrdinalIgnoreCase)) continue;
             if (registered.Contains(group.Key)) continue;
             missing++;
             var priorPaths = group.Select(app => InstalledApplicationPaths.NormalizeLocalDirectory(app.InstallLocation))
@@ -147,7 +164,8 @@ public static class LeftoverReview
         }
         bool partial = unknown > 0 || unsupported > 0 || limited;
         return new(partial ? CheckState.Partial : CheckState.Available,
-            $"Compared complete in-session registrations: {missing} no longer present; {candidates.Count} surviving prior install paths for review. " +
+            (selectedIdentity == null ? "Compared complete in-session registrations: " : "Compared one selected registration in complete in-session inventories: ") +
+            $"{missing} no longer present; {candidates.Count} surviving prior install paths for review. " +
             $"{unknown} existence checks unknown; {unsupported} registrations had no unambiguous supported local install path. " +
             (limited ? "Safety limit reached; review is incomplete. " : "") +
             "Only recorded install directories were probed. Registration disappearance is not proof of completed uninstallation; this is not a filesystem sweep or a junk verdict.", candidates);

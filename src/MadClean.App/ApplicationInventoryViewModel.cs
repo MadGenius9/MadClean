@@ -11,6 +11,9 @@ public sealed partial class MainViewModel
     private const string RegistryCancellationCaveat = " Cancellation ends the wait; Windows may still finish a pending registry read. Another registration scan is blocked until that read returns.";
     private readonly IInstalledApplicationInventory installedApplications = new InstalledApplicationInventory();
     private IReadOnlyList<InstalledApplication>? applicationBaseline;
+    private long installedApplicationsRefreshGeneration;
+    private sealed class InstalledApplicationsRefreshOwner { internal long Generation; }
+    private DateTimeOffset? applicationBaselineReceivedUtc;
     private CheckResult<InstalledApplication>? latestInstalledSnapshot;
     private string installedMessage = "Not checked. Refresh the covered Add/Remove Programs registrations to begin.";
     private string baselineMessage = "No baseline captured. Capture a complete inventory before uninstalling an app through Windows or its supported uninstaller outside MadClean.";
@@ -91,19 +94,24 @@ public sealed partial class MainViewModel
             refreshStarted = true;
             if (capture)
             {
+                InvalidateMsiUninstallLeftoverReview();
                 applicationBaseline = null;
+                applicationBaselineReceivedUtc = null;
                 LeftoverMessage = "The previous review was invalidated. Capture a complete new baseline before reviewing registration changes.";
                 ApplicationBaselineMessage = "Capturing a new baseline; a complete successful inventory is required.";
             }
-            var result = await installedApplications.ScanAsync(token); token.ThrowIfCancellationRequested();
+            var result = await installedApplications.ScanAsync(token);
+            var receivedUtc = DateTimeOffset.UtcNow;
+            token.ThrowIfCancellationRequested();
             await PublishInstalledApplications(result, token);
             refreshPublished = true;
             if (capture)
             {
                 if (result.State == CheckState.Available)
                 {
-                    applicationBaseline = result.Items.ToArray();
-                    ApplicationBaselineMessage = $"Complete baseline: {applicationBaseline.Count} covered registrations captured {DateTime.Now:g}. In memory for this session only.";
+                    applicationBaseline = Array.AsReadOnly(result.Items.ToArray());
+                    applicationBaselineReceivedUtc = receivedUtc;
+                    ApplicationBaselineMessage = $"Complete baseline: {applicationBaseline.Count} covered registrations; response received UTC {receivedUtc:O}. In memory for this session only.";
                     LeftoverMessage = "Baseline captured. A later complete review can compare registration changes and probe only recorded install paths; no uninstall is performed by MadClean.";
                 }
                 else ApplicationBaselineMessage = "No baseline captured: the inventory was incomplete or unavailable. Resolve its errors before inferring missing registrations.";
@@ -115,50 +123,80 @@ public sealed partial class MainViewModel
             if (capture)
             {
                 applicationBaseline = null;
+                applicationBaselineReceivedUtc = null;
                 ApplicationBaselineMessage = "No baseline captured. " + error + RegistryCancellationCaveat;
                 LeftoverMessage = "No baseline captured. The previous review is invalidated; capture a complete baseline before reviewing registration changes.";
             }
         });
     }
-    private void BeginInstalledApplicationsRefresh(string message = "Reading covered Add/Remove Programs registrations; no complete current inventory is displayed…")
+    private void BeginInstalledApplicationsRefresh(string message = "Reading covered Add/Remove Programs registrations; no complete current inventory is displayed…",
+        InstalledApplicationsRefreshOwner? owner = null)
     {
+        long generation = ++installedApplicationsRefreshGeneration;
+        if (owner != null) owner.Generation = generation; // Before the first notification can throw or reenter.
         SetInstalledAppSearchRefreshPending(true);
+        RequireInstalledApplicationsRefresh(generation);
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
-        InstalledApplications.Clear(); SelectedInstalledApplication = null;
+        RequireInstalledApplicationsRefresh(generation);
+        InstalledApplications.Clear();
+        RequireInstalledApplicationsRefresh(generation);
+        SelectedInstalledApplication = null;
+        RequireInstalledApplicationsRefresh(generation);
         InstalledMessage = message;
+        RequireInstalledApplicationsRefresh(generation);
     }
-    private void FailInstalledApplicationsRefresh(string error)
+    private void RequireInstalledApplicationsRefresh(long generation)
     {
+        if (generation != installedApplicationsRefreshGeneration)
+            throw new OperationCanceledException("The installed-app display refresh was superseded.");
+    }
+    private void FailInstalledApplicationsRefresh(string error, long? expectedGeneration = null)
+    {
+        long generation = expectedGeneration ?? installedApplicationsRefreshGeneration;
+        if (generation != installedApplicationsRefreshGeneration) return;
         latestInstalledSnapshot = null; InvalidateInstalledAppPlan();
-        InstalledApplications.Clear(); SelectedInstalledApplication = null;
+        if (generation != installedApplicationsRefreshGeneration) return;
+        InstalledApplications.Clear();
+        if (generation != installedApplicationsRefreshGeneration) return;
+        SelectedInstalledApplication = null;
+        if (generation != installedApplicationsRefreshGeneration) return;
         InstalledMessage = error + " No complete current installed-app inventory is displayed." + RegistryCancellationCaveat;
+        if (generation != installedApplicationsRefreshGeneration) return;
         SetInstalledAppSearchRefreshPending(false);
     }
-    private async Task PublishInstalledApplications(CheckResult<InstalledApplication> result, CancellationToken token)
+    private async Task PublishInstalledApplications(CheckResult<InstalledApplication> result, CancellationToken token,
+        InstalledApplicationsRefreshOwner? owner = null)
     {
-        BeginInstalledApplicationsRefresh("Publishing covered registrations; displayed rows are incomplete until publication finishes…");
+        if (owner != null) RequireInstalledApplicationsRefresh(owner.Generation);
+        owner ??= new();
+        BeginInstalledApplicationsRefresh("Publishing covered registrations; displayed rows are incomplete until publication finishes…", owner);
+        long generation = owner.Generation;
         try
         {
             int count = 0;
             foreach (var app in result.Items)
             {
-                token.ThrowIfCancellationRequested(); InstalledApplications.Add(app);
+                token.ThrowIfCancellationRequested(); RequireInstalledApplicationsRefresh(generation);
+                InstalledApplications.Add(app);
+                RequireInstalledApplicationsRefresh(generation);
                 if (++count % 128 == 0) await Task.Delay(1, token);
             }
             var items = result.Items.ToArray();
-            token.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested(); RequireInstalledApplicationsRefresh(generation);
             latestInstalledSnapshot = new(result.State, result.Message, items);
             InstalledMessage = Stamp(result.State, result.Message);
+            token.ThrowIfCancellationRequested(); RequireInstalledApplicationsRefresh(generation);
             SetInstalledAppSearchRefreshPending(false);
+            token.ThrowIfCancellationRequested(); RequireInstalledApplicationsRefresh(generation);
         }
         catch (OperationCanceledException)
         {
-            FailInstalledApplicationsRefresh("Cancelled · installed-app publication did not complete.");
+            FailInstalledApplicationsRefresh("Cancelled · installed-app publication did not complete.", generation);
             throw;
         }
         catch (Exception)
         {
-            FailInstalledApplicationsRefresh("Failed · installed-app publication did not complete.");
+            FailInstalledApplicationsRefresh("Failed · installed-app publication did not complete.", generation);
             throw;
         }
     }

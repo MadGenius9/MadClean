@@ -215,7 +215,7 @@ internal static class LocalUiValidation
 
     private static bool Neutral(MainViewModel model)
     {
-        string[] collections = ["Activity", "Disks", "CleanupRows", "StartupRows", "SecurityRows", "AppRows", "SystemRows",
+        string[] collections = ["Activity", "Disks", "CleanupRows", "StartupRows", "SecurityRows", "AppRows", "SystemRows", "WindowsUpdateHistoryRows",
             "InstalledApplications", "PackagedApplicationRows", "LeftoverCandidates", "LeftoverContentRows", "LeftoverContentIssues",
             "MsiRegistrationRows", "HardwareFacts", "FirmwareIdentityRows", "FirmwareOffers", "FirmwareHistoryRows", "DriverOffers",
             "DriverOfferRows", "WindowsSoftwareRows", "AppUpdateOffers", "DeviceDriverRows", "DiskIdentityRows", "DiskMapIssues",

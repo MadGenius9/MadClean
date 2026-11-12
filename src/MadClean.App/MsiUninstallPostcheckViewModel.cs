@@ -10,6 +10,8 @@ public sealed partial class MainViewModel
     private MsiUninstallRequestIntent? msiUninstallPostcheckIntent;
     private MsiUninstallRequestResult? msiUninstallPostcheckResult;
     private MsiUninstallPostcheckSession? msiUninstallPostcheckSession;
+    private CheckResult<MsiRegistrationWatchReport>? msiUninstallAcceptedPostcheck;
+    private DateTimeOffset? msiUninstallAcceptedPostcheckReceivedUtc;
     private Task<CheckResult<MsiRegistrationWatchReport>>? msiUninstallPostcheckRead;
     private readonly TaskCompletionSource<bool> msiUninstallPostcheckRetention = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private long msiUninstallPostcheckGeneration;
@@ -25,6 +27,7 @@ public sealed partial class MainViewModel
 
     private void InitializeMsiUninstallPostcheck()
     {
+        InitializeMsiUninstallLeftoverReview();
         RecheckMsiUninstallRegistrationsCommand = new AsyncCommand(RecheckMsiUninstallRegistrations,
             () => !IsBusy && !HasPendingMsiUninstallRequest &&
                 msiUninstallPostcheckIntent?.PostcheckTarget != null &&
@@ -36,6 +39,9 @@ public sealed partial class MainViewModel
         // No notification may run before the old source/session/display is invalidated.
         // Historical ownership is independent of current selection and consumed preview scope.
         msiUninstallPostcheckGeneration++;
+        msiUninstallAcceptedPostcheck = null;
+        msiUninstallAcceptedPostcheckReceivedUtc = null;
+        InvalidateMsiUninstallLeftoverReview();
         msiUninstallPostcheckSession?.Scope.Invalidate();
         msiUninstallPostcheckSession = null;
         msiUninstallPostcheckMessage = "Not checked for the newly accepted historical request.";
@@ -63,6 +69,9 @@ public sealed partial class MainViewModel
         return RunDiscoveryAsync(ActivityArea.MsiRegistrationWatch, "Rechecking the historical MSI request's registrations", async token =>
         {
             if (HasPendingMsiUninstallRequest || MsiPostcheckNativePending()) return CheckState.Unknown;
+            msiUninstallAcceptedPostcheck = null;
+            msiUninstallAcceptedPostcheckReceivedUtc = null;
+            InvalidateMsiUninstallLeftoverReview();
             msiUninstallPostcheckSession?.Scope.Invalidate();
             msiUninstallPostcheckSession = null;
             MsiUninstallPostcheckDetails = "No completed observation from this attempt. Current global inventory, complete uninstall and leftover ownership remain Unknown.";
@@ -94,6 +103,8 @@ public sealed partial class MainViewModel
                     MsiUninstallPostcheckMessage = "No consistent same-request registration report was accepted. Source presence/absence, complete uninstall and leftover ownership remain Unknown.";
                     return CheckState.Unknown;
                 }
+                msiUninstallAcceptedPostcheck = observed;
+                msiUninstallAcceptedPostcheckReceivedUtc = received;
                 var report = observed.Items[0];
                 string arp = string.Join("\n", report.ArpLookups.Select(row =>
                     $"{row.Source}: {row.State}; observed UTC: {row.ObservedUtc:u}; native code: {row.NativeError?.ToString() ?? "Unobserved"}"));
@@ -113,6 +124,8 @@ public sealed partial class MainViewModel
         }, error =>
         {
             if (!SourceCurrent()) return;
+            msiUninstallAcceptedPostcheck = null;
+            msiUninstallAcceptedPostcheckReceivedUtc = null;
             if (msiUninstallPostcheckOwnershipUnknown) { NotifyMsiUninstallPostcheck(); return; }
             MsiUninstallPostcheckMessage = error + " No completed registration postcheck is claimed. Actual client-exit facts remain historical.";
             MsiUninstallPostcheckDetails = "No accepted report from this attempt. Current global inventory, complete uninstall and leftover ownership remain Unknown.";
@@ -156,7 +169,8 @@ public sealed partial class MainViewModel
     private void NotifyMsiUninstallPostcheck()
     {
         foreach (string name in new[] { nameof(MsiUninstallPostcheckMessage), nameof(MsiUninstallPostcheckDetails),
-            nameof(HasPendingMsiUninstallPostcheck), nameof(HasPendingMsiUninstallRequest) })
+            nameof(HasPendingMsiUninstallPostcheck), nameof(HasPendingMsiUninstallRequest),
+            nameof(MsiUninstallLeftoverMessage), nameof(MsiUninstallLeftoverDetails), nameof(HasPendingMsiUninstallLeftoverReview) })
             PropertyChanged?.Invoke(this, new(name));
         CommandManager.InvalidateRequerySuggested();
     }

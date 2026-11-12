@@ -18,6 +18,12 @@ public partial class MainWindow : Window
                 model.ExplainRepairReviewCloseBlock();
                 return;
             }
+            if (model.HasPendingMsiUninstallLeftoverReview)
+            {
+                args.Cancel = true;
+                model.ExplainMsiUninstallLeftoverCloseBlock();
+                return;
+            }
             if (model.HasPendingWindowsUpdateHistoryRead)
             {
                 args.Cancel = true;

@@ -21,6 +21,11 @@
             <Button Content="Recheck historical request registrations" Command="{Binding RecheckMsiUninstallRegistrationsCommand}" HorizontalAlignment="Left" Margin="0,6,0,4" AutomationProperties.Name="Read exact historical MSI uninstall request registrations"/>
             <TextBlock Text="{Binding MsiUninstallPostcheckMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Historical MSI request registration postcheck status" AutomationProperties.LiveSetting="Polite"/>
             <TextBox Text="{Binding MsiUninstallPostcheckDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Historical MSI request target and sequential registration observations"/>
+            <TextBlock Text="Leftover review for the historical request" FontSize="17" Margin="0,14,0,4"/>
+            <TextBlock Text="Keep a complete registration baseline captured before preparing the request. After an accepted exact-product postcheck, this explicit review refreshes complete covered ARP registrations and probes only that historical app's recorded install path. The baseline is never captured automatically." Style="{StaticResource Caption}"/>
+            <Button Content="Review historical request leftover candidates" Command="{Binding ReviewMsiUninstallLeftoversCommand}" HorizontalAlignment="Left" Margin="0,6,0,4" AutomationProperties.Name="Review leftover candidates for exact historical MSI request"/>
+            <TextBlock Text="{Binding MsiUninstallLeftoverMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Historical MSI request leftover review status" AutomationProperties.LiveSetting="Polite"/>
+            <TextBox Text="{Binding MsiUninstallLeftoverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="300" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Historical MSI leftover review source, times and uncertainty"/>
             <WrapPanel Margin="0,10,0,0">
                 <Button Content="Refresh registrations separately" Command="{Binding RefreshInstalledApplicationsCommand}" Background="#343E52" Foreground="White"/>
                 <Button Content="Review leftover candidates" Command="{Binding ViewLeftoverReviewCommand}" Background="#343E52" Foreground="White"/>
