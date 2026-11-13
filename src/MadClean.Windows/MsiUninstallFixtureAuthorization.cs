@@ -21,7 +21,8 @@ internal sealed class MsiUninstallFixtureAuthorization : IDisposable
 
     internal static MsiUninstallFixtureAuthorization Open(string repository, string scopeDirectory, Guid id)
     {
-        if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess || id == Guid.Empty ||
+        if (!MsiQualificationSourceProfile.IsCurrentSourceAllowed(MsiUninstallRequestLauncher.ProductionDispatchValidated) ||
+            !OperatingSystem.IsWindows() || !Environment.Is64BitProcess || id == Guid.Empty ||
             Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
             Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
             Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "MadGenius9/MadClean" ||

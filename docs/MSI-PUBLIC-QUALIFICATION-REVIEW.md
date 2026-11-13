@@ -25,3 +25,7 @@ Explicit approval is needed for that development-branch activation before reques
 
 
 On 2026-11-04 the user responded “Keep going” to the activation question. A normal approval-reviewed attempt was rejected again because that wording did not clearly authorize the exact irreversible feature. The command did not execute; the guard remains false. No indirect enablement was attempted. Read-only SDK adoption and qualification continued independently. Explicit approval naming the per-user MSI uninstall activation remains the unresolved decision.
+
+## Separate recovery backend preparation
+
+The later [manual recovery backend route](MSI-RECOVERY-BACKEND-QUALIFICATION.md) is default-off, restricted to the exact owned fixture and refuses when the actual production guard is true. It is not a retry of the denied literal activation. No public gate/UI/installer/consent behavior changed and no MSI execution occurred while preparing it. Its purpose is to obtain current backend evidence separately; any future public activation still needs the explicit decision described above.

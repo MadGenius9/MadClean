@@ -25,6 +25,7 @@
         <Compile Include="../../tools/MadClean.WindowsSmoke/ValidationLifetime.cs" Link="FixtureMetadata/ValidationLifetime.cs"/>
         <Compile Include="../../tools/MadClean.WindowsSmoke/ReadOnlyWingetQualificationSource.cs" Link="FixtureMetadata/ReadOnlyWingetQualificationSource.cs"/>
         <Compile Include="../../src/MadClean.Windows/MsiClientStartBoundary.cs" Link="WindowsPortable/MsiClientStartBoundary.cs"/>
+        <Compile Include="../../src/MadClean.Windows/MsiQualificationSourceProfile.cs" Link="WindowsPortable/MsiQualificationSourceProfile.cs"/>
         <Compile Include="../../src/MadClean.Windows/SystemToolOutputDrain.cs" Link="WindowsPortable/SystemToolOutputDrain.cs"/>
         <Compile Include="../../src/MadClean.Windows/SystemRepairDirectPipeReader.cs" Link="WindowsPortable/SystemRepairDirectPipeReader.cs"/>
         <Compile Include="../../src/MadClean.Windows/SystemToolJournalRelativeFileProtocol.cs" Link="WindowsPortable/SystemToolJournalRelativeFileProtocol.cs"/>

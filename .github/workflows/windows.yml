@@ -10,6 +10,11 @@ on:
         required: false
         default: false
         type: boolean
+      qualify_recovery_msi_backend:
+        description: Recovery branch only - opt in to one fresh inert MSI backend test; public dispatcher must remain disabled
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: madclean-windows-${{ github.ref }}
   cancel-in-progress: false
@@ -182,8 +187,10 @@ jobs:
     needs: build-test-package
     if: >-
       ${{ success() && github.repository == 'MadGenius9/MadClean' &&
-          github.ref == 'refs/heads/feat/phase-one-foundation' &&
-          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+          ((github.ref == 'refs/heads/feat/phase-one-foundation' &&
+            (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) ||
+           (github.ref == 'refs/heads/recovery/validated-20261112' &&
+            github.event_name == 'workflow_dispatch' && inputs.qualify_recovery_msi_backend == true)) }}
     runs-on: windows-latest
     timeout-minutes: 15
     permissions:
@@ -201,10 +208,11 @@ jobs:
         run: dotnet restore MadClean.sln --locked-mode
       - name: Build the separate owned MSI qualification mode
         run: dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
-      - name: Qualify visible uninstall for one fresh inert owned product only
+      - name: Qualify one fresh inert owned MSI product
         env:
           MADCLEAN_WINDOWS_VALIDATION: '1'
           MADCLEAN_MSI_REQUEST_VALIDATION: '1'
+          MADCLEAN_MSI_BACKEND_ONLY_VALIDATION: ${{ github.ref == 'refs/heads/recovery/validated-20261112' && github.event_name == 'workflow_dispatch' && inputs.qualify_recovery_msi_backend == true && '1' || '0' }}
         run: dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --msi-request-validation
       - name: Preserve only fixed source-bound MSI qualification facts
         uses: actions/upload-artifact@v7

@@ -511,8 +511,7 @@ internal static class MsiRequestQualificationFixture
             Environment.GetEnvironmentVariable("MADCLEAN_MSI_REQUEST_VALIDATION") == "1" &&
             Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" && Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted" &&
             Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") == "MadGenius9/MadClean" &&
-            Environment.GetEnvironmentVariable("GITHUB_REF") == "refs/heads/feat/phase-one-foundation" &&
-            Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") is "push" or "workflow_dispatch" &&
+            MsiQualificationSourceProfile.IsCurrentSourceAllowed(MsiUninstallRequestLauncher.ProductionDispatchValidated) &&
             source.Length == 40 && source.All(Uri.IsHexDigit) && run.Length is > 0 and <= 32 && run.All(char.IsAsciiDigit) &&
             int.TryParse(Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT"), out attempt) && attempt > 0 &&
             Path.GetFullPath(repository).Equals(Path.GetFullPath(workspace), StringComparison.OrdinalIgnoreCase);
