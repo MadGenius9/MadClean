@@ -4,6 +4,7 @@
     <Compile Include="../../tools/LocalUiValidationEvidence.cs" Link="LocalUiValidationEvidence.cs" />
     <Compile Include="../../tools/LocalRepairReviewEvidence.cs" Link="LocalRepairReviewEvidence.cs" />
     <Compile Include="../../tools/LocalUpdateHistoryEvidence.cs" Link="LocalUpdateHistoryEvidence.cs" />
+    <Compile Include="../../tools/DismDefaultImportEvidence.cs" Link="DismDefaultImportEvidence.cs" />
   </ItemGroup>
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>

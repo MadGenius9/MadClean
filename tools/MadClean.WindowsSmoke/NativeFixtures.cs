@@ -148,6 +148,8 @@ internal static partial class NativeFixtures
             DismPowerShellCapability(report, token);
             // Independent fresh-process control, never a retry or promotion of the preceding result.
             DismBuiltinImportControl(report, token);
+            // Separate default-runspace metadata profile; never changes either restricted result.
+            DismDefaultRunspaceImportControl(report, token);
             cleanupDispositionOwnershipConfirmed = false;
             cleanupDispositionOwnershipConfirmed = CleanupDispositionObservation(fixture, marker, report, token);
             if (!cleanupDispositionOwnershipConfirmed) return;

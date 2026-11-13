@@ -10,6 +10,7 @@
     <Compile Include="../LocalUiValidationEvidence.cs" Link="LocalUiValidationEvidence.cs" />
     <Compile Include="../LocalRepairReviewEvidence.cs" Link="LocalRepairReviewEvidence.cs" />
     <Compile Include="../LocalUpdateHistoryEvidence.cs" Link="LocalUpdateHistoryEvidence.cs" />
+    <Compile Include="../DismDefaultImportEvidence.cs" Link="DismDefaultImportEvidence.cs" />
     <ProjectReference Include="../../src/MadClean.App/MadClean.App.csproj" />
     <ProjectReference Include="../../src/MadClean.Windows.WinGet/MadClean.Windows.WinGet.csproj" />
   </ItemGroup>
