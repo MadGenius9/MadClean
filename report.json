@@ -1,10 +1,10 @@
 {
   "formatVersion": 7,
-  "sourceCommit": "db5f779e86eaa4f50014026ae2108a8e70cfcdb1",
-  "runId": "43438866005",
+  "sourceCommit": "319c3801b03a79f4b4fd664805fea0b29b4d1913",
+  "runId": "43485392342",
   "runAttempt": 1,
-  "startedUtc": "2026-11-13T14:06:23.4342277+00:00",
-  "completedUtc": "2026-11-13T14:06:41.8670122+00:00",
+  "startedUtc": "2026-11-13T18:48:43.7399702+00:00",
+  "completedUtc": "2026-11-13T18:49:19.3115526+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -131,7 +131,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=67; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=62; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "ui-sfc-preview-interaction",
@@ -216,7 +216,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 11 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=24; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -286,7 +286,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=67; nameAvailable=18; descriptionAvailable=64; providerAvailable=64; installedVersionAvailable=64; driverDateAvailable=64; hardwareIdListAvailable=63; compatibleIdListAvailable=40; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=62; nameAvailable=16; descriptionAvailable=59; providerAvailable=59; installedVersionAvailable=59; driverDateAvailable=59; hardwareIdListAvailable=59; compatibleIdListAvailable=37; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -382,6 +382,11 @@
       "name": "dism-builtin-import-control-contract",
       "state": "inconclusive",
       "detail": "transport=Completed; exit=0; outputChars=723; exception=None; HRESULT=unobserved; Win32=unobserved. control=Unavailable/Import; host=True; manifest=True; builtinCore=True; coreAssembly=True; attempted=True; returned=False; moduleBound=unobserved; category=13; outer=PowerShellStop/0x80131501; exception=PowerShellStop/0x80131501; typedMissing=Unobserved; invocation=Unobserved/None; targetContext=Unknown/OuterTargetObject; freshCleared=True; freshSampled=2; freshLimited=False; freshTypedMissing=Unknown; freshRecordIndex=1; freshShape=SimpleCmdlet. Independent route remains Unknown. Invocation/target contexts are not proof of a missing command or cause. Original result unchanged; no fallback, health command, publisher trust or production gate."
+    },
+    {
+      "name": "dism-default-runspace-import-control",
+      "state": "passed",
+      "detail": "stage=Completed; exit=0; outputChars=425. profile=CreateDefault-AutoloadAll-InboxOnly; host=True; manifest=True; runspaceCreated=True; opened=True; powerShellCreated=True; attempted=True; returned=True; errors=False; modules=1; bound=True; psDisposed=True; rsClosed=True; rsDisposed=True; observedObjectsSettled=True; qualifiedImport=True; exceptionHResult=unobserved. Import/binding observation only; original restricted checks unchanged. No health command was added, and no publisher trust, output contract, elevation suitability, Windows integrity or action gate is qualified."
     },
     {
       "name": "cleanup-disposition-owned-probe",
