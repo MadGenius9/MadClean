@@ -37,7 +37,7 @@ internal static partial class NativeFixtures
                 return true;
             }
             var numbers = new HashSet<int>();
-            int names = 0, descriptions = 0, providers = 0, versions = 0, dates = 0;
+            int names = 0, descriptions = 0, providers = 0, versions = 0, dates = 0, hardwareLists = 0, compatibleLists = 0;
             foreach (var row in result.Items)
             {
                 if (row == null || !DeviceDriverPropertyDecoder.IsConsistent(row) ||
@@ -53,17 +53,20 @@ internal static partial class NativeFixtures
                 if (row.Provider.State == DeviceDriverFieldState.Available) providers++;
                 if (row.InstalledVersion.State == DeviceDriverFieldState.Available) versions++;
                 if (row.DriverDate.State == DeviceDriverFieldState.Available) dates++;
+                if (row.HardwareIds.State == DeviceDriverFieldState.Available) hardwareLists++;
+                if (row.CompatibleIds.State == DeviceDriverFieldState.Available) compatibleLists++;
             }
             if (result.State == CheckState.Available &&
                 (names != result.Items.Count || descriptions != result.Items.Count || providers != result.Items.Count ||
-                 versions != result.Items.Count || dates != result.Items.Count))
+                 versions != result.Items.Count || dates != result.Items.Count ||
+                 hardwareLists != result.Items.Count || compatibleLists != result.Items.Count))
             {
                 report.Fail(check, "Incomplete device-property fields were promoted to Available source coverage; no field values exported.");
                 return true;
             }
-            string counts = $"SourceState={result.State}; observedRows={result.Items.Count}; nameAvailable={names}; descriptionAvailable={descriptions}; providerAvailable={providers}; installedVersionAvailable={versions}; driverDateAvailable={dates}; schemaQualified=True; cleanupConfirmed=True.";
+            string counts = $"SourceState={result.State}; observedRows={result.Items.Count}; nameAvailable={names}; descriptionAvailable={descriptions}; providerAvailable={providers}; installedVersionAvailable={versions}; driverDateAvailable={dates}; hardwareIdListAvailable={hardwareLists}; compatibleIdListAvailable={compatibleLists}; schemaQualified=True; cleanupConfirmed=True.";
             if (result.State is CheckState.Available or CheckState.Partial && result.Items.Count > 0 && versions > 0)
-                report.Pass(check, counts + " ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. INF metadata is not a loaded-binary version, signature/trust, device health, install time or update-offer match. No provider values, identities or timestamps exported; no installation or device change performed.");
+                report.Pass(check, counts + " ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed.");
             else
                 report.Unknown(check, counts + " ActualMetadataVerified=False. Missing/denied/empty or incomplete native data does not establish positive installed-version compatibility or absence of devices; no success or health inferred.");
             return true;

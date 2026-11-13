@@ -2,7 +2,7 @@
     <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <Expander Header="Present-device driver metadata · separate local read" IsExpanded="False" Foreground="#ECF1FB" AutomationProperties.Name="Present-device driver metadata panel">
             <StackPanel>
-                <TextBlock Text="Reported local metadata, separate from offered Windows updates. This list does not match names/dates to offers, identify unique physical hardware, or determine whether a driver needs an update." Style="{StaticResource Caption}"/>
+                <TextBlock Text="Reported local metadata, separate from offered Windows updates. Names/dates are not matched to offers. Read this source before reviewing a selected driver offer to compare literal reported IDs; correspondence does not identify unique physical hardware or prove compatibility." Style="{StaticResource Caption}"/>
                 <Button Content="Read present-device driver metadata" Command="{Binding ReadDeviceDriversCommand}" HorizontalAlignment="Left" Margin="0,6,0,8" AutomationProperties.Name="Read actual present-device driver metadata"/>
                 <TextBlock Text="{Binding DeviceDriverMessage}" Style="{StaticResource Caption}" AutomationProperties.Name="Present-device driver metadata status" AutomationProperties.LiveSetting="Polite"/>
                 <TextBox Text="{Binding DeviceDriverQueryDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="70" MaxHeight="145" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Present-device metadata attempt and source coverage"/>
@@ -17,7 +17,7 @@
                     </DataGrid.Columns>
                 </DataGrid>
                 <TextBox Text="{Binding DeviceDriverDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="270" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0" AutomationProperties.Name="Selected device driver reported fields, states and limitations"/>
-                <TextBlock Text="Missing/unknown/denied fields remain uncertain. The reported INF driver date is not installation time; version text is not a vendor ordering or loaded-binary check. No download, replacement, hardware-ID collection or install action is available." Style="{StaticResource Caption}"/>
+                <TextBlock Text="Missing/unknown/denied fields remain uncertain. The reported INF driver date is not installation time; version text is not a vendor ordering or loaded-binary check. Reported ID lists stay in memory; this panel displays states and counts only. No download, replacement or install action is available." Style="{StaticResource Caption}"/>
             </StackPanel>
         </Expander>
     </Border>

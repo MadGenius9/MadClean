@@ -79,3 +79,6 @@ using DevicePropertyQuery = BOOL (WINAPI*)(HDEVINFO, PSP_DEVINFO_DATA, const DEV
     DEVPROPTYPE*, PBYTE, DWORD, PDWORD, DWORD);
 static_assert(std::is_same<decltype(&SetupDiGetDevicePropertyW), DevicePropertyQuery>::value,
     "Device property query signature differs.");
+
+// Same SetupAPI read function, new exact string-list property type; no device query.
+static_assert(DEVPROP_TYPE_STRING_LIST == 0x2012, "Device identifier list property type differs.");

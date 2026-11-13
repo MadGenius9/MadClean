@@ -195,7 +195,7 @@ public sealed class DriverUpdateReviewTests
         var result = Review(offer, new(CheckState.Partial, "Partial source", items), items);
         var report = Assert.Single(result.Items);
         items.Clear();
-        Assert.Same(offer, report.SelectedOffer); Assert.Equal(19, report.Requirements.Count);
+        Assert.Same(offer, report.SelectedOffer); Assert.Equal(20, report.Requirements.Count);
         Assert.Throws<NotSupportedException>(() => ((IList<DriverUpdateReviewRequirement>)report.Requirements).Clear());
         var tooMany = Enumerable.Range(1, 257).Select(i => offer with { Identity = i.ToString("x8") + "-89ab-cdef-0123-456789abcdef" }).ToArray();
         Assert.Empty(DriverUpdateReviewPolicy.Review(Source(tooMany), tooMany, tooMany[0], Attempt, Received, Now).Items);

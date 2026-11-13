@@ -15,7 +15,7 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
     private static bool retention;
     public static bool HasPendingNativeQuery { get { lock (Sync) return worker is { IsCompleted: false }; } }
     public static bool RequiresRetention { get { lock (Sync) return retention; } }
-    private const string Scope = "Local present-device SetupAPI INF metadata only; not loaded driver binary versions, signature trust, hardware health or Windows Update offer matching. Driver date is INF DriverVer metadata, not installation time. No elevation was requested.";
+    private const string Scope = "Local present-device SetupAPI metadata only. Reported hardware/compatible identifiers remain in memory for literal current-offer correspondence, not exact-device/OEM compatibility or installation readiness. No instance IDs, serials or raw identifiers are logged or exported. Driver date is INF DriverVer metadata, not installation time; versions are not loaded-binary or signature evidence. No elevation was requested.";
 
     public async Task<CheckResult<DeviceDriverObservation>> ReadAsync(CancellationToken token)
     {
@@ -61,7 +61,7 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
         try
         {
             CheckStop();
-            set = Native.SetupDiGetClassDevsW(0, 0, 0, 0x00000006); // PRESENT | ALLCLASSES; no interfaces/IDs/remote scope.
+            set = Native.SetupDiGetClassDevsW(0, 0, 0, 0x00000006); // PRESENT | ALLCLASSES; no interface/instance-ID selector or remote scope.
             int createError = set == -1 ? Marshal.GetLastWin32Error() : 0;
             CheckStop();
             if (set == -1)
@@ -98,12 +98,16 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
                     var provider = TextProperty(ref data, DriverProvider);
                     var version = TextProperty(ref data, DriverVersion);
                     var date = DateProperty(ref data);
-                    var row = new DeviceDriverObservation((int)index + 1, name, description, provider, version, date, checkedUtc);
+                    var hardwareIds = IdentifierProperty(ref data, HardwareIds);
+                    var compatibleIds = IdentifierProperty(ref data, CompatibleIds);
+                    var row = new DeviceDriverObservation((int)index + 1, name, description, provider, version, date, checkedUtc)
+                    { HardwareIds = hardwareIds, CompatibleIds = compatibleIds };
                     if (!DeviceDriverPropertyDecoder.IsConsistent(row))
                     { state = CheckState.Failed; detail = "The bounded property projection failed consistency validation; observations were withheld."; rows.Clear(); break; }
                     rows.Add(row);
                     partial |= name.State != DeviceDriverFieldState.Available || description.State != DeviceDriverFieldState.Available ||
-                        provider.State != DeviceDriverFieldState.Available || version.State != DeviceDriverFieldState.Available || date.State != DeviceDriverFieldState.Available;
+                        provider.State != DeviceDriverFieldState.Available || version.State != DeviceDriverFieldState.Available || date.State != DeviceDriverFieldState.Available ||
+                        hardwareIds.State != DeviceDriverFieldState.Available || compatibleIds.State != DeviceDriverFieldState.Available;
                 }
                 if (state != CheckState.Failed)
                 {
@@ -134,6 +138,18 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
                     if (!found) return new(FieldState(error), null, error);
                     if (bytes > buffer!.Length) return new(DeviceDriverFieldState.Invalid, null, null);
                     return DeviceDriverPropertyDecoder.Date(type, buffer!.AsSpan(0, (int)bytes));
+                }
+                DeviceDriverIdentifiers IdentifierProperty(ref Native.DeviceInfo data, PropertyKey key)
+                {
+                    // Exactly one property read in the existing owner's bounded buffer.
+                    // BOOL failure never grants property-data/type inspection or a retry.
+                    CheckStop(); Array.Clear(buffer!);
+                    bool found = Native.SetupDiGetDevicePropertyW(set, ref data, in key, out uint type, buffer!, (uint)buffer!.Length, out uint bytes, 0);
+                    int error = found ? 0 : Marshal.GetLastWin32Error();
+                    CheckStop();
+                    if (!found) return new(FieldState(error), [], error);
+                    if (bytes > buffer!.Length) return new(DeviceDriverFieldState.Invalid, [], null);
+                    return DeviceDriverPropertyDecoder.IdentifierList(type, buffer!.AsSpan(0, (int)bytes));
                 }
             }
         }
@@ -173,14 +189,7 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
         }
     }
 
-    private static DeviceDriverFieldState FieldState(int error) => error switch
-    {
-        1168 => DeviceDriverFieldState.Missing,
-        5 => DeviceDriverFieldState.AccessDenied,
-        122 => DeviceDriverFieldState.Oversized,
-        13 => DeviceDriverFieldState.Invalid,
-        _ => DeviceDriverFieldState.Failed
-    };
+    private static DeviceDriverFieldState FieldState(int error) => DeviceDriverPropertyDecoder.FailureState(error);
 
     [StructLayout(LayoutKind.Sequential)]
     private readonly struct PropertyKey(Guid format, uint property)
@@ -192,6 +201,9 @@ public sealed class DeviceDriverInventory : IDeviceDriverInventory
     private static readonly PropertyKey DriverProvider = new(DriverFormat, 9);
     private static readonly PropertyKey DeviceDescription = new(DeviceFormat, 2);
     private static readonly PropertyKey FriendlyName = new(DeviceFormat, 14);
+    // Official devpkey.h: reported hardware/compatible-ID lists, not unique instance IDs.
+    private static readonly PropertyKey HardwareIds = new(DeviceFormat, 3);
+    private static readonly PropertyKey CompatibleIds = new(DeviceFormat, 4);
 
     private static class Native
     {

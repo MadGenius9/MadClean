@@ -4,6 +4,10 @@ namespace MadClean.Core;
 
 public sealed record DriverUpdateReviewRequirement(string Title, CheckState State, string Evidence, string Limit);
 
+// Read-only source descriptor, not provider authentication or an action token.
+public sealed record DeviceDriverReviewSource(CheckResult<DeviceDriverObservation> Source,
+    IReadOnlyList<DeviceDriverObservation> Loaded, DateTimeOffset AttemptedUtc, DateTimeOffset ReceivedUtc);
+
 /// <summary>An in-memory review of one selected offer, never an installation capability.</summary>
 public sealed class DriverUpdateReviewReport
 {
@@ -34,7 +38,7 @@ public static class DriverUpdateReviewPolicy
 
     public static CheckResult<DriverUpdateReviewReport> Review(CheckResult<SystemUpdate>? source,
         IReadOnlyList<SystemUpdate>? loaded, SystemUpdate? selection, DateTimeOffset attemptedUtc,
-        DateTimeOffset receivedUtc, DateTimeOffset nowUtc)
+        DateTimeOffset receivedUtc, DateTimeOffset nowUtc, DeviceDriverReviewSource? devices = null)
     {
         if (source is null || source.State is not (CheckState.Available or CheckState.Partial) ||
             source.Items is not { Count: > 0 and <= 256 } || loaded is null || loaded.Count > 256 || selection is null ||
@@ -93,6 +97,7 @@ public static class DriverUpdateReviewPolicy
                 metadata.RebootBehavior.Value?.ToString() ?? "Unknown", "Provider declaration only; even NeverReboots does not establish MadClean's installation or restart-control contract."),
             new("Observed RebootRequired flag", CheckState.Available, selection.RebootRequired ? "Yes" : "No",
                 "Observed provider flag only; false is not a promise that an installation cannot require a restart."),
+            Correspondence(hardware, devices, nowUtc),
             Missing("Exact device/OEM match", "Verify the exact device, PC model/configuration and OEM applicability. Names, intended model text and dates are insufficient."),
             Missing("Installed/offered driver versions", "Read and verify exact installed/offered driver versions. A provider update metadata revision shown above does not supply a driver or package version."),
             Missing("Official prerequisites and release notes", "Verify exact-model official instructions, release notes and vendor-specific power/recovery-key precautions where applicable. Do not supply recovery keys to MadClean."),
@@ -103,6 +108,53 @@ public static class DriverUpdateReviewPolicy
         };
         return new(CheckState.Partial, "Selected driver prerequisite review created; installation readiness remains Unknown. " + Limits,
             [new(selection, nowUtc, attemptedUtc, receivedUtc, source.State, rows)]);
+    }
+
+    private static DriverUpdateReviewRequirement Correspondence(WindowsUpdateTextField offeredId,
+        DeviceDriverReviewSource? context, DateTimeOffset nowUtc)
+    {
+        const string title = "Observed identifier correspondence";
+        const string limit = "Literal ordinal text correspondence only, not Windows device matching/ranking, exact-device/OEM compatibility, " +
+            "installed/offered version verification, current applicability or installation permission. Observations are not unique physical devices. " +
+            "Absent correspondence is Unknown, never incompatibility or up to date.";
+        DriverUpdateReviewRequirement Unknown(string reason) => new(title, CheckState.Unknown, reason, limit);
+        if (offeredId.State != CheckState.Available || !Text(offeredId.Value, 512))
+            return Unknown("No accepted provider hardware-or-compatible-ID declaration is available.");
+        if (context?.Source is not { } source || source.State is not (CheckState.Available or CheckState.Partial) ||
+            source.Items is not { Count: <= DeviceDriverPropertyDecoder.MaximumObservations } || context.Loaded == null ||
+            context.Loaded.Count != source.Items.Count || !Utc(context.AttemptedUtc) || !Utc(context.ReceivedUtc) ||
+            !Utc(nowUtc) || context.AttemptedUtc > context.ReceivedUtc || context.ReceivedUtc > nowUtc ||
+            nowUtc - context.AttemptedUtc > MaximumAge || nowUtc - context.ReceivedUtc > MaximumAge)
+            return Unknown("The current present-device source or its query times are unavailable, stale or inconsistent.");
+        var references = new HashSet<DeviceDriverObservation>(ReferenceEqualityComparer.Instance);
+        var numbers = new HashSet<int>();
+        foreach (var row in source.Items)
+            if (!DeviceDriverPropertyDecoder.IsConsistent(row, nowUtc) || !references.Add(row) ||
+                !numbers.Add(row.ObservationNumber) || row.CheckedUtc < context.AttemptedUtc || row.CheckedUtc > context.ReceivedUtc)
+                return Unknown("The present-device observations are inconsistent, repeated or outside their query interval.");
+        var loaded = new HashSet<DeviceDriverObservation>(ReferenceEqualityComparer.Instance);
+        foreach (var row in context.Loaded)
+            if (row == null || !references.Contains(row) || !loaded.Add(row))
+                return Unknown("The loaded present-device rows are not the complete exact current source references.");
+        int matches = 0, hardwareMatches = 0, compatibleMatches = 0, hardwareLists = 0, compatibleLists = 0;
+        foreach (var row in source.Items)
+        {
+            bool hardwareKnown = row.HardwareIds.State == DeviceDriverFieldState.Available;
+            bool compatibleKnown = row.CompatibleIds.State == DeviceDriverFieldState.Available;
+            if (hardwareKnown) hardwareLists++;
+            if (compatibleKnown) compatibleLists++;
+            bool hardwareMatch = hardwareKnown && row.HardwareIds.Values.Contains(offeredId.Value!, StringComparer.Ordinal);
+            bool compatibleMatch = compatibleKnown && row.CompatibleIds.Values.Contains(offeredId.Value!, StringComparer.Ordinal);
+            if (hardwareMatch) hardwareMatches++;
+            if (compatibleMatch) compatibleMatches++;
+            if (hardwareMatch || compatibleMatch) matches++;
+        }
+        string evidence = $"Literal correspondence observed in {matches} of {source.Items.Count} metadata observations; " +
+            $"hardware-list observations: {hardwareMatches}; compatible-list observations: {compatibleMatches}. " +
+            $"Available hardware lists: {hardwareLists}; available compatible lists: {compatibleLists}; source coverage: {source.State}. " +
+            $"Local attempt UTC {context.AttemptedUtc:O}; response received UTC {context.ReceivedUtc:O}. " +
+            "The two matching-list counts may overlap on the same observation. No identifier values are included.";
+        return new(title, matches > 0 ? CheckState.Partial : CheckState.Unknown, evidence, limit);
     }
 
     private static DriverUpdateReviewRequirement TextRow(string title, WindowsUpdateTextField field) =>

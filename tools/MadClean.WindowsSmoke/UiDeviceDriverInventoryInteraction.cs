@@ -128,7 +128,13 @@ internal static partial class UiCapture
         Require(details.Text.Contains("DEVPKEY_Device_DriverDate\nState: " + selected.DriverDate.State + "; value: " +
             (selected.DriverDate.Value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "Unknown") + "; native code: " + dateCode, StringComparison.Ordinal) &&
             details.Text.Contains("not establish the loaded binary", StringComparison.Ordinal) &&
-            details.Text.Contains("No matching to Windows Update", StringComparison.Ordinal), "ui-device-driver-date-and-limits");
+            details.Text.Contains("Names/dates are not joined", StringComparison.Ordinal), "ui-device-driver-date-and-limits");
+        foreach (var identifiers in new[] { ("DEVPKEY_Device_HardwareIds", selected.HardwareIds), ("DEVPKEY_Device_CompatibleIds", selected.CompatibleIds) })
+        {
+            string code = identifiers.Item2.NativeError is { } error ? $"0x{unchecked((uint)error):X8}" : "not reported";
+            Require(details.Text.Contains(identifiers.Item1 + "\nState: " + identifiers.Item2.State + "; reported identifier count: " +
+                identifiers.Item2.Values.Count + "; native code: " + code, StringComparison.Ordinal), "ui-device-driver-id-state-count-display");
+        }
         grid.SelectedItem = null; await Idle(window);
         Require(model.SelectedDeviceDriver == null && grid.SelectedItem == null && details.Text == model.DeviceDriverDetails &&
             details.Text.StartsWith("Select an actual observation", StringComparison.Ordinal) && SnapshotUnchanged(),
@@ -136,6 +142,6 @@ internal static partial class UiCapture
         panel.IsExpanded = false; await Idle(window); panel.IsExpanded = true; await Idle(window);
         Require(model.SelectedDeviceDriver == null && SnapshotUnchanged() && model.ReadDeviceDriversCommand.CanExecute(null),
             "ui-device-driver-panel-started-query");
-        report.Pass(check, $"observedRows={rows.Length}; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified.");
+        report.Pass(check, $"observedRows={rows.Length}; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified.");
     }
 }

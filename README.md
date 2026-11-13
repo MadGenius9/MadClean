@@ -203,3 +203,5 @@ The [guided repair protocol](docs/SYSTEM-REPAIR-WORKFLOW.md), disabled native li
 ### Build SDK selection
 
 `global.json` selects SDK 10.0.403 exactly. SDK patch roll-forward is disabled so a newer preinstalled runner SDK cannot silently change the SDK-supplied linker dependencies used by the separate publish lockfiles. CI records `dotnet --version` after setup in each .NET job. Keep locked restore enabled; an intentional SDK update must also regenerate and review the affected development/publish lockfiles. This is build-tool selection, not an app runtime update or self-install feature.
+
+The explicit present-device driver read now retains bounded hardware/compatible-ID lists in memory. The existing selected-offer prerequisite review can show counts of literal identifier correspondence from current accepted sources. This is not exact-device/OEM compatibility, installed/offered-version ordering or permission to install. ID values are withheld from the device panel/logs, and absent correspondence remains Unknown. [Contract and limits](docs/DEVICE-DRIVERS.md).
