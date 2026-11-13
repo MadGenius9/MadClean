@@ -12,7 +12,7 @@ Current official sources were read before designing the experiment. [CreateFileW
 
 [FSCTL_SET_REPARSE_POINT](https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winioctl/ni-winioctl-fsctl_set_reparse_point.md) documents privilege requirements. Its `FILE_SPECIAL_ACCESS` control-code bits in the official [winioctl.h](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/winioctl.h) and [devioctl.h](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/shared/devioctl.h) do not establish which additional filesystem checks apply. No reparse mutation, privilege adjustment or policy change is performed by this first compatibility matrix.
 
-Windows outcomes for these new profiles remain pending. Source review and compilation do not prove either compatibility or namespace protection.
+The original source checkpoint had no Windows outcomes; actual source-bound results are recorded below. Source review and compilation alone do not prove compatibility or namespace protection.
 
 The combined solution builds with zero warnings/errors. Python tooling checks pass121 tests with one Windows-only skip (122 total), including omitted-profile and baseline-not-promoting-unknown-profile guards. Portable Core logic is unchanged from1,039 passing tests. Independent combined review found no material blocker in the owned test's setup, lifetime, independent reporting or retained-tree behavior.
 
@@ -27,3 +27,7 @@ The combined solution builds with zero warnings/errors. Python tooling checks pa
 | Fixture ancestor | Move, restore and collision refusal observed; 3 calls / 2 successes | `0xC0000035` collision refusal | Only this single strengthened-ancestor configuration passed the owned sequence. |
 
 All three reached safe teardown with no pending worker. The independent baseline NT check remained passing. Source/destination sharing failures were not promoted by the ancestor or baseline result. Core1,029 Passed/10 NotExecuted reconcile1,039;47 scoped passes/no failures/six inconclusive, SDK/control/build passed and packaging skipped. None of these results proves combined guards, reparse resistance or namespace protection. The separate [sharing observation](DIRECTORY-SHARING-OBSERVATION.md) examines permission relationships without a reparse operation.
+
+## Bounded diagnosis at f700794
+
+Run `43322307377`, verification commit `51b59d6ea86db2dbd3dd5800fc024f714f0e7e40`, repeats the same source/destination sharing conflict. The destination read-only-sharing guard blocks its first incoming rename; the source guard allows moving out but blocks restoring into that source directory. This matches the documented internal target-directory write open and the actual fixed guard profiles. It is an explained incompatibility of this proposed protection design, not evidence of a managed ABI defect or permission to relax sharing. The ancestor-only pass cannot qualify either parent profile. No additional probe, native fallback or production action is justified by these repeated outcomes. See [the bounded failure triage](WINDOWS-FAILURE-TRIAGE.md).
