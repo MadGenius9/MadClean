@@ -11,13 +11,13 @@
       "label": "restore",
       "exitCode": 0,
       "truncated": false,
-      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 338 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 338 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 585 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 199 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 589 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 216 ms)."
+      "excerpt": "  Determining projects to restore...\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Core\\MadClean.Core.csproj (in 255 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\MadClean.Windows.WinGet.csproj (in 646 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\MadClean.WindowsSmoke.csproj (in 648 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\MadClean.App.csproj (in 648 ms).\n  Restored D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\MadClean.Tests.csproj (in 347 ms).\n  Restored D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows\\MadClean.Windows.csproj (in 3 ms)."
     },
     {
       "label": "build",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  0 IID calculations/fetches patched\n  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:37.25"
+      "excerpt": "  MadClean.Windows.WinGet -> D:\\a\\MadClean\\MadClean\\src\\MadClean.Windows.WinGet\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.Windows.WinGet.dll\n  MadClean.Tests -> D:\\a\\MadClean\\MadClean\\tests\\MadClean.Tests\\bin\\Release\\net10.0\\MadClean.Tests.dll\n  MadClean.App -> D:\\a\\MadClean\\MadClean\\src\\MadClean.App\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.dll\n  MadClean.WindowsSmoke -> D:\\a\\MadClean\\MadClean\\tools\\MadClean.WindowsSmoke\\bin\\Release\\net10.0-windows10.0.22000.0\\MadClean.WindowsSmoke.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:34.28"
     },
     {
       "label": "publisher-tests",
@@ -29,7 +29,7 @@
       "label": "core-tests",
       "exitCode": 0,
       "truncated": true,
-      "excerpt": "  Skipped MadClean.Tests.ActivityLogBoundaryTests.DanglingDestinationPreviousAndAncestorArePreservedWithoutCreatingTheirTargets [1 ms]\n  Skipped MadClean.Tests.ActivityLogBoundaryTests.LinkedAncestorCannotReceiveMissingDescendants [1 ms]\n  Skipped MadClean.Tests.ActivityLogBoundaryTests.LinkedCurrentAndPreviousDestinationsNeverChangeTheirTargetsOrRotateCurrent [1 ms]\n[xUnit.net 00:00:04.02]     MadClean.Tests.CleanupExclusionTests.LinkedSettingsAncestorDoesNotReceiveNewFiles [SKIP]\n[xUnit.net 00:00:04.02]     MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [SKIP]\n  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsAncestorDoesNotReceiveNewFiles [1 ms]\n  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  2516, Skipped:    13, Total:  2529, Duration: 5 s - MadClean.Tests.dll (net10.0)"
+      "excerpt": "  Skipped MadClean.Tests.ActivityLogBoundaryTests.DanglingDestinationPreviousAndAncestorArePreservedWithoutCreatingTheirTargets [1 ms]\n  Skipped MadClean.Tests.ActivityLogBoundaryTests.LinkedAncestorCannotReceiveMissingDescendants [1 ms]\n  Skipped MadClean.Tests.ActivityLogBoundaryTests.LinkedCurrentAndPreviousDestinationsNeverChangeTheirTargetsOrRotateCurrent [1 ms]\n[xUnit.net 00:00:06.19]     MadClean.Tests.CleanupExclusionTests.LinkedSettingsAncestorDoesNotReceiveNewFiles [SKIP]\n[xUnit.net 00:00:06.19]     MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [SKIP]\n  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsAncestorDoesNotReceiveNewFiles [1 ms]\n  Skipped MadClean.Tests.CleanupExclusionTests.LinkedSettingsDestinationIsNotFollowedOrReplaced [1 ms]\nResults File: D:\\a\\MadClean\\MadClean\\artifacts\\test-results\\core-windows.trx\n\nPassed!  - Failed:     0, Passed:  2560, Skipped:    13, Total:  2573, Duration: 5 s - MadClean.Tests.dll (net10.0)"
     }
   ]
 }

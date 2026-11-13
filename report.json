@@ -1,10 +1,10 @@
 {
   "formatVersion": 7,
-  "sourceCommit": "319c3801b03a79f4b4fd664805fea0b29b4d1913",
-  "runId": "43485392342",
+  "sourceCommit": "adad27e3285f8bfb37f325daf032bf68c9870e81",
+  "runId": "43487855484",
   "runAttempt": 1,
-  "startedUtc": "2026-11-13T18:48:43.7399702+00:00",
-  "completedUtc": "2026-11-13T18:49:19.3115526+00:00",
+  "startedUtc": "2026-11-13T19:03:34.18916+00:00",
+  "completedUtc": "2026-11-13T19:03:52.2620736+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -131,7 +131,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=62; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=67; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "ui-sfc-preview-interaction",
@@ -216,7 +216,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 11 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=24; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=18; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -286,7 +286,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=62; nameAvailable=16; descriptionAvailable=59; providerAvailable=59; installedVersionAvailable=59; driverDateAvailable=59; hardwareIdListAvailable=59; compatibleIdListAvailable=37; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=67; nameAvailable=18; descriptionAvailable=64; providerAvailable=64; installedVersionAvailable=64; driverDateAvailable=64; hardwareIdListAvailable=63; compatibleIdListAvailable=40; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
