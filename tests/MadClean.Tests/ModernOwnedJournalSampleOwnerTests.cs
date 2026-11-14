@@ -7,14 +7,14 @@ public sealed class ModernOwnedJournalSampleOwnerTests
 {
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public void UncertainCreationRetainsActualPrefixWithoutCleanupOrSuccessor(int uncertainAt)
+    public void UncertainAcquisitionRetainsActualPrefixWithoutCleanupOrSuccessor(int uncertainAt)
     {
-        var frame = new Frame { Creating = index => index == uncertainAt ? ModernJournalCreation.Uncertain : ModernJournalCreation.Created };
+        var frame = new Frame { Acquiring = index => index == uncertainAt ? ModernJournalAcquisition.Uncertain : ModernJournalAcquisition.Acquired };
         var domain = new ModernOwnedJournalSampleDomain();
         var result = domain.Run(frame);
         Assert.Equal(ModernJournalSampleState.Retained, result.State);
-        Assert.Equal(uncertainAt + 1, frame.CreationCalls);
-        Assert.Equal(0, frame.ReleaseCalls); Assert.Equal(0, frame.ExerciseCalls);
+        Assert.Equal(uncertainAt + 1, frame.AcquisitionCalls);
+        Assert.Equal(0, frame.ReleaseCalls); Assert.Equal(0, frame.ObservationCalls);
         Assert.False(result.ResourcesReleased); Assert.False(result.SampleVerified);
         Assert.False(domain.HasPendingWork); Assert.True(domain.RequiresRetention);
         Assert.False(result.Release());
@@ -26,11 +26,11 @@ public sealed class ModernOwnedJournalSampleOwnerTests
 
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public void KnownNoCreationClosesPrefixOnceWithoutLaterStagesOrSample(int refusedAt)
+    public void KnownNoAcquisitionClosesPrefixOnceWithoutLaterStagesOrSample(int refusedAt)
     {
-        var frame = new Frame { Creating = index => index == refusedAt ? ModernJournalCreation.NotCreated : ModernJournalCreation.Created };
+        var frame = new Frame { Acquiring = index => index == refusedAt ? ModernJournalAcquisition.NotAcquired : ModernJournalAcquisition.Acquired };
         var domain = new ModernOwnedJournalSampleDomain(); var result = domain.Run(frame);
-        Assert.Equal(refusedAt + 1, frame.CreationCalls); Assert.Equal(0, frame.ExerciseCalls);
+        Assert.Equal(refusedAt + 1, frame.AcquisitionCalls); Assert.Equal(0, frame.ObservationCalls);
         Assert.True(result.ResourcesReleased); Assert.False(result.SampleVerified);
         Assert.True(result.Release()); Assert.Equal(1, frame.ReleaseCalls);
         Assert.False(domain.RequiresRetention);
@@ -39,16 +39,16 @@ public sealed class ModernOwnedJournalSampleOwnerTests
 
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public void ThrownOrUndefinedCreationCannotBecomeKnownRefusal(int index)
+    public void ThrownOrUndefinedAcquisitionCannotBecomeKnownRefusal(int index)
     {
         foreach (bool throws in new[] { false, true })
         {
-            var frame = new Frame { Creating = stage => stage != index ? ModernJournalCreation.Created :
-                throws ? throw new IOException("Controlled uncertain call") : (ModernJournalCreation)987 };
+            var frame = new Frame { Acquiring = stage => stage != index ? ModernJournalAcquisition.Acquired :
+                throws ? throw new IOException("Controlled uncertain call") : (ModernJournalAcquisition)987 };
             var domain = new ModernOwnedJournalSampleDomain(); var result = domain.Run(frame);
             Assert.True(result.RequiresRetention); Assert.True(domain.RequiresRetention);
             Assert.False(result.Release()); Assert.Equal(0, frame.ReleaseCalls);
-            Assert.Equal(index + 1, frame.CreationCalls);
+            Assert.Equal(index + 1, frame.AcquisitionCalls);
         }
     }
 
@@ -72,11 +72,11 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         var frame = new Frame
         {
             Preparing = () => { if (stopAt == -1) stop.Cancel(); return true; },
-            Creating = index => { if (index == stopAt) stop.Cancel(); return ModernJournalCreation.Created; }
+            Acquiring = index => { if (index == stopAt) stop.Cancel(); return ModernJournalAcquisition.Acquired; }
         };
         var domain = new ModernOwnedJournalSampleDomain(); var result = domain.Run(frame, stop.Token);
-        Assert.Equal(stopAt + 1, frame.CreationCalls);
-        Assert.Equal(0, frame.ExerciseCalls); Assert.Equal(1, frame.ReleaseCalls);
+        Assert.Equal(stopAt + 1, frame.AcquisitionCalls);
+        Assert.Equal(0, frame.ObservationCalls); Assert.Equal(1, frame.ReleaseCalls);
         Assert.True(result.ResourcesReleased); Assert.False(result.SampleVerified);
     }
 
@@ -98,16 +98,16 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         var frame = new Frame { Preparing = () => throw new IOException("Controlled prefix uncertainty") };
         var domain = new ModernOwnedJournalSampleDomain(); var result = domain.Run(frame);
         Assert.True(result.RequiresRetention); Assert.Equal(0, frame.ReleaseCalls);
-        Assert.Equal(0, frame.CreationCalls);
+        Assert.Equal(0, frame.AcquisitionCalls);
     }
 
     [Fact]
-    public void KnownPreparationRefusalReleasesPrefixWithoutCreating()
+    public void KnownPreparationRefusalReleasesPrefixWithoutAcquiring()
     {
         var frame = new Frame { Preparing = () => false };
         var result = new ModernOwnedJournalSampleDomain().Run(frame);
         Assert.True(result.ResourcesReleased); Assert.Equal(1, frame.ReleaseCalls);
-        Assert.Equal(0, frame.CreationCalls); Assert.False(result.SampleVerified);
+        Assert.Equal(0, frame.AcquisitionCalls); Assert.False(result.SampleVerified);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         foreign.Run(default); Assert.False(foreign.Release()); Assert.Equal(0, frame.PrepareCalls);
         var accepted = domain.Run(frame);
         accepted.Run(default); Assert.True(accepted.Release());
-        Assert.Equal(1, frame.PrepareCalls); Assert.Equal(1, frame.ExerciseCalls); Assert.Equal(1, frame.ReleaseCalls);
+        Assert.Equal(1, frame.PrepareCalls); Assert.Equal(1, frame.ObservationCalls); Assert.Equal(1, frame.ReleaseCalls);
         var replay = new ModernOwnedJournalSampleDomain().Run(frame);
         replay.Run(default); Assert.False(replay.Release()); Assert.Equal(1, frame.ReleaseCalls);
     }
@@ -150,12 +150,12 @@ public sealed class ModernOwnedJournalSampleOwnerTests
                 Assert.False(otherThreadAllowed);
                 return true;
             },
-            Creating = index =>
+            Acquiring = index =>
             {
                 Assert.True(domain.IsActive(frame!, (ModernJournalSamplePhase)(index + 2)));
-                return ModernJournalCreation.Created;
+                return ModernJournalAcquisition.Acquired;
             },
-            Exercising = () => { Assert.True(domain.IsActive(frame!, ModernJournalSamplePhase.Exercise)); return true; },
+            Observing = () => { Assert.True(domain.IsActive(frame!, ModernJournalSamplePhase.Exercise)); return true; },
             Releasing = () => { Assert.True(domain.IsActive(frame!, ModernJournalSamplePhase.Release)); return true; }
         };
         var result = domain.Run(frame);
@@ -167,7 +167,7 @@ public sealed class ModernOwnedJournalSampleOwnerTests
     [Fact]
     public void FalseSampleObservationRemainsSeparateFromKnownResourceRelease()
     {
-        var frame = new Frame { Exercising = () => false };
+        var frame = new Frame { Observing = () => false };
         var result = new ModernOwnedJournalSampleDomain().Run(frame);
         Assert.False(result.SampleVerified); Assert.True(result.ResourcesReleased);
         Assert.Equal(1, frame.ReleaseCalls);
@@ -179,7 +179,7 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         var domain = new ModernOwnedJournalSampleDomain(); var competing = new Frame();
         var frame = new Frame
         {
-            Exercising = () =>
+            Observing = () =>
             {
                 Exception? observerFailure = null;
                 var observer = new Thread(() =>
@@ -207,14 +207,14 @@ public sealed class ModernOwnedJournalSampleOwnerTests
     [Fact]
     public void ThrowingCodecCallbackCannotFreeOrRewriteAnUncertainResult()
     {
-        var frame = new Frame { Exercising = () => throw new IOException("Controlled write/read failure") };
+        var frame = new Frame { Observing = () => throw new IOException("Controlled write/read failure") };
         var result = new ModernOwnedJournalSampleDomain().Run(frame);
         Assert.True(result.RequiresRetention); Assert.False(result.SampleVerified);
         Assert.Equal(0, frame.ReleaseCalls); Assert.False(result.Release());
     }
 
     [Fact]
-    public async Task CallerStopDuringActualCreationKeepsOwnerUntilCallReturnsAndStopsNextStage()
+    public async Task CallerStopDuringActualAcquisitionKeepsOwnerUntilCallReturnsAndStopsNextStage()
     {
         using var stop = new CancellationTokenSource();
         using var entered = new ManualResetEventSlim();
@@ -222,11 +222,11 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         var domain = new ModernOwnedJournalSampleDomain();
         var frame = new Frame
         {
-            Creating = _ =>
+            Acquiring = _ =>
             {
                 entered.Set();
                 if (!finish.Wait(TimeSpan.FromSeconds(5))) throw new IOException("Controlled wait exceeded its bound");
-                return ModernJournalCreation.Created;
+                return ModernJournalAcquisition.Acquired;
             }
         };
         var actual = Task.Run(() => domain.Run(frame, stop.Token));
@@ -236,7 +236,7 @@ public sealed class ModernOwnedJournalSampleOwnerTests
             Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
             stop.Cancel();
             Assert.True(domain.HasPendingWork); Assert.False(actual.IsCompleted);
-            Assert.Equal(0, frame.ReleaseCalls); Assert.Equal(0, frame.ExerciseCalls);
+            Assert.Equal(0, frame.ReleaseCalls); Assert.Equal(0, frame.ObservationCalls);
             var competitor = new Frame(); var refused = domain.Run(competitor);
             Assert.Equal(ModernJournalSampleState.Refused, refused.State);
             Assert.False(refused.Release()); Assert.Equal(0, competitor.PrepareCalls);
@@ -247,22 +247,22 @@ public sealed class ModernOwnedJournalSampleOwnerTests
             result = await actual;
         }
         Assert.True(result.ResourcesReleased); Assert.False(result.SampleVerified);
-        Assert.Equal(1, frame.CreationCalls); Assert.Equal(1, frame.ReleaseCalls);
-        Assert.Equal(0, frame.ExerciseCalls); Assert.False(domain.HasPendingWork);
+        Assert.Equal(1, frame.AcquisitionCalls); Assert.Equal(1, frame.ReleaseCalls);
+        Assert.Equal(0, frame.ObservationCalls); Assert.False(domain.HasPendingWork);
         Assert.False(domain.RequiresRetention);
     }
 
     private sealed class Frame : ModernOwnedJournalSampleFrame
     {
-        internal Func<bool> Preparing = () => true, Exercising = () => true, Releasing = () => true;
-        internal Func<int, ModernJournalCreation> Creating = _ => ModernJournalCreation.Created;
-        internal int PrepareCalls, CreationCalls, ExerciseCalls, ReleaseCalls;
+        internal Func<bool> Preparing = () => true, Observing = () => true, Releasing = () => true;
+        internal Func<int, ModernJournalAcquisition> Acquiring = _ => ModernJournalAcquisition.Acquired;
+        internal int PrepareCalls, AcquisitionCalls, ObservationCalls, ReleaseCalls;
         internal override bool Prepare(CancellationToken token) { PrepareCalls++; return Preparing(); }
-        private ModernJournalCreation Create() { int index = CreationCalls++; return Creating(index); }
-        internal override ModernJournalCreation CreateDirectory() => Create();
-        internal override ModernJournalCreation CreateLease() => Create();
-        internal override ModernJournalCreation CreateJournal() => Create();
-        internal override bool ExerciseSyntheticIntent() { ExerciseCalls++; return Exercising(); }
+        private ModernJournalAcquisition Acquire() { int index = AcquisitionCalls++; return Acquiring(index); }
+        internal override ModernJournalAcquisition AcquireDirectory() => Acquire();
+        internal override ModernJournalAcquisition AcquireLease() => Acquire();
+        internal override ModernJournalAcquisition AcquireJournal() => Acquire();
+        internal override bool ObserveSyntheticIntent() { ObservationCalls++; return Observing(); }
         internal override bool ReleaseKnownOwnership() { ReleaseCalls++; return Releasing(); }
     }
 }

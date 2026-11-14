@@ -46,3 +46,11 @@ Unchanged probes are not rerun manually. The next finite diagnostic adds one sep
 ## Finite question resolved at 319c380
 
 The separate default-runspace import/binding control passed on run `43485392342`, with exact one-module binding and all observed object cleanup confirmed. The ten original inconclusive check objects remain unchanged; 90 of 100 checks pass and none is failed. This confirms that the inbox module can import under that compound metadata profile, not that autoload alone caused the restricted failures. No health operation/output schema, publisher trust or action readiness is qualified. See [the exact evidence and stopping rule](DISM-CAPABILITY.md#actual-default-profile-windows-result). No unchanged fixture was manually retried.
+
+## Unchanged adad27e evidence
+
+Source `adad27e3285f8bfb37f325daf032bf68c9870e81`, run `43487855484` attempt 1, verification commit `301536096cf899b56d16080bc3bc22e9f482b003`, again contains 100 checks: 90 passed, 10 inconclusive, none failed. All ten non-passing full check objects equal the preceding 319c380 run. Default-profile DISM import remains passed. Windows Core records are 2,560 Passed and 13 NotExecuted; build/boundary checks passed and distributable publishing was skipped. Smoke/legacy exit 2 explain the outer failure; its WPF/native step name identifies no new root cause.
+
+The MSI job was skipped and supplied no report. Artifact absence is not an attempted failed installer test. Capture manifest SHA-256: `4cd559b588746d484d5de71aafd0f1bfd199a6bf2de05380be3403dd72cd863e`; independent review verified file sizes/hashes and source/run/attempt/ref contexts. No unchanged fixture was retried.
+
+A read-only GitHub CLI capability check reports an invalid configured GH_TOKEN, despite returning process exit zero. That is not usable-authentication evidence. Authorized Git transport still reads/pushes source; no current connector exposes workflow dispatch. No credential was printed, replaced or borrowed, and no manual MSI workflow was dispatched. Its exact disposable fixture authorization must be established from authenticated standing instructions before execution; repository guidance records constraints, not standalone user consent. Public activation remains the distinct historical decision in the MSI review.

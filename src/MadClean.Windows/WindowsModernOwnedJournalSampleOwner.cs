@@ -1,20 +1,22 @@
+using MadClean.Core;
+
 namespace MadClean.Windows;
 
-internal enum ModernJournalCreation { Created, NotCreated, Uncertain }
+internal enum ModernJournalAcquisition { Acquired, NotAcquired, Uncertain }
 internal enum ModernJournalSampleState { Refused, Released, Retained }
 internal enum ModernJournalSamplePhase { None, Prepare, Directory, Lease, Journal, Exercise, Release }
 
-// Specific fresh directory/lease/journal sample contract, not an action capability.
+// Specific fresh/existing directory/lease/journal sample ownership, not an action capability.
 // Constructors own no native resources; Prepare begins the owned resource prefix.
 internal abstract class ModernOwnedJournalSampleFrame
 {
     private int claimed;
     internal bool TryClaim() => Interlocked.CompareExchange(ref claimed, 1, 0) == 0;
     internal abstract bool Prepare(CancellationToken token);
-    internal abstract ModernJournalCreation CreateDirectory();
-    internal abstract ModernJournalCreation CreateLease();
-    internal abstract ModernJournalCreation CreateJournal();
-    internal abstract bool ExerciseSyntheticIntent();
+    internal abstract ModernJournalAcquisition AcquireDirectory();
+    internal abstract ModernJournalAcquisition AcquireLease();
+    internal abstract ModernJournalAcquisition AcquireJournal();
+    internal abstract bool ObserveSyntheticIntent();
     internal abstract bool ReleaseKnownOwnership();
 }
 
@@ -100,11 +102,11 @@ internal sealed class ModernOwnedJournalSampleAttempt
             preparationEntered = true;
             SetPhase(ModernJournalSamplePhase.Prepare);
             if (!Frame.Prepare(token)) return;
-            var stages = new (ModernJournalSamplePhase Phase, Func<ModernJournalCreation> Create)[]
+            var stages = new (ModernJournalSamplePhase Phase, Func<ModernJournalAcquisition> Acquire)[]
             {
-                (ModernJournalSamplePhase.Directory, Frame.CreateDirectory),
-                (ModernJournalSamplePhase.Lease, Frame.CreateLease),
-                (ModernJournalSamplePhase.Journal, Frame.CreateJournal)
+                (ModernJournalSamplePhase.Directory, Frame.AcquireDirectory),
+                (ModernJournalSamplePhase.Lease, Frame.AcquireLease),
+                (ModernJournalSamplePhase.Journal, Frame.AcquireJournal)
             };
             foreach (var stage in stages)
             {
@@ -112,14 +114,14 @@ internal sealed class ModernOwnedJournalSampleAttempt
                 // A throwing or undefined response cannot authorize cleanup or retry.
                 known = false;
                 SetPhase(stage.Phase);
-                var result = stage.Create();
-                if (result == ModernJournalCreation.Uncertain || !Enum.IsDefined(result)) return;
+                var result = stage.Acquire();
+                if (result == ModernJournalAcquisition.Uncertain || !Enum.IsDefined(result)) return;
                 known = true;
-                if (result == ModernJournalCreation.NotCreated) return;
+                if (result == ModernJournalAcquisition.NotAcquired) return;
             }
             if (token.IsCancellationRequested) return;
             SetPhase(ModernJournalSamplePhase.Exercise);
-            bool verified = Frame.ExerciseSyntheticIntent();
+            bool verified = Frame.ObserveSyntheticIntent();
             lock (sync) sampleVerified = verified;
         }
         catch { known = false; }
@@ -166,4 +168,31 @@ internal sealed class ModernOwnedJournalSampleAttempt
     }
     private void SetPhase(ModernJournalSamplePhase value)
     { lock (sync) { phase = value; callbackThread = Environment.CurrentManagedThreadId; } }
+}
+
+// A fixed synthetic seed observation only. Valid bytes neither authenticate a journal
+// nor establish complete history, a running client, successful health work or admission.
+internal static class ModernJournalSyntheticSeed
+{
+    internal static bool IsExpected(SystemToolJournalReview? review, Guid executionId, DateTimeOffset nowUtc)
+    {
+        try
+        {
+            if (executionId == Guid.Empty || nowUtc == default || nowUtc.Offset != TimeSpan.Zero ||
+                review is not { State: SystemToolJournalState.Unresolved, Entries.Count: 1 }) return false;
+            var observed = review.Entries[0];
+            if (observed == null) return false;
+            var entry = observed with { }; // Revalidate this copied singleton, not the caller's state/message.
+            if (review.Entries.Count != 1 || entry.ExecutionId != executionId ||
+                entry.Operation != SystemToolOperation.DismCheckHealth || entry.Sequence != 1 ||
+                entry.TimestampUtc == default || entry.TimestampUtc.Offset != TimeSpan.Zero || entry.TimestampUtc > nowUtc ||
+                entry.Phase != SystemToolJournalPhase.DispatchIntent || entry.ProcessId.HasValue ||
+                entry.ClientStartUtc.HasValue || entry.ExitCode.HasValue || entry.NativeError.HasValue) return false;
+            var canonical = SystemToolJournal.Review(Array.AsReadOnly(new[] { entry }), nowUtc);
+            return canonical.State == SystemToolJournalState.Unresolved && canonical.Entries.Count == 1 &&
+                canonical.Entries[0] == entry;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IndexOutOfRangeException or OverflowException)
+        { return false; }
+    }
 }

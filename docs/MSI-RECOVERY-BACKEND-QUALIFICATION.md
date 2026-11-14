@@ -27,3 +27,9 @@ The current tool catalog has no callable GitHub workflow-dispatch capability; su
 ## Source validation
 
 Independent code/workflow/permissions and documentation review found no blocking issue. The final Release solution build passed with zero warnings/errors. The 44 pure source-profile cases passed with no failures/skips; aggregate Core: 2,572 passed, zero failed, one Windows-only skipped. Python: 367 passed, zero failed, one skipped. Tests cover wrong/similar refs, pushes/PRs/other events, missing/truthy/whitespace flags, wrong jobs and later production activation. They execute no installer, native API or workflow, and do not qualify the existing backend's Windows behavior. No test package or final executable is delivered by this checkpoint.
+
+## Current capability/authorization checkpoint, 2026-11-14
+
+The latest ordinary push run skipped this job; it did not attempt and fail the installer. A read-only `gh auth status --hostname github.com` check reports its configured GH_TOKEN invalid (even though the command exits zero). Git transport works, but no callable workflow-dispatch connector is available. This task has not dispatched the manual route, changed credentials or used a different event to bypass it.
+
+Before coordinated execution, verify authenticated standing authorization for installation/removal of this one fresh inert current-user MSI on the disposable hosted runner. AGENTS describes the exact constrained exception but is not, by itself, a user-authored grant; the latest coordinator message supplies no new permission. If that provenance is unavailable, the required approval is specifically that inert fixture test—not general GitHub connection, public uninstall, a personal-PC action or production activation. The prepared source/test route is already concrete and reviewable; the public activation decision remains separate.

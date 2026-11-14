@@ -18,7 +18,7 @@ Register the actual mutable owner before any OS call, not a descriptive task or 
 
 A store attachment permit must be opaque, one-shot and bound to the actual registered private frame, exact qualified wrappers, active phase and live exclusive lease. No caller Boolean, raw handle adoption or configuration override may authorize attachment. The stream/store construction interval is itself owned; a constructor exception before output publication must retain the frame. Existing old-gate wrappers stay guarded while only private mechanics may be shared.
 
-The only sample record is a synthetic DispatchIntent for DismCheckHealth. Exact same-handle codec/readback acceptance leaves it unresolved. It must never fabricate a client start, PID, exit, successful repair or reusable dispatch receipt. Release is checked, one-shot and reverse-ordered, and refuses while a callback/native/store operation is active without consuming a later legitimate release. Releasing resources is not deletion or rollback.
+The only accepted sample record is a synthetic DispatchIntent for DismCheckHealth. Exact same-handle codec/readback acceptance leaves it unresolved. It must never fabricate a client start, PID, exit, successful repair or reusable dispatch receipt. Release is checked, one-shot and reverse-ordered, and refuses while a callback/native/store operation is active without consuming a later legitimate release. Releasing resources is not deletion or rollback.
 
 ## Remaining qualification
 
@@ -29,3 +29,20 @@ Portable owner tests can establish controlled state transitions, not filesystem 
 The concrete source candidate and one-shot store-mechanics bridge passed independent code review. All 24 controlled owner cases passed, including competing/replayed/foreign requests, callback-thread authority, caller stop during a blocked creation, known refusal versus uncertain/undefined/throwing returns, partial preparation, failed codec observation and sticky cleanup failure. The first targeted run was 23 passed/one failed because a thread-pool observer could inline; the final tests use dedicated threads for thread authority and cross-thread lock observations. No production assertion was weakened.
 
 The final Release solution build passed with zero warnings/errors, including the explicit x64 OS/process restriction. Final aggregate Core: 2,444 passed, zero failed, one Windows-only skipped. Python: 367 passed, zero failed, one skipped. These runs invoked no Windows native sample. Source 05c01da's earlier installed-header compilation is independent evidence for ABI declarations/layout only. Public provisioning, recovery, real repair execution and new native sample qualification remain incomplete.
+
+## Independently selected existing-only reopening
+
+`RunExistingOwnedFixture(root, marker, token)` is a second closed entry point, with the same literal false guard before arguments, platform, scheduling or native access. It selects an immutable private ExistingReadOnly frame mode; the original named fresh factory selects FreshWrite. There is no caller-provided open flag, configuration bypass, App/CI hook or automatic fallback from fresh creation to reopening.
+
+| Fixed mode | Acquisition | Journal attachment and observation |
+| --- | --- | --- |
+| FreshWrite | Existing fresh-directory profile plus CREATE_NEW files, protected creation descriptors and original write-through behavior | Created true, readOnly false; fixed synthetic intent append/readback |
+| ExistingReadOnly | CreateFile3 OPEN_EXISTING for the known directory, empty exclusive lease and same-GUID lifecycle file; read/READ_CONTROL only, no creation descriptors or write-through | Created false, readOnly true; FileAccess.Read, two decoded same-handle seed observations and post-read identity/security checks |
+
+The opaque one-shot attachment derives these facts from the exact registered private frame and active phase/thread, not caller booleans. The old Nt entry remains separately closed. Acquisition result names no longer claim that reopening created an object. A documented invalid handle grants only known-prefix cleanup; missing/denied open is not confirmed empty history, and ambiguous outputs/cleanup retain the actual owner without retry.
+
+The portable seed helper copies and revalidates only the expected canonical Core record shape: nonzero matching GUID, CheckHealth, sequence 1, UTC timestamp not after observation, DispatchIntent, and null client/start/exit/error facts. Native readback still goes through the existing bounded whole-log codec; this helper alone does not authenticate raw serialized bytes or authorship. Two matching reads are observations, not immutable storage or crash/durability proof. Valid data stays Unresolved and grants no dispatch permission.
+
+There is no directory enumeration. Extra/missing/invalid history is not discarded or treated as complete; this known-file sample cannot establish production recovery/admission. Production provisioning, held-directory full enumeration and actual Windows qualification remain separate missing work.
+
+Combined source review found no blocking issue. Final Release build zero warnings/errors; aggregate Core 2,589 passed, zero failed, one Windows-only skipped (including the existing 24 owner cases and 17 new seed boundary cases); Python 367 passed, zero failed, one skipped. No native journal, repair, MSI or PowerShell operation was run locally.

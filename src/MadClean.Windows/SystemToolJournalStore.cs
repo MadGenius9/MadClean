@@ -200,9 +200,9 @@ internal sealed class SystemToolJournalStore : IDisposable
     {
         if (!WindowsModernOwnedJournalSample.ExecutionValidated)
             throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
-        if (!attachment.TryClaim(out var handle, out var parent))
+        if (!attachment.TryClaim(out var handle, out var parent, out bool created, out bool readOnly))
             throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
-        return AdoptQualifiedLifecycleMechanics(handle, parent, true, false, out stream);
+        return AdoptQualifiedLifecycleMechanics(handle, parent, created, readOnly, out stream);
     }
     private static SystemToolJournalStore AdoptQualifiedLifecycleMechanics(SafeFileHandle handle,
         SafeFileHandle parent, bool created, bool readOnly, out FileStream stream)

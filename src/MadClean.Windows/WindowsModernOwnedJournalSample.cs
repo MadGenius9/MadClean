@@ -15,9 +15,18 @@ internal static class WindowsModernOwnedJournalSample
     internal static ModernOwnedJournalSampleAttempt RunOwnedFixture(string root, string marker, CancellationToken token = default)
     {
         Guard(); // Before argument, token, profile, scheduling or Windows access.
-        var frame = new Frame(root, marker); // Managed fields only; Domain roots before Prepare.
+        var frame = new Frame(root, marker, SampleMode.FreshWrite); // Managed fields only; Domain roots before Prepare.
         return Domain.Run(frame, token);
     }
+
+    internal static ModernOwnedJournalSampleAttempt RunExistingOwnedFixture(string root, string marker, CancellationToken token = default)
+    {
+        Guard(); // This is not a production recovery hook or caller-selected open mode.
+        var frame = new Frame(root, marker, SampleMode.ExistingReadOnly);
+        return Domain.Run(frame, token);
+    }
+
+    private enum SampleMode { FreshWrite, ExistingReadOnly }
 
     private static void Guard()
     {
@@ -42,15 +51,20 @@ internal static class WindowsModernOwnedJournalSample
         private readonly object owner;
         private int claimed;
         internal LifecycleAttachment(object owner) { this.owner = owner; }
-        internal bool TryClaim(out SafeFileHandle handle, out SafeFileHandle parent)
+        internal bool TryClaim(out SafeFileHandle handle, out SafeFileHandle parent, out bool created, out bool readOnly)
         {
             Guard();
             handle = parent = null!;
+            created = readOnly = false;
             if (owner is not Frame frame || !Domain.IsActive(frame, ModernJournalSamplePhase.Exercise) || !ReferenceEquals(frame.Attachment, this) ||
+                frame.mode is not (SampleMode.FreshWrite or SampleMode.ExistingReadOnly) ||
                 !frame.AttachmentReady || frame.ReleaseStarted || frame.JournalWrapper == null || frame.DirectoryWrapper == null ||
                 Interlocked.CompareExchange(ref claimed, 1, 0) != 0) return false;
             frame.QualifyAttachment();
             handle = frame.JournalWrapper; parent = frame.DirectoryWrapper;
+            // These facts come only from the claimed immutable private frame.
+            readOnly = frame.mode == SampleMode.ExistingReadOnly;
+            created = !readOnly;
             return true;
         }
     }
@@ -58,6 +72,7 @@ internal static class WindowsModernOwnedJournalSample
     private sealed class Frame : ModernOwnedJournalSampleFrame
     {
         private readonly string rootInput, markerInput;
+        internal readonly SampleMode mode;
         // Pointer slots exist before any allocation/native call; they are never finalizer-owned.
         private readonly nint[] allocations = new nint[64];
         private readonly nint[] ancestorRaws = new nint[16];
@@ -85,13 +100,13 @@ internal static class WindowsModernOwnedJournalSample
         internal SafeFileHandle? DirectoryWrapper, JournalWrapper;
         internal bool AttachmentReady, ReleaseStarted;
 
-        internal Frame(string root, string marker)
-        { rootInput = root; markerInput = marker; Attachment = new(this); }
+        internal Frame(string root, string marker, SampleMode mode)
+        { rootInput = root; markerInput = marker; this.mode = mode; Attachment = new(this); }
 
         internal override bool Prepare(CancellationToken token)
         {
             RequirePhase(ModernJournalSamplePhase.Prepare);
-            if (prepareAttempted || ReleaseStarted) return false;
+            if (prepareAttempted || ReleaseStarted || mode is not (SampleMode.FreshWrite or SampleMode.ExistingReadOnly)) return false;
             prepareAttempted = true;
             token.ThrowIfCancellationRequested();
             root = SystemToolJournalStore.ValidateRoot(rootInput, markerInput);
@@ -115,7 +130,10 @@ internal static class WindowsModernOwnedJournalSample
             if (kernelModule == 0) return false;
             kernelModuleOwned = true;
             if (kernelModule < 0) throw Refused();
-            foreach (string export in new[] { "CreateDirectory2W", "CreateFile3", "GetFileInformationByHandleEx", "GetFileType", "GetVolumeInformationByHandleW", "CloseHandle", "LocalFree", "FreeLibrary" })
+            string[] requiredExports = mode == SampleMode.FreshWrite
+                ? ["CreateDirectory2W", "CreateFile3", "GetFileInformationByHandleEx", "GetFileType", "GetVolumeInformationByHandleW", "CloseHandle", "LocalFree", "FreeLibrary"]
+                : ["CreateFile3", "GetFileInformationByHandleEx", "GetFileType", "GetVolumeInformationByHandleW", "CloseHandle", "LocalFree", "FreeLibrary"];
+            foreach (string export in requiredExports)
             {
                 nint exportName = Allocate(export.Length + 1);
                 for (int i = 0; i < export.Length; i++) Marshal.WriteByte(exportName, i, checked((byte)export[i]));
@@ -168,65 +186,81 @@ internal static class WindowsModernOwnedJournalSample
             }
             finally { Array.Clear(bytes); }
             token.ThrowIfCancellationRequested();
-            directoryDescriptor = Descriptor($"O:{sid}D:P(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)", ref directoryDescriptorOwned);
-            fileDescriptor = Descriptor($"O:{sid}D:P(A;;FA;;;{sid})(A;;FA;;;SY)", ref fileDescriptorOwned);
-            directoryAttributes = Security(directoryDescriptor);
-            fileParameters = Parameters(0x80010000, Security(fileDescriptor)); // WRITE_THROUGH + DISALLOW.
+            if (mode == SampleMode.FreshWrite)
+            {
+                directoryDescriptor = Descriptor($"O:{sid}D:P(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)", ref directoryDescriptorOwned);
+                fileDescriptor = Descriptor($"O:{sid}D:P(A;;FA;;;{sid})(A;;FA;;;SY)", ref fileDescriptorOwned);
+                directoryAttributes = Security(directoryDescriptor);
+                fileParameters = Parameters(0x80010000, Security(fileDescriptor)); // WRITE_THROUGH + DISALLOW.
+            }
+            else fileParameters = Parameters(0x00010000, 0); // No creation descriptor or write-through flag.
             prepared = true;
             return true;
         }
 
-        internal override ModernJournalCreation CreateDirectory()
+        internal override ModernJournalAcquisition AcquireDirectory()
         {
             RequirePhase(ModernJournalSamplePhase.Directory);
             if (!prepared || directoryAttempted || ReleaseStarted) throw Refused();
             directoryAttempted = true;
-            directoryRaw = Native.CreateDirectory2W(directoryName, 0x200A0, 3, 1, directoryAttributes);
-            // The current official prose/sample disagree on the failure sentinel.
-            // Neither zero nor -1 authorizes cleanup, retry, adoption or absence.
-            if (directoryRaw <= 0) return ModernJournalCreation.Uncertain;
+            if (mode == SampleMode.FreshWrite)
+            {
+                directoryRaw = Native.CreateDirectory2W(directoryName, 0x200A0, 3, 1, directoryAttributes);
+                // The current official prose/sample disagree on the failure sentinel.
+                // Neither zero nor -1 authorizes cleanup, retry, adoption or absence.
+                if (directoryRaw <= 0) return ModernJournalAcquisition.Uncertain;
+            }
+            else
+            {
+                directoryRaw = Native.CreateFile3(directoryName, 0x200A0, 3, 3, rootParameters);
+                if (directoryRaw == -1) { directoryRaw = 0; return ModernJournalAcquisition.NotAcquired; }
+            }
             Adopt(ref directoryOwned, directoryRaw);
             DirectoryWrapper = new(directoryRaw, ownsHandle: false);
             QualifyDirectory(DirectoryWrapper, directory!);
             directoryIdentity = Identity(DirectoryWrapper);
             if (directoryIdentity.Volume != rootIdentity.Volume) throw Refused();
             RevalidateParents();
-            return ModernJournalCreation.Created;
+            return ModernJournalAcquisition.Acquired;
         }
 
-        internal override ModernJournalCreation CreateLease()
+        internal override ModernJournalAcquisition AcquireLease()
         {
             RequirePhase(ModernJournalSamplePhase.Lease);
             if (!directoryOwned || DirectoryWrapper == null || leaseAttempted || ReleaseStarted) throw Refused();
             leaseAttempted = true;
             RevalidateParents();
-            leaseRaw = Native.CreateFile3(leaseName, 0xC0020000, 0, 1, fileParameters);
-            if (leaseRaw == -1) { leaseRaw = 0; return ModernJournalCreation.NotCreated; }
+            leaseRaw = mode == SampleMode.FreshWrite
+                ? Native.CreateFile3(leaseName, 0xC0020000, 0, 1, fileParameters)
+                : Native.CreateFile3(leaseName, 0x80020000, 0, 3, fileParameters);
+            if (leaseRaw == -1) { leaseRaw = 0; return ModernJournalAcquisition.NotAcquired; }
             Adopt(ref leaseOwned, leaseRaw);
             leaseWrapper = new(leaseRaw, ownsHandle: false);
             QualifyFile(leaseWrapper, leasePath!, 0);
             leaseIdentity = Identity(leaseWrapper);
             RevalidateParents();
-            return ModernJournalCreation.Created;
+            return ModernJournalAcquisition.Acquired;
         }
 
-        internal override ModernJournalCreation CreateJournal()
+        internal override ModernJournalAcquisition AcquireJournal()
         {
             RequirePhase(ModernJournalSamplePhase.Journal);
             if (!leaseOwned || journalAttempted || ReleaseStarted) throw Refused();
             journalAttempted = true;
             RevalidateParents();
-            journalRaw = Native.CreateFile3(journalName, 0xC0020000, 0, 1, fileParameters);
-            if (journalRaw == -1) { journalRaw = 0; return ModernJournalCreation.NotCreated; }
+            journalRaw = mode == SampleMode.FreshWrite
+                ? Native.CreateFile3(journalName, 0xC0020000, 0, 1, fileParameters)
+                : Native.CreateFile3(journalName, 0x80020000, 0, 3, fileParameters);
+            if (journalRaw == -1) { journalRaw = 0; return ModernJournalAcquisition.NotAcquired; }
             Adopt(ref journalOwned, journalRaw);
             JournalWrapper = new(journalRaw, ownsHandle: false);
-            QualifyFile(JournalWrapper, journalPath!, 0);
+            QualifyFile(JournalWrapper, journalPath!, mode == SampleMode.FreshWrite ? 0 : SystemToolJournalStore.MaximumIntentBytes);
             journalIdentity = Identity(JournalWrapper);
             RevalidateParents();
-            return ModernJournalCreation.Created;
+            return ModernJournalAcquisition.Acquired;
         }
 
-        internal override bool ExerciseSyntheticIntent()
+        internal override bool ObserveSyntheticIntent()
         {
             RequirePhase(ModernJournalSamplePhase.Exercise);
             if (!journalOwned || exerciseAttempted || attachmentStarted || ReleaseStarted) throw Refused();
@@ -235,6 +269,18 @@ internal static class WindowsModernOwnedJournalSample
             attachmentStarted = AttachmentReady = true;
             store = SystemToolJournalStore.AdoptQualifiedModernLifecycleFile(Attachment, out childStream);
             attachmentReturned = true; AttachmentReady = false;
+            if (mode == SampleMode.ExistingReadOnly)
+            {
+                // Only this exact known synthetic journal is read. No enumeration,
+                // empty-history admission, write, repair or first-intent provenance.
+                var first = store.ReadJournal(DateTimeOffset.UtcNow, CancellationToken.None);
+                var second = store.ReadJournal(DateTimeOffset.UtcNow, CancellationToken.None);
+                QualifyAttachment(); // Recheck held object/parent identity and security after the reads.
+                var observedUtc = DateTimeOffset.UtcNow;
+                return ModernJournalSyntheticSeed.IsExpected(first, executionId, observedUtc) &&
+                    ModernJournalSyntheticSeed.IsExpected(second, executionId, observedUtc) &&
+                    first.Entries[0] == second.Entries[0];
+            }
             var now = DateTimeOffset.UtcNow;
             var intent = new SystemToolJournalEntry(executionId, SystemToolOperation.DismCheckHealth, 1, now,
                 SystemToolJournalPhase.DispatchIntent, null, null, null, null);
@@ -243,8 +289,7 @@ internal static class WindowsModernOwnedJournalSample
             return Exact(written, intent) && Exact(readback, intent);
         }
         private static bool Exact(SystemToolJournalReview review, SystemToolJournalEntry intent) =>
-            review.State == SystemToolJournalState.Unresolved && review.Entries.Count == 1 && review.Entries[0] == intent &&
-            SystemToolJournal.Review(review.Entries, DateTimeOffset.UtcNow).State == SystemToolJournalState.Unresolved;
+            ModernJournalSyntheticSeed.IsExpected(review, intent.ExecutionId, DateTimeOffset.UtcNow) && review.Entries[0] == intent;
 
         internal override bool ReleaseKnownOwnership()
         {
@@ -316,7 +361,7 @@ internal static class WindowsModernOwnedJournalSample
                 DirectoryWrapper.DangerousGetHandle() != directoryRaw) throw Refused();
             RevalidateParents();
             QualifyFile(leaseWrapper, leasePath!, 0);
-            QualifyFile(JournalWrapper, journalPath!, 0);
+            QualifyFile(JournalWrapper, journalPath!, mode == SampleMode.FreshWrite ? 0 : SystemToolJournalStore.MaximumIntentBytes);
             if (!Same(Identity(leaseWrapper), leaseIdentity) || !Same(Identity(JournalWrapper), journalIdentity)) throw Refused();
             RevalidateParents();
         }
