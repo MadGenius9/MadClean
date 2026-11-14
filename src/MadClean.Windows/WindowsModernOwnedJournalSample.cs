@@ -86,6 +86,9 @@ internal static class WindowsModernOwnedJournalSample
         private nint rootParameters, markerParameters, fileParameters, directoryAttributes;
         private nint directoryDescriptor, fileDescriptor;
         private nint kernelModule, filesystemBuffer;
+        private nint directoryQueryBuffer;
+        private byte[]? directoryQueryCopy;
+        private bool directoryQueryStarted, directoryQueryReturned;
         private bool kernelModuleOwned;
         private nint rootRaw, markerRaw, directoryRaw, leaseRaw, journalRaw;
         private bool rootOwned, markerOwned, directoryOwned, leaseOwned, journalOwned;
@@ -141,6 +144,11 @@ internal static class WindowsModernOwnedJournalSample
             }
             using (var identity = WindowsIdentity.GetCurrent()) sid = identity.User?.Value ?? throw Refused();
             filesystemBuffer = Allocate(64);
+            if (mode == SampleMode.ExistingReadOnly)
+            {
+                directoryQueryCopy = new byte[ModernJournalDirectoryBatch.BufferBytes];
+                directoryQueryBuffer = Allocate(ModernJournalDirectoryBatch.BufferBytes);
+            }
             rootName = Name(root); markerName = Name(Path.Combine(root, ".madclean-fixture-owner"));
             directoryName = Name(directory); leaseName = Name(leasePath); journalName = Name(journalPath);
             rootParameters = Parameters(0x02010000, 0); // BACKUP_SEMANTICS + DISALLOW_PATH_REDIRECTS.
@@ -212,7 +220,7 @@ internal static class WindowsModernOwnedJournalSample
             }
             else
             {
-                directoryRaw = Native.CreateFile3(directoryName, 0x200A0, 3, 3, rootParameters);
+                directoryRaw = Native.CreateFile3(directoryName, 0x200A1, 3, 3, rootParameters); // Also FILE_LIST_DIRECTORY.
                 if (directoryRaw == -1) { directoryRaw = 0; return ModernJournalAcquisition.NotAcquired; }
             }
             Adopt(ref directoryOwned, directoryRaw);
@@ -266,13 +274,14 @@ internal static class WindowsModernOwnedJournalSample
             if (!journalOwned || exerciseAttempted || attachmentStarted || ReleaseStarted) throw Refused();
             exerciseAttempted = true;
             RevalidateParents();
+            if (mode == SampleMode.ExistingReadOnly && !ObserveExpectedDirectoryNames()) return false;
             attachmentStarted = AttachmentReady = true;
             store = SystemToolJournalStore.AdoptQualifiedModernLifecycleFile(Attachment, out childStream);
             attachmentReturned = true; AttachmentReady = false;
             if (mode == SampleMode.ExistingReadOnly)
             {
-                // Only this exact known synthetic journal is read. No enumeration,
-                // empty-history admission, write, repair or first-intent provenance.
+                // Enumeration only observed this bounded synthetic namespace; it did not
+                // establish a snapshot, authorship, full history or recovery admission.
                 var first = store.ReadJournal(DateTimeOffset.UtcNow, CancellationToken.None);
                 var second = store.ReadJournal(DateTimeOffset.UtcNow, CancellationToken.None);
                 QualifyAttachment(); // Recheck held object/parent identity and security after the reads.
@@ -291,12 +300,56 @@ internal static class WindowsModernOwnedJournalSample
         private static bool Exact(SystemToolJournalReview review, SystemToolJournalEntry intent) =>
             ModernJournalSyntheticSeed.IsExpected(review, intent.ExecutionId, DateTimeOffset.UtcNow) && review.Entries[0] == intent;
 
+        private bool ObserveExpectedDirectoryNames()
+        {
+            if (DirectoryWrapper == null || directoryQueryBuffer == 0 || directoryQueryCopy == null ||
+                directoryQueryCopy.Length != ModernJournalDirectoryBatch.BufferBytes) throw Refused();
+            string expectedJournal = executionId.ToString("N") + ".jsonl";
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int query = 0; query < ModernJournalDirectoryBatch.MaxQueries; query++)
+            {
+                // Never reuse or clear buffers following an unclassified native outcome.
+                if (directoryQueryStarted && !directoryQueryReturned) throw Refused();
+                Array.Clear(directoryQueryCopy);
+                for (int i = 0; i < ModernJournalDirectoryBatch.BufferBytes; i++) Marshal.WriteByte(directoryQueryBuffer, i, 0);
+                directoryQueryStarted = true; directoryQueryReturned = false;
+                int success = Native.GetDirectoryInformation(DirectoryWrapper, query == 0 ? 11 : 10,
+                    directoryQueryBuffer, ModernJournalDirectoryBatch.BufferBytes);
+                int error = Marshal.GetLastPInvokeError();
+                var outcome = ModernJournalDirectoryBatch.ClassifyQueryResult(success != 0, error);
+                if (outcome == ModernJournalDirectoryQuery.Uncertain) throw Refused();
+                directoryQueryReturned = true;
+                if (outcome == ModernJournalDirectoryQuery.End)
+                {
+                    QualifyAttachment();
+                    return seen.Contains("lease.bin") && seen.Contains(expectedJournal);
+                }
+                if (outcome != ModernJournalDirectoryQuery.Batch) return false; // Fixed buffer; no MORE_DATA retry.
+                Marshal.Copy(directoryQueryBuffer, directoryQueryCopy, 0, directoryQueryCopy.Length);
+                if (!ModernJournalDirectoryBatch.TryRead(directoryQueryCopy, out var entries)) return false;
+                foreach (var entry in entries)
+                {
+                    // At most the two expected files and optional dot entries, each once.
+                    if (seen.Count >= 4 || !seen.Add(entry.Name) || (entry.Attributes & 0x400) != 0) return false;
+                    if (entry.Name is "." or "..")
+                    {
+                        if ((entry.Attributes & 0x10) == 0) return false;
+                    }
+                    else if ((entry.Attributes & 0x10) != 0 ||
+                        entry.Name != "lease.bin" && entry.Name != expectedJournal) return false;
+                }
+                // The last record only ends this batch. A further query must observe EOF.
+            }
+            return false;
+        }
+
         internal override bool ReleaseKnownOwnership()
         {
             RequirePhase(ModernJournalSamplePhase.Release);
             if (ReleaseStarted) return released;
             ReleaseStarted = true; AttachmentReady = false;
-            if (descriptorUncertain || attachmentStarted && !attachmentReturned || markerStreamStarted && !markerStreamReturned)
+            if (descriptorUncertain || attachmentStarted && !attachmentReturned || markerStreamStarted && !markerStreamReturned ||
+                directoryQueryStarted && !directoryQueryReturned)
                 return false;
             try
             {
@@ -325,6 +378,7 @@ internal static class WindowsModernOwnedJournalSample
                     if (allocations[i] == 0) continue;
                     Marshal.FreeHGlobal(allocations[i]); allocations[i] = 0;
                 }
+                if (directoryQueryCopy != null) Array.Clear(directoryQueryCopy);
                 if (kernelModuleOwned)
                 {
                     if (Native.FreeLibrary(kernelModule) == 0) return false;
@@ -466,6 +520,9 @@ internal static class WindowsModernOwnedJournalSample
         [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", ExactSpelling = true, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern int GetIdentity(SafeFileHandle handle, int information, out IdentityInformation identity, uint size);
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", ExactSpelling = true, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        internal static extern int GetDirectoryInformation(SafeFileHandle handle, int information, nint buffer, uint size);
         [DllImport("kernel32.dll", EntryPoint = "GetFileType", ExactSpelling = true, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern uint GetFileType(SafeFileHandle handle);

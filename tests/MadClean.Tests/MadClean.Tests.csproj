@@ -30,5 +30,6 @@
         <Compile Include="../../src/MadClean.Windows/SystemRepairDirectPipeReader.cs" Link="WindowsPortable/SystemRepairDirectPipeReader.cs"/>
         <Compile Include="../../src/MadClean.Windows/SystemToolJournalRelativeFileProtocol.cs" Link="WindowsPortable/SystemToolJournalRelativeFileProtocol.cs"/>
         <Compile Include="../../src/MadClean.Windows/WindowsModernOwnedJournalSampleOwner.cs" Link="WindowsPortable/WindowsModernOwnedJournalSampleOwner.cs"/>
+        <Compile Include="../../src/MadClean.Windows/ModernJournalDirectoryBatch.cs" Link="WindowsPortable/ModernJournalDirectoryBatch.cs"/>
     </ItemGroup>
 </Project>

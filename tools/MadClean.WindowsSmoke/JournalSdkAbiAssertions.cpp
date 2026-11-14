@@ -30,3 +30,16 @@ static_assert(offsetof(SECURITY_ATTRIBUTES, lpSecurityDescriptor) == 8, "Descrip
 static_assert(offsetof(SECURITY_ATTRIBUTES, bInheritHandle) == 16, "Inheritance offset differs.");
 static_assert(DIRECTORY_FLAGS_DISALLOW_PATH_REDIRECTS == 1, "Directory no-redirect flag differs.");
 static_assert(FILE_FLAG_DISALLOW_PATH_REDIRECTS == 0x00010000, "File no-redirect flag differs.");
+using InformationSignature = BOOL (WINAPI*)(HANDLE, FILE_INFO_BY_HANDLE_CLASS, LPVOID, DWORD);
+static_assert(std::is_same<decltype(&GetFileInformationByHandleEx), InformationSignature>::value,
+    "Held-handle information declaration differs.");
+static_assert(FileIdBothDirectoryInfo == 10 && FileIdBothDirectoryRestartInfo == 11,
+    "BOTH directory information classes differ.");
+static_assert(ERROR_NO_MORE_FILES == 18 && ERROR_MORE_DATA == 234,
+    "BOTH query result constants differ.");
+static_assert(sizeof(FILE_ID_BOTH_DIR_INFO) == 112, "BOTH directory record size differs.");
+static_assert(offsetof(FILE_ID_BOTH_DIR_INFO, NextEntryOffset) == 0, "Next offset differs.");
+static_assert(offsetof(FILE_ID_BOTH_DIR_INFO, FileAttributes) == 56, "Attributes offset differs.");
+static_assert(offsetof(FILE_ID_BOTH_DIR_INFO, FileNameLength) == 60, "Name length offset differs.");
+static_assert(offsetof(FILE_ID_BOTH_DIR_INFO, FileId) == 96, "Opaque ID offset differs.");
+static_assert(offsetof(FILE_ID_BOTH_DIR_INFO, FileName) == 104, "Counted name offset differs.");
