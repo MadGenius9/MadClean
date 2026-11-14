@@ -304,8 +304,7 @@ internal static class WindowsModernOwnedJournalSample
         {
             if (DirectoryWrapper == null || directoryQueryBuffer == 0 || directoryQueryCopy == null ||
                 directoryQueryCopy.Length != ModernJournalDirectoryBatch.BufferBytes) throw Refused();
-            string expectedJournal = executionId.ToString("N") + ".jsonl";
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var observation = new ModernJournalDirectoryObservation(executionId);
             for (int query = 0; query < ModernJournalDirectoryBatch.MaxQueries; query++)
             {
                 // Never reuse or clear buffers following an unclassified native outcome.
@@ -319,25 +318,19 @@ internal static class WindowsModernOwnedJournalSample
                 var outcome = ModernJournalDirectoryBatch.ClassifyQueryResult(success != 0, error);
                 if (outcome == ModernJournalDirectoryQuery.Uncertain) throw Refused();
                 directoryQueryReturned = true;
-                if (outcome == ModernJournalDirectoryQuery.End)
+                IReadOnlyList<ModernJournalDirectoryName>? entries = null;
+                if (outcome == ModernJournalDirectoryQuery.Batch)
+                {
+                    Marshal.Copy(directoryQueryBuffer, directoryQueryCopy, 0, directoryQueryCopy.Length);
+                    if (!ModernJournalDirectoryBatch.TryRead(directoryQueryCopy, out entries)) return false;
+                }
+                var decision = observation.Observe(outcome, entries);
+                if (decision == ModernJournalDirectoryDecision.Complete)
                 {
                     QualifyAttachment();
-                    return seen.Contains("lease.bin") && seen.Contains(expectedJournal);
+                    return true;
                 }
-                if (outcome != ModernJournalDirectoryQuery.Batch) return false; // Fixed buffer; no MORE_DATA retry.
-                Marshal.Copy(directoryQueryBuffer, directoryQueryCopy, 0, directoryQueryCopy.Length);
-                if (!ModernJournalDirectoryBatch.TryRead(directoryQueryCopy, out var entries)) return false;
-                foreach (var entry in entries)
-                {
-                    // At most the two expected files and optional dot entries, each once.
-                    if (seen.Count >= 4 || !seen.Add(entry.Name) || (entry.Attributes & 0x400) != 0) return false;
-                    if (entry.Name is "." or "..")
-                    {
-                        if ((entry.Attributes & 0x10) == 0) return false;
-                    }
-                    else if ((entry.Attributes & 0x10) != 0 ||
-                        entry.Name != "lease.bin" && entry.Name != expectedJournal) return false;
-                }
+                if (decision != ModernJournalDirectoryDecision.Continue) return false;
                 // The last record only ends this batch. A further query must observe EOF.
             }
             return false;
