@@ -252,6 +252,217 @@ public sealed class ModernOwnedJournalSampleOwnerTests
         Assert.False(domain.RequiresRetention);
     }
 
+    [Fact]
+    public void PhaseFactsDistinguishEarlyRefusalFromAnObservedSampleRefusal()
+    {
+        var early = new ModernOwnedJournalSampleDomain().Run(new Frame { Preparing = () => false }).Observation;
+        Assert.Equal(ModernJournalCallbackOutcome.Refused, early.Prepare);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, early.Directory);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, early.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, early.Release);
+        var later = new ModernOwnedJournalSampleDomain().Run(new Frame { Observing = () => false }).Observation;
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, later.Prepare);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, later.Directory);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, later.Lease);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, later.Journal);
+        Assert.Equal(ModernJournalCallbackOutcome.Refused, later.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, later.Release);
+        Assert.Equal(ModernJournalNamesObservation.NotObserved, later.Names);
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)]
+    public void AcquisitionFactsDistinguishKnownRefusalUncertainAndThrownResults(int index)
+    {
+        foreach (int kind in new[] { 0, 1, 2, 3 })
+        {
+            var frame = new Frame { Acquiring = at => at != index ? ModernJournalAcquisition.Acquired : kind switch
+            {
+                0 => ModernJournalAcquisition.NotAcquired,
+                1 => ModernJournalAcquisition.Uncertain,
+                2 => (ModernJournalAcquisition)987,
+                _ => throw new IOException("Controlled acquisition uncertainty")
+            } };
+            var result = new ModernOwnedJournalSampleDomain().Run(frame);
+            var facts = result.Observation;
+            var acquisitions = new[] { facts.Directory, facts.Lease, facts.Journal };
+            for (int prior = 0; prior < index; prior++) Assert.Equal(ModernJournalCallbackOutcome.Confirmed, acquisitions[prior]);
+            Assert.Equal(kind == 0 ? ModernJournalCallbackOutcome.Refused : ModernJournalCallbackOutcome.Uncertain, acquisitions[index]);
+            for (int later = index + 1; later < 3; later++) Assert.Equal(ModernJournalCallbackOutcome.NotEntered, acquisitions[later]);
+            Assert.Equal(ModernJournalCallbackOutcome.NotEntered, facts.Exercise);
+            Assert.Equal(kind == 0 ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.NotEntered, facts.Release);
+        }
+    }
+
+    [Fact]
+    public void ThrowingPreparationAndExerciseAreUnknownWithoutClaimingLaterCleanup()
+    {
+        var preparing = new ModernOwnedJournalSampleDomain().Run(new Frame { Preparing = () => throw new IOException("Controlled") }).Observation;
+        Assert.Equal(ModernJournalCallbackOutcome.Uncertain, preparing.Prepare);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, preparing.Directory);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, preparing.Release);
+        var exercising = new ModernOwnedJournalSampleDomain().Run(new Frame { Observing = () => throw new IOException("Controlled") }).Observation;
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, exercising.Journal);
+        Assert.Equal(ModernJournalCallbackOutcome.Uncertain, exercising.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, exercising.Release);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void VerifiedSampleNeverConvertsUncertainReleaseIntoConfirmedCleanup(bool throws)
+    {
+        var result = new ModernOwnedJournalSampleDomain().Run(new Frame { Releasing = () => throws ? throw new IOException("Controlled") : false });
+        Assert.True(result.SampleVerified);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, result.Observation.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.Uncertain, result.Observation.Release);
+        Assert.True(result.RequiresRetention);
+    }
+
+    [Fact]
+    public void PrecancelledFactsDoNotInventAReleaseCallback()
+    {
+        using var stop = new CancellationTokenSource(); stop.Cancel();
+        var result = new ModernOwnedJournalSampleDomain().Run(new Frame(), stop.Token);
+        Assert.True(result.ResourcesReleased); // Legacy no-resource settlement, not an observed callback.
+        Assert.True(result.Observation.StopObserved);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, result.Observation.Prepare);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, result.Observation.Release);
+    }
+
+    [Theory]
+    [InlineData(-1)] [InlineData(0)] [InlineData(1)] [InlineData(2)]
+    public void StopFactsOnlyDescribeTheExistingBetweenCallChecks(int stopAt)
+    {
+        using var stop = new CancellationTokenSource();
+        var frame = new Frame
+        {
+            Preparing = () => { if (stopAt == -1) stop.Cancel(); return true; },
+            Acquiring = at => { if (at == stopAt) stop.Cancel(); return ModernJournalAcquisition.Acquired; }
+        };
+        var facts = new ModernOwnedJournalSampleDomain().Run(frame, stop.Token).Observation;
+        Assert.True(facts.StopObserved);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, facts.Prepare);
+        var stages = new[] { facts.Directory, facts.Lease, facts.Journal };
+        for (int at = 0; at < stages.Length; at++)
+            Assert.Equal(at <= stopAt ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.NotEntered, stages[at]);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, facts.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, facts.Release);
+    }
+
+    [Fact]
+    public async Task ConcurrentSnapshotsShowRunningCallbackUntilItsActualReturn()
+    {
+        using var entered = new ManualResetEventSlim(); using var finish = new ManualResetEventSlim();
+        using var stop = new CancellationTokenSource();
+        var domain = new ModernOwnedJournalSampleDomain();
+        var frame = new Frame { Acquiring = _ =>
+        {
+            entered.Set();
+            if (!finish.Wait(TimeSpan.FromSeconds(5))) throw new IOException("Controlled wait exceeded bound");
+            return ModernJournalAcquisition.Acquired;
+        } };
+        var worker = Task.Run(() => domain.Run(frame, stop.Token));
+        ModernJournalSampleObservation? running = null;
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            running = domain.Observation;
+            Assert.NotNull(running);
+            Assert.Equal(ModernJournalCallbackOutcome.Running, running.Directory);
+            Assert.Equal(ModernJournalCallbackOutcome.NotEntered, running.Lease);
+            stop.Cancel();
+            Assert.False(domain.Observation!.StopObserved); // Caller request is not callback completion.
+            Assert.True(domain.HasPendingWork);
+        }
+        finally { finish.Set(); }
+        var result = await worker;
+        Assert.True(result.Observation.StopObserved);
+        Assert.Equal(ModernJournalCallbackOutcome.Confirmed, result.Observation.Directory);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, result.Observation.Lease);
+        Assert.Equal(ModernJournalCallbackOutcome.Running, running!.Directory); // Copied immutable snapshot.
+    }
+
+    [Fact]
+    public void NamespaceFactsRequireOwnedExerciseThreadAndCannotBeReplayed()
+    {
+        var domain = new ModernOwnedJournalSampleDomain();
+        Frame? actual = null;
+        var foreign = new Frame();
+        Assert.False(domain.TryRecordNames(foreign, ModernJournalNamesObservation.InProgress));
+        actual = new Frame
+        {
+            Preparing = () =>
+            {
+                Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.InProgress));
+                return true;
+            },
+            Observing = () =>
+            {
+                Assert.False(domain.TryRecordNames(foreign, ModernJournalNamesObservation.InProgress));
+                Assert.False(domain.TryRecordNames(actual!, (ModernJournalNamesObservation)987));
+                Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Complete));
+                Assert.True(domain.TryRecordNames(actual!, ModernJournalNamesObservation.InProgress));
+                Exception? failure = null;
+                var other = new Thread(() =>
+                {
+                    try { Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Refused)); }
+                    catch (Exception exception) { failure = exception; }
+                }) { IsBackground = true };
+                other.Start(); Assert.True(other.Join(TimeSpan.FromSeconds(5))); Assert.Null(failure);
+                Assert.True(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Complete));
+                Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.InProgress));
+                Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Complete));
+                return false; // Namespace observation alone is not overall sample verification.
+            },
+            Releasing = () =>
+            {
+                Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Refused));
+                return true;
+            }
+        };
+        var result = domain.Run(actual);
+        Assert.Equal(ModernJournalNamesObservation.Complete, result.Observation.Names);
+        Assert.Equal(ModernJournalCallbackOutcome.Refused, result.Observation.Exercise);
+        Assert.False(result.SampleVerified);
+        Assert.True(result.ResourcesReleased);
+        Assert.False(domain.TryRecordNames(actual, ModernJournalNamesObservation.InProgress));
+    }
+
+    [Fact]
+    public void CompletedNamesCannotQualifyAThrowingLaterSampleObservation()
+    {
+        var domain = new ModernOwnedJournalSampleDomain(); Frame? actual = null;
+        actual = new Frame { Observing = () =>
+        {
+            Assert.True(domain.TryRecordNames(actual!, ModernJournalNamesObservation.InProgress));
+            Assert.True(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Complete));
+            throw new IOException("Controlled post-name uncertainty");
+        } };
+        var result = domain.Run(actual);
+        Assert.Equal(ModernJournalNamesObservation.Complete, result.Observation.Names);
+        Assert.Equal(ModernJournalCallbackOutcome.Uncertain, result.Observation.Exercise);
+        Assert.Equal(ModernJournalCallbackOutcome.NotEntered, result.Observation.Release);
+        Assert.False(result.SampleVerified); Assert.False(result.ResourcesReleased);
+        Assert.True(result.RequiresRetention); Assert.Equal(0, actual.ReleaseCalls);
+    }
+
+    [Theory]
+    [InlineData(2)] [InlineData(4)]
+    public void RefusedOrUncertainNamespaceFactsRemainTerminal(int terminal)
+    {
+        var domain = new ModernOwnedJournalSampleDomain(); Frame? actual = null;
+        actual = new Frame { Observing = () =>
+        {
+            Assert.True(domain.TryRecordNames(actual!, ModernJournalNamesObservation.InProgress));
+            Assert.True(domain.TryRecordNames(actual!, (ModernJournalNamesObservation)terminal));
+            Assert.False(domain.TryRecordNames(actual!, ModernJournalNamesObservation.Complete));
+            return false;
+        } };
+        var result = domain.Run(actual);
+        Assert.Equal((ModernJournalNamesObservation)terminal, result.Observation.Names);
+        Assert.True(result.ResourcesReleased);
+    }
+
     private sealed class Frame : ModernOwnedJournalSampleFrame
     {
         internal Func<bool> Preparing = () => true, Observing = () => true, Releasing = () => true;

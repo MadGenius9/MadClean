@@ -304,35 +304,55 @@ internal static class WindowsModernOwnedJournalSample
         {
             if (DirectoryWrapper == null || directoryQueryBuffer == 0 || directoryQueryCopy == null ||
                 directoryQueryCopy.Length != ModernJournalDirectoryBatch.BufferBytes) throw Refused();
-            var observation = new ModernJournalDirectoryObservation(executionId);
-            for (int query = 0; query < ModernJournalDirectoryBatch.MaxQueries; query++)
+            RecordDirectoryNames(ModernJournalNamesObservation.InProgress);
+            try
             {
-                // Never reuse or clear buffers following an unclassified native outcome.
-                if (directoryQueryStarted && !directoryQueryReturned) throw Refused();
-                Array.Clear(directoryQueryCopy);
-                for (int i = 0; i < ModernJournalDirectoryBatch.BufferBytes; i++) Marshal.WriteByte(directoryQueryBuffer, i, 0);
-                directoryQueryStarted = true; directoryQueryReturned = false;
-                int success = Native.GetDirectoryInformation(DirectoryWrapper, query == 0 ? 11 : 10,
-                    directoryQueryBuffer, ModernJournalDirectoryBatch.BufferBytes);
-                int error = Marshal.GetLastPInvokeError();
-                var outcome = ModernJournalDirectoryBatch.ClassifyQueryResult(success != 0, error);
-                if (outcome == ModernJournalDirectoryQuery.Uncertain) throw Refused();
-                directoryQueryReturned = true;
-                IReadOnlyList<ModernJournalDirectoryName>? entries = null;
-                if (outcome == ModernJournalDirectoryQuery.Batch)
+                var observation = new ModernJournalDirectoryObservation(executionId);
+                for (int query = 0; query < ModernJournalDirectoryBatch.MaxQueries; query++)
                 {
-                    Marshal.Copy(directoryQueryBuffer, directoryQueryCopy, 0, directoryQueryCopy.Length);
-                    if (!ModernJournalDirectoryBatch.TryRead(directoryQueryCopy, out entries)) return false;
+                    // Never reuse or clear buffers following an unclassified native outcome.
+                    if (directoryQueryStarted && !directoryQueryReturned) throw Refused();
+                    Array.Clear(directoryQueryCopy);
+                    for (int i = 0; i < ModernJournalDirectoryBatch.BufferBytes; i++) Marshal.WriteByte(directoryQueryBuffer, i, 0);
+                    directoryQueryStarted = true; directoryQueryReturned = false;
+                    int success = Native.GetDirectoryInformation(DirectoryWrapper, query == 0 ? 11 : 10,
+                        directoryQueryBuffer, ModernJournalDirectoryBatch.BufferBytes);
+                    int error = Marshal.GetLastPInvokeError();
+                    var outcome = ModernJournalDirectoryBatch.ClassifyQueryResult(success != 0, error);
+                    if (outcome == ModernJournalDirectoryQuery.Uncertain) throw Refused();
+                    directoryQueryReturned = true;
+                    IReadOnlyList<ModernJournalDirectoryName>? entries = null;
+                    if (outcome == ModernJournalDirectoryQuery.Batch)
+                    {
+                        Marshal.Copy(directoryQueryBuffer, directoryQueryCopy, 0, directoryQueryCopy.Length);
+                        if (!ModernJournalDirectoryBatch.TryRead(directoryQueryCopy, out entries)) return RefuseDirectoryNames();
+                    }
+                    var decision = observation.Observe(outcome, entries);
+                    if (decision == ModernJournalDirectoryDecision.Complete)
+                    {
+                        RecordDirectoryNames(ModernJournalNamesObservation.Complete);
+                        QualifyAttachment();
+                        return true;
+                    }
+                    if (decision != ModernJournalDirectoryDecision.Continue) return RefuseDirectoryNames();
+                    // The last record only ends this batch. A further query must observe EOF.
                 }
-                var decision = observation.Observe(outcome, entries);
-                if (decision == ModernJournalDirectoryDecision.Complete)
-                {
-                    QualifyAttachment();
-                    return true;
-                }
-                if (decision != ModernJournalDirectoryDecision.Continue) return false;
-                // The last record only ends this batch. A further query must observe EOF.
+                return RefuseDirectoryNames();
             }
+            catch
+            {
+                // Diagnostic facts cannot settle native ownership or override a terminal observation.
+                Domain.TryRecordNames(this, ModernJournalNamesObservation.Uncertain);
+                throw;
+            }
+        }
+        private void RecordDirectoryNames(ModernJournalNamesObservation value)
+        {
+            if (!Domain.TryRecordNames(this, value)) throw Refused();
+        }
+        private bool RefuseDirectoryNames()
+        {
+            RecordDirectoryNames(ModernJournalNamesObservation.Refused);
             return false;
         }
 

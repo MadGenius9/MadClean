@@ -5,6 +5,15 @@ namespace MadClean.Windows;
 internal enum ModernJournalAcquisition { Acquired, NotAcquired, Uncertain }
 internal enum ModernJournalSampleState { Refused, Released, Retained }
 internal enum ModernJournalSamplePhase { None, Prepare, Directory, Lease, Journal, Exercise, Release }
+internal enum ModernJournalCallbackOutcome { NotEntered, Running, Confirmed, Refused, Uncertain }
+internal enum ModernJournalNamesObservation { NotObserved, InProgress, Refused, Complete, Uncertain }
+
+// Fixed observation facts only: no paths, native errors, journal content or action authority.
+internal sealed record ModernJournalSampleObservation(
+    ModernJournalCallbackOutcome Prepare, ModernJournalCallbackOutcome Directory,
+    ModernJournalCallbackOutcome Lease, ModernJournalCallbackOutcome Journal,
+    ModernJournalCallbackOutcome Exercise, ModernJournalCallbackOutcome Release,
+    bool StopObserved, ModernJournalNamesObservation Names);
 
 // Specific fresh/existing directory/lease/journal sample ownership, not an action capability.
 // Constructors own no native resources; Prepare begins the owned resource prefix.
@@ -26,6 +35,7 @@ internal sealed class ModernOwnedJournalSampleDomain
     private ModernOwnedJournalSampleAttempt? owner;
     private bool retained;
     internal bool HasPendingWork { get { lock (sync) return owner?.HasPendingWork == true; } }
+    internal ModernJournalSampleObservation? Observation { get { lock (sync) return owner?.Observation; } }
     internal bool RequiresRetention { get { lock (sync) return retained || owner?.RequiresRetention == true; } }
     internal bool Owns(ModernOwnedJournalSampleFrame frame)
     { lock (sync) return owner != null && ReferenceEquals(owner.Frame, frame); }
@@ -33,6 +43,12 @@ internal sealed class ModernOwnedJournalSampleDomain
     { lock (sync) return ReferenceEquals(owner, attempt); }
     internal bool IsActive(ModernOwnedJournalSampleFrame frame, ModernJournalSamplePhase phase)
     { lock (sync) return owner != null && ReferenceEquals(owner.Frame, frame) && owner.IsActive(phase); }
+
+    internal bool TryRecordNames(ModernOwnedJournalSampleFrame frame, ModernJournalNamesObservation value)
+    {
+        lock (sync)
+            return owner != null && ReferenceEquals(owner.Frame, frame) && owner.TryRecordNames(value);
+    }
 
     internal ModernOwnedJournalSampleAttempt Run(ModernOwnedJournalSampleFrame frame, CancellationToken token = default)
     {
@@ -72,6 +88,9 @@ internal sealed class ModernOwnedJournalSampleAttempt
     private bool settled;
     private int callbackThread;
     private ModernJournalSamplePhase phase;
+    private ModernJournalCallbackOutcome prepareOutcome, directoryOutcome, leaseOutcome, journalOutcome, exerciseOutcome, releaseOutcome;
+    private ModernJournalNamesObservation namesObservation;
+    private bool stopObserved;
     private ModernJournalSampleState state = ModernJournalSampleState.Refused;
     internal ModernOwnedJournalSampleFrame Frame { get; }
     internal ModernJournalSampleState State { get { lock (sync) return state; } }
@@ -79,6 +98,30 @@ internal sealed class ModernOwnedJournalSampleAttempt
     internal bool RequiresRetention { get { lock (sync) return retained; } }
     internal bool SampleVerified { get { lock (sync) return sampleVerified; } }
     internal bool ResourcesReleased { get { lock (sync) return released; } }
+    internal ModernJournalSampleObservation Observation
+    {
+        get
+        {
+            lock (sync) return new(prepareOutcome, directoryOutcome, leaseOutcome, journalOutcome,
+                exerciseOutcome, releaseOutcome, stopObserved, namesObservation);
+        }
+    }
+    internal bool TryRecordNames(ModernJournalNamesObservation value)
+    {
+        lock (sync)
+        {
+            if (retained || settled || !active || phase != ModernJournalSamplePhase.Exercise ||
+                callbackThread != Environment.CurrentManagedThreadId) return false;
+            if (namesObservation == ModernJournalNamesObservation.NotObserved && value == ModernJournalNamesObservation.InProgress ||
+                namesObservation == ModernJournalNamesObservation.InProgress &&
+                    value is ModernJournalNamesObservation.Refused or ModernJournalNamesObservation.Complete or ModernJournalNamesObservation.Uncertain)
+            {
+                namesObservation = value;
+                return true;
+            }
+            return false;
+        }
+    }
     internal (bool Settled, bool Released) Settlement
     { get { lock (sync) return (settled && !active && !releaseActive, released); } }
     internal bool IsActive(ModernJournalSamplePhase expected)
@@ -98,10 +141,12 @@ internal sealed class ModernOwnedJournalSampleAttempt
         bool preparationEntered = false;
         try
         {
-            if (token.IsCancellationRequested) return;
+            if (ObserveStop(token)) return;
             preparationEntered = true;
             SetPhase(ModernJournalSamplePhase.Prepare);
-            if (!Frame.Prepare(token)) return;
+            bool prepared = Frame.Prepare(token);
+            SetOutcome(ModernJournalSamplePhase.Prepare, prepared ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.Refused);
+            if (!prepared) return;
             var stages = new (ModernJournalSamplePhase Phase, Func<ModernJournalAcquisition> Acquire)[]
             {
                 (ModernJournalSamplePhase.Directory, Frame.AcquireDirectory),
@@ -110,21 +155,40 @@ internal sealed class ModernOwnedJournalSampleAttempt
             };
             foreach (var stage in stages)
             {
-                if (token.IsCancellationRequested) return;
+                if (ObserveStop(token)) return;
                 // A throwing or undefined response cannot authorize cleanup or retry.
                 known = false;
                 SetPhase(stage.Phase);
                 var result = stage.Acquire();
-                if (result == ModernJournalAcquisition.Uncertain || !Enum.IsDefined(result)) return;
+                if (result == ModernJournalAcquisition.Uncertain || !Enum.IsDefined(result))
+                {
+                    SetOutcome(stage.Phase, ModernJournalCallbackOutcome.Uncertain);
+                    return;
+                }
+                SetOutcome(stage.Phase, result == ModernJournalAcquisition.Acquired
+                    ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.Refused);
                 known = true;
                 if (result == ModernJournalAcquisition.NotAcquired) return;
             }
-            if (token.IsCancellationRequested) return;
+            if (ObserveStop(token)) return;
             SetPhase(ModernJournalSamplePhase.Exercise);
             bool verified = Frame.ObserveSyntheticIntent();
-            lock (sync) sampleVerified = verified;
+            lock (sync)
+            {
+                sampleVerified = verified;
+                exerciseOutcome = verified ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.Refused;
+            }
         }
-        catch { known = false; }
+        catch
+        {
+            known = false;
+            lock (sync)
+            {
+                // A post-return failure must not rewrite a callback already observed to return.
+                if (Outcome(phase) == ModernJournalCallbackOutcome.Running)
+                    SetOutcomeUnderLock(phase, ModernJournalCallbackOutcome.Uncertain);
+            }
+        }
         finally
         {
             lock (sync)
@@ -150,6 +214,7 @@ internal sealed class ModernOwnedJournalSampleAttempt
             if (releaseAttempted) return released;
             releaseAttempted = releaseActive = true;
             phase = ModernJournalSamplePhase.Release; callbackThread = Environment.CurrentManagedThreadId;
+            releaseOutcome = ModernJournalCallbackOutcome.Running;
         }
         bool confirmed = false;
         try { confirmed = Frame.ReleaseKnownOwnership(); }
@@ -159,6 +224,7 @@ internal sealed class ModernOwnedJournalSampleAttempt
             lock (sync)
             {
                 releaseActive = false; released = confirmed; retained = !confirmed;
+                releaseOutcome = confirmed ? ModernJournalCallbackOutcome.Confirmed : ModernJournalCallbackOutcome.Uncertain;
                 settled = true; phase = ModernJournalSamplePhase.None; callbackThread = 0;
                 state = confirmed ? ModernJournalSampleState.Released : ModernJournalSampleState.Retained;
             }
@@ -166,8 +232,46 @@ internal sealed class ModernOwnedJournalSampleAttempt
         }
         return confirmed;
     }
+    // Only the owner's existing between-call checks are observed; false does not
+    // exclude checks or cancellation inside a frame, and true proves no native stop.
+    private bool ObserveStop(CancellationToken token)
+    {
+        if (!token.IsCancellationRequested) return false;
+        lock (sync) stopObserved = true;
+        return true;
+    }
     private void SetPhase(ModernJournalSamplePhase value)
-    { lock (sync) { phase = value; callbackThread = Environment.CurrentManagedThreadId; } }
+    {
+        lock (sync)
+        {
+            phase = value; callbackThread = Environment.CurrentManagedThreadId;
+            SetOutcomeUnderLock(value, ModernJournalCallbackOutcome.Running);
+        }
+    }
+    private void SetOutcome(ModernJournalSamplePhase value, ModernJournalCallbackOutcome outcome)
+    { lock (sync) SetOutcomeUnderLock(value, outcome); }
+    private ModernJournalCallbackOutcome Outcome(ModernJournalSamplePhase value) => value switch
+    {
+        ModernJournalSamplePhase.Prepare => prepareOutcome,
+        ModernJournalSamplePhase.Directory => directoryOutcome,
+        ModernJournalSamplePhase.Lease => leaseOutcome,
+        ModernJournalSamplePhase.Journal => journalOutcome,
+        ModernJournalSamplePhase.Exercise => exerciseOutcome,
+        ModernJournalSamplePhase.Release => releaseOutcome,
+        _ => ModernJournalCallbackOutcome.NotEntered
+    };
+    private void SetOutcomeUnderLock(ModernJournalSamplePhase value, ModernJournalCallbackOutcome outcome)
+    {
+        switch (value)
+        {
+            case ModernJournalSamplePhase.Prepare: prepareOutcome = outcome; break;
+            case ModernJournalSamplePhase.Directory: directoryOutcome = outcome; break;
+            case ModernJournalSamplePhase.Lease: leaseOutcome = outcome; break;
+            case ModernJournalSamplePhase.Journal: journalOutcome = outcome; break;
+            case ModernJournalSamplePhase.Exercise: exerciseOutcome = outcome; break;
+            case ModernJournalSamplePhase.Release: releaseOutcome = outcome; break;
+        }
+    }
 }
 
 // A fixed synthetic seed observation only. Valid bytes neither authenticate a journal
