@@ -55,15 +55,19 @@ public sealed partial class MainViewModel
         {
             if (value == null || !DiagnosticRanges.Contains(value) || selectedDiagnosticRange == value) return;
             // Invalidate both event and WER requests before notifying range observers.
-            diagnosticRangeGeneration++;
-            Set(ref selectedDiagnosticRange, value);
-            InvalidateWerMetadata();
-            DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-            DiagnosticsMessage = "Time range changed. Choose Read event evidence to query the selected window.";
-            DiagnosticsWindow = "Not checked for the new selection.";
-            DiagnosticsAttempt = "Not checked for the new selection";
-            ResetDiagnosticRecurrence("Time range changed. Read event evidence for the new selection.");
-            ResetDiagnosticChannels("Time range changed. No channel coverage is available for the new selection until event evidence is read.");
+            long generation = ++diagnosticRangeGeneration;
+            selectedDiagnosticRange = value;
+            var scope = new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
+            if (!InvalidateWerMetadata(scope)) return;
+            if (!scope.Publish(() => DiagnosticRows.Clear())) return;
+            if (!scope.Publish(() => DiagnosticCoverage.Clear())) return;
+            if (!scope.Publish(() => SelectedDiagnosticFinding = null)) return;
+            if (!scope.Publish(() => DiagnosticsMessage = "Time range changed. Choose Read event evidence to query the selected window.")) return;
+            if (!scope.Publish(() => DiagnosticsWindow = "Not checked for the new selection.")) return;
+            if (!scope.Publish(() => DiagnosticsAttempt = "Not checked for the new selection")) return;
+            if (!ResetDiagnosticRecurrence("Time range changed. Read event evidence for the new selection.", scope)) return;
+            if (!ResetDiagnosticChannels("Time range changed. No channel coverage is available for the new selection until event evidence is read.", scope)) return;
+            scope.Publish(() => PropertyChanged?.Invoke(this, new(nameof(SelectedDiagnosticRange))));
         }
     }
     public DuplicateEntry? SelectedDuplicateEntry
@@ -83,8 +87,10 @@ public sealed partial class MainViewModel
             InvalidateShortcutRecheckSelection();
         }
     }
+    private long diagnosticFindingGeneration = -1;
     private bool IsCurrentDiagnosticRange(long generation) => generation == diagnosticRangeGeneration;
     private bool IsCurrentVisibleDiagnosticFinding(DiagnosticFinding finding) =>
+        diagnosticFindingGeneration == diagnosticRangeGeneration && (!RepeatedDiagnosticsOnly || finding.Count >= 2) &&
         DiagnosticRows.Any(row => ReferenceEquals(row, finding)) && DiagnosticFindingsView != null &&
         DiagnosticFindingsView.Cast<DiagnosticFinding>().Any(row => ReferenceEquals(row, finding));
     public DiagnosticFinding? SelectedDiagnosticFinding
@@ -197,35 +203,47 @@ public sealed partial class MainViewModel
     {
         long generation = diagnosticRangeGeneration;
         int chosenDays = SelectedDiagnosticRange.Days;
+        var scope = new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
         return RunDiscoveryAsync(ActivityArea.DiagnosticsReport, "Reading existing event evidence", async token =>
         {
-            DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-            DiagnosticsAttempt = DiagnosticTimestamp(DateTimeOffset.UtcNow); DiagnosticsMessage = "Reading bounded local Application/System event metadata…";
-            DiagnosticsWindow = "In progress; no completed time window is claimed.";
-            ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.");
-            ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.");
+            if (!scope.Publish(() => DiagnosticRows.Clear())) return CheckState.Cancelled;
+            if (!scope.Publish(() => DiagnosticCoverage.Clear())) return CheckState.Cancelled;
+            if (!scope.Publish(() => SelectedDiagnosticFinding = null)) return CheckState.Cancelled;
+            if (!scope.Publish(() => DiagnosticsAttempt = DiagnosticTimestamp(DateTimeOffset.UtcNow))) return CheckState.Cancelled;
+            if (!scope.Publish(() => DiagnosticsMessage = "Reading bounded local Application/System event metadata…")) return CheckState.Cancelled;
+            if (!scope.Publish(() => DiagnosticsWindow = "In progress; no completed time window is claimed.")) return CheckState.Cancelled;
+            if (!ResetDiagnosticRecurrence("Reading event evidence; no completed recurrence summary is available.", scope)) return CheckState.Cancelled;
+            if (!ResetDiagnosticChannels("Reading event evidence; no completed per-channel result is available from this attempt.", scope)) return CheckState.Cancelled;
             var result = await diagnosticsInventory.ReadAsync(chosenDays, token); token.ThrowIfCancellationRequested();
-            // Changing the shared range does not abort native work. Await the original
-            // adapter response, then discard it without touching the new scope.
-            if (!IsCurrentDiagnosticRange(generation)) return CheckState.Cancelled;
-            DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.";
+            // Await the original adapter even if the range changes. Discard stale publication;
+            // this does not cancel or abandon native work or republish under a different range.
+            if (!scope.Publish(() => DiagnosticsWindow = "No completed event-evidence window was returned; review the source status.")) return CheckState.Cancelled;
+            diagnosticFindingGeneration = generation;
             foreach (var report in result.Items)
             {
-                foreach (var finding in report.Findings) DiagnosticRows.Add(finding);
-                foreach (var coverage in report.Coverage) DiagnosticCoverage.Add(coverage);
-                DiagnosticsWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc);
+                foreach (var finding in report.Findings)
+                    if (!scope.Publish(() => DiagnosticRows.Add(finding))) return CheckState.Cancelled;
+                foreach (var coverage in report.Coverage)
+                    if (!scope.Publish(() => DiagnosticCoverage.Add(coverage))) return CheckState.Cancelled;
+                if (!scope.Publish(() => DiagnosticsWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc))) return CheckState.Cancelled;
             }
-            PublishDiagnosticRecurrence(result, token);
-            PublishDiagnosticChannels(result);
-            DiagnosticsMessage = Stamp(result.State, result.Message); SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault();
+            if (!PublishDiagnosticRecurrence(result, token, scope)) return CheckState.Cancelled;
+            if (!PublishDiagnosticChannels(result, scope)) return CheckState.Cancelled;
+            if (!scope.Publish(() => DiagnosticsMessage = Stamp(result.State, result.Message))) return CheckState.Cancelled;
+            if (!scope.Publish(() => SelectedDiagnosticFinding = DiagnosticFindingsView.Cast<DiagnosticFinding>().FirstOrDefault(IsCurrentVisibleDiagnosticFinding))) return CheckState.Cancelled;
             return result.State;
         }, error =>
         {
-            if (!IsCurrentDiagnosticRange(generation)) return;
-            DiagnosticRows.Clear(); DiagnosticCoverage.Clear(); SelectedDiagnosticFinding = null;
-            DiagnosticsMessage = error; DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.";
-            ResetDiagnosticRecurrence(error);
-            ResetDiagnosticChannels("This attempt did not complete. No channel count, empty-log or successful-read conclusion is available.");
+            // A publication exception consumes its scope; cleanup gets a new scope bound
+            // to the same original generation, never to a later range selection.
+            var failure = new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
+            if (!failure.Publish(() => DiagnosticRows.Clear())) return;
+            if (!failure.Publish(() => DiagnosticCoverage.Clear())) return;
+            if (!failure.Publish(() => SelectedDiagnosticFinding = null)) return;
+            if (!failure.Publish(() => DiagnosticsMessage = error)) return;
+            if (!failure.Publish(() => DiagnosticsWindow = "No completed event-evidence window from this attempt; no healthy/clean verdict is made.")) return;
+            if (!ResetDiagnosticRecurrence(error, failure)) return;
+            ResetDiagnosticChannels("This attempt did not complete. No channel count, empty-log or successful-read conclusion is available.", failure);
         });
     }
 }

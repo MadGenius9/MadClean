@@ -58,50 +58,64 @@ public sealed partial class MainViewModel
         return $"{WerMetadataProjection.Label(source.Store)} · {source.State}: {explanation} Last observed API result: {result}.";
     }
     private void InitializeWerMetadata() => ReadWerMetadataCommand = new AsyncCommand(ReadWerMetadata, () => !IsBusy);
-    private void InvalidateWerMetadata()
+    private bool InvalidateWerMetadata(DiagnosticPublicationScope? scope = null)
     {
-        WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
-        WerMessage = "Time range changed. Choose Read WER metadata for the selected range.";
-        WerWindow = "Not checked for the new time range.";
-        WerCountSummary = "Store counts: not checked for this attempt. Counts are independent of the selected creation-time window.";
+        long generation = diagnosticRangeGeneration;
+        scope ??= new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
+        if (!scope.Publish(WerRows.Clear)) return false;
+        if (!scope.Publish(WerCoverage.Clear)) return false;
+        if (!scope.Publish(() => SelectedWerObservation = null)) return false;
+        if (!scope.Publish(() => WerMessage = "Time range changed. Choose Read WER metadata for the selected range.")) return false;
+        if (!scope.Publish(() => WerWindow = "Not checked for the new time range.")) return false;
+        return scope.Publish(() => WerCountSummary = "Store counts: not checked for this attempt. Counts are independent of the selected creation-time window.");
     }
     private Task ReadWerMetadata()
     {
         long generation = diagnosticRangeGeneration;
         int days = SelectedDiagnosticRange.Days;
+        var scope = new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
         return RunDiscoveryAsync(ActivityArea.WerMetadata, "Reading supported WER store metadata", async token =>
         {
-            WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
-            WerMessage = "Reading bounded machine queue/archive references and creation times only…";
-            WerWindow = "In progress; no completed WER metadata window is claimed.";
-            WerCountSummary = "Store counts: checking separately; no result yet.";
+            if (!scope.Publish(WerRows.Clear)) return CheckState.Cancelled;
+            if (!scope.Publish(WerCoverage.Clear)) return CheckState.Cancelled;
+            if (!scope.Publish(() => SelectedWerObservation = null)) return CheckState.Cancelled;
+            if (!scope.Publish(() => WerMessage = "Reading bounded machine queue/archive references and creation times only…")) return CheckState.Cancelled;
+            if (!scope.Publish(() => WerWindow = "In progress; no completed WER metadata window is claimed.")) return CheckState.Cancelled;
+            if (!scope.Publish(() => WerCountSummary = "Store counts: checking separately; no result yet.")) return CheckState.Cancelled;
             var result = await werMetadata.ReadAsync(days, token); token.ThrowIfCancellationRequested();
             // A range change invalidates presentation only. The original adapter still owns
             // its work through actual completion; do not publish it into the new range.
-            if (!IsCurrentDiagnosticRange(generation)) return CheckState.Cancelled;
-            WerWindow = "No completed WER store window was returned; review the source status and coverage.";
-            WerCountSummary = "Store counts: unavailable or not observed. No empty-store conclusion is valid.";
+            if (!scope.IsCurrent) return CheckState.Cancelled;
+            if (!scope.Publish(() => WerWindow = "No completed WER store window was returned; review the source status and coverage.")) return CheckState.Cancelled;
+            if (!scope.Publish(() => WerCountSummary = "Store counts: unavailable or not observed. No empty-store conclusion is valid.")) return CheckState.Cancelled;
             foreach (var report in result.Items)
             {
-                foreach (var item in report.Observations) WerRows.Add(item);
-                foreach (var item in report.Coverage) WerCoverage.Add(item);
-                foreach (var source in report.StoreStatuses) WerCoverage.Add(WerStoreStatusText(source));
-                WerCountSummary = "Current-store counts (all creation times): " + string.Join("; ", report.StoreStatuses.Select(source =>
+                foreach (var item in report.Observations)
+                    if (!scope.Publish(() => WerRows.Add(item))) return CheckState.Cancelled;
+                foreach (var item in report.Coverage)
+                    if (!scope.Publish(() => WerCoverage.Add(item))) return CheckState.Cancelled;
+                foreach (var source in report.StoreStatuses)
+                    if (!scope.Publish(() => WerCoverage.Add(WerStoreStatusText(source)))) return CheckState.Cancelled;
+                if (!scope.Publish(() => WerCountSummary = "Current-store counts (all creation times): " + string.Join("; ", report.StoreStatuses.Select(source =>
                     WerMetadataProjection.Label(source.Store) + (source.CountObservation is { NativeResult: 0, ReportCount: { } count } observation
                         ? $" reported {count} at {DiagnosticTimestamp(observation.CheckedUtc)}"
                         : " count unknown"))) +
-                    ". Separate non-atomic observations; not a count of unique crashes or reports in the selected time range. Zero does not mean healthy. Enumeration status remains separate.";
-                WerWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc);
+                    ". Separate non-atomic observations; not a count of unique crashes or reports in the selected time range. Zero does not mean healthy. Enumeration status remains separate.")) return CheckState.Cancelled;
+                if (!scope.Publish(() => WerWindow = DiagnosticWindowText(report.StartUtc, report.EndUtc))) return CheckState.Cancelled;
             }
-            WerMessage = Stamp(result.State, result.Message);
+            if (!scope.Publish(() => WerMessage = Stamp(result.State, result.Message))) return CheckState.Cancelled;
             return result.State;
         }, error =>
         {
-            if (!IsCurrentDiagnosticRange(generation)) return;
-            WerRows.Clear(); WerCoverage.Clear(); SelectedWerObservation = null;
-            WerMessage = error + " Existing synchronous Windows calls may still finish; no forced cancellation or healthy verdict is claimed.";
-            WerWindow = "No completed WER report from this attempt.";
-            WerCountSummary = "Store counts: this attempt did not return a completed observation. No empty-store conclusion is valid.";
+            // A failed publication fence is terminal. A fresh fence may clean up only
+            // this same captured range, never a reentrant replacement selection.
+            var failure = new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
+            if (!failure.Publish(WerRows.Clear)) return;
+            if (!failure.Publish(WerCoverage.Clear)) return;
+            if (!failure.Publish(() => SelectedWerObservation = null)) return;
+            if (!failure.Publish(() => WerMessage = error + " Existing synchronous Windows calls may still finish; no forced cancellation or healthy verdict is claimed.")) return;
+            if (!failure.Publish(() => WerWindow = "No completed WER report from this attempt.")) return;
+            failure.Publish(() => WerCountSummary = "Store counts: this attempt did not return a completed observation. No empty-store conclusion is valid.");
         });
     }
 }

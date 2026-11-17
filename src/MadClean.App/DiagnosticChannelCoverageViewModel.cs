@@ -9,8 +9,9 @@ public sealed partial class MainViewModel
         new[] { UncheckedDiagnosticChannel("Application", DiagnosticChannelCoverageReason.NotChecked, "Not checked. Read event evidence to observe this source."),
             UncheckedDiagnosticChannel("System", DiagnosticChannelCoverageReason.NotChecked, "Not checked. Read event evidence to observe this source.") });
     private DiagnosticChannelCoverage? selectedDiagnosticChannel;
+    private long diagnosticChannelGeneration;
     private bool IsCurrentDiagnosticChannel(DiagnosticChannelCoverage channel) =>
-        DiagnosticChannelRows.Any(row => ReferenceEquals(row, channel));
+        diagnosticChannelGeneration == diagnosticRangeGeneration && DiagnosticChannelRows.Any(row => ReferenceEquals(row, channel));
     public DiagnosticChannelCoverage? SelectedDiagnosticChannel
     {
         get => selectedDiagnosticChannel is { } channel && IsCurrentDiagnosticChannel(channel) ? channel : null;
@@ -36,23 +37,27 @@ public sealed partial class MainViewModel
     private static string Known(int? value) => value?.ToString("N0") ?? "Unknown";
     private static DiagnosticChannelCoverage UncheckedDiagnosticChannel(string channel, DiagnosticChannelCoverageReason reason, string explanation)
         => new(channel, CheckState.Unknown, reason, null, null, null, null, null, DiagnosticRetentionState.Unknown, null, null, explanation);
-    private void ResetDiagnosticChannels(string explanation)
+    private bool ResetDiagnosticChannels(string explanation, DiagnosticPublicationScope? scope = null)
     {
-        DiagnosticChannelRows.Clear();
-        DiagnosticChannelRows.Add(UncheckedDiagnosticChannel("Application", DiagnosticChannelCoverageReason.NoCompletedReport, explanation));
-        DiagnosticChannelRows.Add(UncheckedDiagnosticChannel("System", DiagnosticChannelCoverageReason.NoCompletedReport, explanation));
-        SelectedDiagnosticChannel = DiagnosticChannelRows[0];
+        long generation = diagnosticRangeGeneration;
+        scope ??= new DiagnosticPublicationScope(() => IsCurrentDiagnosticRange(generation));
+        if (!scope.IsCurrent) return false;
+        diagnosticChannelGeneration = generation;
+        if (!scope.Publish(() => DiagnosticChannelRows.Clear())) return false;
+        if (!scope.Publish(() => DiagnosticChannelRows.Add(UncheckedDiagnosticChannel("Application", DiagnosticChannelCoverageReason.NoCompletedReport, explanation)))) return false;
+        if (!scope.Publish(() => DiagnosticChannelRows.Add(UncheckedDiagnosticChannel("System", DiagnosticChannelCoverageReason.NoCompletedReport, explanation)))) return false;
+        return scope.Publish(() => SelectedDiagnosticChannel = DiagnosticChannelRows.FirstOrDefault());
     }
-    private void PublishDiagnosticChannels(CheckResult<DiagnosticReport> result)
+    private bool PublishDiagnosticChannels(CheckResult<DiagnosticReport> result, DiagnosticPublicationScope scope)
     {
+        if (!scope.IsCurrent) return false;
         if (result.Items.Count != 1 || result.Items[0].ChannelCoverage is not { Count: 2 } rows ||
             rows.Count(row => row.Channel == "Application") != 1 || rows.Count(row => row.Channel == "System") != 1)
-        {
-            ResetDiagnosticChannels("This attempt returned no trusted per-channel coverage. Review the overall query status; neither channel is assumed empty or successfully checked.");
-            return;
-        }
-        DiagnosticChannelRows.Clear();
-        foreach (var row in rows) DiagnosticChannelRows.Add(row);
-        SelectedDiagnosticChannel = DiagnosticChannelRows[0];
+            return ResetDiagnosticChannels("This attempt returned no trusted per-channel coverage. Review the overall query status; neither channel is assumed empty or successfully checked.", scope);
+        diagnosticChannelGeneration = diagnosticRangeGeneration;
+        if (!scope.Publish(() => DiagnosticChannelRows.Clear())) return false;
+        foreach (var row in rows)
+            if (!scope.Publish(() => DiagnosticChannelRows.Add(row))) return false;
+        return scope.Publish(() => SelectedDiagnosticChannel = DiagnosticChannelRows.FirstOrDefault());
     }
 }

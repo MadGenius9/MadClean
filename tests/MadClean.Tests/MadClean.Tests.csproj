@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <Compile Include="../../src/MadClean.App/DiagnosticPublicationScope.cs" Link="DiagnosticPublicationScope.cs" />
     <Compile Include="../../tools/LocalUiValidationEvidence.cs" Link="LocalUiValidationEvidence.cs" />
     <Compile Include="../../tools/LocalRepairReviewEvidence.cs" Link="LocalRepairReviewEvidence.cs" />
     <Compile Include="../../tools/LocalUpdateHistoryEvidence.cs" Link="LocalUpdateHistoryEvidence.cs" />
