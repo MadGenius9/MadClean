@@ -100,7 +100,7 @@
                                                         <TextBlock Text="Startup entries" FontSize="19" Foreground="#F2F6FF"/>
                                                         <TextBlock Text="Review registered startup sources" FontSize="14" Foreground="#A9BDD3" Margin="0,6,0,0"/>
                                                     </StackPanel>
-                                                    <Grid Grid.Column="2"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Ellipse Width="16" Height="16" Stroke="#6582A4" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Left"/><TextBlock Grid.Column="1" Text="{Binding StartupSummary}" FontSize="14" Foreground="#77CEFF" VerticalAlignment="Center" ToolTip="{Binding StartupMessage}"/></Grid>
+                                                    <Grid Grid.Column="2"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Ellipse Width="16" Height="16" Stroke="#6582A4" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Left"/><TextBlock Grid.Column="1" Text="{Binding StartupSummary}" FontSize="14" TextWrapping="Wrap" Foreground="#77CEFF" VerticalAlignment="Center" ToolTip="{Binding StartupMessage}"/></Grid>
                                                 </Grid>
                                             </Button>
                                             <Button Style="{StaticResource InspectionLink}" Command="{Binding OpenSecurityPageCommand}" AutomationProperties.AutomationId="MadClean.Overview.SecurityStatus" AutomationProperties.ItemStatus="{Binding SecuritySummary}" AutomationProperties.Name="Microsoft Defender: review provider status">
@@ -111,7 +111,7 @@
                                                         <TextBlock Text="Microsoft Defender" FontSize="19" Foreground="#F2F6FF"/>
                                                         <TextBlock Text="Check current status and recorded findings" FontSize="14" Foreground="#A9BDD3" Margin="0,6,0,0"/>
                                                     </StackPanel>
-                                                    <Grid Grid.Column="2"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Ellipse Width="16" Height="16" Stroke="#6582A4" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Left"/><TextBlock Grid.Column="1" Text="{Binding SecuritySummary}" FontSize="14" Foreground="#AFBED5" VerticalAlignment="Center" ToolTip="{Binding SecurityMessage}"/></Grid>
+                                                    <Grid Grid.Column="2"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Ellipse Width="16" Height="16" Stroke="#6582A4" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Left"/><TextBlock Grid.Column="1" Text="{Binding SecuritySummary}" FontSize="14" TextWrapping="Wrap" Foreground="#AFBED5" VerticalAlignment="Center" ToolTip="{Binding SecurityMessage}"/></Grid>
                                                 </Grid>
                                             </Button>
                                             <Button Style="{StaticResource InspectionLink}" Command="{Binding OpenUpdatesPageCommand}" AutomationProperties.AutomationId="MadClean.Overview.UpdateStatus" AutomationProperties.ItemStatus="{Binding UpdateSummary}" AutomationProperties.Name="App and driver updates: open update discovery">

@@ -143,7 +143,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         var result = await inventory.DisksAsync(token); token.ThrowIfCancellationRequested();
         foreach (var d in result.Items) Disks.Add(new(d.Name, $"{Display.Bytes(d.FreeBytes)} free / {Display.Bytes(d.TotalBytes)}", d.TotalBytes == 0 ? 0 : 100d * (d.TotalBytes - d.FreeBytes) / d.TotalBytes, d.FreeBytes, d.TotalBytes));
-        DiskSummary = (result.Items.Count == 0 ? "Unknown" : Display.Bytes(result.Items.Sum(d => d.FreeBytes))) + (result.State == CheckState.Partial ? " (partial)" : "");
+        DiskSummary = DashboardStatusSummary.Disks(result);
         CompleteStorageEvidence(result, token);
         DiskMessage = Stamp(result.State, result.Message); CompleteStorageOverview(result.State); Event(ActivityArea.Disks, Outcome(result.State));
     }, text => { DiskMessage = text; DiskSummary = text; CompleteStorageOverview(text.StartsWith("Cancelled", StringComparison.Ordinal) ? CheckState.Cancelled : CheckState.Failed); });
@@ -193,17 +193,16 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         var result = await inventory.StartupAsync(token); token.ThrowIfCancellationRequested();
         foreach (var e in result.Items) StartupRows.Add(new(e.Name, $"Publisher: {e.Publisher}. {e.Detail}", e.Source));
-        StartupSummary = result.Items.Count + (result.State == CheckState.Partial ? " (partial)" : "");
+        StartupSummary = DashboardStatusSummary.Startup(result);
         StartupMessage = Stamp(result.State, result.Message); Event(ActivityArea.Startup, Outcome(result.State));
     }, text => { StartupMessage = text; StartupSummary = text; });
     private async Task LoadSecurity(CancellationToken token) => await Guard(ActivityArea.Defender, async () =>
     {
         var result = await inventory.DefenderAsync(token); token.ThrowIfCancellationRequested();
-        SecuritySummary = result.State.ToString();
+        SecuritySummary = DashboardStatusSummary.Defender(result);
         foreach (var s in result.Items)
         {
             string Flag(bool? v) => v.HasValue ? v.Value ? "Enabled" : "Disabled" : "Unknown";
-            SecuritySummary = "Real-time: " + Flag(s.RealTimeEnabled);
             SecurityRows.Add(new("Antivirus", "Defender provider", Flag(s.AntivirusEnabled)));
             SecurityRows.Add(new("Real-time protection", "Current provider setting", Flag(s.RealTimeEnabled)));
             SecurityRows.Add(new("Defender service", s.Mode, Flag(s.ServiceEnabled)));
