@@ -6,11 +6,14 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MadClean.Windows;
 
-// Fixed inert sample only. There is no App, command-line, harness or production hook.
+// Fixed inert sample only. Ordinary entries remain closed. A separate manual owned
+// existing-reader qualification cannot enable fresh writing or production access.
 internal static class WindowsModernOwnedJournalSample
 {
     internal static bool ExecutionValidated => false;
     private static readonly ModernOwnedJournalSampleDomain Domain = new();
+    internal static bool HasPendingQualificationWork => Domain.HasPendingWork;
+    internal static bool RequiresQualificationRetention => Domain.RequiresRetention || SystemToolJournalStore.HasUncertainCleanup;
 
     internal static ModernOwnedJournalSampleAttempt RunOwnedFixture(string root, string marker, CancellationToken token = default)
     {
@@ -26,11 +29,22 @@ internal static class WindowsModernOwnedJournalSample
         return Domain.Run(frame, token);
     }
 
+    internal static ModernOwnedJournalSampleAttempt RunQualifiedExistingFixture(Guid id, CancellationToken token = default)
+    {
+        var authority = QualificationAuthority.Issue(id);
+        var frame = new Frame(authority); // No native resources; bind before Domain callbacks.
+        return Domain.Run(frame, token);
+    }
+
     private enum SampleMode { FreshWrite, ExistingReadOnly }
 
     private static void Guard()
     {
         if (!ExecutionValidated) throw Refused();
+        GuardPlatform();
+    }
+    private static void GuardPlatform()
+    {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 26100) || !Environment.Is64BitProcess ||
             RuntimeInformation.ProcessArchitecture != Architecture.X64 || RuntimeInformation.OSArchitecture != Architecture.X64 ||
             SystemToolJournalStore.HasUncertainCleanup || Marshal.SizeOf<SecurityAttributes>() != 24 ||
@@ -43,6 +57,42 @@ internal static class WindowsModernOwnedJournalSample
             throw Refused();
     }
     private static SystemToolJournalStoreFailure Refused() => new(SystemToolJournalStoreReason.ScopeUnsupported);
+
+    // Only the separate entry can issue this in-memory authority. The actual frame
+    // still opens/qualifies the exact marker, parents, lease and journal independently.
+    // It owns no resources and is not revoked by an observer timeout: release must
+    // remain possible for its known prefix. No current environment reread can turn
+    // a captured context into a different root or invalidate a live owner's cleanup.
+    private sealed class QualificationAuthority
+    {
+        internal readonly string Root, Marker;
+        private readonly ExistingJournalReaderQualificationContext context;
+        private Frame? bound;
+        private QualificationAuthority(ExistingJournalReaderQualificationContext context, string root, string marker)
+        { this.context = context; Root = root; Marker = marker; }
+
+        internal static QualificationAuthority Issue(Guid id)
+        {
+            var context = ExistingJournalReaderQualificationProfile.CaptureCurrent();
+            if (ExecutionValidated || context == null || id == Guid.Empty) throw Refused();
+            GuardPlatform();
+            string repository = Path.GetFullPath(context.WorkingDirectory!);
+            string marker = id.ToString("N");
+            return new(context, Path.Combine(repository, "artifacts", "windows-validation-fixtures-" + marker), marker);
+        }
+
+        internal void Bind(Frame frame)
+        {
+            if (bound != null || frame.mode != SampleMode.ExistingReadOnly || !ReferenceEquals(frame.qualification, this) ||
+                frame.rootInput != Root || frame.markerInput != Marker) throw Refused();
+            bound = frame;
+        }
+
+        internal bool Authorizes(Frame frame, ModernJournalSamplePhase phase) => !ExecutionValidated &&
+            ReferenceEquals(bound, frame) && ReferenceEquals(frame.qualification, this) &&
+            frame.mode == SampleMode.ExistingReadOnly && frame.rootInput == Root && frame.markerInput == Marker &&
+            ExistingJournalReaderQualificationProfile.IsAllowed(context) && Domain.IsActive(frame, phase);
+    }
 
     // A token is useful only during this exact registered frame's one attachment call.
     // Supplying another managed object or a copied wrapper cannot mint an attachment.
@@ -67,12 +117,27 @@ internal static class WindowsModernOwnedJournalSample
             created = !readOnly;
             return true;
         }
+
+        internal bool TryClaimQualifiedExisting(out SafeFileHandle handle, out SafeFileHandle parent)
+        {
+            handle = parent = null!;
+            if (owner is not Frame frame || frame.qualification == null ||
+                !frame.qualification.Authorizes(frame, ModernJournalSamplePhase.Exercise) ||
+                !ReferenceEquals(frame.Attachment, this) || !frame.AttachmentReady || frame.ReleaseStarted ||
+                frame.JournalWrapper == null || frame.DirectoryWrapper == null) return false;
+            GuardPlatform();
+            if (Interlocked.CompareExchange(ref claimed, 1, 0) != 0) return false;
+            frame.QualifyAttachment(); // Requires the actual live exclusive lease and exact held graph.
+            handle = frame.JournalWrapper; parent = frame.DirectoryWrapper;
+            return true; // This claim has no caller-selectable created/readOnly outputs.
+        }
     }
 
     private sealed class Frame : ModernOwnedJournalSampleFrame
     {
-        private readonly string rootInput, markerInput;
+        internal readonly string rootInput, markerInput;
         internal readonly SampleMode mode;
+        internal readonly QualificationAuthority? qualification;
         // Pointer slots exist before any allocation/native call; they are never finalizer-owned.
         private readonly nint[] allocations = new nint[64];
         private readonly nint[] ancestorRaws = new nint[16];
@@ -105,6 +170,13 @@ internal static class WindowsModernOwnedJournalSample
 
         internal Frame(string root, string marker, SampleMode mode)
         { rootInput = root; markerInput = marker; this.mode = mode; Attachment = new(this); }
+
+        internal Frame(QualificationAuthority authority)
+        {
+            qualification = authority; rootInput = authority.Root; markerInput = authority.Marker;
+            mode = SampleMode.ExistingReadOnly; Attachment = new(this);
+            authority.Bind(this);
+        }
 
         internal override bool Prepare(CancellationToken token)
         {
@@ -276,7 +348,9 @@ internal static class WindowsModernOwnedJournalSample
             RevalidateParents();
             if (mode == SampleMode.ExistingReadOnly && !ObserveExpectedDirectoryNames()) return false;
             attachmentStarted = AttachmentReady = true;
-            store = SystemToolJournalStore.AdoptQualifiedModernLifecycleFile(Attachment, out childStream);
+            store = qualification == null
+                ? SystemToolJournalStore.AdoptQualifiedModernLifecycleFile(Attachment, out childStream)
+                : SystemToolJournalStore.AdoptQualifiedExistingFixtureLifecycleFile(Attachment, out childStream);
             attachmentReturned = true; AttachmentReady = false;
             if (mode == SampleMode.ExistingReadOnly)
             {
@@ -434,7 +508,12 @@ internal static class WindowsModernOwnedJournalSample
         }
         private void RequirePhase(ModernJournalSamplePhase phase)
         {
-            Guard();
+            if (qualification == null) Guard();
+            else
+            {
+                GuardPlatform();
+                if (!qualification.Authorizes(this, phase)) throw Refused();
+            }
             if (!Domain.IsActive(this, phase)) throw Refused();
         }
         private void QualifyFile(SafeFileHandle handle, string expected, long maximum)

@@ -204,6 +204,15 @@ internal sealed class SystemToolJournalStore : IDisposable
             throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
         return AdoptQualifiedLifecycleMechanics(handle, parent, created, readOnly, out stream);
     }
+    // Separate owned existing-only qualification, never the ordinary modern/Nt guard.
+    // The actual private frame must supply its phase/thread-bound one-shot attachment.
+    internal static SystemToolJournalStore AdoptQualifiedExistingFixtureLifecycleFile(
+        WindowsModernOwnedJournalSample.LifecycleAttachment attachment, out FileStream stream)
+    {
+        if (!attachment.TryClaimQualifiedExisting(out var handle, out var parent))
+            throw new SystemToolJournalStoreFailure(SystemToolJournalStoreReason.ScopeUnsupported);
+        return AdoptQualifiedLifecycleMechanics(handle, parent, false, true, out stream);
+    }
     private static SystemToolJournalStore AdoptQualifiedLifecycleMechanics(SafeFileHandle handle,
         SafeFileHandle parent, bool created, bool readOnly, out FileStream stream)
     {

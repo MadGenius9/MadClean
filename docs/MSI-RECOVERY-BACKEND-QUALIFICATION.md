@@ -1,5 +1,7 @@
 # Manual recovery-branch MSI backend qualification
 
+Networking clarification (2026-11-21): the GitHub API request is rejected by the cloud proxy with CONNECT 403 before reaching GitHub. Consequently the earlier CLI invalid-token label is not service-authentication proof. Git transport and API grants are separate. The new existing-reader fixture scope grants no MSI authorization; this manual MSI route remains unrun and separately gated.
+
 This source preparation does not run an installer or enable public uninstall. `MsiUninstallRequestLauncher.ProductionDispatchValidated` remains the literal false; the existing public WPF qualification predicate and historical [activation decision](MSI-PUBLIC-QUALIFICATION-REVIEW.md) are unchanged.
 
 ## Exact selectable route

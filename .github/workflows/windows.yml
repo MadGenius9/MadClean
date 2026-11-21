@@ -15,6 +15,11 @@ on:
         required: false
         default: false
         type: boolean
+      qualify_existing_journal_reader:
+        description: Recovery branch only - isolated existing-only synthetic reader fixture; no production actions or package
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: madclean-windows-${{ github.ref }}
   cancel-in-progress: false
@@ -32,6 +37,16 @@ jobs:
       core_tests: ${{ steps.core_tests.outcome }}
       publish: ${{ steps.publish.outcome }}
     steps:
+      - name: Validate isolated reader selection before build or optional jobs
+        if: github.event_name == 'workflow_dispatch' && inputs.qualify_existing_journal_reader == true
+        shell: pwsh
+        env:
+          READER_PACKAGE_SELECTED: ${{ inputs.prepare_package && '1' || '0' }}
+          READER_MSI_SELECTED: ${{ inputs.qualify_recovery_msi_backend && '1' || '0' }}
+        run: |
+          if ($env:GITHUB_REPOSITORY -cne 'MadGenius9/MadClean' -or $env:GITHUB_REF -cne 'refs/heads/recovery/validated-20261112' -or $env:READER_PACKAGE_SELECTED -cne '0' -or $env:READER_MSI_SELECTED -cne '0') {
+            throw 'The isolated reader selection requires the recovery ref and all packaging/MSI selections off.'
+          }
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         id: sdk
@@ -95,6 +110,7 @@ jobs:
 
   windows-verification:
     needs: build-test-package
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.qualify_existing_journal_reader == true) }}
     runs-on: windows-latest
     timeout-minutes: 25
     permissions:
@@ -180,6 +196,45 @@ jobs:
             artifacts/local-repair-review-validation/
             artifacts/local-update-history-validation/
             artifacts/sdk-journal-reference/
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-existing-journal-reader:
+    needs: build-test-package
+    if: >-
+      ${{ success() && github.repository == 'MadGenius9/MadClean' &&
+          github.ref == 'refs/heads/recovery/validated-20261112' &&
+          github.event_name == 'workflow_dispatch' && inputs.qualify_existing_journal_reader == true &&
+          inputs.prepare_package != true && inputs.qualify_recovery_msi_backend != true }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages*.lock.json'
+      - name: Restore locked qualification dependencies
+        run: python tools/ci_command.py restore -- dotnet restore MadClean.sln --locked-mode
+      - name: Build the separate existing-only qualification mode
+        run: python tools/ci_command.py build -- dotnet build tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-restore
+      - name: Qualify only freshly owned existing-reader fixtures
+        timeout-minutes: 3
+        env:
+          MADCLEAN_EXISTING_READER_QUALIFICATION: '1'
+        run: python tools/ci_command.py existing-journal-reader -- dotnet run --project tools/MadClean.WindowsSmoke/MadClean.WindowsSmoke.csproj -c Release --no-build -- --existing-journal-reader-qualification
+      - name: Preserve fixed qualification facts and bounded command logs
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: MadClean-existing-journal-reader-qualification-${{ github.run_attempt }}
+          path: |
+            artifacts/existing-journal-reader-qualification/report.json
+            artifacts/existing-journal-reader-qualification/report-timeout.json
+            artifacts/ci-logs/
           if-no-files-found: warn
           retention-days: 14
 
@@ -374,12 +429,14 @@ jobs:
           retention-days: 14
 
   publish-verification:
-    needs: [build-test-package, windows-verification, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published, windows-sfc-client]
+    needs: [build-test-package, windows-verification, windows-existing-journal-reader, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published, windows-sfc-client]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
           (github.ref == 'refs/heads/feat/phase-one-foundation' ||
            github.ref == 'refs/heads/recovery/validated-20261112') &&
-          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (inputs.qualify_existing_journal_reader != true ||
+           (github.ref == 'refs/heads/recovery/validated-20261112' && needs.build-test-package.result == 'success'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -397,6 +454,7 @@ jobs:
           ref: madclean-verification
           path: verification
       - name: Retrieve this run's scoped Windows evidence
+        if: inputs.qualify_existing_journal_reader != true
         id: windows_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -405,6 +463,7 @@ jobs:
           path: downloaded
           digest-mismatch: error
       - name: Retrieve this run's portable test evidence
+        if: inputs.qualify_existing_journal_reader != true
         id: core_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -413,6 +472,7 @@ jobs:
           path: downloaded-core
           digest-mismatch: error
       - name: Retrieve this run's bounded compiler/test diagnostics
+        if: inputs.qualify_existing_journal_reader != true
         id: command_logs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -421,6 +481,7 @@ jobs:
           path: downloaded-logs
           digest-mismatch: error
       - name: Retrieve this run's bounded native harness diagnostics
+        if: inputs.qualify_existing_journal_reader != true
         id: native_logs
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -429,6 +490,7 @@ jobs:
           path: downloaded-native-logs
           digest-mismatch: error
       - name: Retrieve this run's separate owned MSI qualification facts
+        if: inputs.qualify_existing_journal_reader != true
         id: msi_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -437,6 +499,7 @@ jobs:
           path: downloaded-msi
           digest-mismatch: error
       - name: Retrieve this run's separate component-store status facts
+        if: inputs.qualify_existing_journal_reader != true
         id: component_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -445,6 +508,7 @@ jobs:
           path: downloaded-component-store
           digest-mismatch: error
       - name: Retrieve this run's separate fresh component-store scan facts
+        if: inputs.qualify_existing_journal_reader != true
         id: scan_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -453,6 +517,7 @@ jobs:
           path: downloaded-component-scan
           digest-mismatch: error
       - name: Retrieve this run's published MadClean update-query facts
+        if: inputs.qualify_existing_journal_reader != true
         id: published_app_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -461,6 +526,7 @@ jobs:
           path: downloaded-published-app
           digest-mismatch: error
       - name: Retrieve this run's separate SFC client lifecycle facts
+        if: inputs.qualify_existing_journal_reader != true
         id: sfc_client_evidence
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -469,6 +535,7 @@ jobs:
           path: downloaded-sfc-client
           digest-mismatch: error
       - name: Retrieve this run's separate local observations and SDK references
+        if: inputs.qualify_existing_journal_reader != true
         id: local_observations
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -477,6 +544,7 @@ jobs:
           path: downloaded-local
           digest-mismatch: error
       - name: Validate and publish only fixed, source-bound development evidence
+        if: inputs.qualify_existing_journal_reader != true
         env:
           MADCLEAN_LOCAL_OBSERVATION_DOWNLOAD_RESULT: ${{ steps.local_observations.outcome }}
           MADCLEAN_SFC_CLIENT_RESULT: ${{ needs.windows-sfc-client.result }}
@@ -531,3 +599,20 @@ jobs:
           --sfc-client-result "$MADCLEAN_SFC_CLIENT_RESULT"
           --local-observation-reports downloaded-local
           --local-observation-download-result "$MADCLEAN_LOCAL_OBSERVATION_DOWNLOAD_RESULT"
+      - name: Retrieve only this run's isolated reader qualification artifact
+        if: inputs.qualify_existing_journal_reader == true
+        uses: actions/download-artifact@v8
+        with:
+          name: MadClean-existing-journal-reader-qualification-${{ github.run_attempt }}
+          path: downloaded-existing-reader
+          digest-mismatch: error
+      - name: Publish only fixed existing-reader facts without replacing ordinary verification
+        if: inputs.qualify_existing_journal_reader == true
+        env:
+          MADCLEAN_EXISTING_READER_QUALIFICATION: '1'
+        run: >-
+          python3 source/tools/publish_existing_reader_qualification.py
+          --verification-checkout verification
+          --report downloaded-existing-reader/existing-journal-reader-qualification/report.json
+          --fallback-report downloaded-existing-reader/existing-journal-reader-qualification/report-timeout.json
+          --push

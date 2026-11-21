@@ -16,6 +16,10 @@ internal static class Program
             Console.Error.WriteLine("Unsupported: this harness requires Windows and WPF; no platform checks ran.");
             return 2;
         }
+        // Dedicated manually selected existing-only reader fixture. Mixed arguments
+        // refuse before the default smoke path; the leaf enforces its own exact CI scope.
+        if (args.Contains("--existing-journal-reader-qualification", StringComparer.Ordinal))
+            return args.Length == 1 ? ExistingJournalReaderQualification.Run() : 2;
         // Explicit local neutral UI observation, independent of disposable CI qualification.
         if (args.Length == 1 && args[0] == "--local-ui-validation")
             return LocalUiValidation.Run();

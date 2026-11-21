@@ -1,5 +1,7 @@
 # Closed modern journal sample contract
 
+Later scoped exception: the separately reviewed [existing-only fixture implementation](EXISTING-READER-QUALIFICATION.md) adds a default-off manual candidate entry and separate read-only bridge. Ordinary/fresh/Nt/production guards stay closed. Its Windows execution is still unverified; historical no-hook checkpoints below remain source-specific.
+
 This is a source-development dependency for the existing repair workflow. It is not production namespace provisioning, restart recovery, an authorized repair, or a new user feature. Keep the independent modern candidate gate false, the older relative NtCreateFile gate false, and all action gates unchanged. No App, command-line or CI execution hook is part of this source slice. Compile-only SDK assertions are separate.
 
 ## Supported evidence and limits
