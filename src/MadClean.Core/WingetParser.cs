@@ -18,7 +18,9 @@ public static partial class WingetParser
     public static WingetParseObservation ParseObserved(string output)
     {
         bool recognizedHeader = false;
-        var lines = output.Replace("\r", "").Split('\n');
+        // Normalize Windows line endings without joining fragments separated by a
+        // standalone carriage return. Such control characters invalidate table rows.
+        var lines = output.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         for (int i = 0; i + 1 < lines.Length; i++)
         {
             var header = lines[i];
@@ -29,7 +31,8 @@ public static partial class WingetParser
             // as its header. Headers are single words; do not assume two-space separators.
             if (!KnownLayout(names)) continue;
             recognizedHeader = true;
-            if (!Separator().IsMatch(lines[i + 1].Trim())) continue;
+            var separator = lines[i + 1];
+            if (separator.Contains('\r') || !Separator().IsMatch(separator.Trim())) continue;
             List<AppUpdate> apps = [];
             for (int row = i + 2; row < lines.Length; row++)
             {

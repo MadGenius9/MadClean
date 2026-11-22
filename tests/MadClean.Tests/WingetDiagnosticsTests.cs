@@ -19,6 +19,26 @@ public sealed class WingetDiagnosticsTests
     }
 
     [Fact]
+    public void WindowsLineEndingsPreserveTheInstalledAndOfferedVersions()
+    {
+        var result = WingetParser.Parse((Header + Row() + "\n").Replace("\n", "\r\n"));
+        var package = Assert.Single(result.Items);
+        Assert.Equal(CheckState.Available, package.Status);
+        Assert.Equal("Example.App", package.Id);
+        Assert.Equal("1.0", package.InstalledVersion);
+        Assert.Equal("2.0", package.AvailableVersion);
+    }
+
+    [Fact]
+    public void CarriageReturnWithinATableRowCannotJoinSeparateOutputFragments()
+    {
+        var observed = WingetParser.ParseObserved(Header + Row().Replace("Example.App", "Example.\rApp"));
+        Assert.Equal(CheckState.Unknown, observed.Result.State);
+        Assert.Empty(observed.Result.Items);
+        Assert.Equal(WingetParseIssue.UnsupportedDisplayCharacters, observed.Issue);
+    }
+
+    [Fact]
     public void AChangedSeparatorCannotBecomeAnEmptySuccessfulInventory()
     {
         var observed = WingetParser.ParseObserved(Header.Replace("---", "===") + Row());
