@@ -1,52 +1,52 @@
 {
   "formatVersion": 1,
   "sourceRef": "refs/heads/recovery/validated-20261112",
-  "sourceCommit": "cf5810514a0dcad550efc66e72de9bffa76d1d92",
-  "runId": "44201567805",
+  "sourceCommit": "388a16b9ec7ee946c0a5aba618d8a1ac736ac35e",
+  "runId": "44976128151",
   "runAttempt": 1,
-  "buildResult": "success",
-  "verificationResult": "failure",
-  "scopedObservationArtifactOutcome": "success",
+  "buildResult": "failure",
+  "verificationResult": "skipped",
+  "scopedObservationArtifactOutcome": "failure",
   "scopedObservations": {
     "localRepairReview": {
-      "present": true,
-      "reportedState": "passed",
-      "originalReportSha256": "af8d992980426933f635920f24e0ce4e3e291ad0f6054a7572646cfb9dfc4678",
+      "present": false,
+      "reportedState": null,
+      "originalReportSha256": null,
       "error": null
     },
     "localUpdateHistory": {
-      "present": true,
-      "reportedState": "passed",
-      "originalReportSha256": "960cde54b2be215c988ff2d1ea566284bc4984430234680a8f3a3cf3236d5c0d",
+      "present": false,
+      "reportedState": null,
+      "originalReportSha256": null,
       "error": null
     },
     "sdkJournalReference": {
-      "present": true,
-      "reportedState": "reference-only",
-      "originalReportSha256": "6eab89b86052a3a71935fc35e04389f3b9b88d937e3c8be7ac9c945ada7624ad",
+      "present": false,
+      "reportedState": null,
+      "originalReportSha256": null,
       "error": null
     }
   },
   "passed": false,
-  "updatedUtc": "2026-11-17T23:48:02.795267+00:00",
+  "updatedUtc": "2026-11-22T02:29:17.383635+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
-  "reportPresent": true,
-  "coreTestsPresent": true,
-  "reportArtifactOutcome": "success",
-  "coreArtifactOutcome": "success",
+  "reportPresent": false,
+  "coreTestsPresent": false,
+  "reportArtifactOutcome": "failure",
+  "coreArtifactOutcome": "failure",
   "stageOutcomes": {
     "sdk": "success",
     "restore": "success",
     "build": "success",
-    "publisher-tests": "success",
-    "core-tests": "success",
+    "publisher-tests": "failure",
+    "core-tests": "skipped",
     "publish": "skipped"
   },
   "logArtifactOutcome": "success",
   "diagnosticsPresent": true,
   "diagnosticsError": null,
-  "nativeLogArtifactOutcome": "success",
-  "nativeDiagnosticsPresent": true,
+  "nativeLogArtifactOutcome": "failure",
+  "nativeDiagnosticsPresent": false,
   "nativeDiagnosticsError": null,
   "componentStoreStatusScope": "Separate explicit disposable-runner recorded-flag check; Windows-managed DISM log/archive writes, no fresh scan or repair.",
   "componentStoreStatusResult": "skipped",
@@ -81,82 +81,5 @@
   "msiRequestQualified": false,
   "msiRequestPublicUiQualified": false,
   "msiRequestError": null,
-  "images": [
-    {
-      "name": "overview-wide.png",
-      "sha256": "f3b1af287ad867ba687dbc606f8bc4defe4ce39b8ba7e7456de9fd8a6f360aaf"
-    },
-    {
-      "name": "overview-compact.png",
-      "sha256": "755941ecbff74bf1031f987b973bd56fce8d345b7b06f3fd9346ed62db9a7629"
-    },
-    {
-      "name": "tool-28.png",
-      "sha256": "dd12f215940051eb6723f66f8ddc3439824daa81dadf82ea48c88046a03c1b85"
-    },
-    {
-      "name": "tool-18.png",
-      "sha256": "21e1c64855ed243ec9108bad4b231a5abe654f010fb480a2046b8935c886917f"
-    },
-    {
-      "name": "tool-20.png",
-      "sha256": "b6d8ac2601728f164e46863deeba19c371a9d6e8e7595ceb24384bdca1643c13"
-    },
-    {
-      "name": "tool-21.png",
-      "sha256": "cbd1a5439f97ebae71a8da6b4cb00225dac5f3a7788f5bc588004d007ee10a85"
-    },
-    {
-      "name": "tool-19.png",
-      "sha256": "4735dadabfed026424347acbf7e333e3ddcb6fd8080e5b2902c95624fe43ee89"
-    },
-    {
-      "name": "tool-11.png",
-      "sha256": "bffe3e83dc2cbfb6aac9470ef4a580bf625939c774c62692c9e1ae8145eb07b8"
-    },
-    {
-      "name": "tool-12.png",
-      "sha256": "e4e90ba8e864a0bbcb38e9082fc382273f22d8ac25f191b74057b90626eddbee"
-    },
-    {
-      "name": "tool-22.png",
-      "sha256": "8d1758efc830b5254b57550d54a86aa6ecf415e020d21bce573b0078febf67e2"
-    },
-    {
-      "name": "tool-27.png",
-      "sha256": "5ec40eaf6be65741db0a2fb4522e378f2e7c54d8fa5b7d805a3da591c77c52a1"
-    },
-    {
-      "name": "tool-26.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-13.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-23.png",
-      "sha256": "9bc1216e06bb63ee3d5fe1eba95acd08cb51da0793a597319c07d27d5e302523"
-    },
-    {
-      "name": "tool-25.png",
-      "sha256": "79aa62d1bf359157a7c5f3b80d2b10ad34700b929db7b157c2413e4569bb5369"
-    },
-    {
-      "name": "tool-14.png",
-      "sha256": "dd638de84364f9edaa0ca24dd37e4b4f3f07296f469d43137e8f44bc44c90c56"
-    },
-    {
-      "name": "tool-15.png",
-      "sha256": "b7dedd05d9a35c4174f65ccd78b040ae1676daea9c8d191d3b2a812614993178"
-    },
-    {
-      "name": "tool-16.png",
-      "sha256": "c3113ea1cd489b000e1e2eb320b6081176314dd01205cb25aea84464aa81af3d"
-    },
-    {
-      "name": "tool-17.png",
-      "sha256": "3d7624b98f001e083f24ac633c5feb3c599d59bfe707c5f9b4f7c37b647e9efe"
-    }
-  ]
+  "images": []
 }
