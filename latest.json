@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "sourceRef": "refs/heads/recovery/validated-20261112",
-  "sourceCommit": "e7b3109bd7cb4b096b426159a08a0a938c3959f4",
-  "runId": "44991059939",
+  "sourceCommit": "838d2eb541342132e047818003e549686d30fa12",
+  "runId": "45063017053",
   "runAttempt": 1,
   "buildResult": "success",
   "verificationResult": "failure",
@@ -11,24 +11,24 @@
     "localRepairReview": {
       "present": true,
       "reportedState": "passed",
-      "originalReportSha256": "7b2c188b3c35f1de21bd4c396008af0088218b5aaca85ba2aad0513399e59244",
+      "originalReportSha256": "503ea1efcdc2d2f2909b6ebd7932e039221664a532b47d7d8fc255e32666b45f",
       "error": null
     },
     "localUpdateHistory": {
       "present": true,
       "reportedState": "passed",
-      "originalReportSha256": "0c85d472a5bf2586fcd63cb7d7b0124526b7653c4f4522e028de8d98c01f5b8c",
+      "originalReportSha256": "aab9f558720b95cdfc2b96888e0ee1a72129da5cd12faeba80057cbf9ec09f9a",
       "error": null
     },
     "sdkJournalReference": {
       "present": true,
       "reportedState": "reference-only",
-      "originalReportSha256": "6b1b715b09f520b499283620868dcc7071f571320291d13043d652e784a61ff5",
+      "originalReportSha256": "fcc39971666d1c6c50e755b80803b5ff046d7b79b6602938d69bdc2e3c1c6ec0",
       "error": null
     }
   },
   "passed": false,
-  "updatedUtc": "2026-11-22T05:56:42.749452+00:00",
+  "updatedUtc": "2026-11-22T19:56:13.874718+00:00",
   "scope": "Passive WPF/native report scope only: no servicing, installation, real startup changes or personal-PC actions. Separate optional inert MSI qualification is reported independently.",
   "reportPresent": true,
   "coreTestsPresent": true,
