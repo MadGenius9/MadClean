@@ -78,3 +78,11 @@ The Security page also exposes an explicit **Check folder scope** action. It reu
 A successful observation stays Partial. It covers the path and observed attributes at the time of the check and grants no authority to dispatch. The opened chain does not establish Defender's later path resolution or the contents of any descendant directory. Submission still requires a separate command provenance and directory binding contract.
 
 Local Release build passed without warnings or errors and Core passed 2,762 cases with one Windows-only skip. The selected-folder check itself requires Windows validation on controlled local paths.
+
+## Candidate inbox command profile
+
+The fixed metadata probe uses the existing verified Windows PowerShell executable lease. It also holds the checked inbox Defender directory chain and manifest handle until the child settles. A fresh noninteractive host imports that exact manifest with automatic module loading disabled. It checks for one exported Start-MpScan function bound to the imported module and one parameter set with the documented string ScanPath and enum CustomScan option without other mandatory parameters. The probe passes no path, scan parameter value or provider text across its output protocol. It invokes no scan command.
+
+The documented ScanPath/ScanType declarations and the PowerShell 5.1 Get-Command -All/-ListImported parameter set were rechecked against Microsoft's published sources. The actual generated function's module reference and parameter metadata remain Windows observations to collect. The manifest lease does not verify the provenance of every imported dependency. A positive marker therefore describes the observed profile only and cannot authorize dispatch. The App and CI have no call site for this candidate. The next qualification should record whether actual inbox module import, function binding and parameter inspection survive the restricted host profile, on a disposable Windows runner with no scan invocation.
+
+Locked restore and Release build passed with zero warnings or errors. Core passed 2,770 tests with one Windows-only skip, including eight new marker validation cases. An independent review completed. The candidate has not run on Windows.
