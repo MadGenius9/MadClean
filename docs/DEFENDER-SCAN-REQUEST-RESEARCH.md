@@ -62,3 +62,13 @@ The coordinating task successfully reviewed the current public Microsoft documen
 - [On-demand scan documentation](https://learn.microsoft.com/en-us/defender-endpoint/run-scan-microsoft-defender-antivirus), updated September 16, 2026, confirms supported MpCmdRun, Start-MpScan and MSFT_MpScan.Start entry points. Supporting an entry point does not supply complete permissions, provenance, request identity, cancellation or result semantics for an implementation.
 
 Scan execution remains unimplemented/gated. The next contract can now specify an explicit custom-only request profile and the documented command/result limits, but must still establish executable provenance, exact selected scope/protection, output privacy, real client/engine lifecycle and Windows qualification. No scan, setting change, malware fixture, personal-PC action or release permission is created by this documentation review.
+
+## First implementation checkpoint
+
+Security now offers an in-memory custom scan scope review. The folder picker accepts one ordinary drive-qualified folder below the root. The displayed folder is a path selection. Drive type, existence and access at submission time, and redirect/reparse checks require an actual Windows admission step. The review explains possible effects under the user's existing Defender policy and can be cleared at any time outside a busy operation.
+
+The portable request controller retains one admitted client in progress. It requires the exact current draft reference at confirmation, claims each admitted draft once, and refuses another submission while the client is pending. After admission it awaits the client through caller cancellation. An ambiguous client fault becomes Unknown. A returned command result covers submission only. The controller has controlled-client tests and the App has no scan client or dispatch control.
+
+The next code dependency is an inbox Start-MpScan adapter with actual directory revalidation and verified module/command provenance. It must retain the host until settlement and prove any Rejected result was refused before submission. Windows validation of that adapter requires a separately scoped benign owned folder. Event correlation, a clean verdict and engine cancellation remain outside this request-only milestone. The documented Start-MpScan limitations above still apply.
+
+Local validation used locked .NET 10.0.403 dependencies. Release compiled with zero warnings and errors. Core passed 2,762 cases with one Windows-only skip, including ten new scope, admission and lifetime cases. Windows UI and native command behavior remain unverified.
