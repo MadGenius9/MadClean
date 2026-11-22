@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -170,6 +171,40 @@ class ExistingReaderPublisherTests(unittest.TestCase):
         nested.mkdir()
         self.unchanged(lambda: p.publish(nested, self.input, environment=self.env))
         self.assertFalse((nested / p.TARGET).exists())
+
+    def test_distinct_git_reported_root_is_refused_before_publication(self):
+        original_git = p._git
+
+        def git_with_different_root(root, *arguments):
+            if arguments == ("rev-parse", "--show-toplevel"):
+                return str(self.input.parent)
+            return original_git(root, *arguments)
+
+        with patch.object(p, "_git", side_effect=git_with_different_root):
+            self.unchanged(lambda: p.publish(self.root, self.input, environment=self.env))
+        self.assertFalse((self.root / p.TARGET).exists())
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows 8.3 alias support")
+    def test_short_checkout_alias_preserves_root_and_report_containment(self):
+        import ctypes
+        buffer = ctypes.create_unicode_buffer(32768)
+        get_short = ctypes.windll.kernel32.GetShortPathNameW
+        get_short.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint]
+        get_short.restype = ctypes.c_uint
+        size = get_short(str(self.root), buffer, len(buffer))
+        if not size or size >= len(buffer) or Path(buffer.value) == self.root:
+            self.skipTest("Filesystem did not provide a distinct 8.3 alias")
+
+        alias = Path(buffer.value)
+        inside = self.root / "inside.json"
+        inside.write_bytes(self.input.read_bytes())
+        self.git("add", "--", "inside.json")
+        self.commit("Owned report-location fixture")
+        with self.assertRaisesRegex(p.PublicationError, "^report-inside-checkout$"):
+            p.publish(alias, inside, environment=self.env)
+        result = p.publish(alias, self.input, environment=self.env)
+        self.assertTrue(result["changed"])
+        self.assertEqual(self.data, json.loads((self.root / p.TARGET).read_text()))
 
     def test_report_inside_checkout_and_unexpected_origin_are_refused(self):
         inside = self.root / "inside.json"

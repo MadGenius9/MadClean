@@ -51,15 +51,19 @@ def context(source, run, attempt):
 
 def render_summary(latest, report, *, source, run, attempt):
     expected = context(source, run, attempt)
-    for data, version in ((latest, 1), (report, 7)):
-        require(type(data) is dict and type(data.get("formatVersion")) is int and data["formatVersion"] == version)
-        require(context(data.get("sourceCommit"), data.get("runId"), data.get("runAttempt")) == expected)
-        require(type(data.get("passed")) is bool)
+    validate_document(latest, 1, expected)
     require(type(latest.get("buildResult")) is str and latest["buildResult"] in RESULTS)
     require(type(latest.get("verificationResult")) is str and latest["verificationResult"] in RESULTS)
     stages = latest.get("stageOutcomes")
     require(type(stages) is dict)
     require(all(type(stages.get(key)) is str and stages[key] in RESULTS for key, _ in STAGES))
+    if report is None:
+        require(latest.get("reportPresent") is False and not latest["passed"])
+        return with_scope_notice(summary_lines(
+            "Windows qualification report unavailable", latest, stages) +
+            ["Windows check counts are unavailable."])
+    require(latest.get("reportPresent") is not False)
+    validate_document(report, 7, expected)
     checks = report.get("checks")
     require(type(checks) is list and 0 < len(checks) <= 200)
     counts = dict.fromkeys(CHECK_STATES, 0)
@@ -83,14 +87,27 @@ def render_summary(latest, report, *, source, run, attempt):
         heading = "Build and unit-test stages passed; overall Windows qualification is not established"
     else:
         heading = "Build and unit-test stages have not all passed; Windows qualification is not established"
+    lines = summary_lines(heading, latest, stages)
+    lines.append(f"Windows checks: {counts['passed']} passed, {counts['inconclusive']} inconclusive, "
+                 f"{counts['failed']} failed.")
+    return with_scope_notice(lines)
+
+
+def with_scope_notice(lines):
+    return "\n".join(lines + ["", "This display does not change CI status or execution gates and is not release approval."])
+
+
+def validate_document(data, version, expected):
+    require(type(data) is dict and type(data.get("formatVersion")) is int and data["formatVersion"] == version)
+    require(context(data.get("sourceCommit"), data.get("runId"), data.get("runAttempt")) == expected)
+    require(type(data.get("passed")) is bool)
+
+
+def summary_lines(heading, latest, stages):
     lines = ["## " + heading, "", "| Stage | Outcome |", "| --- | --- |"]
     lines.extend("| " + label + " | " + stages[key] + " |" for key, label in STAGES)
-    lines.extend(("| Windows qualification job | " + latest["verificationResult"] + " |", "",
-                  "Windows checks: " + str(counts["passed"]) + " passed, " + str(counts["inconclusive"]) +
-                  " inconclusive, " + str(counts["failed"]) + " failed.", "",
-                  "Inconclusive checks are not build failures and do not establish a pass.",
-                  "This display does not change CI status or execution gates and is not release approval."))
-    return "\n".join(lines)
+    lines.extend(("| Windows qualification job | " + latest["verificationResult"] + " |", ""))
+    return lines
 
 
 class FixedErrorParser(argparse.ArgumentParser):
@@ -107,7 +124,13 @@ def main(argv=None):
         parser.add_argument("--run", required=True)
         parser.add_argument("--attempt", required=True, type=int)
         args = parser.parse_args(argv)
-        text = render_summary(read_json(args.latest), read_json(args.report),
+        latest = read_json(args.latest)
+        try:
+            report = read_json(args.report)
+            require(report is not None)
+        except FileNotFoundError:
+            report = None
+        text = render_summary(latest, report,
                               source=args.source, run=args.run, attempt=args.attempt)
     except (OSError, ValueError, TypeError, RecursionError, OverflowError):
         print(UNAVAILABLE)

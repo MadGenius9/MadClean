@@ -113,6 +113,40 @@ class CiReadinessSummaryTests(unittest.TestCase):
             self.assertEqual(2, code)
             self.assertEqual(r.UNAVAILABLE + "\n", output.getvalue())
 
+    def test_cli_shows_failed_stage_when_published_report_is_absent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            latest_path, report_path = Path(folder) / "latest.json", Path(folder) / "report.json"
+            latest, _ = evidence()
+            latest.update(buildResult="failure", verificationResult="skipped", reportPresent=False)
+            latest["stageOutcomes"].update({"publisher-tests": "failure", "core-tests": "skipped", "publish": "skipped"})
+            latest_path.write_text(json.dumps(latest), encoding="utf-8")
+            args = ["--latest", str(latest_path), "--report", str(report_path), "--source", CONTEXT["source"],
+                    "--run", CONTEXT["run"], "--attempt", "1"]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = r.main(args)
+            self.assertEqual(0, code)
+            self.assertIn("| Build | success |", output.getvalue())
+            self.assertIn("| Publisher tests | failure |", output.getvalue())
+            self.assertIn("| Windows qualification job | skipped |", output.getvalue())
+            self.assertIn("Windows check counts are unavailable.", output.getvalue())
+
+            report_path.write_text("null", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = r.main(args)
+            self.assertEqual(2, code)
+            self.assertEqual(r.UNAVAILABLE + "\n", output.getvalue())
+            report_path.unlink()
+
+            latest["reportPresent"] = True
+            latest_path.write_text(json.dumps(latest), encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = r.main(args)
+            self.assertEqual(2, code)
+            self.assertEqual(r.UNAVAILABLE + "\n", output.getvalue())
+
     def test_input_limits_malformed_json_and_missing_paths_refuse(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "report.json"

@@ -85,7 +85,10 @@ def validate_checkout(path):
     root = safe_path(path)
     require(root.is_dir(), "not-checkout-directory")
     require(safe_path(root / ".git").is_dir(), "not-normal-checkout")
-    require(safe_path(_git(root, "rev-parse", "--show-toplevel")) == root, "wrong-checkout-root")
+    # Git for Windows can expand a short directory name in its reported path.
+    # Check both ancestor chains before comparing their filesystem identities.
+    reported_root = safe_path(_git(root, "rev-parse", "--show-toplevel"))
+    require(root.samefile(reported_root), "wrong-checkout-root")
     require(_git(root, "symbolic-ref", "--short", "HEAD") == BRANCH, "wrong-checkout-branch")
     require(_git(root, "remote", "get-url", "origin").rstrip("/") in {
         f"https://github.com/{REPOSITORY}", f"https://github.com/{REPOSITORY}.git"
@@ -130,7 +133,7 @@ def publish(verification_checkout, report_path, *, environment=None, push=False,
     payload = (json.dumps(report, indent=2, sort_keys=True, ensure_ascii=True, allow_nan=False) + "\n").encode("utf-8")
     require(len(payload) <= MAX_REPORT_BYTES, "serialized-report-bound")
     root = validate_checkout(verification_checkout)
-    require(not report_path.is_relative_to(root), "report-inside-checkout")
+    require(not any(parent.samefile(root) for parent in report_path.parents), "report-inside-checkout")
     target = root / TARGET
     if target.exists() or target.is_symlink():
         target = safe_path(target)
