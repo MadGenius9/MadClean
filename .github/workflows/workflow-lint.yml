@@ -1,0 +1,29 @@
+name: Workflow syntax
+on:
+  push:
+    branches: [main, feat/phase-one-foundation, recovery/validated-20261112]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  workflow-syntax:
+    name: Validate GitHub Actions expressions and structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download and verify pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir="$RUNNER_TEMP/madclean-actionlint-1.7.7"
+          mkdir -p "$tool_dir"
+          curl -fsSL --max-time 30 -o "$tool_dir/archive.tar.gz" https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  $tool_dir/archive.tar.gz" | sha256sum --check --strict
+          tar -xzf "$tool_dir/archive.tar.gz" -C "$tool_dir" actionlint
+      - name: Check every workflow without running its commands
+        shell: bash
+        run: '"$RUNNER_TEMP/madclean-actionlint-1.7.7/actionlint" -shellcheck= -pyflakes='

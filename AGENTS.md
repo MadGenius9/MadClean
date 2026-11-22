@@ -18,6 +18,8 @@ dotnet test tests/MadClean.Tests -c Release --no-build
 
 Windows run/package commands are in README.md. On this cloud machine the SDK is `/workspace/.dotnet/dotnet`; set `DOTNET_CLI_HOME=/workspace/.dotnet-home` and `NUGET_PACKAGES=/workspace/.nuget/packages`. .NET runtime IPC may require execution outside the filesystem sandbox. Do not disable TLS, package signatures, artifact verification or assertions to make builds pass.
 
+When editing GitHub workflows, validate GitHub Actions expressions and structure with pinned actionlint 1.7.7 as well as any YAML parsing. YAML-only parsing does not validate `${{ ... }}` expressions. The separate Workflow syntax job verifies the published archive SHA-256 before running that linter, with shellcheck/pyflakes integrations disabled; its success establishes syntax only. CI summaries must keep build/unit stages separate from incomplete or failed Windows qualification and never modify native statuses or readiness gates.
+
 ## Safety invariants
 
 - Selected WinGet catalog metadata must share the existing SDK provider and process-wide owner with discovery. Preserve exact current-reference/snapshot selection, fresh unique ID and installed/offered-version/source revalidation, authentication None, agreement acceptance false and no source fallback. Use only contract-6 GetCatalogPackageMetadata's four bounded plain-text fields; never installed GetMetadata/raw uninstall fields, URLs, assets or installation APIs. Selection/snapshot generations discard late results; caller stop must retain native ownership and App busy/close protection until actual settlement. Prior discovery evidence does not qualify this route. Keep online metadata qualification separate from the passive harness. See docs/APP-PACKAGE-METADATA.md.

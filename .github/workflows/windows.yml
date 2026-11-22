@@ -27,6 +27,7 @@ permissions:
   contents: read
 jobs:
   build-test-package:
+    name: Build and unit tests
     runs-on: windows-latest
     timeout-minutes: 20
     outputs:
@@ -109,6 +110,7 @@ jobs:
           retention-days: 14
 
   windows-verification:
+    name: Windows runtime qualification
     needs: build-test-package
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.qualify_existing_journal_reader == true) }}
     runs-on: windows-latest
@@ -200,6 +202,7 @@ jobs:
           retention-days: 14
 
   windows-existing-journal-reader:
+    name: Owned existing-only reader qualification (manual)
     needs: build-test-package
     if: >-
       ${{ success() && github.repository == 'MadGenius9/MadClean' &&
@@ -429,6 +432,7 @@ jobs:
           retention-days: 14
 
   publish-verification:
+    name: Publish qualification evidence and summary
     needs: [build-test-package, windows-verification, windows-existing-journal-reader, windows-msi-request, windows-component-store-status, windows-component-store-scan, windows-app-update-published, windows-sfc-client]
     if: >-
       ${{ always() && github.repository == 'MadGenius9/MadClean' &&
@@ -436,7 +440,7 @@ jobs:
            github.ref == 'refs/heads/recovery/validated-20261112') &&
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
           (inputs.qualify_existing_journal_reader != true ||
-           (github.ref == 'refs/heads/recovery/validated-20261112' && needs.build-test-package.result == 'success'))) }}
+           (github.ref == 'refs/heads/recovery/validated-20261112' && needs.build-test-package.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -616,3 +620,17 @@ jobs:
           --report downloaded-existing-reader/existing-journal-reader-qualification/report.json
           --fallback-report downloaded-existing-reader/existing-journal-reader-qualification/report-timeout.json
           --push
+      - name: Explain build stages separately from Windows qualification
+        if: ${{ always() && inputs.qualify_existing_journal_reader != true }}
+        env:
+          SUMMARY_SOURCE: ${{ github.sha }}
+          SUMMARY_RUN: ${{ github.run_id }}
+          SUMMARY_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          python3 source/tools/write_ci_readiness_summary.py
+          --latest verification/latest.json
+          --report verification/report.json
+          --source "$SUMMARY_SOURCE"
+          --run "$SUMMARY_RUN"
+          --attempt "$SUMMARY_ATTEMPT"
+          >> "$GITHUB_STEP_SUMMARY"
