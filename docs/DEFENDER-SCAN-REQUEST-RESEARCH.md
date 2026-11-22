@@ -72,3 +72,9 @@ The portable request controller retains one admitted client in progress. It requ
 The next code dependency is an inbox Start-MpScan adapter with actual directory revalidation and verified module/command provenance. It must retain the host until settlement and prove any Rejected result was refused before submission. Windows validation of that adapter requires a separately scoped benign owned folder. Event correlation, a clean verdict and engine cancellation remain outside this request-only milestone. The documented Start-MpScan limitations above still apply.
 
 Local validation used locked .NET 10.0.403 dependencies. Release compiled with zero warnings and errors. Core passed 2,762 cases with one Windows-only skip, including ten new scope, admission and lifetime cases. Windows UI and native command behavior remain unverified.
+
+The Security page also exposes an explicit **Check folder scope** action. It reuses the fixed-drive, no-follow directory handle walk from system-tool identity verification, including its attribute and final-path checks. The worker holds one chain until the observation settles and closes it in reverse order. It opens metadata handles to the chosen directory and each ancestor. It enumerates no children, reads no file bodies and invokes no Defender command. Cancellation is observed around the synchronous handle walk, so normal close and a new check wait for the worker.
+
+A successful observation stays Partial. It covers the path and observed attributes at the time of the check and grants no authority to dispatch. The opened chain does not establish Defender's later path resolution or the contents of any descendant directory. Submission still requires a separate command provenance and directory binding contract.
+
+Local Release build passed without warnings or errors and Core passed 2,762 cases with one Windows-only skip. The selected-folder check itself requires Windows validation on controlled local paths.

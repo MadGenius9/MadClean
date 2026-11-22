@@ -30,6 +30,12 @@ public partial class MainWindow : Window
                 model.ExplainWindowsUpdateHistoryCloseBlock();
                 return;
             }
+            if (model.HasPendingDefenderCustomScanScope)
+            {
+                args.Cancel = true;
+                model.ExplainDefenderCustomScanScopeCloseBlock();
+                return;
+            }
             if (model.HasPendingDefenderLifecycleRead)
             {
                 args.Cancel = true;
