@@ -1,10 +1,10 @@
 {
   "formatVersion": 7,
-  "sourceCommit": "56f567d3a2fd17fd6c8274cfd5aca58840489ad3",
-  "runId": "44988926847",
+  "sourceCommit": "087c6420d0eb18db937a05eaa3cfeaf09d706d37",
+  "runId": "44989332610",
   "runAttempt": 1,
-  "startedUtc": "2026-11-22T05:24:35.4681822+00:00",
-  "completedUtc": "2026-11-22T05:24:52.3515388+00:00",
+  "startedUtc": "2026-11-22T05:30:38.66238+00:00",
+  "completedUtc": "2026-11-22T05:31:00.1200148+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -216,7 +216,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 10 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=21; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -286,7 +286,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=66; nameAvailable=17; descriptionAvailable=63; providerAvailable=63; installedVersionAvailable=63; driverDateAvailable=63; hardwareIdListAvailable=62; compatibleIdListAvailable=40; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=66; nameAvailable=18; descriptionAvailable=63; providerAvailable=63; installedVersionAvailable=63; driverDateAvailable=63; hardwareIdListAvailable=62; compatibleIdListAvailable=39; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
