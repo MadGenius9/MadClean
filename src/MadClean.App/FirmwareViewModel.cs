@@ -175,21 +175,28 @@ public sealed partial class MainViewModel
     }
     private void ResetUpdateCategoryResults()
     {
-        BeginDriverOffersQuery(DateTimeOffset.UtcNow);
-        WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
+        var attempted = DateTimeOffset.UtcNow;
+        BeginDriverOffersQuery(attempted);
+        FirmwareOfferTime = attempted.ToLocalTime().ToString("g");
+        ClearUpdateCategoryRows();
         DriverOffersMessage = FirmwareOffersMessage = WindowsSoftwareMessage = "Checking the configured Windows Update service…";
     }
     private void PublishUpdateCategories(CheckResult<SystemUpdate> result)
     {
         PublishDriverOffersQuery(result, DateTimeOffset.UtcNow);
-        WindowsSoftwareRows.Clear(); DriverOfferRows.Clear(); FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
+        ClearUpdateCategoryRows();
+        if (result.State is not (CheckState.Available or CheckState.Partial))
+        {
+            DriverOffersMessage = WindowsSoftwareMessage = Stamp(result.State, result.Message);
+            FirmwareOffersMessage = DriverOffersMessage + " BIOS update availability remains Unknown.";
+            return;
+        }
         foreach (var offer in result.Items)
         {
             if (offer.Kind == "Firmware") FirmwareOffers.Add(offer);
             else if (offer.Kind == "Driver") DriverOfferRows.Add(new(offer.Title, $"{offer.Identity} · class {offer.DriverClass} · package date {offer.PackageDate}", "Windows Update offer; installed/available version Unknown"));
             else WindowsSoftwareRows.Add(new(offer.Title, offer.Identity, offer.Kind + " · configured Windows Update service"));
         }
-        FirmwareOfferTime = DateTimeOffset.Now.ToString("g");
         int unclassified = result.Items.Count(o => o.Kind == "Unknown" || o.Kind == "Driver" && o.DriverClass == "Unknown");
         WindowsSoftwareMessage = Stamp(result.State, $"{WindowsSoftwareRows.Count} software/unclassified offers returned. {result.Message}");
         DriverOffersMessage = Stamp(result.State, $"{DriverOfferRows.Count} non-firmware or class-unknown driver offers returned. Installed/available driver versions are not verified here. Manufacturer driver catalogs: Unsupported.");
@@ -198,11 +205,18 @@ public sealed partial class MainViewModel
     }
     private void MarkUpdateCategoryFailure(string error)
     {
-        FirmwareOffers.Clear(); SelectedFirmwareOffer = null;
+        SystemRows.Clear();
+        ClearUpdateCategoryRows();
         InterruptDriverOffersQuery(DateTimeOffset.UtcNow);
-        FirmwareOfferTime = DateTimeOffset.Now.ToString("g");
         DriverOffersMessage = WindowsSoftwareMessage = error;
         FirmwareOffersMessage = error + " BIOS update coverage and available version remain Unknown.";
+    }
+    private void ClearUpdateCategoryRows()
+    {
+        WindowsSoftwareRows.Clear();
+        DriverOfferRows.Clear();
+        FirmwareOffers.Clear();
+        SelectedFirmwareOffer = null;
     }
     private void OpenFirmwareGuide(bool precautions)
     {

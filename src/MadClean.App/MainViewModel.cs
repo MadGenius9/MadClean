@@ -225,9 +225,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }, text => { InterruptAppUpdateOffersQuery(DateTimeOffset.UtcNow); InterruptStructuredAppUpdateCheck(text); AppsMessage = text; });
     private async Task LoadSystem(CancellationToken token) => await Guard(ActivityArea.SystemUpdates, async () =>
     {
-        var result = await inventory.SystemUpdatesAsync(token); token.ThrowIfCancellationRequested();
+        var response = await inventory.SystemUpdatesAsync(token); token.ThrowIfCancellationRequested();
+        var result = WindowsUpdateOfferSnapshot.Accept(response);
         foreach (var u in result.Items) SystemRows.Add(new(u.Title, u.Identity, $"{u.Kind} · offered · reboot flag {u.RebootRequired}"));
-        SystemMessage = Stamp(result.State, result.Message + $" {result.Items.Count} offered updates returned."); PublishUpdateCategories(result); Event(ActivityArea.SystemUpdates, Outcome(result.State));
+        SystemMessage = Stamp(result.State, result.State is CheckState.Available or CheckState.Partial
+            ? result.Message + $" {result.Items.Count} offered updates returned."
+            : result.Message);
+        PublishUpdateCategories(result);
+        Event(ActivityArea.SystemUpdates, Outcome(result.State));
     }, text => { SystemMessage = text; MarkUpdateCategoryFailure(text); });
 
     private async Task Guard(ActivityArea area, Func<Task> action, Action<string> markFailure)
