@@ -704,7 +704,7 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual('inconclusive', next(check for check in published['checks'] if check['name'] == 'ui-hardware-inventory-interaction')['state'])
 
     def test_standard_report_versions_are_closed_and_strictly_integer(self):
-        for value in (0, 8, True, '7', 7.0, None):
+        for value in (0, 9, True, '7', 7.0, None):
             with self.subTest(version=value):
                 self.report['formatVersion'] = value
                 self.save(); self.rejected()
@@ -740,6 +740,35 @@ class PublisherTests(unittest.TestCase):
         _, summary, files = self.prepare()
         self.assertFalse(summary['passed'])
         self.assertEqual('inconclusive', next(check for check in json.loads(files['report.json'])['checks'] if check['name'] == 'app-package-metadata-public-ui-contract')['state'])
+
+    def test_v8_requires_fixed_defender_profile_evidence_for_a_pass(self):
+        self.report['formatVersion'] = 8
+        for name in ('structured-winget-discovery-contract', 'structured-winget-published-query-contract',
+                     'app-update-public-ui-contract', 'ui-sfc-preview-interaction',
+                     'ui-hardware-inventory-interaction', 'app-package-metadata-public-ui-contract'):
+            self.report['checks'].append({'name': name, 'state': 'passed', 'detail': 'TEST-ONLY earlier proof'})
+        self.save()
+        self.rejected()
+        profile = {'name': 'defender-custom-command-profile', 'state': 'passed', 'detail': 'profile=Unavailable'}
+        self.report['checks'].append(profile)
+        self.save()
+        self.rejected()
+
+        profile['detail'] = 'profile=ProfileObserved'
+        self.save()
+        _, summary, _ = self.prepare()
+        self.assertTrue(summary['passed'])
+
+        profile.update(state='inconclusive', detail='profile=ModuleNotAccepted')
+        self.report.update(passed=False, state='inconclusive')
+        self.save()
+        _, summary, files = self.prepare()
+        self.assertFalse(summary['passed'])
+        self.assertIn(profile, json.loads(files['report.json'])['checks'])
+
+        profile['detail'] = 'private provider output'
+        self.save()
+        self.rejected()
 
     def test_passed_report_requires_same_query_winget_observation(self):
         self.report['checks'] = [check for check in self.report['checks'] if check['name'] != 'winget-query-observation-contract']

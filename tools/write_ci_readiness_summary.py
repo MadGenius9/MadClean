@@ -51,7 +51,7 @@ def context(source, run, attempt):
 
 def render_summary(latest, report, *, source, run, attempt):
     expected = context(source, run, attempt)
-    validate_document(latest, 1, expected)
+    validate_document(latest, (1,), expected)
     require(type(latest.get("buildResult")) is str and latest["buildResult"] in RESULTS)
     require(type(latest.get("verificationResult")) is str and latest["verificationResult"] in RESULTS)
     stages = latest.get("stageOutcomes")
@@ -63,7 +63,7 @@ def render_summary(latest, report, *, source, run, attempt):
             "Windows qualification report unavailable", latest, stages) +
             ["Windows check counts are unavailable."])
     require(latest.get("reportPresent") is not False)
-    validate_document(report, 7, expected)
+    validate_document(report, (7, 8), expected)
     checks = report.get("checks")
     require(type(checks) is list and 0 < len(checks) <= 200)
     counts = dict.fromkeys(CHECK_STATES, 0)
@@ -97,8 +97,8 @@ def with_scope_notice(lines):
     return "\n".join(lines + ["", "This display does not change CI status or execution gates and is not release approval."])
 
 
-def validate_document(data, version, expected):
-    require(type(data) is dict and type(data.get("formatVersion")) is int and data["formatVersion"] == version)
+def validate_document(data, versions, expected):
+    require(type(data) is dict and type(data.get("formatVersion")) is int and data["formatVersion"] in versions)
     require(context(data.get("sourceCommit"), data.get("runId"), data.get("runAttempt")) == expected)
     require(type(data.get("passed")) is bool)
 

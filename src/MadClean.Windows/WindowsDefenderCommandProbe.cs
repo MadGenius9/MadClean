@@ -5,7 +5,7 @@ using MadClean.Core;
 namespace MadClean.Windows;
 
 /// <summary>
-/// Candidate metadata-only probe. It never calls Start-MpScan and is not wired to the App or CI.
+/// Metadata-only probe for the disposable validation harness. It never calls Start-MpScan.
 /// </summary>
 internal static class WindowsDefenderCommandProbe
 {

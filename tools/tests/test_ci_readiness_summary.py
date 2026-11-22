@@ -31,6 +31,13 @@ class CiReadinessSummaryTests(unittest.TestCase):
         self.assertIn("90 passed, 10 inconclusive, 0 failed", text)
         self.assertIn("not release approval", text)
 
+    def test_current_report_version_can_display_inconclusive_profile_evidence(self):
+        latest, report = evidence()
+        report["formatVersion"] = 8
+        report["checks"][-1]["name"] = "defender-custom-command-profile"
+        text = r.render_summary(latest, report, **CONTEXT)
+        self.assertIn("90 passed, 10 inconclusive, 0 failed", text)
+
     def test_context_cannot_be_borrowed_from_another_run_source_or_attempt(self):
         for document in (0, 1):
             for field, value in (("sourceCommit", "b" * 40), ("runId", "101"), ("runAttempt", 2), ("runAttempt", True)):

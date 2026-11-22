@@ -86,3 +86,11 @@ The fixed metadata probe uses the existing verified Windows PowerShell executabl
 The documented ScanPath/ScanType declarations and the PowerShell 5.1 Get-Command -All/-ListImported parameter set were rechecked against Microsoft's published sources. The actual generated function's module reference and parameter metadata remain Windows observations to collect. The manifest lease does not verify the provenance of every imported dependency. A positive marker therefore describes the observed profile only and cannot authorize dispatch. The App and CI have no call site for this candidate. The next qualification should record whether actual inbox module import, function binding and parameter inspection survive the restricted host profile, on a disposable Windows runner with no scan invocation.
 
 Locked restore and Release build passed with zero warnings or errors. Core passed 2,770 tests with one Windows-only skip, including eight new marker validation cases. An independent review completed. The candidate has not run on Windows.
+
+## Hosted command profile observation
+
+The ordinary disposable GitHub Windows harness now observes the fixed command profile after its existing Defender status read. It awaits the actual probe worker and the worker's host and handle cleanup. The harness deadline can record an incomplete result while the worker is held. The check runs only in the hosted Windows validation job and supplies no target folder or scan invocation.
+
+Version 8 of the validation report requires a separate `defender-custom-command-profile` entry for an overall pass. A positive result has the fixed marker `profile=ProfileObserved`. Known rejection stages, missing or unrecognized evidence, and cancellation are inconclusive. The publisher accepts only the fixed markers and retains the earlier report versions. This check exports no paths, command definition, provider output or detection data. It cannot establish permissions, descendant folder behavior, scan ownership or submission readiness.
+
+Local validation of the hosted integration passed. The Release build had zero warnings or errors. Core passed 2,770 tests with one Windows-only skip. The Python evidence suite passed 413 tests with two Windows-only skips. The independent review found no blocking issue. A hosted run is still needed to determine the inbox module's actual result.

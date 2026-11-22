@@ -162,7 +162,7 @@ def validate_report(download, context):
         return None, {}
     report = read_json(path, 262_144)
     fields = {"formatVersion", "sourceCommit", "runId", "runAttempt", "startedUtc", "completedUtc", "passed", "state", "checks", "screenshots", "limits"}
-    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3, 4, 5, 6, 7}, "report-schema")
+    reject_unless(isinstance(report, dict) and set(report) == fields and type(report.get("formatVersion")) is int and report["formatVersion"] in {1, 2, 3, 4, 5, 6, 7, 8}, "report-schema")
     times = []
     for field in ("startedUtc", "completedUtc"):
         value = report[field]
@@ -183,6 +183,15 @@ def validate_report(download, context):
         reject_unless(isinstance(name, str) and re.fullmatch(r"[a-z0-9-]{1,80}", name) is not None and name not in names, "check-name")
         names.add(name)
         reject_unless(isinstance(state, str) and state in {"passed", "failed", "inconclusive"} and isinstance(detail, str) and len(detail) <= 1000, "check-state")
+    if report["formatVersion"] >= 8:
+        profile = next((check for check in checks if check["name"] == "defender-custom-command-profile"), None)
+        if profile is not None:
+            outcome = (profile["state"], profile["detail"])
+            reject_unless(outcome == ("passed", "profile=ProfileObserved") or (
+                outcome[0] == "inconclusive" and outcome[1] in {
+                    "profile=NotRun", "profile=Cancelled", "profile=Unavailable", "profile=Unknown",
+                    "profile=ModuleNotAccepted", "profile=CommandNotAccepted", "profile=CustomParametersNotAccepted"
+                }), "defender-command-profile")
     computed = "failed" if any(c["state"] == "failed" for c in checks) else "inconclusive" if any(c["state"] == "inconclusive" for c in checks) else "passed"
     reject_unless(type(report.get("passed")) is bool and report["passed"] == (computed == "passed") and report.get("state") == computed, "contradictory-report")
     if report["passed"]:
@@ -197,6 +206,8 @@ def validate_report(download, context):
             required |= {"ui-hardware-inventory-interaction"}
         if report["formatVersion"] >= 7:
             required |= {"app-package-metadata-public-ui-contract"}
+        if report["formatVersion"] >= 8:
+            required |= {"defender-custom-command-profile"}
         reject_unless(required <= names, "missing-required-check")
     images = report.get("screenshots")
     reject_unless(isinstance(images, list) and len(images) <= 32, "report-images")
