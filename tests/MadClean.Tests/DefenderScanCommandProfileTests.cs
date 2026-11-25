@@ -27,6 +27,9 @@ public sealed class DefenderScanCommandProfileTests
     [Theory]
     [InlineData("module", DefenderScanCommandObservation.ModuleNotAccepted)]
     [InlineData("command", DefenderScanCommandObservation.CommandNotAccepted)]
+    [InlineData("lookup", DefenderScanCommandObservation.CommandLookupNotAccepted)]
+    [InlineData("shape", DefenderScanCommandObservation.CommandShapeNotAccepted)]
+    [InlineData("binding", DefenderScanCommandObservation.CommandBindingNotAccepted)]
     [InlineData("parameters", DefenderScanCommandObservation.CustomParametersNotAccepted)]
     public void ACompletedProbePreservesWhichPrerequisiteWasNotAccepted(string marker,
         DefenderScanCommandObservation expected) =>

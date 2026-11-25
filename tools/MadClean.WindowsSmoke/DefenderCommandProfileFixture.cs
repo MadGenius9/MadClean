@@ -31,6 +31,9 @@ internal static partial class NativeFixtures
                     DefenderScanCommandObservation.Unavailable => "Unavailable",
                     DefenderScanCommandObservation.ModuleNotAccepted => "ModuleNotAccepted",
                     DefenderScanCommandObservation.CommandNotAccepted => "CommandNotAccepted",
+                    DefenderScanCommandObservation.CommandLookupNotAccepted => "CommandLookupNotAccepted",
+                    DefenderScanCommandObservation.CommandShapeNotAccepted => "CommandShapeNotAccepted",
+                    DefenderScanCommandObservation.CommandBindingNotAccepted => "CommandBindingNotAccepted",
                     DefenderScanCommandObservation.CustomParametersNotAccepted => "CustomParametersNotAccepted",
                     _ => "Unknown"
                 }));

@@ -8,7 +8,10 @@ public enum DefenderScanCommandObservation
     CommandNotAccepted,
     CustomParametersNotAccepted,
     ProfileObserved,
-    Unknown
+    Unknown,
+    CommandLookupNotAccepted,
+    CommandShapeNotAccepted,
+    CommandBindingNotAccepted
 }
 
 public static class DefenderScanCommandProfile
@@ -24,6 +27,9 @@ public static class DefenderScanCommandProfile
         {
             "MadClean.DefenderProfile/1:module" => DefenderScanCommandObservation.ModuleNotAccepted,
             "MadClean.DefenderProfile/1:command" => DefenderScanCommandObservation.CommandNotAccepted,
+            "MadClean.DefenderProfile/1:lookup" => DefenderScanCommandObservation.CommandLookupNotAccepted,
+            "MadClean.DefenderProfile/1:shape" => DefenderScanCommandObservation.CommandShapeNotAccepted,
+            "MadClean.DefenderProfile/1:binding" => DefenderScanCommandObservation.CommandBindingNotAccepted,
             "MadClean.DefenderProfile/1:parameters" => DefenderScanCommandObservation.CustomParametersNotAccepted,
             "MadClean.DefenderProfile/1:observed" => DefenderScanCommandObservation.ProfileObserved,
             _ => DefenderScanCommandObservation.Unknown

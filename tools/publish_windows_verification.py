@@ -190,7 +190,9 @@ def validate_report(download, context):
             reject_unless(outcome == ("passed", "profile=ProfileObserved") or (
                 outcome[0] == "inconclusive" and outcome[1] in {
                     "profile=NotRun", "profile=Cancelled", "profile=Unavailable", "profile=Unknown",
-                    "profile=ModuleNotAccepted", "profile=CommandNotAccepted", "profile=CustomParametersNotAccepted"
+                    "profile=ModuleNotAccepted", "profile=CommandNotAccepted", "profile=CustomParametersNotAccepted",
+                    "profile=CommandLookupNotAccepted", "profile=CommandShapeNotAccepted",
+                    "profile=CommandBindingNotAccepted"
                 }), "defender-command-profile")
     computed = "failed" if any(c["state"] == "failed" for c in checks) else "inconclusive" if any(c["state"] == "inconclusive" for c in checks) else "passed"
     reject_unless(type(report.get("passed")) is bool and report["passed"] == (computed == "passed") and report.get("state") == computed, "contradictory-report")

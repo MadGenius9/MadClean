@@ -71,15 +71,21 @@ internal static class WindowsDefenderCommandProbe
           }
         } catch { Report 'module'; exit 0 }
         try {
-          $commands = @(Microsoft.PowerShell.Core\Get-Command -Name 'Defender\Start-MpScan' -All -ListImported -ErrorAction Stop)
-          if ($commands.Count -ne 1 -or $commands[0] -isnot [Management.Automation.FunctionInfo] -or
-              -not [object]::ReferenceEquals($commands[0].Module, $loaded[0]) -or
-              -not $loaded[0].ExportedFunctions.ContainsKey('Start-MpScan')) {
-            Report 'command'; exit 0
-          }
-        } catch { Report 'command'; exit 0 }
+          $commands = @(Microsoft.PowerShell.Core\Get-Command -Name 'Start-MpScan' -Module 'Defender' -All -ListImported -ErrorAction Stop)
+        } catch { Report 'lookup'; exit 0 }
+        if ($commands.Count -ne 1) { Report 'lookup'; exit 0 }
+        $command = $commands[0]
+        if ($command -isnot [Management.Automation.FunctionInfo] -or $command.Name -cne 'Start-MpScan') {
+          Report 'shape'; exit 0
+        }
         try {
-          foreach ($set in $commands[0].ParameterSets) {
+          if (-not [object]::ReferenceEquals($command.Module, $loaded[0]) -or
+              -not $loaded[0].ExportedFunctions.ContainsKey('Start-MpScan')) {
+            Report 'binding'; exit 0
+          }
+        } catch { Report 'binding'; exit 0 }
+        try {
+          foreach ($set in $command.ParameterSets) {
             $path = $null
             $type = $null
             $otherMandatory = $false

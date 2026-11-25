@@ -766,6 +766,14 @@ class PublisherTests(unittest.TestCase):
         self.assertFalse(summary['passed'])
         self.assertIn(profile, json.loads(files['report.json'])['checks'])
 
+        for marker in ('CommandLookupNotAccepted', 'CommandShapeNotAccepted', 'CommandBindingNotAccepted'):
+            with self.subTest(marker=marker):
+                profile.update(state='inconclusive', detail='profile=' + marker)
+                self.save()
+                _, summary, files = self.prepare()
+                self.assertFalse(summary['passed'])
+                self.assertIn(profile, json.loads(files['report.json'])['checks'])
+
         profile['detail'] = 'private provider output'
         self.save()
         self.rejected()
