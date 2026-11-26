@@ -1,8 +1,8 @@
-# First home test — Sunday, November 8
+# First home test
 
 This checklist covers the read-only desktop workflows on your own Windows 11 x64 PC, using your normal account. It does not require running MadClean as administrator. The full roadmap is unfinished. A hosted runner's successful check does not establish that your PC's providers, display scaling or policies behave the same way.
 
-Development is currently local only: no GitHub pushes, uploads or Actions runs. Use the exact source/build being reviewed; previous CI artifacts do not contain later local changes. No new distribution ZIP is being prepared. Build/run instructions are in [README](../README.md#build-and-run); this checklist does not authorize installing SDKs or other software automatically.
+Use the current recovery branch and record its commit. If you already have the required .NET SDK, build and run MadClean using the commands in the [README](../README.md#build-and-run). CI screenshots and diagnostic artifacts are evidence from the runner. A distribution ZIP is pending.
 
 ## Start and display
 
@@ -48,6 +48,12 @@ Optionally, after app discovery returns an Available offer, select it and choose
 1. Choose the update check yourself. Review Apps, Drivers and BIOS/Firmware separately. Available, Partial, Unknown, Unsupported, Unavailable and Failed must remain distinct. Unchecked/unmapped software must never be marked up to date.
 2. Try cancellation. Optionally retry while offline using your usual network controls; restore connectivity afterward. Offline or private-source access must yield honest uncertainty, without credentials being requested or embedded by MadClean.
 3. **MadClean updates** must say **Update checking not configured** when no trusted release source is configured. Choose **Use trusted GitHub source for this session**: status should become **Not checked**, with no automatic query. Try **Disable for this session** and **Use deployment setting**; comparisons/notes/reminders should reset on a changed choice, and the original loaded configuration/error should return. Only **Check MadClean updates** should query. A private source or no published release may legitimately be Unavailable. There should be no automatic download, installation, restart or external scheduled reminder.
+
+## Defender folder review
+
+In **Security → Custom scan review**, choose a new empty folder you made for the test. Verify the displayed path, then choose **Check folder scope**. On a supported fixed local drive, a completed check should show Partial with a description of the folder and parent checks. An unavailable result should explain what to check. Use **Clear selection** and confirm that the old path and result disappear. Scan submission should read unavailable throughout.
+
+If something differs, note the commit, page, control, and visible status. Leave out personal paths and detection details.
 
 ## Keep the first test observational
 

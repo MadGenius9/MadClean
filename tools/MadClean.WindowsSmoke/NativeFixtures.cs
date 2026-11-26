@@ -113,6 +113,7 @@ internal static partial class NativeFixtures
             StorageInspectionEvidence(report, token);
             DefenderStatus(report, token);
             DefenderCommandProfile(report, token);
+            ObserveDefenderRequestTransport(report, token);
             var registrations = InstalledRegistrations(report, token);
             MsiRegistrations(registrations, report, token);
             if (new WindowsMsiActionBindingInventory().HasPendingNativeRead)

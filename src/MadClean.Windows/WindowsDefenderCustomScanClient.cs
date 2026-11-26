@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text;
 using MadClean.Core;
 using Microsoft.Win32.SafeHandles;
 
@@ -28,9 +26,6 @@ internal sealed class WindowsDefenderCustomScanClient : IDefenderCustomScanClien
         private SystemToolTrustedLease? host;
         private List<SafeFileHandle>? targetDirectories, moduleDirectories;
         private SafeFileHandle? manifest;
-        private Process? process;
-        private Task<string?>? stdout, stderr;
-        private Task<bool>? sent;
 
         internal async Task<DefenderScanSubmission> RunAsync()
         {
@@ -45,29 +40,11 @@ internal sealed class WindowsDefenderCustomScanClient : IDefenderCustomScanClien
                 SystemToolTrustNative.ValidateAttributes(manifest, directory: false);
                 SystemToolTrustNative.ValidateFinalPath(manifest, manifestPath);
 
-                var info = CreateStartInfo(host);
-                string input = DefenderScanHostProtocol.EncodeFolderInput(draft);
                 targetDirectories = SystemToolTrustNative.LockDirectoryChain(draft.Folder);
-
-                process = new Process { StartInfo = info };
                 startAttempted = true;
-                if (!process.Start())
-                {
-                    settled = true;
-                    return DefenderScanSubmission.Rejected;
-                }
-
-                // Start both drains before sending input. Keep observing the actual client
-                // without a kill deadline or a caller cancellation token.
-                stdout = DrainAsync(process, standardOutput: true);
-                stderr = DrainAsync(process, standardOutput: false);
-                sent = SendAsync(process, input);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                await Task.WhenAll(stdout, stderr, sent).ConfigureAwait(false);
+                var result = await DefenderRequestTransport.SubmitAsync(host, draft).ConfigureAwait(false);
                 settled = true;
-                return sent.Result && stdout.Result != null && stderr.Result != null
-                    ? DefenderScanHostProtocol.Interpret(new(process.ExitCode, stdout.Result))
-                    : DefenderScanSubmission.Unknown;
+                return result == null ? DefenderScanSubmission.Unknown : DefenderScanHostProtocol.Interpret(result);
             }
             catch (Exception)
             {
@@ -90,7 +67,6 @@ internal sealed class WindowsDefenderCustomScanClient : IDefenderCustomScanClien
                 return false;
             try
             {
-                process?.Dispose();
                 Release(targetDirectories);
                 manifest?.Dispose();
                 Release(moduleDirectories);
@@ -98,61 +74,6 @@ internal sealed class WindowsDefenderCustomScanClient : IDefenderCustomScanClien
                 return true;
             }
             catch (Exception) { return false; }
-        }
-
-        private static ProcessStartInfo CreateStartInfo(SystemToolTrustedLease lease)
-        {
-            var info = new ProcessStartInfo(lease.ToolPath)
-            {
-                WorkingDirectory = lease.SystemDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardInputEncoding = new UTF8Encoding(false, true)
-            };
-            foreach (var argument in new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", DefenderScanRequestHost.EncodedSource })
-                info.ArgumentList.Add(argument);
-            info.Environment.Clear();
-            string windows = Path.GetDirectoryName(lease.SystemDirectory)!;
-            info.Environment["SystemRoot"] = windows;
-            info.Environment["windir"] = windows;
-            info.Environment["PATH"] = lease.SystemDirectory;
-            return info;
-        }
-
-        private static async Task<bool> SendAsync(Process child, string input)
-        {
-            try
-            {
-                using var stream = child.StandardInput;
-                await stream.WriteAsync(input).ConfigureAwait(false);
-                return true;
-            }
-            catch (Exception) { return false; }
-        }
-
-        private static async Task<string?> DrainAsync(Process child, bool standardOutput)
-        {
-            char[] buffer = new char[256];
-            try
-            {
-                var stream = standardOutput ? child.StandardOutput : child.StandardError;
-                var text = new StringBuilder();
-                bool exceeded = false;
-                int count;
-                while ((count = await stream.ReadAsync(buffer.AsMemory()).ConfigureAwait(false)) != 0)
-                {
-                    if (!standardOutput) { exceeded = true; continue; }
-                    if (exceeded) continue;
-                    if (text.Length + count <= 64) text.Append(buffer, 0, count);
-                    else { exceeded = true; text.Clear(); }
-                }
-                return exceeded ? null : text.ToString();
-            }
-            catch (Exception) { return null; }
-            finally { Array.Clear(buffer); }
         }
 
         private static void Release(List<SafeFileHandle>? handles)

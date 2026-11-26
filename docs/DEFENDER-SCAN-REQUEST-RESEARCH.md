@@ -122,3 +122,11 @@ The Windows parent candidate uses the fixed trusted PowerShell executable and ho
 The execution gate is false before any platform, path or process access. A held folder chain is a fresh point-in-time directory check. It does not prove Defender opens the same object, freeze all attribute writes, or qualify descendants. Before activation, the adapter needs owned Windows process and pipe fault tests, precise folder binding and policy disclosure, and separately scoped submission qualification. No scan was dispatched.
 
 Final local Release build passed with zero warnings or errors using one MSBuild worker after a parallel worker exit. Core passed 2,780 tests with one Windows-only skip. Independent review confirmed the revised pending-ownership behavior. These checks did not execute the candidate.
+
+## Inert Windows transport fixture
+
+The dormant scan client and a hosted fixture share the redirected PowerShell transport. The fixture leases the trusted inbox executable and runs a separate fixed script that reads a fixed token through stdin, writes a fixed marker and exits. The script imports no module, accepts no path or caller-supplied source, and invokes no Defender command. A positive check requires a successful exit, delivery of the token and completed input/output streams. The smoke report records `defender-inert-request-transport` separately from the existing module-profile observation. The watchdog can record a deadline while the fixture still owns its client.
+
+This exercise covers the clean process/pipe path only. Ambiguous Start, wait failures, leftover workers, and the actual scan host remain unqualified. The Defender scan execution gate remains closed. The first personal Windows test remains a normal-account folder review. See [the home checklist](HOME-TEST-CHECKLIST.md#defender-folder-review).
+
+Locked restore and the local Release solution build passed with zero warnings or errors. Core passed 2,780 tests with one Windows-only skip. Independent source review found no blocking issue. The inert fixture requires a hosted Windows run for its first runtime result.
