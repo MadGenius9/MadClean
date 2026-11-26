@@ -1,10 +1,10 @@
 {
   "formatVersion": 8,
-  "sourceCommit": "29a038c3f30869475e886aa8cf41dd2301078b4a",
-  "runId": "45886104049",
+  "sourceCommit": "19b088d1185ed279243c17fd119ce0f43958669b",
+  "runId": "45888358426",
   "runAttempt": 1,
-  "startedUtc": "2026-11-26T19:54:25.2422759+00:00",
-  "completedUtc": "2026-11-26T19:54:45.570393+00:00",
+  "startedUtc": "2026-11-26T20:10:23.6831376+00:00",
+  "completedUtc": "2026-11-26T20:10:48.5912352+00:00",
   "passed": false,
   "state": "inconclusive",
   "checks": [
@@ -66,7 +66,7 @@
     {
       "name": "ui-installed-app-search",
       "state": "passed",
-      "detail": "Actual loadedRegistrationCount=60; positiveMatchCount=1; textboxBindingVerified=true; clearRestoresLoadedRows=true; hiddenSelectionCleared=true; fullInventoryAndBaselineUnchanged=true; noExtraActivity=true. One explicit bounded CI ARP refresh supplied real metadata; filtering started no further query/action. No screenshots were taken after metadata loading, and no names, publishers, query text, identities or provider output are exported. Coverage remains the original inventory state; no-match is not absence proof."
+      "detail": "Actual loadedRegistrationCount=59; positiveMatchCount=1; textboxBindingVerified=true; clearRestoresLoadedRows=true; hiddenSelectionCleared=true; fullInventoryAndBaselineUnchanged=true; noExtraActivity=true. One explicit bounded CI ARP refresh supplied real metadata; filtering started no further query/action. No screenshots were taken after metadata loading, and no names, publishers, query text, identities or provider output are exported. Coverage remains the original inventory state; no-match is not absence proof."
     },
     {
       "name": "ui-packaged-app-search",
@@ -131,7 +131,7 @@
     {
       "name": "ui-device-driver-inventory-interaction",
       "state": "passed",
-      "detail": "observedRows=66; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
+      "detail": "observedRows=62; actualInstalledVersionSelection=True; fieldStatesAndSourcesVerified=True; identifierStatesAndCountsVerified=True; selectionClearVerified=True; originalRowsRetained=True; noExtraQueryActivity=True; separateWuaOffersUnchanged=True; querySettled=True. One explicit actual production button invocation supplied real SetupAPI metadata. No device names, values, identities, timestamps, raw errors or loaded-data screenshots exported; no update, install, elevation or restart occurred. Cancellation/hot-plug and physical keyboard behavior remain unverified."
     },
     {
       "name": "ui-sfc-preview-interaction",
@@ -216,7 +216,7 @@
     {
       "name": "diagnostics-metadata-contract",
       "state": "passed",
-      "detail": "A real local metadata query returned state Available, 10 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=22; repeatedGroupCount=6. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
+      "detail": "A real local metadata query returned state Available, 8 grouped observation(s) and 4 coverage note(s). recurrenceSummaryVerified=true; observedRecordCount=17; repeatedGroupCount=5. No raw event messages/payloads, providers or record references are stored here; records are not unique crashes and zero observations is not a healthy verdict."
     },
     {
       "name": "storage-inspection-evidence-contract",
@@ -249,9 +249,19 @@
       "detail": "The inert child received the fixed input and closed its streams and process. No Defender module was loaded by the child."
     },
     {
+      "name": "defender-request-script-syntax",
+      "state": "passed",
+      "detail": "The actual fixed request script parsed without errors. It was not evaluated."
+    },
+    {
+      "name": "defender-request-transport-stderr",
+      "state": "passed",
+      "detail": "The inert success marker was rejected when standard error was present."
+    },
+    {
       "name": "installed-registration-contract",
       "state": "passed",
-      "detail": "Registration state=Partial; itemCount=60; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed."
+      "detail": "Registration state=Partial; itemCount=59; fixedSourceProvenanceVerified=true; projectedSchemaValid=true; preCancellationObserved=true; pendingWorker=false; actualMetadataVerified=true. This proves only the returned real registration metadata contract. Partial coverage remains incomplete; portable/unregistered/packaged applications may be absent. Null mechanism/restriction evidence stays unknown; registration hints never grant removal eligibility. No names, IDs/product codes, paths, times, flag values or provider messages exported; no uninstall strings read, ARP writes, action plans, handoffs or uninstall performed."
     },
     {
       "name": "msi-registration-contract",
@@ -296,7 +306,7 @@
     {
       "name": "device-driver-properties-contract",
       "state": "passed",
-      "detail": "SourceState=Partial; observedRows=66; nameAvailable=17; descriptionAvailable=63; providerAvailable=63; installedVersionAvailable=63; driverDateAvailable=63; hardwareIdListAvailable=62; compatibleIdListAvailable=40; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
+      "detail": "SourceState=Partial; observedRows=62; nameAvailable=17; descriptionAvailable=59; providerAvailable=59; installedVersionAvailable=59; driverDateAvailable=59; hardwareIdListAvailable=59; compatibleIdListAvailable=36; schemaQualified=True; cleanupConfirmed=True. ActualMetadataVerified=True. Real local present-device SetupAPI property projection returned at least one installed INF version; native ownership settled. Available ID-list counts describe accepted field projection only, including valid empty lists; they do not qualify offer correspondence. INF metadata is not a loaded-binary version, signature/trust, device health, install time or compatibility. No provider values, identities or timestamps exported; no installation or device change performed."
     },
     {
       "name": "startup-fixture-inventory",
@@ -481,12 +491,12 @@
     {
       "name": "published-executable-startup",
       "state": "passed",
-      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=56/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
+      "detail": "state=Observed; descriptor=True; lease=True; started=True; ownWindow=True; runtime=True/StaticSingleFileHost/observed; runtimeError=?; modules=57/yes/yes; fxr=no; policy=no; clr=no; jit=no; wpf=yes; apphost=yes; staticProfile=yes/Observed-Observed; overview=True/True/observed; overviewError=?; close=True; exited=yes; exit=0; cleanup=True; stage=published-neutral-startup-observed; nativeError=?. Own process only; no inventory actions, captures or distribution upload."
     },
     {
       "name": "update-discovery-provider-contract",
       "state": "inconclusive",
-      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=0/software=0/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
+      "detail": "WinGet task=Returned/state=Unknown/schema=True/rows=0/knownOfferFields=0/unknownDeterminations=0; WUA task=Returned/state=Available/schema=True/rows=1/software=1/drivers=0/firmware=0/unclassified=0; waitExpired=False. Read-only configured-source metadata only; zero offers is not up to date, task completion is not Windows-service completion, and package/source labels are not authenticity or action permission. Populated UI selection is not validated. No raw values, provider messages, source identifiers or captures exported."
     },
     {
       "name": "winget-query-observation-contract",
@@ -496,17 +506,17 @@
     {
       "name": "structured-winget-discovery-contract",
       "state": "passed",
-      "detail": "task=Returned; preCancellationVerified=True; schema=True; result=Partial; rows=69; availableRows=21; unknownRows=48; pendingNativeRead=False; stage=Completed; outcome=Partial; exceptionHResult=unobserved; sourceMatched=True; agreementsDisabled=True; authNone=True; connect=True; find=True; propertyFailures=0. Query completion does not prove data freshness or all software up to date."
+      "detail": "task=Returned; preCancellationVerified=True; schema=True; result=Partial; rows=68; availableRows=18; unknownRows=50; pendingNativeRead=False; stage=Completed; outcome=Partial; exceptionHResult=unobserved; sourceMatched=True; agreementsDisabled=True; authNone=True; connect=True; find=True; propertyFailures=0. Query completion does not prove data freshness or all software up to date."
     },
     {
       "name": "wua-offer-metadata-contract",
-      "state": "inconclusive",
-      "detail": "WUA source=Available; accepted=True; availableRows=0; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
+      "state": "passed",
+      "detail": "WUA source=Available; accepted=True; availableRows=1; partialRows=0; unknownRows=0. Actual optional provider metadata only; no values or identifiers exported. Software offers can qualify this shared projection; driver/firmware fields and populated selection require their own runtime coverage. Declarations are not compatibility, OEM prerequisites, elevation, installation or restart permission."
     },
     {
       "name": "app-update-public-ui-contract",
       "state": "passed",
-      "detail": "control=True; invoked=True; result=True/Partial; fresh=True; renderedCounts=True; settled=True; windowClosed=True; schema=True; rows=69/available=21/unknown=48; pending=False; stage=Completed; outcome=Partial. Actual app controls and returned WinGet observations only; no package identities, provider text or screenshots exported. Partial remains Partial; zero rows never means all software is up to date. No installation, source agreements or restart requested."
+      "detail": "control=True; invoked=True; result=True/Partial; fresh=True; renderedCounts=True; settled=True; windowClosed=True; schema=True; rows=68/available=18/unknown=50; pending=False; stage=Completed; outcome=Partial. Actual app controls and returned WinGet observations only; no package identities, provider text or screenshots exported. Partial remains Partial; zero rows never means all software is up to date. No installation, source agreements or restart requested."
     },
     {
       "name": "app-package-metadata-public-ui-contract",
