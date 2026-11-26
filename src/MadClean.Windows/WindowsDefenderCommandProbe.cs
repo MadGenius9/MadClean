@@ -56,13 +56,17 @@ internal static class WindowsDefenderCommandProbe
     }
 
     private const string Script = """
+        function Report([string]$state) { [Console]::WriteLine('MadClean.DefenderProfile/1:' + $state) }
+        function Complete-DefenderProfile($command) { Report 'observed' }
+        """ + "\n" + ProfileSelectionScript;
+
+    internal const string ProfileSelectionScript = """
         $ErrorActionPreference = 'Stop'
         $ProgressPreference = 'SilentlyContinue'
         $env:PSModulePath = [IO.Path]::Combine($PSHOME, 'Modules')
         $PSModuleAutoLoadingPreference = 'None'
         $folder = [IO.Path]::Combine($PSHOME, 'Modules', 'Defender')
         $manifest = [IO.Path]::Combine($folder, 'Defender.psd1')
-        function Report([string]$state) { [Console]::WriteLine('MadClean.DefenderProfile/1:' + $state) }
         try {
           $loaded = @(Microsoft.PowerShell.Core\Import-Module -Name $manifest -PassThru -ErrorAction Stop)
           if ($loaded.Count -ne 1 -or $loaded[0].Name -cne 'Defender' -or
@@ -84,6 +88,7 @@ internal static class WindowsDefenderCommandProbe
             Report 'binding'; exit 0
           }
         } catch { Report 'binding'; exit 0 }
+        $matchedProfile = $false
         try {
           foreach ($set in $command.ParameterSets) {
             $path = $null
@@ -97,10 +102,13 @@ internal static class WindowsDefenderCommandProbe
             if (-not $otherMandatory -and $null -ne $path -and $path.ParameterType -eq [string] -and
                 $null -ne $type -and $type.ParameterType.IsEnum -and
                 ([Enum]::GetNames($type.ParameterType) -ccontains 'CustomScan')) {
-              Report 'observed'; exit 0
+              $matchedProfile = $true
+              break
             }
           }
-        } catch { }
-        Report 'parameters'
+        } catch { Report 'parameters'; exit 0 }
+        if (-not $matchedProfile) { Report 'parameters'; exit 0 }
+        Complete-DefenderProfile $command
+        exit 0
         """;
 }
