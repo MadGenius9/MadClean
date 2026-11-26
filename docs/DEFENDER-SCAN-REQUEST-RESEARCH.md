@@ -112,3 +112,13 @@ The metadata selection now shares its fixed script with a separate request-host 
 Development checked PowerShell's public CommandInfo call-operator implementation. That source does not establish actual Windows PowerShell 5.1 request behavior. The candidate has no launch call site. A future parent must supply the exact confirmed draft, revalidate and hold its directory, establish trusted host/module binding, and own pipe and process lifetimes through actual settlement. It must not reuse the read-only process runner's kill-on-cancel behavior. Actual submission qualification still requires a separately scoped owned Windows fixture. The public scan button remains unavailable.
 
 Locked restore and Release build passed with zero warnings or errors. Core passed 2,780 tests with one Windows-only skip, including seven new path-transport and client-result cases. Independent source review found no blocking issue. The updated probe still needs a hosted regression run. The request script has not been parsed or invoked by Windows PowerShell in this checkpoint.
+
+## Disabled Windows parent client
+
+Run [45728717307](https://github.com/MadGenius9/MadClean/actions/runs/45728717307) at `90d5835` published `profile=ProfileObserved` again. Verification commit `8f6afa7` records 90 passed, 11 inconclusive and zero failed checks. The probe still exercises only metadata.
+
+The Windows parent candidate uses the fixed trusted PowerShell executable and holds the Defender manifest, its directory chain and a fresh no-follow handle chain for the chosen folder. It passes only the selected draft over standard input, drains both output streams with bounded retention, and awaits the actual process and pipe operations. Nonempty standard error prevents a positive outcome. A thrown launch or failed settlement observation leaves the request task pending and retains the session for process lifetime. This deliberate fail-closed branch needs a practical observation and user-facing ownership policy before public wiring.
+
+The execution gate is false before any platform, path or process access. A held folder chain is a fresh point-in-time directory check. It does not prove Defender opens the same object, freeze all attribute writes, or qualify descendants. Before activation, the adapter needs owned Windows process and pipe fault tests, precise folder binding and policy disclosure, and separately scoped submission qualification. No scan was dispatched.
+
+Final local Release build passed with zero warnings or errors using one MSBuild worker after a parallel worker exit. Core passed 2,780 tests with one Windows-only skip. Independent review confirmed the revised pending-ownership behavior. These checks did not execute the candidate.
