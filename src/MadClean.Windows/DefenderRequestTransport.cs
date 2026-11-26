@@ -7,20 +7,60 @@ namespace MadClean.Windows;
 // Used only with fixed application or fixture source. The caller holds its leases until return.
 internal static class DefenderRequestTransport
 {
-    internal static Task<ProcessResult?> SubmitAsync(SystemToolTrustedLease host, DefenderCustomScanDraft draft) =>
-        RunAsync(host, DefenderScanRequestHost.EncodedSource, DefenderScanHostProtocol.EncodeFolderInput(draft));
+    internal static async Task<ProcessResult?> SubmitAsync(SystemToolTrustedLease host, DefenderCustomScanDraft draft) =>
+        (await RunAsync(host, DefenderScanRequestHost.EncodedSource, DefenderScanHostProtocol.EncodeFolderInput(draft))
+            .ConfigureAwait(false))?.AcceptedResult;
 
-    internal static Task<ProcessResult?> ObserveInertFixtureAsync(SystemToolTrustedLease host)
+    internal static async Task<ProcessResult?> ObserveInertFixtureAsync(SystemToolTrustedLease host)
     {
         const string script = """
             $value = [Console]::In.ReadToEnd()
             if ($value -cne 'MadCleanInertFixture') { exit 1 }
             [Console]::WriteLine('MadClean.DefenderRequest/1:returned')
             """;
-        return RunAsync(host, Convert.ToBase64String(Encoding.Unicode.GetBytes(script)), "MadCleanInertFixture");
+        return (await RunAsync(host, Convert.ToBase64String(Encoding.Unicode.GetBytes(script)), "MadCleanInertFixture")
+            .ConfigureAwait(false))?.AcceptedResult;
     }
 
-    private static async Task<ProcessResult?> RunAsync(SystemToolTrustedLease host, string encodedSource, string input)
+    internal static async Task<ProcessResult?> ObserveRequestSyntaxFixtureAsync(SystemToolTrustedLease host)
+    {
+        const string script = """
+            try {
+              $encoded = [Console]::In.ReadToEnd()
+              $source = [Text.UnicodeEncoding]::new($false, $false, $true).GetString([Convert]::FromBase64String($encoded))
+              $tokens = $null
+              $errors = $null
+              [void][Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$errors)
+              if ($errors.Count -ne 0) { exit 1 }
+              [Console]::WriteLine('MadClean.DefenderSyntax/1:parsed')
+            } catch { exit 1 }
+            """;
+        // The child treats candidate source as parser input, never as an executable script block.
+        return (await RunAsync(host, Convert.ToBase64String(Encoding.Unicode.GetBytes(script)), DefenderScanRequestHost.EncodedSource)
+            .ConfigureAwait(false))?.AcceptedResult;
+    }
+
+    internal static async Task<bool> ObserveDiagnosticFixtureAsync(SystemToolTrustedLease host)
+    {
+        const string script = """
+            $value = [Console]::In.ReadToEnd()
+            if ($value -cne 'MadCleanInertFixture') { exit 1 }
+            [Console]::Error.WriteLine('Inert diagnostic')
+            [Console]::WriteLine('MadClean.DefenderRequest/1:returned')
+            """;
+        var observation = await RunAsync(host, Convert.ToBase64String(Encoding.Unicode.GetBytes(script)), "MadCleanInertFixture")
+            .ConfigureAwait(false);
+        return observation is { HasStandardError: true, AcceptedResult: null } &&
+            DefenderScanHostProtocol.Interpret(observation.Result) ==
+            DefenderScanSubmission.RequestReturnedWithoutCommandError;
+    }
+
+    private sealed record SettledClient(ProcessResult Result, bool HasStandardError)
+    {
+        internal ProcessResult? AcceptedResult => HasStandardError ? null : Result;
+    }
+
+    private static async Task<SettledClient?> RunAsync(SystemToolTrustedLease host, string encodedSource, string input)
     {
         var process = new Process { StartInfo = CreateStartInfo(host, encodedSource) };
         bool settled = false;
@@ -40,8 +80,9 @@ internal static class DefenderRequestTransport
             await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             await Task.WhenAll(stdout, stderr, sent).ConfigureAwait(false);
             settled = true;
-            return sent.Result && stdout.Result is { } marker && stderr.Result != null
-                ? new(process.ExitCode, marker) : null;
+            if (!sent.Result || stdout.Result is not { } marker || stderr.Result == null)
+                return null;
+            return new(new(process.ExitCode, marker), stderr.Result.Length != 0);
         }
         catch (Exception) { return null; }
         finally
@@ -101,19 +142,18 @@ internal static class DefenderRequestTransport
         {
             var stream = standardOutput ? child.StandardOutput : child.StandardError;
             var text = new StringBuilder();
-            bool exceeded = false;
+            bool exceeded = false, diagnosticSeen = false;
             int count;
             while ((count = await stream.ReadAsync(buffer.AsMemory()).ConfigureAwait(false)) != 0)
             {
-                if (!standardOutput) { exceeded = true; continue; }
+                if (!standardOutput) { diagnosticSeen = true; continue; }
                 if (exceeded) continue;
                 if (text.Length + count <= 64) text.Append(buffer, 0, count);
                 else { exceeded = true; text.Clear(); }
             }
-            return exceeded ? null : text.ToString();
+            return exceeded ? null : diagnosticSeen ? "present" : text.ToString();
         }
         catch (Exception) { return null; }
         finally { Array.Clear(buffer); }
     }
-
 }
